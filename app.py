@@ -1127,12 +1127,14 @@ def calcular_fator_k(sp: int, bugs: int, rigor: float = 1.5) -> float:
 
 
 def classificar_maturidade(fator_k: float, sp: int = 0, bugs: int = 0) -> Dict:
-    """Classifica maturidade baseado em critérios de qualidade.
+    """Classifica maturidade baseado no Fator K (FK).
     
-    Gold: SP >= 6 E bugs = 0 (entrega de alta complexidade sem defeitos)
-    Silver: SP >= 4 E bugs <= 1 (bom equilíbrio)  
-    Bronze: FK >= 1 (entrega funcional)
-    Risco: Demais casos
+    O Fator K é calculado como: FK = SP / (Bugs + 1)
+    
+    Gold: FK >= 3.0 (Excelente qualidade, código maduro)
+    Silver: FK >= 2.0 (Boa qualidade, dentro do esperado)  
+    Bronze: FK >= 1.0 (Regular, precisa de atenção)
+    Risco: FK < 1.0 (Crítico, requer intervenção imediata)
     """
     # Caso especial: sem Story Points
     if sp == 0:
@@ -1140,19 +1142,20 @@ def classificar_maturidade(fator_k: float, sp: int = 0, bugs: int = 0) -> Dict:
             return {"selo": "Sem SP", **MATURIDADE["Sem SP"]}
         return {"selo": "Risco", **MATURIDADE["Risco"]}
     
-    # GOLD: Entrega complexa (SP >= 6) sem bugs
-    if sp >= 6 and bugs == 0:
+    # Classificação baseada no Fator K
+    # GOLD: FK >= 3.0 (Excelente qualidade)
+    if fator_k >= 3.0:
         return {"selo": "Gold", **MATURIDADE["Gold"]}
     
-    # SILVER: Boa entrega (SP >= 4) com poucos bugs
-    if sp >= 4 and bugs <= 1:
+    # SILVER: FK >= 2.0 (Boa qualidade)
+    if fator_k >= 2.0:
         return {"selo": "Silver", **MATURIDADE["Silver"]}
     
-    # BRONZE: FK indica entrega positiva (mais SP que bugs)
+    # BRONZE: FK >= 1.0 (Regular)
     if fator_k >= 1.0:
         return {"selo": "Bronze", **MATURIDADE["Bronze"]}
     
-    # RISCO: Precisa atenção
+    # RISCO: FK < 1.0 (Crítico)
     return {"selo": "Risco", **MATURIDADE["Risco"]}
 
 
@@ -2776,7 +2779,7 @@ def aba_dev(df: pd.DataFrame):
                     dias = row['dias_em_status']
                     cor = '#ef4444' if dias > 3 else '#eab308' if dias > 1 else '#22c55e'
                     st.markdown(f"""
-                    <div style="padding: 8px; margin: 4px 0; border-left: 3px solid {cor}; background: #1e293b;">
+                    <div style="padding: 8px; margin: 4px 0; border-left: 3px solid {cor}; background: rgba(99, 102, 241, 0.1); border-radius: 4px;">
                         <strong><a href="{row['link']}" style="color: #60a5fa;">{row['ticket_id']}</a></strong> - {row['titulo'][:35]}...<br>
                         <small style="color: #94a3b8;">📅 {dias} dia(s) em CR | 👤 {row['desenvolvedor']}</small>
                     </div>
@@ -2823,7 +2826,7 @@ def aba_dev(df: pd.DataFrame):
             if not criticos_dev.empty:
                 for _, row in criticos_dev.head(5).iterrows():
                     st.markdown(f"""
-                    <div style="padding: 8px; margin: 4px 0; border-left: 3px solid #ef4444; background: #1e293b;">
+                    <div style="padding: 8px; margin: 4px 0; border-left: 3px solid #ef4444; background: rgba(239, 68, 68, 0.1); border-radius: 4px;">
                         <strong><a href="{row['link']}" style="color: #f87171;">{row['ticket_id']}</a></strong> - {row['titulo'][:35]}...<br>
                         <small style="color: #fca5a5;">⚠️ {row['prioridade']} | 👤 {row['desenvolvedor']} | {row['sp']} SP</small>
                     </div>
@@ -2957,11 +2960,14 @@ def aba_historico():
     # ==== Seção 2: Evolução de Qualidade (FPY, DDP, Cobertura) ====
     st.markdown("### 📈 Evolução da Qualidade")
     
+    # AVISO: Dados históricos simulados
+    st.warning("⚠️ **Dados Simulados**: As métricas de histórico abaixo são para demonstração. Para dados reais, integre com pipelines CI/CD ou colete manualmente ao final de cada release.")
+    
     col1, col2 = st.columns(2)
     
     with col1:
         fig1 = px.line(df_hist, x='Release', y=['FPY (%)', 'DDP (%)'],
-                       title='Qualidade: FPY e DDP por Release',
+                       title='Qualidade: FPY e DDP por Release (Simulado)',
                        markers=True,
                        color_discrete_sequence=['#22c55e', '#3b82f6'])
         fig1.add_hline(y=70, line_dash="dash", annotation_text="Meta FPY ≥ 70%", line_color="#22c55e")
@@ -2970,11 +2976,12 @@ def aba_historico():
         st.plotly_chart(fig1, use_container_width=True)
     
     with col2:
+        st.caption("💡 *Cobertura de Testes*: Requer integração com CI/CD (SonarQube, Codecov, etc.)")
         fig2 = px.area(df_hist, x='Release', y='Cobertura Testes (%)',
-                       title='Cobertura de Testes Automatizados',
+                       title='Cobertura de Testes Automatizados (Simulado)',
                        color_discrete_sequence=['#8b5cf6'])
         fig2.add_hline(y=70, line_dash="dash", annotation_text="Meta ≥ 70%", line_color="#22c55e")
-        fig2.update_layout(height=320)
+        fig2.update_layout(height=300)
         st.plotly_chart(fig2, use_container_width=True)
     
     st.markdown("---")
@@ -3136,14 +3143,16 @@ def aba_historico():
     
     with col_s2:
         st.markdown(f"""
-        **Indicadores de Qualidade:**
+        **Indicadores de Qualidade (Simulado):**
         
         | Métrica | Média | Meta | Status |
         |---------|-------|------|--------|
         | FPY | {df_hist['FPY (%)'].mean():.1f}% | ≥70% | {'✅' if df_hist['FPY (%)'].mean() >= 70 else '⚠️'} |
         | DDP | {df_hist['DDP (%)'].mean():.1f}% | ≥85% | {'✅' if df_hist['DDP (%)'].mean() >= 85 else '⚠️'} |
         | Retrabalho | {df_hist['Taxa Retrabalho (%)'].mean():.1f}% | ≤15% | {'✅' if df_hist['Taxa Retrabalho (%)'].mean() <= 15 else '⚠️'} |
-        | Cobertura | {df_hist['Cobertura Testes (%)'].mean():.1f}% | ≥70% | {'✅' if df_hist['Cobertura Testes (%)'].mean() >= 70 else '⚠️'} |
+        | Cobertura* | - | ≥70% | 🔧 |
+        
+        *Cobertura de testes: requer integração CI/CD
         """)
     
     st.markdown("---")
