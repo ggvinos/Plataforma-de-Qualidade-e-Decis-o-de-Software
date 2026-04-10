@@ -4008,8 +4008,31 @@ def main():
         
         st.markdown("---")
         
-        # Botão de carregar
-        carregar_jira = st.button("🔄 Carregar do Jira", use_container_width=True)
+        # Botão de carregar - DESTAQUE
+        st.markdown("""
+        <style>
+        div[data-testid="stButton"] > button[kind="secondary"] {
+            background: linear-gradient(135deg, #AF0C37 0%, #8F0A2E 100%) !important;
+            color: white !important;
+            font-weight: bold !important;
+            font-size: 1.1rem !important;
+            padding: 0.75rem 1rem !important;
+            border: none !important;
+            box-shadow: 0 4px 15px rgba(175, 12, 55, 0.4) !important;
+            animation: pulse-btn 2s infinite !important;
+        }
+        div[data-testid="stButton"] > button[kind="secondary"]:hover {
+            transform: scale(1.02) !important;
+            box-shadow: 0 6px 20px rgba(175, 12, 55, 0.5) !important;
+        }
+        @keyframes pulse-btn {
+            0%, 100% { box-shadow: 0 4px 15px rgba(175, 12, 55, 0.4); }
+            50% { box-shadow: 0 4px 25px rgba(175, 12, 55, 0.7); }
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        carregar_jira = st.button("🔄 CARREGAR DADOS DO JIRA", use_container_width=True, type="secondary")
         
         if carregar_jira:
             with st.spinner("Buscando dados do Jira..."):
@@ -4050,9 +4073,27 @@ def main():
         
         st.markdown("---")
         
-        # Indicador de modo e última atualização
+        # Indicador de modo e última atualização - ALERTA DESTACADO
         if st.session_state.get('modo_demo', True):
-            st.info("📊 **Modo Demonstração**\n\nClique em 'Carregar do Jira' para dados reais.")
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
+                        padding: 16px; border-radius: 8px; margin: 8px 0;
+                        border-left: 4px solid #92400e; animation: blink-warning 1.5s ease-in-out infinite;">
+                <p style="color: white; font-weight: bold; margin: 0; font-size: 0.95rem;">
+                    ⚠️ DADOS DE DEMONSTRAÇÃO
+                </p>
+                <p style="color: #fef3c7; margin: 5px 0 0 0; font-size: 0.85rem;">
+                    Os dados exibidos são fictícios.<br>
+                    Clique no botão acima para carregar dados reais do Jira.
+                </p>
+            </div>
+            <style>
+            @keyframes blink-warning {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.85; }
+            }
+            </style>
+            """, unsafe_allow_html=True)
         else:
             ultima = st.session_state.get('ultima_atualizacao')
             if ultima:
@@ -4101,6 +4142,29 @@ def main():
         dias_ate_release = df['dias_ate_release'].iloc[0] if 'dias_ate_release' in df.columns and len(df) > 0 else "?"
     
     # Barra de Release (visível em toda a página)
+    # Se modo demo, adicionar alerta no topo
+    if st.session_state.get('modo_demo', True):
+        st.markdown("""
+        <div style="background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%); 
+                    padding: 12px 20px; border-radius: 8px; margin-bottom: 16px;
+                    display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 1.5rem;">⚠️</span>
+                <div>
+                    <p style="color: white; font-weight: bold; margin: 0; font-size: 1rem;">
+                        MODO DEMONSTRAÇÃO ATIVO
+                    </p>
+                    <p style="color: #fef3c7; margin: 0; font-size: 0.85rem;">
+                        Os dados exibidos são fictícios. Use o botão "Carregar Dados do Jira" na barra lateral para visualizar dados reais.
+                    </p>
+                </div>
+            </div>
+            <span style="background: white; color: #d97706; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 0.8rem;">
+                DEMO
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+    
     st.markdown(f'''
     <div class="release-bar">
         <span class="release-name">📦 {release_atual}</span>
