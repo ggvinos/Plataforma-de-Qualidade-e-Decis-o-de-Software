@@ -3554,6 +3554,602 @@ def aba_impacto_roadmap():
 
 
 # ==============================================================================
+# ABA DE PRODUTOS NINA
+# ==============================================================================
+
+def gerar_dados_produtos_mock() -> List[Dict]:
+    """Gera dados mock de produtos da NINA para demonstração.
+    
+    Em produção, estes dados viriam do Notion e Jira.
+    """
+    produtos = [
+        {
+            "id": "PROD-001",
+            "nome": "NINA Core",
+            "descricao": "Plataforma central de automação e gestão de processos",
+            "categoria": "Plataforma",
+            "status": "Ativo",
+            "tech_lead": "Christopher Krauss de Carvalho",
+            "qa_lead": "Vinicios Ferreira",
+            "squad": "Core Platform",
+            "data_lancamento": datetime(2023, 3, 15),
+            "versao_atual": "4.2.1",
+            "usuarios_ativos": 1250,
+            "metricas": {
+                "total_releases": 42,
+                "bugs_producao_ano": 12,
+                "uptime": 99.7,
+                "nps": 72,
+                "tickets_suporte_mes": 45,
+                "tempo_medio_resolucao": 4.2,
+            },
+            "historico_releases": [
+                {"release": "4.2.1", "data": "2026-04-01", "cards": 12, "bugs": 1, "hotfixes": 0},
+                {"release": "4.2.0", "data": "2026-03-15", "cards": 28, "bugs": 3, "hotfixes": 1},
+                {"release": "4.1.0", "data": "2026-02-20", "cards": 35, "bugs": 5, "hotfixes": 2},
+                {"release": "4.0.0", "data": "2026-01-10", "cards": 52, "bugs": 8, "hotfixes": 3},
+                {"release": "3.9.0", "data": "2025-11-25", "cards": 31, "bugs": 4, "hotfixes": 1},
+                {"release": "3.8.0", "data": "2025-10-15", "cards": 24, "bugs": 2, "hotfixes": 0},
+            ],
+            "kpis_lideranca": {
+                "entregas_no_prazo": 92,
+                "satisfacao_cliente": 85,
+                "velocity_trend": "up",
+                "quality_score": 88,
+            }
+        },
+        {
+            "id": "PROD-002",
+            "nome": "NINA Analytics",
+            "descricao": "Módulo de análise de dados e Business Intelligence",
+            "categoria": "Módulo",
+            "status": "Ativo",
+            "tech_lead": "Augusto Oliveira",
+            "qa_lead": "Vinicius Alves da Silva Neto",
+            "squad": "Data & Insights",
+            "data_lancamento": datetime(2024, 6, 1),
+            "versao_atual": "2.5.0",
+            "usuarios_ativos": 890,
+            "metricas": {
+                "total_releases": 18,
+                "bugs_producao_ano": 6,
+                "uptime": 99.5,
+                "nps": 78,
+                "tickets_suporte_mes": 22,
+                "tempo_medio_resolucao": 3.8,
+            },
+            "historico_releases": [
+                {"release": "2.5.0", "data": "2026-03-28", "cards": 18, "bugs": 2, "hotfixes": 0},
+                {"release": "2.4.0", "data": "2026-02-15", "cards": 22, "bugs": 1, "hotfixes": 0},
+                {"release": "2.3.0", "data": "2026-01-05", "cards": 25, "bugs": 3, "hotfixes": 1},
+                {"release": "2.2.0", "data": "2025-11-20", "cards": 19, "bugs": 2, "hotfixes": 0},
+                {"release": "2.1.0", "data": "2025-10-01", "cards": 28, "bugs": 4, "hotfixes": 1},
+            ],
+            "kpis_lideranca": {
+                "entregas_no_prazo": 95,
+                "satisfacao_cliente": 90,
+                "velocity_trend": "up",
+                "quality_score": 92,
+            }
+        },
+        {
+            "id": "PROD-003",
+            "nome": "NINA Mobile",
+            "descricao": "Aplicativo mobile para acesso aos serviços NINA",
+            "categoria": "App",
+            "status": "Ativo",
+            "tech_lead": "Daniel Marques",
+            "qa_lead": "João Pedro Greif de Souza",
+            "squad": "Mobile Experience",
+            "data_lancamento": datetime(2024, 9, 15),
+            "versao_atual": "1.8.2",
+            "usuarios_ativos": 2100,
+            "metricas": {
+                "total_releases": 14,
+                "bugs_producao_ano": 18,
+                "uptime": 99.2,
+                "nps": 65,
+                "tickets_suporte_mes": 78,
+                "tempo_medio_resolucao": 5.1,
+            },
+            "historico_releases": [
+                {"release": "1.8.2", "data": "2026-04-05", "cards": 8, "bugs": 3, "hotfixes": 1},
+                {"release": "1.8.0", "data": "2026-03-10", "cards": 15, "bugs": 5, "hotfixes": 2},
+                {"release": "1.7.0", "data": "2026-02-01", "cards": 20, "bugs": 4, "hotfixes": 1},
+                {"release": "1.6.0", "data": "2025-12-15", "cards": 18, "bugs": 6, "hotfixes": 2},
+            ],
+            "kpis_lideranca": {
+                "entregas_no_prazo": 78,
+                "satisfacao_cliente": 72,
+                "velocity_trend": "stable",
+                "quality_score": 68,
+            }
+        },
+        {
+            "id": "PROD-004",
+            "nome": "NINA Integrations",
+            "descricao": "Hub de integrações com sistemas externos (APIs, Webhooks)",
+            "categoria": "Plataforma",
+            "status": "Ativo",
+            "tech_lead": "Suyan Moriel",
+            "qa_lead": "Eduardo Barbosa da Silva",
+            "squad": "Integrations",
+            "data_lancamento": datetime(2025, 1, 20),
+            "versao_atual": "1.3.0",
+            "usuarios_ativos": 430,
+            "metricas": {
+                "total_releases": 8,
+                "bugs_producao_ano": 4,
+                "uptime": 99.8,
+                "nps": 82,
+                "tickets_suporte_mes": 15,
+                "tempo_medio_resolucao": 2.5,
+            },
+            "historico_releases": [
+                {"release": "1.3.0", "data": "2026-03-20", "cards": 14, "bugs": 1, "hotfixes": 0},
+                {"release": "1.2.0", "data": "2026-02-10", "cards": 18, "bugs": 2, "hotfixes": 0},
+                {"release": "1.1.0", "data": "2025-12-05", "cards": 22, "bugs": 1, "hotfixes": 0},
+            ],
+            "kpis_lideranca": {
+                "entregas_no_prazo": 100,
+                "satisfacao_cliente": 95,
+                "velocity_trend": "up",
+                "quality_score": 96,
+            }
+        },
+        {
+            "id": "PROD-005",
+            "nome": "NINA Chatbot",
+            "descricao": "Assistente virtual com IA para atendimento ao cliente",
+            "categoria": "Módulo",
+            "status": "Beta",
+            "tech_lead": "Elinton Dozol Machado",
+            "qa_lead": "Vinicios Ferreira",
+            "squad": "AI & Automation",
+            "data_lancamento": datetime(2025, 8, 1),
+            "versao_atual": "0.9.5",
+            "usuarios_ativos": 180,
+            "metricas": {
+                "total_releases": 5,
+                "bugs_producao_ano": 8,
+                "uptime": 98.5,
+                "nps": 58,
+                "tickets_suporte_mes": 32,
+                "tempo_medio_resolucao": 6.2,
+            },
+            "historico_releases": [
+                {"release": "0.9.5", "data": "2026-04-02", "cards": 10, "bugs": 2, "hotfixes": 1},
+                {"release": "0.9.0", "data": "2026-03-01", "cards": 25, "bugs": 5, "hotfixes": 2},
+                {"release": "0.8.0", "data": "2026-01-15", "cards": 30, "bugs": 8, "hotfixes": 3},
+            ],
+            "kpis_lideranca": {
+                "entregas_no_prazo": 70,
+                "satisfacao_cliente": 65,
+                "velocity_trend": "up",
+                "quality_score": 62,
+            }
+        },
+    ]
+    
+    return produtos
+
+
+def aba_produtos(df: pd.DataFrame):
+    """Aba de Produtos da NINA - Estatísticas de Liderança e Histórico."""
+    
+    st.markdown('<div class="section-header"><h2>📦 Produtos NINA</h2></div>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 20px; border-radius: 12px; border-left: 4px solid #AF0C37; margin-bottom: 24px;">
+        <h4 style="margin: 0 0 8px 0; color: #f8fafc;">🎯 Visão de Produtos</h4>
+        <p style="margin: 0; color: #e2e8f0; font-size: 14px;">
+            Acompanhe métricas de qualidade, histórico de releases e KPIs de liderança para cada produto da NINA.
+            <br><small style="color: #94a3b8;">💡 Dados integrados do Jira e Notion para visão completa do portfólio.</small>
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Carregar dados de produtos
+    produtos = gerar_dados_produtos_mock()
+    
+    # ==== SEÇÃO 1: VISÃO GERAL DO PORTFÓLIO ====
+    with st.expander("📊 **Visão Geral do Portfólio** - Todos os produtos em um olhar", expanded=True):
+        
+        # Métricas agregadas
+        total_produtos = len(produtos)
+        total_usuarios = sum(p["usuarios_ativos"] for p in produtos)
+        media_uptime = sum(p["metricas"]["uptime"] for p in produtos) / total_produtos
+        media_nps = sum(p["metricas"]["nps"] for p in produtos) / total_produtos
+        total_releases = sum(p["metricas"]["total_releases"] for p in produtos)
+        
+        col1, col2, col3, col4, col5 = st.columns(5)
+        
+        with col1:
+            st.markdown(f"""
+            <div class="status-card status-purple" style="padding: 15px;">
+                <p class="big-number">{total_produtos}</p>
+                <p class="card-label">Produtos Ativos</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div class="status-card status-blue" style="padding: 15px;">
+                <p class="big-number">{total_usuarios:,}</p>
+                <p class="card-label">Usuários Ativos</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            uptime_cor = "green" if media_uptime >= 99.5 else "yellow" if media_uptime >= 99 else "red"
+            st.markdown(f"""
+            <div class="status-card status-{uptime_cor}" style="padding: 15px;">
+                <p class="big-number">{media_uptime:.1f}%</p>
+                <p class="card-label">Uptime Médio</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            nps_cor = "green" if media_nps >= 70 else "yellow" if media_nps >= 50 else "red"
+            st.markdown(f"""
+            <div class="status-card status-{nps_cor}" style="padding: 15px;">
+                <p class="big-number">{media_nps:.0f}</p>
+                <p class="card-label">NPS Médio</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col5:
+            st.markdown(f"""
+            <div class="status-card status-green" style="padding: 15px;">
+                <p class="big-number">{total_releases}</p>
+                <p class="card-label">Total Releases</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # Cards de produtos
+        st.markdown("#### 📱 Produtos da NINA")
+        
+        cols = st.columns(3)
+        for i, produto in enumerate(produtos):
+            with cols[i % 3]:
+                status_cor = "#22c55e" if produto["status"] == "Ativo" else "#eab308" if produto["status"] == "Beta" else "#ef4444"
+                kpi = produto["kpis_lideranca"]
+                quality_cor = "#22c55e" if kpi["quality_score"] >= 80 else "#eab308" if kpi["quality_score"] >= 60 else "#ef4444"
+                trend_icon = "📈" if kpi["velocity_trend"] == "up" else "📉" if kpi["velocity_trend"] == "down" else "➡️"
+                
+                st.markdown(f"""
+                <div style="background: #1e293b; padding: 16px; border-radius: 12px; margin-bottom: 12px; border-left: 4px solid {status_cor};">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <h5 style="color: #f8fafc; margin: 0;">{produto["nome"]}</h5>
+                        <span style="background: {status_cor}20; color: {status_cor}; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{produto["status"]}</span>
+                    </div>
+                    <p style="color: #94a3b8; font-size: 12px; margin: 0 0 12px 0;">{produto["descricao"][:60]}...</p>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <span style="background: #3b82f620; color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-size: 10px;">v{produto["versao_atual"]}</span>
+                        <span style="background: {quality_cor}20; color: {quality_cor}; padding: 2px 6px; border-radius: 4px; font-size: 10px;">Score: {kpi["quality_score"]}</span>
+                        <span style="background: #8b5cf620; color: #a78bfa; padding: 2px 6px; border-radius: 4px; font-size: 10px;">{trend_icon} Velocity</span>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 11px; color: #64748b;">
+                        👤 {produto["tech_lead"].split()[0]} | 🧪 {produto["qa_lead"].split()[0]} | 👥 {produto["usuarios_ativos"]:,} usuários
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+    
+    # ==== SEÇÃO 2: SELEÇÃO DE PRODUTO ====
+    st.markdown("---")
+    
+    nomes_produtos = [p["nome"] for p in produtos]
+    produto_selecionado = st.selectbox("🔍 Selecione um produto para análise detalhada", nomes_produtos)
+    
+    produto = next((p for p in produtos if p["nome"] == produto_selecionado), produtos[0])
+    
+    # ==== SEÇÃO 3: ESTATÍSTICAS DE LIDERANÇA ====
+    with st.expander(f"🎯 **Estatísticas de Liderança** - {produto['nome']}", expanded=True):
+        st.caption(f"KPIs estratégicos e indicadores de performance para tomada de decisão")
+        
+        kpi = produto["kpis_lideranca"]
+        metricas = produto["metricas"]
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            # KPIs principais
+            st.markdown("#### 📊 KPIs Estratégicos")
+            
+            kpi_cols = st.columns(4)
+            
+            with kpi_cols[0]:
+                prazo_cor = "green" if kpi["entregas_no_prazo"] >= 90 else "yellow" if kpi["entregas_no_prazo"] >= 75 else "red"
+                st.markdown(f"""
+                <div class="status-card status-{prazo_cor}" style="padding: 12px;">
+                    <p style="font-size: 28px; font-weight: bold; margin: 0;">{kpi["entregas_no_prazo"]}%</p>
+                    <p class="card-label">Entregas no Prazo</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with kpi_cols[1]:
+                sat_cor = "green" if kpi["satisfacao_cliente"] >= 85 else "yellow" if kpi["satisfacao_cliente"] >= 70 else "red"
+                st.markdown(f"""
+                <div class="status-card status-{sat_cor}" style="padding: 12px;">
+                    <p style="font-size: 28px; font-weight: bold; margin: 0;">{kpi["satisfacao_cliente"]}%</p>
+                    <p class="card-label">Satisfação Cliente</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with kpi_cols[2]:
+                quality_cor = "green" if kpi["quality_score"] >= 80 else "yellow" if kpi["quality_score"] >= 60 else "red"
+                st.markdown(f"""
+                <div class="status-card status-{quality_cor}" style="padding: 12px;">
+                    <p style="font-size: 28px; font-weight: bold; margin: 0;">{kpi["quality_score"]}</p>
+                    <p class="card-label">Quality Score</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with kpi_cols[3]:
+                trend_emoji = "📈" if kpi["velocity_trend"] == "up" else "📉" if kpi["velocity_trend"] == "down" else "➡️"
+                trend_texto = "Crescendo" if kpi["velocity_trend"] == "up" else "Caindo" if kpi["velocity_trend"] == "down" else "Estável"
+                trend_cor = "green" if kpi["velocity_trend"] == "up" else "red" if kpi["velocity_trend"] == "down" else "yellow"
+                st.markdown(f"""
+                <div class="status-card status-{trend_cor}" style="padding: 12px;">
+                    <p style="font-size: 28px; margin: 0;">{trend_emoji}</p>
+                    <p class="card-label">Velocity: {trend_texto}</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("---")
+            
+            # Métricas operacionais
+            st.markdown("#### ⚙️ Métricas Operacionais")
+            
+            op_cols = st.columns(3)
+            
+            with op_cols[0]:
+                st.metric("Total de Releases", metricas["total_releases"], help="Releases desde o lançamento")
+                st.metric("Bugs em Produção (Ano)", metricas["bugs_producao_ano"], 
+                         delta=f"-{random.randint(1,5)} vs ano anterior" if metricas["bugs_producao_ano"] < 10 else f"+{random.randint(1,3)} vs ano anterior",
+                         delta_color="inverse")
+            
+            with op_cols[1]:
+                st.metric("Uptime", f"{metricas['uptime']}%", help="Disponibilidade do sistema")
+                st.metric("NPS", metricas["nps"], delta=f"+{random.randint(2,8)}" if metricas["nps"] >= 70 else f"-{random.randint(1,5)}")
+            
+            with op_cols[2]:
+                st.metric("Tickets Suporte/Mês", metricas["tickets_suporte_mes"])
+                st.metric("Tempo Médio Resolução", f"{metricas['tempo_medio_resolucao']}h", 
+                         delta=f"-{random.uniform(0.2, 1.0):.1f}h" if metricas["tempo_medio_resolucao"] < 5 else f"+{random.uniform(0.1, 0.5):.1f}h",
+                         delta_color="inverse")
+        
+        with col2:
+            # Info do produto
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #AF0C37 0%, #8F0A2E 100%); padding: 20px; border-radius: 12px; color: white;">
+                <h4 style="margin: 0 0 16px 0; color: white;">{produto["nome"]}</h4>
+                <p style="font-size: 13px; opacity: 0.9; margin: 0 0 16px 0;">{produto["descricao"]}</p>
+                
+                <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+                    <p style="margin: 0; font-size: 12px; opacity: 0.8;">📅 Lançamento</p>
+                    <p style="margin: 4px 0 0 0; font-size: 14px; font-weight: 600;">{produto["data_lancamento"].strftime("%d/%m/%Y")}</p>
+                </div>
+                
+                <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+                    <p style="margin: 0; font-size: 12px; opacity: 0.8;">🏷️ Versão Atual</p>
+                    <p style="margin: 4px 0 0 0; font-size: 14px; font-weight: 600;">v{produto["versao_atual"]}</p>
+                </div>
+                
+                <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+                    <p style="margin: 0; font-size: 12px; opacity: 0.8;">👨‍💻 Tech Lead</p>
+                    <p style="margin: 4px 0 0 0; font-size: 14px; font-weight: 600;">{produto["tech_lead"]}</p>
+                </div>
+                
+                <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+                    <p style="margin: 0; font-size: 12px; opacity: 0.8;">🧪 QA Lead</p>
+                    <p style="margin: 4px 0 0 0; font-size: 14px; font-weight: 600;">{produto["qa_lead"]}</p>
+                </div>
+                
+                <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px;">
+                    <p style="margin: 0; font-size: 12px; opacity: 0.8;">🏢 Squad</p>
+                    <p style="margin: 4px 0 0 0; font-size: 14px; font-weight: 600;">{produto["squad"]}</p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # ==== SEÇÃO 4: HISTÓRICO DE RELEASES ====
+    with st.expander(f"📜 **Histórico de Releases** - {produto['nome']}", expanded=True):
+        st.caption("Evolução das releases com métricas de qualidade")
+        
+        historico = produto["historico_releases"]
+        df_hist = pd.DataFrame(historico)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Gráfico de cards e bugs por release
+            st.markdown("#### 📊 Cards vs Bugs por Release")
+            
+            fig = px.bar(df_hist, x="release", y=["cards", "bugs"],
+                        title="", barmode="group",
+                        color_discrete_sequence=["#3b82f6", "#ef4444"])
+            fig.update_layout(
+                height=300,
+                margin=dict(t=20, b=20, l=20, r=20),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+                xaxis_title="",
+                yaxis_title="Quantidade"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            # Gráfico de hotfixes
+            st.markdown("#### 🔥 Hotfixes por Release")
+            
+            fig2 = px.line(df_hist, x="release", y="hotfixes",
+                          markers=True, color_discrete_sequence=["#f97316"])
+            fig2.add_hline(y=1, line_dash="dash", annotation_text="Meta: ≤1", line_color="#22c55e")
+            fig2.update_layout(
+                height=300,
+                margin=dict(t=20, b=20, l=20, r=20),
+                xaxis_title="",
+                yaxis_title="Hotfixes"
+            )
+            st.plotly_chart(fig2, use_container_width=True)
+        
+        st.markdown("---")
+        
+        # Tabela de releases
+        st.markdown("#### 📋 Detalhamento das Releases")
+        
+        df_display = df_hist.copy()
+        df_display["taxa_bugs"] = (df_display["bugs"] / df_display["cards"] * 100).round(1).astype(str) + "%"
+        df_display["qualidade"] = df_display.apply(
+            lambda x: "🟢 Excelente" if x["bugs"]/x["cards"] < 0.1 else "🟡 Boa" if x["bugs"]/x["cards"] < 0.2 else "🔴 Atenção", 
+            axis=1
+        )
+        df_display = df_display.rename(columns={
+            "release": "Release",
+            "data": "Data",
+            "cards": "Cards",
+            "bugs": "Bugs",
+            "hotfixes": "Hotfixes",
+            "taxa_bugs": "Taxa Bugs",
+            "qualidade": "Qualidade"
+        })
+        
+        st.dataframe(df_display, hide_index=True, use_container_width=True)
+        
+        # Estatísticas do histórico
+        st.markdown("---")
+        st.markdown("#### 📈 Estatísticas do Período")
+        
+        stat_cols = st.columns(4)
+        
+        total_cards = df_hist["cards"].sum()
+        total_bugs = df_hist["bugs"].sum()
+        total_hotfixes = df_hist["hotfixes"].sum()
+        media_bugs = df_hist["bugs"].mean()
+        
+        with stat_cols[0]:
+            st.metric("Total de Cards", total_cards)
+        with stat_cols[1]:
+            st.metric("Total de Bugs", total_bugs)
+        with stat_cols[2]:
+            st.metric("Total de Hotfixes", total_hotfixes)
+        with stat_cols[3]:
+            taxa_geral = total_bugs / total_cards * 100
+            st.metric("Taxa de Bugs Geral", f"{taxa_geral:.1f}%", 
+                     delta=f"-{random.uniform(0.5, 2.0):.1f}%" if taxa_geral < 15 else f"+{random.uniform(0.2, 1.0):.1f}%",
+                     delta_color="inverse")
+    
+    # ==== SEÇÃO 5: ANÁLISE COMPARATIVA ====
+    with st.expander("📊 **Análise Comparativa** - Todos os Produtos", expanded=False):
+        st.caption("Compare métricas entre todos os produtos da NINA")
+        
+        # Preparar dados para comparação
+        dados_comparacao = []
+        for p in produtos:
+            dados_comparacao.append({
+                "Produto": p["nome"],
+                "Usuários": p["usuarios_ativos"],
+                "Uptime (%)": p["metricas"]["uptime"],
+                "NPS": p["metricas"]["nps"],
+                "Quality Score": p["kpis_lideranca"]["quality_score"],
+                "Entregas Prazo (%)": p["kpis_lideranca"]["entregas_no_prazo"],
+                "Releases": p["metricas"]["total_releases"],
+                "Bugs Prod/Ano": p["metricas"]["bugs_producao_ano"],
+            })
+        
+        df_comp = pd.DataFrame(dados_comparacao)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**📊 Quality Score por Produto**")
+            fig_q = px.bar(df_comp.sort_values("Quality Score", ascending=True), 
+                          x="Quality Score", y="Produto", orientation="h",
+                          color="Quality Score",
+                          color_continuous_scale=["#ef4444", "#eab308", "#22c55e"])
+            fig_q.add_vline(x=80, line_dash="dash", annotation_text="Meta: 80", line_color="#3b82f6")
+            fig_q.update_layout(height=300, margin=dict(t=20, b=20, l=20, r=20), showlegend=False)
+            st.plotly_chart(fig_q, use_container_width=True)
+        
+        with col2:
+            st.markdown("**👥 Usuários Ativos por Produto**")
+            fig_u = px.pie(df_comp, values="Usuários", names="Produto",
+                          color_discrete_sequence=px.colors.qualitative.Set2)
+            fig_u.update_layout(height=300, margin=dict(t=20, b=20, l=20, r=20))
+            st.plotly_chart(fig_u, use_container_width=True)
+        
+        st.markdown("**📋 Tabela Comparativa Completa**")
+        st.dataframe(df_comp, hide_index=True, use_container_width=True)
+    
+    # ==== SEÇÃO 6: RECOMENDAÇÕES ====
+    with st.expander("💡 **Recomendações para Liderança**", expanded=False):
+        st.caption("Insights e ações recomendadas baseadas na análise dos dados")
+        
+        recomendacoes = []
+        
+        for p in produtos:
+            kpi = p["kpis_lideranca"]
+            metricas = p["metricas"]
+            
+            if kpi["quality_score"] < 70:
+                recomendacoes.append({
+                    "produto": p["nome"],
+                    "tipo": "critical",
+                    "titulo": "Quality Score Crítico",
+                    "descricao": f"O produto {p['nome']} possui Quality Score de {kpi['quality_score']}, abaixo da meta de 80. Recomenda-se aumentar cobertura de testes e revisão de código.",
+                    "responsavel": p["tech_lead"]
+                })
+            
+            if kpi["entregas_no_prazo"] < 80:
+                recomendacoes.append({
+                    "produto": p["nome"],
+                    "tipo": "warning",
+                    "titulo": "Entregas com Atraso",
+                    "descricao": f"Taxa de entregas no prazo de {kpi['entregas_no_prazo']}%. Avaliar capacidade do time e complexidade das demandas.",
+                    "responsavel": p["tech_lead"]
+                })
+            
+            if metricas["nps"] < 65:
+                recomendacoes.append({
+                    "produto": p["nome"],
+                    "tipo": "warning",
+                    "titulo": "NPS Baixo",
+                    "descricao": f"NPS atual é {metricas['nps']}. Investigar principais reclamações e priorizar melhorias de UX.",
+                    "responsavel": p["squad"]
+                })
+            
+            if kpi["quality_score"] >= 90 and kpi["entregas_no_prazo"] >= 95:
+                recomendacoes.append({
+                    "produto": p["nome"],
+                    "tipo": "success",
+                    "titulo": "Excelência Operacional",
+                    "descricao": f"O produto {p['nome']} está em excelente estado. Considerar compartilhar práticas com outros times.",
+                    "responsavel": p["squad"]
+                })
+        
+        if not recomendacoes:
+            st.success("✅ Todos os produtos estão com métricas saudáveis!")
+        else:
+            for rec in recomendacoes:
+                classe = "critical" if rec["tipo"] == "critical" else "warning" if rec["tipo"] == "warning" else "success"
+                emoji = "🚨" if rec["tipo"] == "critical" else "⚠️" if rec["tipo"] == "warning" else "✅"
+                
+                st.markdown(f"""
+                <div class="alert-{classe}">
+                    <b>{emoji} {rec["titulo"]} - {rec["produto"]}</b>
+                    <p style="margin: 5px 0;">{rec["descricao"]}</p>
+                    <small>👤 Responsável: {rec["responsavel"]}</small>
+                </div>
+                """, unsafe_allow_html=True)
+    
+    # Footer da aba
+    st.markdown("---")
+    st.caption("💡 **Nota**: Para dados em tempo real, configure a integração com Notion e Jira. Os dados exibidos acima são demonstrativos.")
+
+
+# ==============================================================================
 # MAIN
 # ==============================================================================
 
@@ -4173,21 +4769,24 @@ def main():
     ''', unsafe_allow_html=True)
     
     # Tabs
-    tabs = st.tabs(["🎯 Liderança", "🧪 QA", "👨‍💻 Desenvolvimento", "📜 Histórico", "🚀 Impacto & Roadmap"])
+    tabs = st.tabs(["🎯 Liderança", "📦 Produtos NINA", "🧪 QA", "👨‍💻 Desenvolvimento", "📜 Histórico", "🚀 Impacto & Roadmap"])
     
     with tabs[0]:
         aba_lideranca(df)
     
     with tabs[1]:
-        aba_qa(df)
+        aba_produtos(df)
     
     with tabs[2]:
-        aba_dev(df)
+        aba_qa(df)
     
     with tabs[3]:
-        aba_historico()
+        aba_dev(df)
     
     with tabs[4]:
+        aba_historico()
+    
+    with tabs[5]:
         aba_impacto_roadmap()
     
     # Footer
