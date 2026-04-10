@@ -165,18 +165,43 @@ def get_secrets():
     """Carrega credenciais de forma segura."""
     try:
         # Primeiro tenta st.secrets (Streamlit Cloud e .streamlit/secrets.toml)
-        return {
-            "base_url": st.secrets["jira"]["base_url"],
-            "email": st.secrets["jira"]["email"],
-            "token": st.secrets["jira"]["token"],
-            "emails_autorizados": st.secrets["auth"]["emails_autorizados"].split(",")
-        }
-    except Exception:
+        if "jira" in st.secrets:
+            return {
+                "base_url": st.secrets["jira"]["base_url"],
+                "email": st.secrets["jira"]["email"],
+                "token": st.secrets["jira"]["token"],
+                "emails_autorizados": st.secrets["auth"]["emails_autorizados"].split(",")
+            }
+        else:
+            raise KeyError("Secrets não encontrados")
+    except Exception as e:
         # Fallback para variáveis de ambiente
+        email = os.getenv("JIRA_API_EMAIL", "")
+        token = os.getenv("JIRA_API_TOKEN", "")
+        
+        # Se nem secrets nem env vars estão configurados, mostrar aviso
+        if not email or not token:
+            st.error("""
+            ⚠️ **Credenciais não configuradas!**
+            
+            Configure os Secrets no Streamlit Cloud:
+            1. Vá em Settings > Secrets
+            2. Cole:
+            ```
+            [jira]
+            base_url = "https://ninatecnologia.atlassian.net"
+            email = "seu-email@empresa.com"
+            token = "seu-token-jira"
+            
+            [auth]
+            emails_autorizados = "email1@empresa.com"
+            ```
+            """)
+        
         return {
             "base_url": os.getenv("JIRA_BASE_URL", "https://ninatecnologia.atlassian.net"),
-            "email": os.getenv("JIRA_API_EMAIL", ""),
-            "token": os.getenv("JIRA_API_TOKEN", ""),
+            "email": email,
+            "token": token,
             "emails_autorizados": os.getenv("EMAILS_AUTORIZADOS", "").split(",")
         }
 
