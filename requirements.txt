@@ -1,0 +1,23 @@
+# ================================================================================
+# JIRA DASHBOARD v5.0 - DEPENDÊNCIAS
+# ================================================================================
+# Instale com: pip install -r requirements.txt
+# ================================================================================
+
+# Framework web para dashboard
+streamlit>=1.28.0
+
+# Manipulação de dados
+pandas>=2.0.0
+
+# Gráficos interativos
+plotly>=5.18.0
+
+# Requisições HTTP para API do Jira
+requests>=2.31.0
+
+# Biblioteca oficial do Jira (opcional, para funcionalidades avançadas)
+jira>=3.5.0
+
+# Carregar variáveis de ambiente do arquivo .env
+python-dotenv>=1.0.0
