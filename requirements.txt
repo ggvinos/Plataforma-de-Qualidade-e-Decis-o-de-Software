@@ -21,3 +21,6 @@ jira>=3.5.0
 
 # Carregar variáveis de ambiente do arquivo .env
 python-dotenv>=1.0.0
+
+# Exportação de dados para Excel
+openpyxl>=3.1.0

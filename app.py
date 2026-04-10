@@ -1,12 +1,15 @@
 """
 ================================================================================
-JIRA DASHBOARD v5.0 - MÉTRICAS ISTQB/CTFL PARA TOMADA DE DECISÃO
+JIRA DASHBOARD v5.1 - MÉTRICAS ISTQB/CTFL PARA TOMADA DE DECISÃO
 ================================================================================
 - Totalmente em português brasileiro
 - Tooltips explicativos em todas as métricas
 - Aba de Liderança expandida para decisões estratégicas
 - Compartilhamento via link externo
 - Textos em terceira pessoa
+- Exportação de dados (Excel, CSV, TXT)
+- Gráficos de tendência por Sprint
+- Cálculo de dias úteis (exclui finais de semana)
 
 CAMPOS MAPEADOS DO JIRA NINA:
 - customfield_10487: QA (user)
@@ -30,6 +33,8 @@ from typing import Optional, Dict, List, Any, Tuple
 import json
 import os
 import urllib.parse
+import io
+import base64
 
 # Carregar .env se existir
 try:
@@ -1240,6 +1245,385 @@ def calcular_wip(df: pd.DataFrame) -> Dict:
     }
 
 
+# ==============================================================================
+# EXPORTAÇÃO DE DADOS (Excel/CSV)
+# ==============================================================================
+
+def exportar_para_excel(df: pd.DataFrame, metricas: Dict) -> bytes:
+    """Exporta dados para Excel com múltiplas abas."""
+    output = io.BytesIO()
+    
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        # Aba 1: Dados dos Cards
+        df_export = df[['ticket_id', 'titulo', 'tipo', 'status', 'desenvolvedor', 'qa', 
+                        'sp', 'bugs', 'sprint', 'prioridade', 'lead_time', 'dias_ate_release']].copy()
+        df_export.columns = ['ID', 'Título', 'Tipo', 'Status', 'Desenvolvedor', 'QA', 
+                             'Story Points', 'Bugs', 'Sprint', 'Prioridade', 'Lead Time (dias)', 'Dias até Release']
+        df_export.to_excel(writer, sheet_name='Cards', index=False)
+        
+        # Aba 2: Métricas Resumidas
+        metricas_df = pd.DataFrame([
+            {'Métrica': 'Total de Cards', 'Valor': len(df)},
+            {'Métrica': 'Story Points Total', 'Valor': int(df['sp'].sum())},
+            {'Métrica': 'Bugs Encontrados', 'Valor': int(df['bugs'].sum())},
+            {'Métrica': 'Cards Concluídos', 'Valor': len(df[df['status_cat'] == 'done'])},
+            {'Métrica': 'Taxa de Conclusão (%)', 'Valor': round(len(df[df['status_cat'] == 'done']) / len(df) * 100, 1) if len(df) > 0 else 0},
+            {'Métrica': 'Fator K Geral', 'Valor': metricas.get('fator_k', 'N/A')},
+            {'Métrica': 'Health Score', 'Valor': metricas.get('health_score', 'N/A')},
+            {'Métrica': 'FPY (%)', 'Valor': metricas.get('fpy', 'N/A')},
+            {'Métrica': 'DDP (%)', 'Valor': metricas.get('ddp', 'N/A')},
+            {'Métrica': 'Lead Time Médio (dias)', 'Valor': round(df['lead_time'].mean(), 1) if len(df) > 0 else 0},
+        ])
+        metricas_df.to_excel(writer, sheet_name='Métricas', index=False)
+        
+        # Aba 3: Por Desenvolvedor
+        if 'desenvolvedor' in df.columns:
+            dev_stats = df.groupby('desenvolvedor').agg({
+                'ticket_id': 'count',
+                'sp': 'sum',
+                'bugs': 'sum',
+                'lead_time': 'mean'
+            }).reset_index()
+            dev_stats.columns = ['Desenvolvedor', 'Cards', 'Story Points', 'Bugs', 'Lead Time Médio']
+            dev_stats['Lead Time Médio'] = dev_stats['Lead Time Médio'].round(1)
+            dev_stats.to_excel(writer, sheet_name='Por Desenvolvedor', index=False)
+        
+        # Aba 4: Por QA
+        if 'qa' in df.columns:
+            qa_stats = df.groupby('qa').agg({
+                'ticket_id': 'count',
+                'bugs': 'sum',
+                'lead_time': 'mean'
+            }).reset_index()
+            qa_stats.columns = ['QA', 'Cards Validados', 'Bugs Encontrados', 'Tempo Médio']
+            qa_stats['Tempo Médio'] = qa_stats['Tempo Médio'].round(1)
+            qa_stats.to_excel(writer, sheet_name='Por QA', index=False)
+    
+    return output.getvalue()
+
+
+def exportar_para_csv(df: pd.DataFrame) -> str:
+    """Exporta dados para CSV."""
+    df_export = df[['ticket_id', 'titulo', 'tipo', 'status', 'desenvolvedor', 'qa', 
+                    'sp', 'bugs', 'sprint', 'prioridade', 'lead_time', 'dias_ate_release']].copy()
+    return df_export.to_csv(index=False)
+
+
+def gerar_link_download(data: bytes, filename: str, file_type: str) -> str:
+    """Gera link HTML para download de arquivo."""
+    b64 = base64.b64encode(data).decode()
+    
+    mime_types = {
+        'excel': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'csv': 'text/csv',
+        'pdf': 'application/pdf'
+    }
+    
+    mime = mime_types.get(file_type, 'application/octet-stream')
+    return f'<a href="data:{mime};base64,{b64}" download="{filename}" class="share-button">📥 Baixar {filename}</a>'
+
+
+# ==============================================================================
+# GRÁFICOS DE TENDÊNCIA POR SPRINT
+# ==============================================================================
+
+def gerar_dados_tendencia_mock() -> pd.DataFrame:
+    """Gera dados históricos simulados para demonstração de tendências."""
+    sprints = [f"Release {i}" for i in range(233, 239)]
+    
+    dados = []
+    for i, sprint in enumerate(sprints):
+        # Simular evolução gradual das métricas
+        base_fk = 1.5 + (i * 0.25) + random.uniform(-0.3, 0.3)
+        base_fpy = 45 + (i * 5) + random.uniform(-5, 5)
+        base_ddp = 70 + (i * 3) + random.uniform(-5, 5)
+        base_health = 50 + (i * 5) + random.uniform(-8, 8)
+        
+        dados.append({
+            'sprint': sprint,
+            'fator_k': round(min(4, max(0.5, base_fk)), 2),
+            'fpy': round(min(95, max(30, base_fpy)), 1),
+            'ddp': round(min(98, max(50, base_ddp)), 1),
+            'health_score': round(min(95, max(25, base_health)), 0),
+            'bugs_total': max(5, 30 - (i * 3) + random.randint(-5, 5)),
+            'cards_total': random.randint(40, 60),
+            'lead_time_medio': round(max(3, 12 - (i * 0.8) + random.uniform(-1, 1)), 1),
+        })
+    
+    return pd.DataFrame(dados)
+
+
+def criar_grafico_tendencia_fator_k(df_tendencia: pd.DataFrame) -> go.Figure:
+    """Cria gráfico de tendência do Fator K."""
+    fig = go.Figure()
+    
+    # Linha principal
+    fig.add_trace(go.Scatter(
+        x=df_tendencia['sprint'],
+        y=df_tendencia['fator_k'],
+        mode='lines+markers',
+        name='Fator K',
+        line=dict(color='#6366f1', width=3),
+        marker=dict(size=10),
+        hovertemplate='<b>%{x}</b><br>Fator K: %{y:.2f}<extra></extra>'
+    ))
+    
+    # Linhas de referência
+    fig.add_hline(y=3.0, line_dash="dash", line_color="#22c55e", 
+                  annotation_text="Gold (≥3.0)", annotation_position="right")
+    fig.add_hline(y=2.0, line_dash="dash", line_color="#eab308", 
+                  annotation_text="Silver (≥2.0)", annotation_position="right")
+    fig.add_hline(y=1.0, line_dash="dash", line_color="#f97316", 
+                  annotation_text="Bronze (≥1.0)", annotation_position="right")
+    
+    fig.update_layout(
+        title="📈 Evolução do Fator K (Maturidade)",
+        xaxis_title="Sprint",
+        yaxis_title="Fator K",
+        hovermode='x unified',
+        template='plotly_white',
+        height=350
+    )
+    
+    return fig
+
+
+def criar_grafico_tendencia_qualidade(df_tendencia: pd.DataFrame) -> go.Figure:
+    """Cria gráfico de tendência de métricas de qualidade (FPY e DDP)."""
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scatter(
+        x=df_tendencia['sprint'],
+        y=df_tendencia['fpy'],
+        mode='lines+markers',
+        name='FPY (%)',
+        line=dict(color='#22c55e', width=2),
+        marker=dict(size=8)
+    ))
+    
+    fig.add_trace(go.Scatter(
+        x=df_tendencia['sprint'],
+        y=df_tendencia['ddp'],
+        mode='lines+markers',
+        name='DDP (%)',
+        line=dict(color='#3b82f6', width=2),
+        marker=dict(size=8)
+    ))
+    
+    # Meta de FPY
+    fig.add_hline(y=80, line_dash="dot", line_color="#22c55e", 
+                  annotation_text="Meta FPY (80%)")
+    
+    fig.update_layout(
+        title="📊 Evolução de Qualidade (FPY e DDP)",
+        xaxis_title="Sprint",
+        yaxis_title="Percentual (%)",
+        hovermode='x unified',
+        template='plotly_white',
+        height=350,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    
+    return fig
+
+
+def criar_grafico_tendencia_bugs(df_tendencia: pd.DataFrame) -> go.Figure:
+    """Cria gráfico de tendência de bugs encontrados."""
+    fig = go.Figure()
+    
+    fig.add_trace(go.Bar(
+        x=df_tendencia['sprint'],
+        y=df_tendencia['bugs_total'],
+        name='Bugs Encontrados',
+        marker_color='#ef4444',
+        text=df_tendencia['bugs_total'],
+        textposition='outside'
+    ))
+    
+    # Linha de tendência
+    fig.add_trace(go.Scatter(
+        x=df_tendencia['sprint'],
+        y=df_tendencia['bugs_total'].rolling(3, min_periods=1).mean(),
+        mode='lines',
+        name='Média Móvel (3 sprints)',
+        line=dict(color='#6366f1', width=2, dash='dash')
+    ))
+    
+    fig.update_layout(
+        title="🐛 Bugs por Sprint",
+        xaxis_title="Sprint",
+        yaxis_title="Quantidade de Bugs",
+        template='plotly_white',
+        height=350,
+        showlegend=True
+    )
+    
+    return fig
+
+
+def criar_grafico_tendencia_health(df_tendencia: pd.DataFrame) -> go.Figure:
+    """Cria gráfico de tendência do Health Score."""
+    fig = go.Figure()
+    
+    # Cores baseadas no score
+    cores = ['#22c55e' if s >= 75 else '#eab308' if s >= 50 else '#f97316' if s >= 25 else '#ef4444' 
+             for s in df_tendencia['health_score']]
+    
+    fig.add_trace(go.Bar(
+        x=df_tendencia['sprint'],
+        y=df_tendencia['health_score'],
+        marker_color=cores,
+        text=df_tendencia['health_score'].astype(int),
+        textposition='outside',
+        name='Health Score'
+    ))
+    
+    # Linha de meta
+    fig.add_hline(y=75, line_dash="dash", line_color="#22c55e", 
+                  annotation_text="Meta (75)")
+    
+    fig.update_layout(
+        title="💚 Health Score por Sprint",
+        xaxis_title="Sprint",
+        yaxis_title="Score (0-100)",
+        template='plotly_white',
+        height=350,
+        yaxis=dict(range=[0, 100])
+    )
+    
+    return fig
+
+
+def secao_exportacao(df: pd.DataFrame, metricas: Dict):
+    """Seção de exportação de dados."""
+    st.markdown("### 📥 Exportar Dados")
+    st.caption("Exporte os dados da release atual para análise externa ou relatórios.")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        # Exportar Excel
+        try:
+            excel_data = exportar_para_excel(df, metricas)
+            st.download_button(
+                label="📊 Baixar Excel",
+                data=excel_data,
+                file_name=f"ninaDash_release_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+        except Exception as e:
+            st.warning("⚠️ Instale openpyxl: `pip install openpyxl`")
+    
+    with col2:
+        # Exportar CSV
+        csv_data = exportar_para_csv(df)
+        st.download_button(
+            label="📄 Baixar CSV",
+            data=csv_data,
+            file_name=f"ninaDash_cards_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+    
+    with col3:
+        # Gerar relatório resumido em texto
+        relatorio = f"""
+RELATÓRIO NINADASH - {datetime.now().strftime('%d/%m/%Y %H:%M')}
+{'='*50}
+
+RESUMO DA RELEASE
+-----------------
+Total de Cards: {len(df)}
+Story Points: {int(df['sp'].sum())}
+Bugs Encontrados: {int(df['bugs'].sum())}
+Cards Concluídos: {len(df[df['status_cat'] == 'done'])} ({round(len(df[df['status_cat'] == 'done']) / len(df) * 100, 1) if len(df) > 0 else 0}%)
+
+MÉTRICAS DE QUALIDADE
+---------------------
+Fator K: {metricas.get('fator_k', 'N/A')}
+Health Score: {metricas.get('health_score', 'N/A')}
+FPY: {metricas.get('fpy', 'N/A')}%
+DDP: {metricas.get('ddp', 'N/A')}%
+
+LEAD TIME
+---------
+Média: {round(df['lead_time'].mean(), 1) if len(df) > 0 else 0} dias
+
+{'='*50}
+Gerado automaticamente pelo NinaDash
+NINA Tecnologia - QA Intelligence
+        """
+        
+        st.download_button(
+            label="📝 Baixar Resumo",
+            data=relatorio,
+            file_name=f"ninaDash_resumo_{datetime.now().strftime('%Y%m%d')}.txt",
+            mime="text/plain",
+            use_container_width=True
+        )
+
+
+def secao_tendencias():
+    """Seção de gráficos de tendência por sprint."""
+    st.markdown("### 📈 Tendências por Sprint")
+    st.caption("Visualize a evolução das métricas ao longo das últimas sprints. *Dados demonstrativos - integração com histórico em desenvolvimento.*")
+    
+    # Gerar dados de tendência (mock por enquanto)
+    df_tendencia = gerar_dados_tendencia_mock()
+    
+    # Tabs para diferentes visualizações
+    tab1, tab2, tab3, tab4 = st.tabs(["🏆 Fator K", "📊 Qualidade", "🐛 Bugs", "💚 Health Score"])
+    
+    with tab1:
+        fig = criar_grafico_tendencia_fator_k(df_tendencia)
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Análise automática
+        ultimo_fk = df_tendencia['fator_k'].iloc[-1]
+        primeiro_fk = df_tendencia['fator_k'].iloc[0]
+        variacao = ((ultimo_fk - primeiro_fk) / primeiro_fk) * 100 if primeiro_fk > 0 else 0
+        
+        if variacao > 0:
+            st.success(f"📈 **Tendência positiva:** Fator K melhorou {variacao:.1f}% nas últimas sprints")
+        else:
+            st.warning(f"📉 **Tendência de atenção:** Fator K reduziu {abs(variacao):.1f}% nas últimas sprints")
+    
+    with tab2:
+        fig = criar_grafico_tendencia_qualidade(df_tendencia)
+        st.plotly_chart(fig, use_container_width=True)
+        
+        ultimo_fpy = df_tendencia['fpy'].iloc[-1]
+        if ultimo_fpy >= 80:
+            st.success(f"✅ FPY atual ({ultimo_fpy:.1f}%) está acima da meta de 80%")
+        else:
+            st.info(f"ℹ️ FPY atual ({ultimo_fpy:.1f}%) está {80 - ultimo_fpy:.1f}% abaixo da meta")
+    
+    with tab3:
+        fig = criar_grafico_tendencia_bugs(df_tendencia)
+        st.plotly_chart(fig, use_container_width=True)
+        
+        ultimo_bugs = df_tendencia['bugs_total'].iloc[-1]
+        media_bugs = df_tendencia['bugs_total'].mean()
+        
+        if ultimo_bugs < media_bugs:
+            st.success(f"📉 Sprint atual com menos bugs ({ultimo_bugs}) que a média ({media_bugs:.0f})")
+        else:
+            st.warning(f"📈 Sprint atual com mais bugs ({ultimo_bugs}) que a média ({media_bugs:.0f})")
+    
+    with tab4:
+        fig = criar_grafico_tendencia_health(df_tendencia)
+        st.plotly_chart(fig, use_container_width=True)
+        
+        ultimo_health = df_tendencia['health_score'].iloc[-1]
+        if ultimo_health >= 75:
+            st.success(f"💚 Health Score excelente: {ultimo_health:.0f}/100")
+        elif ultimo_health >= 50:
+            st.info(f"💛 Health Score moderado: {ultimo_health:.0f}/100 - Espaço para melhoria")
+        else:
+            st.warning(f"🧡 Health Score baixo: {ultimo_health:.0f}/100 - Ação necessária")
+
+
 def identificar_gargalos(df: pd.DataFrame) -> List[Dict]:
     """Identifica gargalos no fluxo."""
     gargalos = []
@@ -1595,40 +1979,44 @@ def aba_lideranca(df: pd.DataFrame):
             """, unsafe_allow_html=True)
         
         with col_health:
-            col1, col2 = st.columns([1, 2])
+            # Card de Pontuação de Saúde
+            cor_class = 'green' if health['score'] >= 75 else 'yellow' if health['score'] >= 50 else 'orange' if health['score'] >= 25 else 'red'
+            st.markdown(f"""
+            <div class="status-card status-{cor_class}" style="padding: 20px; margin-bottom: 15px;">
+                <p class="big-number">{health['score']:.0f}</p>
+                <p class="card-label">Pontuação de Saúde</p>
+            </div>
+            """, unsafe_allow_html=True)
             
-            with col1:
-                cor_class = 'green' if health['score'] >= 75 else 'yellow' if health['score'] >= 50 else 'orange' if health['score'] >= 25 else 'red'
-                status_texto = {
-                    'green': 'Release em excelente estado para produção',
-                    'yellow': 'Release requer atenção em alguns pontos',
-                    'orange': 'Release com riscos que precisam ser avaliados',
-                    'red': 'Release com problemas críticos a resolver'
-                }
-                st.markdown(f"""
-                <div class="status-card status-{cor_class}" style="padding: 30px;">
-                    <p class="big-number">{health['score']:.0f}</p>
-                    <p class="card-label">Pontuação de Saúde</p>
-                    <p style="margin-top: 10px; font-size: 16px;"><b>{health['status']}</b></p>
-                    <p style="font-size: 12px; opacity: 0.8; margin-top: 8px;">{status_texto.get(cor_class, '')}</p>
-                </div>
-                """, unsafe_allow_html=True)
+            # Card separado para Status da Release
+            status_texto = {
+                'green': 'Release em excelente estado para produção',
+                'yellow': 'Release requer atenção em alguns pontos',
+                'orange': 'Release com riscos que precisam ser avaliados',
+                'red': 'Release com problemas críticos a resolver'
+            }
+            st.markdown(f"""
+            <div class="status-card status-{cor_class}" style="padding: 15px;">
+                <p style="font-size: 18px; font-weight: bold; margin: 0;">{health['status']}</p>
+                <p style="font-size: 12px; opacity: 0.8; margin-top: 5px;">{status_texto.get(cor_class, '')}</p>
+            </div>
+            """, unsafe_allow_html=True)
         
-            with col2:
-                # Métricas executivas em linha
-                c1, c2, c3, c4 = st.columns(4)
-                
-                with c1:
-                    st.metric("Total de Cards", len(df), help="Número total de cards nesta release")
-                with c2:
-                    st.metric("Story Points", int(df['sp'].sum()), help="Soma dos story points estimados")
-                with c3:
-                    concluidos = len(df[df['status_cat'] == 'done'])
-                    pct = concluidos/len(df)*100 if len(df) > 0 else 0
-                    st.metric("Concluídos", f"{concluidos} ({pct:.0f}%)", help="Cards que já passaram por QA e estão prontos")
-                with c4:
-                    lead = calcular_lead_time(df)
-                    st.metric("Lead Time Médio", f"{lead['medio']} dias", help="Tempo médio do card desde criação até conclusão")
+        # Métricas executivas em linha - responsivas
+        st.markdown("<br>", unsafe_allow_html=True)
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        
+        with col_m1:
+            st.metric("Total de Cards", len(df), help="Número total de cards nesta release")
+        with col_m2:
+            st.metric("Story Points", int(df['sp'].sum()), help="Soma dos story points estimados")
+        with col_m3:
+            concluidos = len(df[df['status_cat'] == 'done'])
+            pct = concluidos/len(df)*100 if len(df) > 0 else 0
+            st.metric("Concluídos", f"{concluidos} ({pct:.0f}%)", help="Cards que já passaram por QA e estão prontos")
+        with col_m4:
+            lead = calcular_lead_time(df)
+            st.metric("Lead Time Médio", f"{lead['medio']} dias", help="Tempo médio do card desde criação até conclusão")
         
         # Fator K Geral do Time
         st.markdown("---")
@@ -2103,6 +2491,29 @@ def aba_lideranca(df: pd.DataFrame):
                         st.markdown("")  # Espaço entre cards
         else:
             st.info("📝 Nenhum card com comentários encontrado nesta release.")
+    
+    # ==== SEÇÃO 9: Tendências por Sprint ====
+    with st.expander("📈 **Tendências por Sprint** - Evolução histórica das métricas", expanded=False):
+        secao_tendencias()
+    
+    # ==== SEÇÃO 10: Exportação de Dados ====
+    with st.expander("📥 **Exportar Dados** - Baixe relatórios em Excel, CSV ou texto", expanded=False):
+        # Preparar métricas para exportação
+        sp_total = df['sp'].sum()
+        bugs_total = int(df['bugs'].sum())
+        fk_geral = calcular_fator_k(sp_total, bugs_total)
+        health = calcular_health_score(df)
+        fpy = calcular_first_pass_yield(df)
+        ddp = calcular_ddp(df)
+        
+        metricas_export = {
+            'fator_k': fk_geral if fk_geral >= 0 else 'N/A',
+            'health_score': health['score'],
+            'fpy': fpy['valor'],
+            'ddp': ddp['valor']
+        }
+        
+        secao_exportacao(df, metricas_export)
 
 
 # ==============================================================================
@@ -4563,17 +4974,17 @@ def main():
         
         if sprint_info:
             data_fim = datetime.fromisoformat(sprint_info["endDate"].replace("Z", "+00:00")).replace(tzinfo=None)
-            dias_restantes = (data_fim - datetime.now()).days
+            dias_uteis_restantes = calcular_dias_uteis(datetime.now(), data_fim)
             
             st.success(f"🏃 **{sprint_info['name']}**")
             st.caption(f"📆 Fim: {data_fim.strftime('%d/%m/%Y')}")
             
-            if dias_restantes <= 0:
+            if dias_uteis_restantes <= 0:
                 st.error(f"🚨 Sprint encerrada!")
-            elif dias_restantes <= 3:
-                st.warning(f"⚠️ {dias_restantes} dia(s) restante(s)")
+            elif dias_uteis_restantes <= 3:
+                st.warning(f"⚠️ {dias_uteis_restantes} dia(s) útil(eis) restante(s)")
             else:
-                st.info(f"📊 {dias_restantes} dia(s) restante(s)")
+                st.info(f"📊 {dias_uteis_restantes} dia(s) útil(eis) restante(s)")
         else:
             st.info("Clique em carregar para buscar a sprint")
         
