@@ -1133,7 +1133,7 @@ def criar_grafico_funil_qa(metricas_qa: Dict) -> go.Figure:
         connector=dict(line=dict(color="royalblue", dash="dot", width=2))
     ))
     
-    fig.update_layout(title="Funil de Validação QA", height=300, margin=dict(l=20, r=20, t=40, b=20))
+    fig.update_layout(title="Funil de Validação QA", height=350, margin=dict(l=20, r=20, t=40, b=20))
     return fig
 
 
@@ -1492,7 +1492,7 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
             fig = px.pie(tipo_count, values='count', names='tipo', title='Distribuição por Tipo',
                          color='tipo', color_discrete_map={'TAREFA': '#3b82f6', 'BUG': '#ef4444', 'HOTFIX': '#f59e0b', 'SUGESTÃO': '#8b5cf6'},
                          hole=0.4)
-            fig.update_layout(height=300)
+            fig.update_layout(height=350)
             st.plotly_chart(fig, use_container_width=True)
         
         with col2:
@@ -1501,7 +1501,7 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
             
             fig = px.bar(prod_count.head(6), x='produto', y='count', title='Cards por Produto',
                          color='count', color_continuous_scale='Blues')
-            fig.update_layout(height=300, showlegend=False)
+            fig.update_layout(height=350, showlegend=False)
             st.plotly_chart(fig, use_container_width=True)
 
 
@@ -1560,7 +1560,7 @@ def aba_qa(df: pd.DataFrame):
                     x='Cards', y='QA', orientation='h', color='SP',
                     color_continuous_scale='Blues', title='Carga por QA'
                 )
-                fig.update_layout(height=300)
+                fig.update_layout(height=350)
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Nenhum card em validação no momento.")
@@ -1606,7 +1606,7 @@ def aba_qa(df: pd.DataFrame):
                                  x='QA', y='Bugs', color='Bugs',
                                  color_continuous_scale=['#22c55e', '#f97316', '#ef4444'],
                                  title='')
-                    fig.update_layout(height=250, showlegend=False)
+                    fig.update_layout(height=350, showlegend=False)
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.info("Sem dados de bugs por QA")
@@ -1617,7 +1617,7 @@ def aba_qa(df: pd.DataFrame):
                 if not validados_por_qa.empty:
                     fig = px.pie(validados_por_qa, values='Validados', names='qa', 
                                  hole=0.4, color_discrete_sequence=px.colors.qualitative.Set2)
-                    fig.update_layout(height=250)
+                    fig.update_layout(height=350)
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.info("Nenhum card validado ainda")
@@ -1634,7 +1634,7 @@ def aba_qa(df: pd.DataFrame):
             if not bugs_por_tipo.empty and bugs_por_tipo['bugs'].sum() > 0:
                 fig = px.pie(bugs_por_tipo, values='bugs', names='tipo', hole=0.4,
                              color_discrete_sequence=px.colors.qualitative.Set2)
-                fig.update_layout(height=250)
+                fig.update_layout(height=350)
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Sem bugs registrados")
@@ -1810,7 +1810,7 @@ def aba_dev(df: pd.DataFrame):
                     cards_por_dev = cards_por_dev.nlargest(8, 'cards')
                     fig_cards = px.bar(cards_por_dev, x='desenvolvedor', y='cards', 
                                        color='cards', color_continuous_scale='Blues')
-                    fig_cards.update_layout(height=250, showlegend=False, xaxis_title="", yaxis_title="Cards")
+                    fig_cards.update_layout(height=350, showlegend=False, xaxis_title="", yaxis_title="Cards")
                     st.plotly_chart(fig_cards, use_container_width=True)
                 else:
                     st.info("Sem dados de cards por desenvolvedor")
@@ -1826,7 +1826,7 @@ def aba_dev(df: pd.DataFrame):
                 if not taxa_bugs.empty and taxa_bugs['taxa'].sum() > 0:
                     fig_taxa = px.bar(taxa_bugs, x='desenvolvedor', y='taxa', 
                                       color='taxa', color_continuous_scale=['#22c55e', '#eab308', '#ef4444'])
-                    fig_taxa.update_layout(height=250, showlegend=False, xaxis_title="", yaxis_title="Bugs/Card")
+                    fig_taxa.update_layout(height=350, showlegend=False, xaxis_title="", yaxis_title="Bugs/Card")
                     st.plotly_chart(fig_taxa, use_container_width=True)
                 else:
                     st.success("✅ Sem bugs registrados!")
@@ -1865,7 +1865,7 @@ def aba_dev(df: pd.DataFrame):
                 if not sp_por_dev.empty and sp_por_dev['sp'].sum() > 0:
                     fig_sp = px.pie(sp_por_dev, names='desenvolvedor', values='sp', 
                                    color_discrete_sequence=px.colors.sequential.RdBu)
-                    fig_sp.update_layout(height=250)
+                    fig_sp.update_layout(height=350)
                     fig_sp.update_traces(textposition='inside', textinfo='percent+label')
                     st.plotly_chart(fig_sp, use_container_width=True)
                 else:
@@ -1887,7 +1887,7 @@ def aba_dev(df: pd.DataFrame):
                     fig_status = px.bar(status_dev, x='desenvolvedor', y=['Concluídos', 'Em Andamento'],
                                         barmode='stack', 
                                         color_discrete_map={'Concluídos': '#22c55e', 'Em Andamento': '#3b82f6'})
-                    fig_status.update_layout(height=250, xaxis_title="", legend=dict(orientation="h", y=1.1))
+                    fig_status.update_layout(height=350, xaxis_title="", legend=dict(orientation="h", y=1.1))
                     st.plotly_chart(fig_status, use_container_width=True)
             
             # WIP e Code Review
@@ -1906,7 +1906,7 @@ def aba_dev(df: pd.DataFrame):
                                      color='WIP', color_continuous_scale=['#22c55e', '#eab308', '#ef4444'],
                                      text='WIP')
                     fig_wip.add_hline(y=3, line_dash="dash", annotation_text="WIP Ideal ≤ 3", line_color="#eab308")
-                    fig_wip.update_layout(height=250, showlegend=False, xaxis_title="")
+                    fig_wip.update_layout(height=350, showlegend=False, xaxis_title="")
                     fig_wip.update_traces(textposition='outside')
                     st.plotly_chart(fig_wip, use_container_width=True)
                 else:
@@ -1954,7 +1954,7 @@ def aba_dev(df: pd.DataFrame):
                                      color='SP/Card', color_continuous_scale=['#f97316', '#22c55e'],
                                      text='SP/Card')
                     fig_vel.add_hline(y=vel_dev['SP/Card'].mean(), line_dash="dash", annotation_text=f"Média: {vel_dev['SP/Card'].mean():.1f}")
-                    fig_vel.update_layout(height=250, showlegend=False, xaxis_title="")
+                    fig_vel.update_layout(height=350, showlegend=False, xaxis_title="")
                     fig_vel.update_traces(textposition='outside')
                     st.plotly_chart(fig_vel, use_container_width=True)
                 else:
