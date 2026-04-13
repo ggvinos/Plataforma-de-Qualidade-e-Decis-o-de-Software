@@ -1,17 +1,23 @@
 """
 ================================================================================
-JIRA DASHBOARD v8.6 - NINA TECNOLOGIA - VERSÃO COMPLETA E ENRIQUECIDA
+JIRA DASHBOARD v8.7 - NINA TECNOLOGIA - VERSÃO COMPLETA E ENRIQUECIDA
 ================================================================================
 📊 NinaDash — Dashboard de Inteligência e Métricas de QA
 
 🎯 Propósito: Transformar o QA de um processo sem visibilidade em um sistema 
    de inteligência operacional baseado em dados.
 
+MELHORIAS v8.7:
+- 🎨 DESIGN REFINADO: Melhor espaçamento entre elementos
+- ⬅️ BOTÃO VOLTAR NA SIDEBAR: Indica card ativo + volta fácil
+- Link de compartilhamento mais compacto e funcional
+- Visual mais limpo nas métricas do card
+- Expanders fechados por padrão para menos poluição visual
+
 MELHORIAS v8.6:
 - 📱 SIDEBAR REFATORADA: Busca de card em destaque no topo
 - 📤 COMPARTILHAMENTO FUNCIONAL: Link direto via query params
 - Layout reorganizado: Logo → Busca → Filtros → Rodapé NINA
-- Botão de compartilhar visível com link copiável
 - URL persistente: ?card=SD-1234&projeto=SD
 
 MELHORIAS v8.5:
@@ -844,49 +850,39 @@ def exibir_card_detalhado(df: pd.DataFrame, ticket_id: str, projeto: str = "SD")
     
     card = card.iloc[0]
     
-    # Header do card com botão de compartilhar
-    col_header, col_share = st.columns([5, 1])
+    # Gera URL de compartilhamento
+    base_url = "https://plataforma-de-qualidade-e-decis-o-de-software-8ze3ycurhvmdahdv.streamlit.app/"
+    share_url = f"{base_url}?card={card['ticket_id']}&projeto={projeto}"
     
-    with col_header:
-        st.markdown(f"""
-        <div style='background: linear-gradient(135deg, #AF0C37 0%, #8a0a2c 100%); color: white; padding: 20px; border-radius: 12px;'>
-            <h2 style='margin: 0; color: white;'>🔍 {card['ticket_id']} - Detalhes do Card</h2>
-            <p style='margin: 5px 0 0 0; opacity: 0.9;'>{card['titulo'][:100]}{'...' if len(card['titulo']) > 100 else ''}</p>
+    # ===== HEADER DO CARD =====
+    st.markdown(f"""
+    <div style='background: linear-gradient(135deg, #AF0C37 0%, #8a0a2c 100%); 
+                color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;'>
+        <div style='display: flex; justify-content: space-between; align-items: flex-start;'>
+            <div style='flex: 1;'>
+                <h2 style='margin: 0; color: white; font-size: 1.5em;'>
+                    🔍 {card['ticket_id']}
+                </h2>
+                <p style='margin: 8px 0 0 0; opacity: 0.9; font-size: 0.95em;'>
+                    {card['titulo'][:120]}{'...' if len(card['titulo']) > 120 else ''}
+                </p>
+            </div>
         </div>
-        """, unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
     
-    with col_share:
-        # Gera URL de compartilhamento
-        base_url = "https://plataforma-de-qualidade-e-decis-o-de-software-8ze3ycurhvmdahdv.streamlit.app/"
-        share_url = f"{base_url}?card={card['ticket_id']}&projeto={projeto}"
-        
-        st.markdown(f"""
-        <div style='background: #22c55e; padding: 15px; border-radius: 12px; text-align: center; height: 100%;'>
-            <a href="{share_url}" target="_blank" style="text-decoration: none;">
-                <span style='font-size: 24px;'>📤</span>
-                <p style='color: white; margin: 5px 0 0 0; font-size: 0.85em; font-weight: bold;'>Compartilhar</p>
-            </a>
-        </div>
-        """, unsafe_allow_html=True)
+    # ===== AÇÕES RÁPIDAS (compacto) =====
+    col_jira, col_copy = st.columns([1, 1])
     
-    # Linha de ações rápidas
-    col1, col2, col3 = st.columns([2, 2, 3])
-    
-    with col1:
+    with col_jira:
         st.markdown(f"🔗 [Abrir no Jira]({card['link']})")
     
-    with col2:
-        # Botão de copiar link
-        if st.button("📋 Copiar Link", key="copy_link"):
-            st.code(share_url, language=None)
-            st.success("Link copiado! Use Ctrl+C para copiar.")
+    with col_copy:
+        st.code(f"?card={card['ticket_id']}&projeto={projeto}", language=None)
     
-    with col3:
-        st.caption(f"🔗 Link direto: `?card={card['ticket_id']}&projeto={projeto}`")
+    st.markdown("")  # Espaçamento sutil
     
-    st.markdown("")  # Espaçamento
-    
-    # Colunas principais
+    # ===== KPIs PRINCIPAIS =====
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -896,136 +892,132 @@ def exibir_card_detalhado(df: pd.DataFrame, ticket_id: str, projeto: str = "SD")
     with col3:
         st.metric("⚡ Prioridade", card['prioridade'])
     with col4:
-        # Fator K individual
         fk = calcular_fator_k(card['sp'], card['bugs'])
         mat = classificar_maturidade(fk)
         st.metric("🎖️ Fator K", f"{fk:.2f} {mat['emoji']}")
     
-    st.markdown("---")
+    st.markdown("<br>", unsafe_allow_html=True)  # Espaçamento
     
-    # Seções expandíveis
+    # ===== INFORMAÇÕES BÁSICAS =====
     with st.expander("📋 **Informações Básicas**", expanded=True):
         col1, col2 = st.columns(2)
         
         with col1:
             st.markdown(f"""
-            | Campo | Valor |
-            |-------|-------|
-            | **Projeto** | {card['projeto']} |
-            | **Sprint** | {card['sprint']} |
-            | **Produto** | {card['produto']} |
-            | **Tipo Original** | {card['tipo_original']} |
+| Campo | Valor |
+|-------|-------|
+| **Projeto** | {card['projeto']} |
+| **Sprint** | {card['sprint']} |
+| **Produto** | {card['produto']} |
+| **Tipo Original** | {card['tipo_original']} |
             """)
         
         with col2:
             st.markdown(f"""
-            | Campo | Valor |
-            |-------|-------|
-            | **Desenvolvedor** | {card['desenvolvedor']} |
-            | **QA Responsável** | {card['qa']} |
-            | **Story Points** | {card['sp']} |
-            | **Complexidade** | {card['complexidade'] if card['complexidade'] else 'Não definida'} |
+| Campo | Valor |
+|-------|-------|
+| **Desenvolvedor** | {card['desenvolvedor']} |
+| **QA Responsável** | {card['qa']} |
+| **Story Points** | {card['sp']} |
+| **Complexidade** | {card['complexidade'] if card['complexidade'] else 'Não definida'} |
             """)
     
+    # ===== MÉTRICAS DE QUALIDADE =====
     with st.expander("📊 **Métricas de Qualidade**", expanded=True):
         col1, col2, col3, col4 = st.columns(4)
         
-        # Fator K com cor
         fk = calcular_fator_k(card['sp'], card['bugs'])
         mat = classificar_maturidade(fk)
         
         with col1:
             st.markdown(f"""
-            <div style='background: {mat['cor']}20; padding: 15px; border-radius: 8px; text-align: center; border-left: 4px solid {mat['cor']};'>
-                <h3 style='margin:0; color: {mat['cor']};'>{fk:.2f}</h3>
-                <small>Fator K</small><br>
-                <span style='font-size: 20px;'>{mat['emoji']}</span>
-                <small>{mat['desc']}</small>
-            </div>
+<div style='background: {mat['cor']}15; padding: 12px; border-radius: 8px; text-align: center; border-left: 3px solid {mat['cor']}; margin-bottom: 8px;'>
+    <h3 style='margin:0; color: {mat['cor']}; font-size: 1.4em;'>{fk:.2f}</h3>
+    <small style='color: #666;'>Fator K</small><br>
+    <span style='font-size: 18px;'>{mat['emoji']}</span>
+    <small style='color: {mat['cor']};'>{mat['desc']}</small>
+</div>
             """, unsafe_allow_html=True)
         
         with col2:
             bugs_cor = "#22c55e" if card['bugs'] == 0 else "#f97316" if card['bugs'] <= 2 else "#ef4444"
             st.markdown(f"""
-            <div style='background: {bugs_cor}20; padding: 15px; border-radius: 8px; text-align: center; border-left: 4px solid {bugs_cor};'>
-                <h3 style='margin:0; color: {bugs_cor};'>{card['bugs']}</h3>
-                <small>Bugs Encontrados</small><br>
-                <span style='font-size: 20px;'>{'✅' if card['bugs'] == 0 else '⚠️' if card['bugs'] <= 2 else '🐛'}</span>
-            </div>
+<div style='background: {bugs_cor}15; padding: 12px; border-radius: 8px; text-align: center; border-left: 3px solid {bugs_cor}; margin-bottom: 8px;'>
+    <h3 style='margin:0; color: {bugs_cor}; font-size: 1.4em;'>{card['bugs']}</h3>
+    <small style='color: #666;'>Bugs</small><br>
+    <span style='font-size: 18px;'>{'✅' if card['bugs'] == 0 else '⚠️' if card['bugs'] <= 2 else '🐛'}</span>
+</div>
             """, unsafe_allow_html=True)
         
         with col3:
-            sp_emoji = "🎯" if card['sp'] > 0 else "❓"
             st.markdown(f"""
-            <div style='background: #3b82f620; padding: 15px; border-radius: 8px; text-align: center; border-left: 4px solid #3b82f6;'>
-                <h3 style='margin:0; color: #3b82f6;'>{card['sp']}</h3>
-                <small>Story Points</small><br>
-                <span style='font-size: 20px;'>{sp_emoji}</span>
-            </div>
+<div style='background: #3b82f615; padding: 12px; border-radius: 8px; text-align: center; border-left: 3px solid #3b82f6; margin-bottom: 8px;'>
+    <h3 style='margin:0; color: #3b82f6; font-size: 1.4em;'>{card['sp']}</h3>
+    <small style='color: #666;'>Story Points</small><br>
+    <span style='font-size: 18px;'>{'🎯' if card['sp'] > 0 else '❓'}</span>
+</div>
             """, unsafe_allow_html=True)
         
         with col4:
-            # FPY individual (0 ou 100%)
             fpy_individual = 100 if card['bugs'] == 0 else 0
             fpy_cor = "#22c55e" if fpy_individual == 100 else "#ef4444"
             st.markdown(f"""
-            <div style='background: {fpy_cor}20; padding: 15px; border-radius: 8px; text-align: center; border-left: 4px solid {fpy_cor};'>
-                <h3 style='margin:0; color: {fpy_cor};'>{fpy_individual}%</h3>
-                <small>FPY Individual</small><br>
-                <span style='font-size: 20px;'>{'✅' if fpy_individual == 100 else '🔄'}</span>
-                <small>{'Primeira Passagem' if fpy_individual == 100 else 'Retrabalho'}</small>
-            </div>
+<div style='background: {fpy_cor}15; padding: 12px; border-radius: 8px; text-align: center; border-left: 3px solid {fpy_cor}; margin-bottom: 8px;'>
+    <h3 style='margin:0; color: {fpy_cor}; font-size: 1.4em;'>{fpy_individual}%</h3>
+    <small style='color: #666;'>FPY</small><br>
+    <span style='font-size: 18px;'>{'✅' if fpy_individual == 100 else '🔄'}</span>
+</div>
             """, unsafe_allow_html=True)
     
+    # ===== ANÁLISE DE TEMPO =====
     with st.expander("⏱️ **Análise de Tempo**", expanded=True):
         col1, col2, col3 = st.columns(3)
         
         with col1:
             lead_cor = "#22c55e" if card['lead_time'] <= 7 else "#f97316" if card['lead_time'] <= 14 else "#ef4444"
             st.markdown(f"""
-            <div style='background: {lead_cor}20; padding: 15px; border-radius: 8px; text-align: center; border-left: 4px solid {lead_cor};'>
-                <h3 style='margin:0; color: {lead_cor};'>{card['lead_time']} dias</h3>
-                <small>Lead Time</small><br>
-                <span style='font-size: 20px;'>{'🚀' if card['lead_time'] <= 7 else '⏳' if card['lead_time'] <= 14 else '🐢'}</span>
-                <small>{'Rápido' if card['lead_time'] <= 7 else 'Normal' if card['lead_time'] <= 14 else 'Lento'}</small>
-            </div>
+<div style='background: {lead_cor}15; padding: 12px; border-radius: 8px; text-align: center; border-left: 3px solid {lead_cor}; margin-bottom: 8px;'>
+    <h3 style='margin:0; color: {lead_cor}; font-size: 1.3em;'>{card['lead_time']} dias</h3>
+    <small style='color: #666;'>Lead Time</small><br>
+    <span style='font-size: 16px;'>{'🚀' if card['lead_time'] <= 7 else '⏳' if card['lead_time'] <= 14 else '🐢'}</span>
+    <small style='color: {lead_cor};'>{'Rápido' if card['lead_time'] <= 7 else 'Normal' if card['lead_time'] <= 14 else 'Lento'}</small>
+</div>
             """, unsafe_allow_html=True)
         
         with col2:
             aging_cor = "#22c55e" if card['dias_em_status'] <= 3 else "#f97316" if card['dias_em_status'] <= 7 else "#ef4444"
             st.markdown(f"""
-            <div style='background: {aging_cor}20; padding: 15px; border-radius: 8px; text-align: center; border-left: 4px solid {aging_cor};'>
-                <h3 style='margin:0; color: {aging_cor};'>{card['dias_em_status']} dias</h3>
-                <small>No Status Atual</small><br>
-                <span style='font-size: 20px;'>{'✅' if card['dias_em_status'] <= 3 else '⚠️' if card['dias_em_status'] <= 7 else '🚨'}</span>
-                <small>{'OK' if card['dias_em_status'] <= 3 else 'Atenção' if card['dias_em_status'] <= 7 else 'Aging'}</small>
-            </div>
+<div style='background: {aging_cor}15; padding: 12px; border-radius: 8px; text-align: center; border-left: 3px solid {aging_cor}; margin-bottom: 8px;'>
+    <h3 style='margin:0; color: {aging_cor}; font-size: 1.3em;'>{card['dias_em_status']} dias</h3>
+    <small style='color: #666;'>No Status Atual</small><br>
+    <span style='font-size: 16px;'>{'✅' if card['dias_em_status'] <= 3 else '⚠️' if card['dias_em_status'] <= 7 else '🚨'}</span>
+    <small style='color: {aging_cor};'>{'OK' if card['dias_em_status'] <= 3 else 'Atenção' if card['dias_em_status'] <= 7 else 'Aging'}</small>
+</div>
             """, unsafe_allow_html=True)
         
         with col3:
             release_cor = "#22c55e" if card['dias_ate_release'] >= 3 else "#f97316" if card['dias_ate_release'] >= 1 else "#ef4444"
             st.markdown(f"""
-            <div style='background: {release_cor}20; padding: 15px; border-radius: 8px; text-align: center; border-left: 4px solid {release_cor};'>
-                <h3 style='margin:0; color: {release_cor};'>{card['dias_ate_release']} dias</h3>
-                <small>Até Release</small><br>
-                <span style='font-size: 20px;'>{'✅' if card['dias_ate_release'] >= 3 else '⚠️' if card['dias_ate_release'] >= 1 else '🚨'}</span>
-            </div>
+<div style='background: {release_cor}15; padding: 12px; border-radius: 8px; text-align: center; border-left: 3px solid {release_cor}; margin-bottom: 8px;'>
+    <h3 style='margin:0; color: {release_cor}; font-size: 1.3em;'>{card['dias_ate_release']} dias</h3>
+    <small style='color: #666;'>Até Release</small><br>
+    <span style='font-size: 16px;'>{'✅' if card['dias_ate_release'] >= 3 else '⚠️' if card['dias_ate_release'] >= 1 else '🚨'}</span>
+</div>
             """, unsafe_allow_html=True)
         
-        # Timeline
-        st.markdown("##### 📅 Timeline")
-        timeline_data = {
-            "Evento": ["Criação", "Última Atualização", "Resolução"],
-            "Data": [
-                card['criado'].strftime("%d/%m/%Y %H:%M") if pd.notna(card['criado']) else "N/A",
-                card['atualizado'].strftime("%d/%m/%Y %H:%M") if pd.notna(card['atualizado']) else "N/A",
-                card['resolutiondate'].strftime("%d/%m/%Y %H:%M") if pd.notna(card['resolutiondate']) else "Não resolvido"
-            ]
-        }
-        st.dataframe(pd.DataFrame(timeline_data), hide_index=True, use_container_width=True)
+        # Timeline compacta
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("**📅 Timeline**")
+        col_t1, col_t2, col_t3 = st.columns(3)
+        with col_t1:
+            st.caption(f"**Criação:** {card['criado'].strftime('%d/%m/%Y') if pd.notna(card['criado']) else 'N/A'}")
+        with col_t2:
+            st.caption(f"**Atualização:** {card['atualizado'].strftime('%d/%m/%Y') if pd.notna(card['atualizado']) else 'N/A'}")
+        with col_t3:
+            st.caption(f"**Resolução:** {card['resolutiondate'].strftime('%d/%m/%Y') if pd.notna(card['resolutiondate']) else 'Pendente'}")
     
-    with st.expander("🕐 **Janela de Validação**", expanded=True):
-        # Status da janela de validação
+    # ===== JANELA DE VALIDAÇÃO =====
+    with st.expander("🕐 **Janela de Validação**", expanded=False):
         janela_cor = "#22c55e" if card['janela_status'] == 'ok' else "#f97316" if card['janela_status'] == 'risco' else "#ef4444"
         janela_emoji = "✅" if card['janela_status'] == 'ok' else "⚠️" if card['janela_status'] == 'risco' else "🚨"
         janela_texto = "Dentro da Janela" if card['janela_status'] == 'ok' else "Janela em Risco" if card['janela_status'] == 'risco' else "Fora da Janela"
@@ -1034,113 +1026,91 @@ def exibir_card_detalhado(df: pd.DataFrame, ticket_id: str, projeto: str = "SD")
         
         with col1:
             st.markdown(f"""
-            <div style='background: {janela_cor}20; padding: 15px; border-radius: 8px; text-align: center; border-left: 4px solid {janela_cor};'>
-                <span style='font-size: 30px;'>{janela_emoji}</span>
-                <h4 style='margin: 5px 0; color: {janela_cor};'>{janela_texto}</h4>
-            </div>
+<div style='background: {janela_cor}15; padding: 12px; border-radius: 8px; text-align: center; border-left: 3px solid {janela_cor};'>
+    <span style='font-size: 24px;'>{janela_emoji}</span>
+    <h4 style='margin: 5px 0; color: {janela_cor}; font-size: 1em;'>{janela_texto}</h4>
+</div>
             """, unsafe_allow_html=True)
         
         with col2:
             st.markdown(f"""
-            <div style='background: #6366f120; padding: 15px; border-radius: 8px; text-align: center; border-left: 4px solid #6366f1;'>
-                <h3 style='margin:0; color: #6366f1;'>{card['janela_dias_necessarios']} dias</h3>
-                <small>Necessários p/ Validação</small><br>
-                <small>Complexidade: {card['complexidade'] if card['complexidade'] else 'Não definida'}</small>
-            </div>
+<div style='background: #6366f115; padding: 12px; border-radius: 8px; text-align: center; border-left: 3px solid #6366f1;'>
+    <h3 style='margin:0; color: #6366f1; font-size: 1.2em;'>{card['janela_dias_necessarios']}d</h3>
+    <small style='color: #666;'>Necessários</small>
+</div>
             """, unsafe_allow_html=True)
         
         with col3:
             st.markdown(f"""
-            <div style='background: #8b5cf620; padding: 15px; border-radius: 8px; text-align: center; border-left: 4px solid #8b5cf6;'>
-                <h3 style='margin:0; color: #8b5cf6;'>{card['dias_ate_release']} dias</h3>
-                <small>Disponíveis</small><br>
-                <small>Até o Release</small>
-            </div>
+<div style='background: #8b5cf615; padding: 12px; border-radius: 8px; text-align: center; border-left: 3px solid #8b5cf6;'>
+    <h3 style='margin:0; color: #8b5cf6; font-size: 1.2em;'>{card['dias_ate_release']}d</h3>
+    <small style='color: #666;'>Disponíveis</small>
+</div>
             """, unsafe_allow_html=True)
-        
-        # Análise
-        if card['janela_status'] == 'ok':
-            st.success(f"✅ O card possui tempo suficiente para validação. Necessário: {card['janela_dias_necessarios']} dias | Disponível: {card['dias_ate_release']} dias")
-        elif card['janela_status'] == 'risco':
-            st.warning(f"⚠️ Tempo justo para validação. Priorize este card! Necessário: {card['janela_dias_necessarios']} dias | Disponível: {card['dias_ate_release']} dias")
-        else:
-            st.error(f"🚨 **FORA DA JANELA!** Tempo insuficiente para validação adequada. Necessário: {card['janela_dias_necessarios']} dias | Disponível: {card['dias_ate_release']} dias")
     
-    with st.expander("🏷️ **Flags e Alertas**", expanded=True):
+    # ===== FLAGS E ALERTAS =====
+    with st.expander("🏷️ **Flags e Preenchimento**", expanded=False):
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("##### 📊 Flags de Fluxo")
-            flags = []
-            
+            st.markdown("**Flags de Fluxo:**")
             if card['criado_na_sprint']:
-                flags.append(("✅", "Criado na Sprint", "Card foi criado dentro do período da sprint"))
+                st.markdown("✅ Criado na Sprint")
             else:
-                flags.append(("📥", "Herdado", "Card veio de sprints anteriores"))
+                st.markdown("📥 Herdado de sprint anterior")
             
             if card['finalizado_mesma_sprint']:
-                flags.append(("🏆", "Finalizado na Mesma Sprint", "Criado e concluído na mesma sprint"))
+                st.markdown("🏆 Finalizado na mesma sprint")
             
             if card['adicionado_fora_periodo']:
-                flags.append(("⚠️", "Fora do Período", "Adicionado após início da sprint (+2 dias)"))
-            
-            for emoji, label, desc in flags:
-                st.markdown(f"{emoji} **{label}**: {desc}")
+                st.markdown("⚠️ Adicionado fora do período")
         
         with col2:
-            st.markdown("##### 📋 Preenchimento de Campos")
+            st.markdown("**Campos Preenchidos:**")
             campos = [
-                ("Story Points", card['sp_preenchido'], card['sp']),
-                ("Bugs Encontrados", card['bugs_preenchido'], card['bugs']),
-                ("Complexidade", card['complexidade_preenchida'], card['complexidade']),
-                ("QA Responsável", card['qa_preenchido'], card['qa']),
+                ("SP", card['sp_preenchido']),
+                ("Bugs", card['bugs_preenchido']),
+                ("Complexidade", card['complexidade_preenchida']),
+                ("QA", card['qa_preenchido']),
             ]
-            
-            for campo, preenchido, valor in campos:
-                if preenchido:
-                    st.markdown(f"✅ **{campo}**: {valor}")
-                else:
-                    st.markdown(f"❌ **{campo}**: *Não preenchido*")
+            for campo, ok in campos:
+                st.markdown(f"{'✅' if ok else '❌'} {campo}")
     
-    # Resumo executivo
-    st.markdown("---")
+    # ===== RESUMO EXECUTIVO =====
+    st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 📝 Resumo Executivo")
     
-    # Gerar insights automáticos
     insights = []
     
-    # Qualidade
     if card['bugs'] == 0:
-        insights.append("✅ **Qualidade**: Zero bugs encontrados - excelente!")
+        insights.append("✅ **Qualidade**: Zero bugs - excelente!")
     elif card['bugs'] <= 2:
-        insights.append(f"⚠️ **Qualidade**: {card['bugs']} bug(s) encontrado(s) - dentro do aceitável")
+        insights.append(f"⚠️ **Qualidade**: {card['bugs']} bug(s) - aceitável")
     else:
-        insights.append(f"🚨 **Qualidade**: {card['bugs']} bugs encontrados - requer atenção")
+        insights.append(f"🚨 **Qualidade**: {card['bugs']} bugs - atenção")
     
-    # Tempo
     if card['lead_time'] <= 7:
-        insights.append(f"✅ **Velocidade**: Lead time de {card['lead_time']} dias - rápido")
+        insights.append(f"✅ **Velocidade**: {card['lead_time']}d - rápido")
     elif card['lead_time'] <= 14:
-        insights.append(f"⚠️ **Velocidade**: Lead time de {card['lead_time']} dias - dentro da média")
+        insights.append(f"⚠️ **Velocidade**: {card['lead_time']}d - normal")
     else:
-        insights.append(f"🚨 **Velocidade**: Lead time de {card['lead_time']} dias - acima do esperado")
+        insights.append(f"🚨 **Velocidade**: {card['lead_time']}d - lento")
     
-    # Janela
     if card['janela_status'] == 'ok':
-        insights.append(f"✅ **Validação**: Tempo adequado para QA ({card['dias_ate_release']} dias disponíveis)")
+        insights.append("✅ **Janela QA**: OK")
     elif card['janela_status'] == 'risco':
-        insights.append(f"⚠️ **Validação**: Janela em risco - priorizar validação")
+        insights.append("⚠️ **Janela QA**: Em risco")
     else:
-        insights.append(f"🚨 **Validação**: FORA DA JANELA - avaliar postergação ou fast-track")
+        insights.append("🚨 **Janela QA**: FORA!")
     
-    # Aging
     if card['dias_em_status'] > 7:
-        insights.append(f"🚨 **Aging**: {card['dias_em_status']} dias no mesmo status - verificar bloqueios")
-    elif card['dias_em_status'] > 3:
-        insights.append(f"⚠️ **Aging**: {card['dias_em_status']} dias no mesmo status - monitorar")
+        insights.append(f"🚨 **Aging**: {card['dias_em_status']}d parado")
     
-    for insight in insights:
-        st.markdown(insight)
+    # Exibe em colunas para ficar mais compacto
+    cols = st.columns(len(insights))
+    for i, insight in enumerate(insights):
+        with cols[i]:
+            st.markdown(insight)
     
     return True
 
@@ -3629,7 +3599,7 @@ def aba_sobre():
         |------------|-------|
         | **Desenvolvido por** | QA NINA |
         | **Mantido por** | Vinícios Ferreira |
-        | **Versão** | v8.6 |
+        | **Versão** | v8.7 |
         | **Última atualização** | Abril 2026 |
         | **Stack** | Python, Streamlit, Plotly, Pandas |
         | **Integração** | Jira API REST |
@@ -3719,8 +3689,8 @@ def main():
         # ===== SEÇÃO 1: BUSCA DE CARD (EM DESTAQUE) =====
         st.markdown("""
         <div style="background: linear-gradient(135deg, #AF0C37 0%, #8a0a2c 100%); 
-                    padding: 12px; border-radius: 10px; margin: 10px 0;">
-            <p style="color: white; margin: 0; font-weight: bold; font-size: 0.95em;">
+                    padding: 10px 12px; border-radius: 8px; margin: 8px 0 5px 0;">
+            <p style="color: white; margin: 0; font-weight: bold; font-size: 0.9em;">
                 🔍 Busca Rápida de Card
             </p>
         </div>
@@ -3734,6 +3704,22 @@ def main():
             help="Pesquise qualquer card pelo ID para ver detalhes completos",
             label_visibility="collapsed"
         )
+        
+        # Mostra indicador de pesquisa ativa e botão de voltar
+        if busca_card:
+            st.markdown(f"""
+            <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; 
+                        padding: 8px; margin: 8px 0; text-align: center;">
+                <p style="margin: 0; color: #92400e; font-size: 0.85em;">
+                    📍 <b>Visualizando:</b> {busca_card.upper()}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Botão para voltar ao dashboard
+            if st.button("⬅️ Voltar ao Dashboard", type="primary", use_container_width=True):
+                st.query_params.clear()
+                st.rerun()
         
         st.markdown("---")
         
@@ -3769,12 +3755,12 @@ def main():
         # ===== SEÇÃO 3: RODAPÉ =====
         st.markdown("---")
         st.markdown("""
-        <div style="text-align: center; padding: 10px 0;">
-            <p style="color: #AF0C37; font-weight: bold; margin: 0; font-size: 0.9em;">
+        <div style="text-align: center; padding: 5px 0;">
+            <p style="color: #AF0C37; font-weight: bold; margin: 0; font-size: 0.85em;">
                 📌 NINA Tecnologia
             </p>
-            <p style="color: #888; font-size: 0.75em; margin: 3px 0 0 0;">
-                v8.6 • Dashboard de Inteligência QA
+            <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
+                v8.7 • Dashboard de Inteligência QA
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -3816,19 +3802,12 @@ def main():
         st.query_params["card"] = busca_card
         st.query_params["projeto"] = projeto
         
-        st.markdown("---")
-        
         # Tenta encontrar o card
         card_encontrado = exibir_card_detalhado(df, busca_card, projeto)
         
         if not card_encontrado:
             st.warning(f"⚠️ Card **{busca_card}** não encontrado na sprint/período atual.")
             st.info("💡 Verifique se o ID está correto ou se o card pertence a outro período/projeto.")
-        
-        # Botão para voltar às abas
-        st.markdown("---")
-        if st.button("⬅️ Voltar para as Abas", type="primary"):
-            st.rerun()
     
     else:
         # Abas condicionais por projeto (fluxo normal)
