@@ -59,7 +59,7 @@ NINA_FAVICON = "data:image/svg+xml," + NINA_LOGO_SVG.replace("#", "%23").replace
 
 st.set_page_config(
     page_title="NinaDash - Métricas de Qualidade",
-    page_icon="favicon.png",
+    page_icon="favicon.svg",
     layout="wide",
     initial_sidebar_state="expanded"
 )
