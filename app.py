@@ -1422,35 +1422,54 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Di
         st.link_button("🔗 Abrir no Jira", card['link'], use_container_width=True)
     
     with col2:
-        # Botão que copia direto para clipboard usando JavaScript com feedback visual
-        copy_button_id = f"copy_btn_{card['ticket_id'].replace('-', '_')}"
+        # Usar componente HTML com script separado para evitar conflito React
+        copy_id = f"copy_{card['ticket_id'].replace('-', '_')}"
         st.markdown(f"""
-        <button id="{copy_button_id}" onclick="
-            navigator.clipboard.writeText('{share_url}').then(function() {{
-                var btn = document.getElementById('{copy_button_id}');
-                btn.innerHTML = '✅ Copiado!';
-                btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
-                btn.style.transform = 'scale(1.05)';
-                setTimeout(function() {{
-                    btn.innerHTML = '📋 Copiar Link';
-                    btn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
-                    btn.style.transform = 'scale(1)';
-                }}, 2000);
-            }}).catch(function() {{
-                alert('Não foi possível copiar. URL: {share_url}');
-            }});
-        " style="
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            width: 100%;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        ">📋 Copiar Link</button>
+        <div id="{copy_id}_container">
+            <button id="{copy_id}" class="copy-link-btn" data-url="{share_url}" style="
+                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 6px;
+                cursor: pointer;
+                width: 100%;
+                font-size: 14px;
+                font-weight: 500;
+                transition: all 0.2s ease;
+            ">📋 Copiar Link</button>
+        </div>
+        <script>
+            (function() {{
+                var btn = document.getElementById('{copy_id}');
+                if (btn && !btn.hasAttribute('data-listener')) {{
+                    btn.setAttribute('data-listener', 'true');
+                    btn.addEventListener('click', function() {{
+                        var url = this.getAttribute('data-url');
+                        navigator.clipboard.writeText(url).then(function() {{
+                            btn.innerHTML = '✅ Copiado!';
+                            btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+                            setTimeout(function() {{
+                                btn.innerHTML = '📋 Copiar Link';
+                                btn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+                            }}, 2000);
+                        }}).catch(function() {{
+                            // Fallback para browsers antigos
+                            var temp = document.createElement('textarea');
+                            temp.value = url;
+                            document.body.appendChild(temp);
+                            temp.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(temp);
+                            btn.innerHTML = '✅ Copiado!';
+                            setTimeout(function() {{
+                                btn.innerHTML = '📋 Copiar Link';
+                            }}, 2000);
+                        }});
+                    }});
+                }}
+            }})();
+        </script>
         """, unsafe_allow_html=True)
     
     with col3:
