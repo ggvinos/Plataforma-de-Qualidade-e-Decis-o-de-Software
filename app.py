@@ -971,6 +971,11 @@ def criar_grafico_tendencia_bugs(df_tendencia: pd.DataFrame) -> go.Figure:
 
 def criar_grafico_estagio_por_produto(df: pd.DataFrame) -> go.Figure:
     """Cria gráfico de estágio por produto."""
+    if df.empty:
+        fig = go.Figure()
+        fig.add_annotation(text="Sem dados", xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False)
+        return fig
+    
     # Agrupar por produto e status
     data = df.groupby(['produto', 'status_cat']).size().reset_index(name='count')
     
@@ -1326,13 +1331,14 @@ def aba_produto(df: pd.DataFrame):
         'sp': 'sum',
         'bugs': 'sum',
     }).reset_index()
-    produto_stats.columns = ['Produto', 'Cards', 'SP', 'Bugs']
+    produto_stats.columns = ['produto', 'Cards', 'SP', 'Bugs']
     produto_stats['FK'] = produto_stats.apply(lambda x: calcular_fator_k(x['SP'], x['Bugs']), axis=1)
     
     # Adicionar hotfixes
     hotfix_count = df[df['tipo'] == 'HOTFIX'].groupby('produto').size().reset_index(name='Hotfixes')
-    produto_stats = produto_stats.merge(hotfix_count, on='Produto', how='left').fillna(0)
+    produto_stats = produto_stats.merge(hotfix_count, on='produto', how='left').fillna(0)
     produto_stats['Hotfixes'] = produto_stats['Hotfixes'].astype(int)
+    produto_stats = produto_stats.rename(columns={'produto': 'Produto'})
     
     st.dataframe(produto_stats.sort_values('Cards', ascending=False), hide_index=True, use_container_width=True)
 
