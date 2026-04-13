@@ -46,9 +46,17 @@ import random
 # ==============================================================================
 # CONFIGURAÇÃO DA PÁGINA (DEVE SER PRIMEIRO)
 # ==============================================================================
+
+# Logo SVG da Nina em base64 para favicon
+NINA_LOGO_SVG = '''<svg width="187" height="187" viewBox="0 0 187 187" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M173.709 89.2107C172.209 86.6048 169.414 84.838 166.225 84.838C163.036 84.838 160.241 86.5649 158.741 89.1627H151.683C149.465 58.8237 124.495 35 94.0216 35C63.5489 35 38.5862 58.8237 36.3678 89.1627H29.1759C27.6759 86.5649 24.8734 84.798 21.6682 84.798C18.463 84.798 15.6605 86.5806 14.1605 89.2031C13.4184 90.4899 13 92.001 13 93.6C13 95.1987 13.4184 96.7017 14.1605 97.997C15.6605 100.619 18.463 102.306 21.6682 102.306C24.8734 102.306 27.6838 100.435 29.1759 97.8369H36.3678C38.5862 128.168 63.5489 152 94.0216 152C124.495 152 149.465 128.176 151.675 97.8369H158.686C160.178 100.435 162.996 102.354 166.217 102.354C169.438 102.354 172.256 100.611 173.749 97.9648C174.475 96.6856 174.885 95.2148 174.885 93.6319C174.885 92.049 174.451 90.5222 173.701 89.2188L173.709 89.2107ZM111.145 125.554C107.971 131.518 101.758 135.459 94.5981 135.459C87.4374 135.459 81.2248 131.566 78.0509 125.602C77.1666 123.947 78.3667 122.092 80.2219 122.092H108.982C110.837 122.092 112.029 123.891 111.153 125.554H111.145ZM140.528 94.1277C140.528 103.825 132.76 111.691 123.184 111.691H65.4432C55.8675 111.691 48.0991 103.825 48.0991 94.1277V93.7199C48.0991 84.0223 55.8675 76.1557 65.4432 76.1557H123.184C132.76 76.1557 140.528 84.0223 140.528 93.7199V94.1277Z" fill="#AF0C37"/>
+<path d="M76.5809 105.311C82.9686 105.311 88.1466 100.068 88.1466 93.5996C88.1466 87.1312 82.9686 81.8875 76.5809 81.8875C70.1936 81.8875 65.0156 87.1312 65.0156 93.5996C65.0156 100.068 70.1936 105.311 76.5809 105.311Z" fill="#AF0C37"/>
+<path d="M111.437 105.311C117.824 105.311 123.002 100.068 123.002 93.5996C123.002 87.1312 117.824 81.8875 111.437 81.8875C105.049 81.8875 99.8712 87.1312 99.8712 93.5996C99.8712 100.068 105.049 105.311 111.437 105.311Z" fill="#AF0C37"/>
+</svg>'''
+
 st.set_page_config(
     page_title="NinaDash - Métricas de Qualidade",
-    page_icon="🌲",
+    page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -793,17 +801,18 @@ def exportar_para_excel(df: pd.DataFrame, metricas: Dict) -> bytes:
 def aplicar_estilos():
     st.markdown("""
     <style>
-    /* Header Nina - Fundo escuro para contrastar com logo vermelha */
+    /* Header Nina - Fundo branco para melhor contraste */
     .nina-header {
-        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-        color: white;
+        background: #ffffff;
+        color: #1e293b;
         padding: 20px 25px;
         border-radius: 12px;
         margin-bottom: 20px;
         display: flex;
         align-items: center;
         gap: 20px;
-        border: 1px solid #334155;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     .nina-logo {
         width: 60px;
@@ -818,13 +827,13 @@ def aplicar_estilos():
         font-size: 24px;
         font-weight: bold;
         margin: 0;
-        color: #f8fafc;
+        color: #1e293b;
     }
     .nina-subtitle {
         font-size: 14px;
-        opacity: 0.85;
+        opacity: 0.75;
         margin: 5px 0 0 0;
-        color: #cbd5e1;
+        color: #64748b;
     }
     .nina-highlight {
         color: #AF0C37;
@@ -1468,15 +1477,16 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
 
 
 def aba_qa(df: pd.DataFrame):
-    """Aba de QA (análise de validação e gargalos)."""
+    """Aba de QA (análise de validação, gargalos e comparativo entre QAs)."""
     st.markdown("### 🔬 Análise de QA")
-    st.caption("Monitore o funil de validação, identifique gargalos e acompanhe a carga do time de QA")
+    st.caption("Monitore o funil de validação, identifique gargalos e compare a performance dos QAs")
     
     metricas_qa = calcular_metricas_qa(df)
+    qas = [q for q in df['qa'].unique() if q != 'Não atribuído']
     
     # KPIs de QA
     with st.expander("📊 Indicadores de QA", expanded=True):
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
             total_fila = metricas_qa['funil']['waiting_qa'] + metricas_qa['funil']['testing']
@@ -1486,7 +1496,7 @@ def aba_qa(df: pd.DataFrame):
         with col2:
             tempo = metricas_qa['tempo']['waiting']
             cor = 'green' if tempo < 2 else 'yellow' if tempo < 5 else 'red'
-            criar_card_metrica(f"{tempo:.1f}d", "Tempo Médio na Fila", cor)
+            criar_card_metrica(f"{tempo:.1f}d", "Tempo Médio Fila", cor)
         
         with col3:
             aging = metricas_qa['aging']['total']
@@ -1496,7 +1506,15 @@ def aba_qa(df: pd.DataFrame):
         with col4:
             taxa = metricas_qa['taxa_reprovacao']
             cor = 'green' if taxa < 10 else 'yellow' if taxa < 20 else 'red'
-            criar_card_metrica(f"{taxa:.0f}%", "Taxa de Reprovação", cor)
+            criar_card_metrica(f"{taxa:.0f}%", "Taxa Reprovação", cor)
+        
+        with col5:
+            # DDP
+            ddp = calcular_ddp(df)
+            cor = 'green' if ddp['valor'] >= 85 else 'yellow' if ddp['valor'] >= 70 else 'red'
+            criar_card_metrica(f"{ddp['valor']:.0f}%", "DDP", cor, "Detecção de Defeitos")
+        
+        mostrar_tooltip("ddp")
     
     # Funil e Carga
     with st.expander("📈 Funil de Validação e Carga por QA", expanded=True):
@@ -1517,6 +1535,126 @@ def aba_qa(df: pd.DataFrame):
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Nenhum card em validação no momento.")
+    
+    # ========== NOVO: Comparativo entre QAs ==========
+    with st.expander("📊 Comparativo de Performance entre QAs", expanded=True):
+        if qas:
+            # Tabela comparativa
+            dados_qa = []
+            for qa in qas:
+                df_qa = df[df['qa'] == qa]
+                validados = len(df_qa[df_qa['status_cat'] == 'done'])
+                em_fila = len(df_qa[df_qa['status_cat'].isin(['waiting_qa', 'testing'])])
+                bugs_encontrados = int(df_qa['bugs'].sum())
+                cards_sem_bugs = len(df_qa[(df_qa['status_cat'] == 'done') & (df_qa['bugs'] == 0)])
+                fpy_val = cards_sem_bugs / validados * 100 if validados > 0 else 0
+                sp_total = int(df_qa['sp'].sum())
+                lead_time_medio = df_qa['lead_time'].mean() if not df_qa.empty else 0
+                
+                dados_qa.append({
+                    'QA': qa,
+                    'Cards': len(df_qa),
+                    'Validados': validados,
+                    'Em Fila': em_fila,
+                    'Bugs Encontrados': bugs_encontrados,
+                    'FPY': f"{fpy_val:.0f}%",
+                    'SP Total': sp_total,
+                    'Lead Time': f"{lead_time_medio:.1f}d",
+                })
+            
+            df_comparativo = pd.DataFrame(dados_qa)
+            st.dataframe(df_comparativo.sort_values('Cards', ascending=False), hide_index=True, use_container_width=True)
+            
+            # Gráficos comparativos
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**🐛 Bugs Encontrados por QA**")
+                bugs_por_qa = df[df['qa'] != 'Não atribuído'].groupby('qa')['bugs'].sum().reset_index()
+                bugs_por_qa.columns = ['QA', 'Bugs']
+                if not bugs_por_qa.empty and bugs_por_qa['Bugs'].sum() > 0:
+                    fig = px.bar(bugs_por_qa.sort_values('Bugs', ascending=False), 
+                                 x='QA', y='Bugs', color='Bugs',
+                                 color_continuous_scale=['#22c55e', '#f97316', '#ef4444'],
+                                 title='')
+                    fig.update_layout(height=250, showlegend=False)
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("Sem dados de bugs por QA")
+            
+            with col2:
+                st.markdown("**✅ Cards Validados por QA**")
+                validados_por_qa = df[(df['qa'] != 'Não atribuído') & (df['status_cat'] == 'done')].groupby('qa').size().reset_index(name='Validados')
+                if not validados_por_qa.empty:
+                    fig = px.pie(validados_por_qa, values='Validados', names='qa', 
+                                 hole=0.4, color_discrete_sequence=px.colors.qualitative.Set2)
+                    fig.update_layout(height=250)
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("Nenhum card validado ainda")
+        else:
+            st.info("Nenhum QA atribuído aos cards.")
+    
+    # ========== NOVO: Bugs por Tipo e Impacto ==========
+    with st.expander("🐛 Análise de Bugs e Retrabalho", expanded=False):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**🎯 Bugs por Tipo de Card**")
+            bugs_por_tipo = df.groupby('tipo')['bugs'].sum().reset_index()
+            if not bugs_por_tipo.empty and bugs_por_tipo['bugs'].sum() > 0:
+                fig = px.pie(bugs_por_tipo, values='bugs', names='tipo', hole=0.4,
+                             color_discrete_sequence=px.colors.qualitative.Set2)
+                fig.update_layout(height=250)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Sem bugs registrados")
+        
+        with col2:
+            st.markdown("**📊 Métricas de Eficiência**")
+            concluidos = df[df['status_cat'] == 'done']
+            if not concluidos.empty:
+                # FPY geral
+                fpy = calcular_fpy(df)
+                st.metric("FPY (First Pass Yield)", f"{fpy['valor']}%", 
+                         help="Cards aprovados sem bugs na primeira validação")
+                
+                # Taxa de retrabalho
+                cards_com_bugs = len(concluidos[concluidos['bugs'] > 0])
+                taxa_retrabalho = cards_com_bugs / len(concluidos) * 100 if len(concluidos) > 0 else 0
+                st.metric("Taxa de Retrabalho", f"{taxa_retrabalho:.1f}%",
+                         help="Cards que precisaram de correção")
+                
+                # Lead time médio
+                lead = calcular_lead_time(df)
+                st.metric("Lead Time Médio", f"{lead['medio']:.1f} dias")
+            else:
+                st.info("Sem cards concluídos")
+        
+        # Devs que mais geraram bugs
+        st.markdown("---")
+        st.markdown("**⚠️ Desenvolvedores com mais bugs (requer atenção do QA)**")
+        
+        dev_bugs = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor').agg({
+            'bugs': 'sum',
+            'sp': 'sum',
+            'ticket_id': 'count'
+        }).reset_index()
+        dev_bugs.columns = ['Desenvolvedor', 'Bugs', 'SP', 'Cards']
+        dev_bugs['FK'] = dev_bugs.apply(lambda x: round(x['SP'] / (x['Bugs'] + 1), 2), axis=1)
+        dev_bugs = dev_bugs[dev_bugs['Bugs'] > 0].sort_values('Bugs', ascending=False)
+        
+        if not dev_bugs.empty:
+            for _, row in dev_bugs.head(5).iterrows():
+                cor = '#ef4444' if row['FK'] < 1.5 else '#f97316' if row['FK'] < 2.5 else '#22c55e'
+                st.markdown(f"""
+                <div style="background: rgba(100,100,100,0.05); padding: 10px; border-radius: 8px; margin: 5px 0; border-left: 3px solid {cor};">
+                    <b>{row['Desenvolvedor']}</b><br>
+                    <span style="font-size: 12px;">🐛 {row['Bugs']} bugs | FK: {row['FK']} | {row['Cards']} cards</span>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.success("✅ Nenhum desenvolvedor com bugs significativos!")
     
     # Cards com aging - COM LISTAGEM COMPLETA
     with st.expander("⏰ Cards Envelhecidos (Aging)", expanded=False):
@@ -2180,8 +2318,19 @@ def main():
     
     # Sidebar
     with st.sidebar:
-        st.markdown("## 🌲 NinaDash")
-        st.caption("v8.0 - Inteligência de QA")
+        # Logo da Nina na sidebar
+        st.markdown(f'''
+        <div style="text-align: center; padding: 10px 0;">
+            <svg width="80" height="80" viewBox="0 0 187 187" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M173.709 89.2107C172.209 86.6048 169.414 84.838 166.225 84.838C163.036 84.838 160.241 86.5649 158.741 89.1627H151.683C149.465 58.8237 124.495 35 94.0216 35C63.5489 35 38.5862 58.8237 36.3678 89.1627H29.1759C27.6759 86.5649 24.8734 84.798 21.6682 84.798C18.463 84.798 15.6605 86.5806 14.1605 89.2031C13.4184 90.4899 13 92.001 13 93.6C13 95.1987 13.4184 96.7017 14.1605 97.997C15.6605 100.619 18.463 102.306 21.6682 102.306C24.8734 102.306 27.6838 100.435 29.1759 97.8369H36.3678C38.5862 128.168 63.5489 152 94.0216 152C124.495 152 149.465 128.176 151.675 97.8369H158.686C160.178 100.435 162.996 102.354 166.217 102.354C169.438 102.354 172.256 100.611 173.749 97.9648C174.475 96.6856 174.885 95.2148 174.885 93.6319C174.885 92.049 174.451 90.5222 173.701 89.2188L173.709 89.2107ZM111.145 125.554C107.971 131.518 101.758 135.459 94.5981 135.459C87.4374 135.459 81.2248 131.566 78.0509 125.602C77.1666 123.947 78.3667 122.092 80.2219 122.092H108.982C110.837 122.092 112.029 123.891 111.153 125.554H111.145ZM140.528 94.1277C140.528 103.825 132.76 111.691 123.184 111.691H65.4432C55.8675 111.691 48.0991 103.825 48.0991 94.1277V93.7199C48.0991 84.0223 55.8675 76.1557 65.4432 76.1557H123.184C132.76 76.1557 140.528 84.0223 140.528 93.7199V94.1277Z" fill="#AF0C37"/>
+            <path d="M76.5809 105.311C82.9686 105.311 88.1466 100.068 88.1466 93.5996C88.1466 87.1312 82.9686 81.8875 76.5809 81.8875C70.1936 81.8875 65.0156 87.1312 65.0156 93.5996C65.0156 100.068 70.1936 105.311 76.5809 105.311Z" fill="#AF0C37"/>
+            <path d="M111.437 105.311C117.824 105.311 123.002 100.068 123.002 93.5996C123.002 87.1312 117.824 81.8875 111.437 81.8875C105.049 81.8875 99.8712 87.1312 99.8712 93.5996C99.8712 100.068 105.049 105.311 111.437 105.311Z" fill="#AF0C37"/>
+            </svg>
+        </div>
+        ''', unsafe_allow_html=True)
+        
+        st.markdown("<h2 style='text-align: center; color: #AF0C37; margin: 0;'>NinaDash</h2>", unsafe_allow_html=True)
+        st.caption("v8.2 - Inteligência de QA")
         st.markdown("---")
         
         if not verificar_credenciais():
