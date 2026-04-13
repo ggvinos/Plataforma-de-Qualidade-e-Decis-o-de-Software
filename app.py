@@ -3237,45 +3237,68 @@ def main():
         if filtro_produto != 'Todos':
             df = df[df['produto'] == filtro_produto]
     
-    # Abas - TODAS AS FUNCIONALIDADES
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
-        "📊 Visão Geral",
-        "🔬 QA",
-        "👨‍💻 Dev",
-        "📋 Governança",
-        "📦 Produto",
-        "📋 Backlog",
-        "📈 Histórico",
-        "🎯 Liderança",
-        "ℹ️ Sobre"
-    ])
+    # Abas condicionais por projeto
+    if projeto == "PB":
+        # Projeto PB: Aba de Backlog como foco principal
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+            "📋 Backlog",
+            "📊 Visão Geral",
+            "📦 Produto",
+            "📈 Histórico",
+            "ℹ️ Sobre"
+        ])
+        
+        with tab1:
+            aba_backlog(df)
+        
+        with tab2:
+            aba_visao_geral(df, ultima_atualizacao)
+        
+        with tab3:
+            aba_produto(df)
+        
+        with tab4:
+            aba_historico(df)
+        
+        with tab5:
+            aba_sobre()
     
-    with tab1:
-        aba_visao_geral(df, ultima_atualizacao)
-    
-    with tab2:
-        aba_qa(df)
-    
-    with tab3:
-        aba_dev(df)
-    
-    with tab4:
-        aba_governanca(df)
-    
-    with tab5:
-        aba_produto(df)
-    
-    with tab6:
-        aba_backlog(df)
-    
-    with tab7:
-        aba_historico(df)
-    
-    with tab8:
-        aba_lideranca(df)
-    
-    with tab9:
-        aba_sobre()
+    else:
+        # Projetos SD e QA: Abas completas com QA/Dev
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+            "📊 Visão Geral",
+            "🔬 QA",
+            "👨‍💻 Dev",
+            "📋 Governança",
+            "📦 Produto",
+            "📈 Histórico",
+            "🎯 Liderança",
+            "ℹ️ Sobre"
+        ])
+        
+        with tab1:
+            aba_visao_geral(df, ultima_atualizacao)
+        
+        with tab2:
+            aba_qa(df)
+        
+        with tab3:
+            aba_dev(df)
+        
+        with tab4:
+            aba_governanca(df)
+        
+        with tab5:
+            aba_produto(df)
+        
+        with tab6:
+            aba_historico(df)
+        
+        with tab7:
+            aba_lideranca(df)
+        
+        with tab8:
+            aba_sobre()
 
 
 if __name__ == "__main__":
