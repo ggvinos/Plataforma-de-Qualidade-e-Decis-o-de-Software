@@ -4304,42 +4304,31 @@ def main():
     card_compartilhado = query_params.get("card", None)
     projeto_param = query_params.get("projeto", None)
     
-    # Extrai número do card se veio completo (ex: SD-1234 -> 1234)
-    numero_card_inicial = ""
-    if card_compartilhado:
-        # Remove prefixo se existir (SD-, QA-, PB-)
-        numero_card_inicial = card_compartilhado.upper()
-        for prefix in ["SD-", "QA-", "PB-"]:
-            if numero_card_inicial.startswith(prefix):
-                numero_card_inicial = numero_card_inicial[len(prefix):]
-                break
+    # Inicializa session_state para controle de busca
+    if 'busca_ativa' not in st.session_state:
+        st.session_state.busca_ativa = False
+    if 'card_buscado' not in st.session_state:
+        st.session_state.card_buscado = ""
+    if 'projeto_buscado' not in st.session_state:
+        st.session_state.projeto_buscado = "SD"
+    
+    # Se veio via URL, ativa a busca automaticamente
+    if card_compartilhado and not st.session_state.busca_ativa:
+        st.session_state.busca_ativa = True
+        st.session_state.card_buscado = card_compartilhado
+        st.session_state.projeto_buscado = projeto_param if projeto_param else "SD"
     
     # Sidebar reorganizada
     with st.sidebar:
-        # ===== HEADER: Logo clicável + Nome + Descrição =====
-        # Logo como botão para voltar ao dashboard
-        col_logo, col_btn = st.columns([3, 1])
-        with col_logo:
-            st.markdown(f'''
-            <div style="text-align: center; padding: 10px 0 5px 0;">
-                <svg width="70" height="70" viewBox="0 0 187 187" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M173.709 89.2107C172.209 86.6048 169.414 84.838 166.225 84.838C163.036 84.838 160.241 86.5649 158.741 89.1627H151.683C149.465 58.8237 124.495 35 94.0216 35C63.5489 35 38.5862 58.8237 36.3678 89.1627H29.1759C27.6759 86.5649 24.8734 84.798 21.6682 84.798C18.463 84.798 15.6605 86.5806 14.1605 89.2031C13.4184 90.4899 13 92.001 13 93.6C13 95.1987 13.4184 96.7017 14.1605 97.997C15.6605 100.619 18.463 102.306 21.6682 102.306C24.8734 102.306 27.6838 100.435 29.1759 97.8369H36.3678C38.5862 128.168 63.5489 152 94.0216 152C124.495 152 149.465 128.176 151.675 97.8369H158.686C160.178 100.435 162.996 102.354 166.217 102.354C169.438 102.354 172.256 100.611 173.749 97.9648C174.475 96.6856 174.885 95.2148 174.885 93.6319C174.885 92.049 174.451 90.5222 173.701 89.2188L173.709 89.2107ZM111.145 125.554C107.971 131.518 101.758 135.459 94.5981 135.459C87.4374 135.459 81.2248 131.566 78.0509 125.602C77.1666 123.947 78.3667 122.092 80.2219 122.092H108.982C110.837 122.092 112.029 123.891 111.153 125.554H111.145ZM140.528 94.1277C140.528 103.825 132.76 111.691 123.184 111.691H65.4432C55.8675 111.691 48.0991 103.825 48.0991 94.1277V93.7199C48.0991 84.0223 55.8675 76.1557 65.4432 76.1557H123.184C132.76 76.1557 140.528 84.0223 140.528 93.7199V94.1277Z" fill="#AF0C37"/>
-                <path d="M76.5809 105.311C82.9686 105.311 88.1466 100.068 88.1466 93.5996C88.1466 87.1312 82.9686 81.8875 76.5809 81.8875C70.1936 81.8875 65.0156 87.1312 65.0156 93.5996C65.0156 100.068 70.1936 105.311 76.5809 105.311Z" fill="#AF0C37"/>
-                <path d="M111.437 105.311C117.824 105.311 123.002 100.068 123.002 93.5996C123.002 87.1312 117.824 81.8875 111.437 81.8875C105.049 81.8875 99.8712 87.1312 99.8712 93.5996C99.8712 100.068 105.049 105.311 111.437 105.311Z" fill="#AF0C37"/>
-                </svg>
-            </div>
-            ''', unsafe_allow_html=True)
-        
-        # Botão de home no canto (sempre visível)
-        with col_btn:
-            if st.button("🏠", key="btn_home_top", help="Voltar ao Dashboard"):
-                st.query_params.clear()
-                for key in list(st.session_state.keys()):
-                    if key in ['numero_card', 'projeto_busca']:
-                        del st.session_state[key]
-                st.rerun()
-        
+        # ===== HEADER: Logo centralizada + Nome + Descrição =====
         st.markdown('''
+        <div style="text-align: center; padding: 10px 0 5px 0;">
+            <svg width="70" height="70" viewBox="0 0 187 187" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M173.709 89.2107C172.209 86.6048 169.414 84.838 166.225 84.838C163.036 84.838 160.241 86.5649 158.741 89.1627H151.683C149.465 58.8237 124.495 35 94.0216 35C63.5489 35 38.5862 58.8237 36.3678 89.1627H29.1759C27.6759 86.5649 24.8734 84.798 21.6682 84.798C18.463 84.798 15.6605 86.5806 14.1605 89.2031C13.4184 90.4899 13 92.001 13 93.6C13 95.1987 13.4184 96.7017 14.1605 97.997C15.6605 100.619 18.463 102.306 21.6682 102.306C24.8734 102.306 27.6838 100.435 29.1759 97.8369H36.3678C38.5862 128.168 63.5489 152 94.0216 152C124.495 152 149.465 128.176 151.675 97.8369H158.686C160.178 100.435 162.996 102.354 166.217 102.354C169.438 102.354 172.256 100.611 173.749 97.9648C174.475 96.6856 174.885 95.2148 174.885 93.6319C174.885 92.049 174.451 90.5222 173.701 89.2188L173.709 89.2107ZM111.145 125.554C107.971 131.518 101.758 135.459 94.5981 135.459C87.4374 135.459 81.2248 131.566 78.0509 125.602C77.1666 123.947 78.3667 122.092 80.2219 122.092H108.982C110.837 122.092 112.029 123.891 111.153 125.554H111.145ZM140.528 94.1277C140.528 103.825 132.76 111.691 123.184 111.691H65.4432C55.8675 111.691 48.0991 103.825 48.0991 94.1277V93.7199C48.0991 84.0223 55.8675 76.1557 65.4432 76.1557H123.184C132.76 76.1557 140.528 84.0223 140.528 93.7199V94.1277Z" fill="#AF0C37"/>
+            <path d="M76.5809 105.311C82.9686 105.311 88.1466 100.068 88.1466 93.5996C88.1466 87.1312 82.9686 81.8875 76.5809 81.8875C70.1936 81.8875 65.0156 87.1312 65.0156 93.5996C65.0156 100.068 70.1936 105.311 76.5809 105.311Z" fill="#AF0C37"/>
+            <path d="M111.437 105.311C117.824 105.311 123.002 100.068 123.002 93.5996C123.002 87.1312 117.824 81.8875 111.437 81.8875C105.049 81.8875 99.8712 87.1312 99.8712 93.5996C99.8712 100.068 105.049 105.311 111.437 105.311Z" fill="#AF0C37"/>
+            </svg>
+        </div>
         <div style="text-align: center; margin-bottom: 5px;">
             <h2 style="color: #AF0C37; margin: 0; font-size: 1.8em;">NinaDash</h2>
             <p style="color: #666; font-size: 0.85em; margin: 2px 0 0 0; font-style: italic;">
@@ -4365,11 +4354,11 @@ def main():
         # ===== SEÇÃO 1: BUSCA DE CARD =====
         st.markdown("##### 🔍 Busca Rápida de Card")
         
-        # Projeto para busca - usa param da URL se existir
+        # Projeto para busca
         projetos_lista = ["SD", "QA", "PB"]
         projeto_busca_index = 0
-        if projeto_param and projeto_param in projetos_lista:
-            projeto_busca_index = projetos_lista.index(projeto_param)
+        if st.session_state.busca_ativa and st.session_state.projeto_buscado in projetos_lista:
+            projeto_busca_index = projetos_lista.index(st.session_state.projeto_buscado)
         
         col_proj, col_num = st.columns([1, 2])
         with col_proj:
@@ -4377,37 +4366,61 @@ def main():
                 "Projeto",
                 projetos_lista,
                 index=projeto_busca_index,
-                key="projeto_busca",
+                key="projeto_busca_input",
                 label_visibility="collapsed"
             )
+        
+        # Extrai número inicial se estiver buscando
+        numero_inicial = ""
+        if st.session_state.busca_ativa and st.session_state.card_buscado:
+            numero_inicial = st.session_state.card_buscado.upper()
+            for prefix in ["SD-", "QA-", "PB-"]:
+                if numero_inicial.startswith(prefix):
+                    numero_inicial = numero_inicial[len(prefix):]
+                    break
         
         with col_num:
-            numero_card = st.text_input(
+            numero_card_input = st.text_input(
                 "Número",
-                value=numero_card_inicial,
+                value=numero_inicial,
                 placeholder="Ex: 1234",
-                key="numero_card",
+                key="numero_card_input",
                 label_visibility="collapsed"
             )
         
-        # Monta o ID completo do card
-        busca_card = f"{projeto_busca}-{numero_card}" if numero_card else ""
+        # Botão de buscar
+        if st.button("🔍 Buscar", use_container_width=True, key="btn_buscar"):
+            if numero_card_input:
+                st.session_state.busca_ativa = True
+                st.session_state.card_buscado = f"{projeto_busca}-{numero_card_input}"
+                st.session_state.projeto_buscado = projeto_busca
+                st.rerun()
+            else:
+                st.warning("Digite o número do card")
         
         # Mostra indicador de pesquisa ativa
-        if busca_card and numero_card:
+        if st.session_state.busca_ativa and st.session_state.card_buscado:
             st.markdown(f"""
             <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; 
                         padding: 8px; margin: 8px 0; text-align: center;">
                 <p style="margin: 0; color: #92400e; font-size: 0.85em;">
-                    📍 <b>Visualizando:</b> {busca_card.upper()}
+                    📍 <b>Visualizando:</b> {st.session_state.card_buscado.upper()}
                 </p>
             </div>
             """, unsafe_allow_html=True)
+            
+            # Botão para voltar ao dashboard
+            if st.button("⬅️ Voltar ao Dashboard", type="primary", use_container_width=True, key="btn_voltar"):
+                st.session_state.busca_ativa = False
+                st.session_state.card_buscado = ""
+                st.session_state.projeto_buscado = "SD"
+                st.query_params.clear()
+                st.rerun()
         
         st.markdown("---")
         
         # ===== SEÇÃO 2: FILTROS (só mostra quando NÃO está pesquisando) =====
-        if not busca_card or not numero_card:
+        if not st.session_state.busca_ativa:
             st.markdown("##### ⚙️ Filtros do Dashboard")
             
             projeto = st.selectbox("📁 Projeto", projetos_lista, index=0, key="projeto_dash")
@@ -4419,16 +4432,8 @@ def main():
             )
         else:
             # Quando pesquisando, usa o projeto da busca
-            projeto = projeto_busca
+            projeto = st.session_state.projeto_buscado
             filtro_sprint = "Sprint Ativa"  # Não usado na busca específica
-            
-            # Botão para voltar ao dashboard (separado e destacado)
-            if st.button("⬅️ Voltar ao Dashboard", type="primary", use_container_width=True, key="btn_voltar"):
-                st.query_params.clear()
-                for key in list(st.session_state.keys()):
-                    if key in ['numero_card', 'projeto_busca']:
-                        del st.session_state[key]
-                st.rerun()
         
         # ===== SEÇÃO 3: RODAPÉ =====
         st.markdown("---")
@@ -4438,13 +4443,16 @@ def main():
                 📌 NINA Tecnologia
             </p>
             <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                v8.10 • Dashboard de Inteligência QA
+                v8.11 • Dashboard de Inteligência QA
             </p>
         </div>
         """, unsafe_allow_html=True)
     
     # ===== MODO BUSCA DE CARD ESPECÍFICO =====
-    if busca_card and numero_card:
+    if st.session_state.busca_ativa and st.session_state.card_buscado:
+        busca_card = st.session_state.card_buscado
+        projeto_busca = st.session_state.projeto_buscado
+        
         # Atualiza a URL com os parâmetros de compartilhamento
         st.query_params["card"] = busca_card
         st.query_params["projeto"] = projeto_busca
