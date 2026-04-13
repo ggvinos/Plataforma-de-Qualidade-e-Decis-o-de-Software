@@ -1422,53 +1422,22 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Di
         st.link_button("🔗 Abrir no Jira", card['link'], use_container_width=True)
     
     with col2:
-        # Botão que copia direto para clipboard usando JavaScript + Toast notification
+        # Botão que copia direto para clipboard usando JavaScript com feedback visual
         copy_button_id = f"copy_btn_{card['ticket_id'].replace('-', '_')}"
-        toast_id = f"toast_{card['ticket_id'].replace('-', '_')}"
         st.markdown(f"""
-        <style>
-            #{toast_id} {{
-                visibility: hidden;
-                min-width: 280px;
-                background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-                color: white;
-                text-align: center;
-                border-radius: 12px;
-                padding: 16px 24px;
-                position: fixed;
-                z-index: 9999;
-                left: 50%;
-                top: 80px;
-                transform: translateX(-50%);
-                font-size: 15px;
-                font-weight: 500;
-                box-shadow: 0 8px 32px rgba(34, 197, 94, 0.4);
-            }}
-            #{toast_id}.show {{
-                visibility: visible;
-                animation: toastfadein 0.3s, toastfadeout 0.5s 2s;
-            }}
-            @keyframes toastfadein {{
-                from {{ top: 0; opacity: 0; }}
-                to {{ top: 80px; opacity: 1; }}
-            }}
-            @keyframes toastfadeout {{
-                from {{ top: 80px; opacity: 1; }}
-                to {{ top: 0; opacity: 0; }}
-            }}
-        </style>
-        <div id="{toast_id}">✅ Link copiado para a área de transferência!</div>
         <button id="{copy_button_id}" onclick="
             navigator.clipboard.writeText('{share_url}').then(function() {{
-                document.getElementById('{copy_button_id}').innerHTML = '✅ Copiado!';
-                document.getElementById('{copy_button_id}').style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
-                var toast = document.getElementById('{toast_id}');
-                toast.className = 'show';
+                var btn = document.getElementById('{copy_button_id}');
+                btn.innerHTML = '✅ Copiado!';
+                btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+                btn.style.transform = 'scale(1.05)';
                 setTimeout(function() {{
-                    document.getElementById('{copy_button_id}').innerHTML = '📋 Copiar Link';
-                    document.getElementById('{copy_button_id}').style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
-                    toast.className = toast.className.replace('show', '');
-                }}, 2500);
+                    btn.innerHTML = '📋 Copiar Link';
+                    btn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+                    btn.style.transform = 'scale(1)';
+                }}, 2000);
+            }}).catch(function() {{
+                alert('Não foi possível copiar. URL: {share_url}');
             }});
         " style="
             background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
@@ -1480,7 +1449,7 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Di
             width: 100%;
             font-size: 14px;
             font-weight: 500;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
         ">📋 Copiar Link</button>
         """, unsafe_allow_html=True)
     
@@ -4746,21 +4715,23 @@ def main():
         
         # Formulário permite Enter para buscar
         with st.form(key="form_busca_card", clear_on_submit=False):
-            col_proj, col_num = st.columns([1, 2])
+            col_proj, col_num = st.columns([1.5, 1.5])
             with col_proj:
                 projeto_busca = st.selectbox(
                     "Projeto",
                     projetos_lista,
                     index=projeto_busca_index,
-                    label_visibility="collapsed"
+                    label_visibility="collapsed",
+                    help="SD, QA ou PB"
                 )
             
             with col_num:
                 numero_card_input = st.text_input(
                     "Número",
                     value=numero_inicial,
-                    placeholder="Ex: 1234",
-                    label_visibility="collapsed"
+                    placeholder="1234",
+                    label_visibility="collapsed",
+                    max_chars=10
                 )
             
             # Botão de buscar (submete com Enter também)
