@@ -54,9 +54,12 @@ NINA_LOGO_SVG = '''<svg width="187" height="187" viewBox="0 0 187 187" fill="non
 <path d="M111.437 105.311C117.824 105.311 123.002 100.068 123.002 93.5996C123.002 87.1312 117.824 81.8875 111.437 81.8875C105.049 81.8875 99.8712 87.1312 99.8712 93.5996C99.8712 100.068 105.049 105.311 111.437 105.311Z" fill="#AF0C37"/>
 </svg>'''
 
+# Favicon como Data URI (funciona em navegadores modernos)
+NINA_FAVICON = "data:image/svg+xml," + NINA_LOGO_SVG.replace("#", "%23").replace("\n", "").replace(" ", "%20")
+
 st.set_page_config(
     page_title="NinaDash - Métricas de Qualidade",
-    page_icon="🤖",
+    page_icon="favicon.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
