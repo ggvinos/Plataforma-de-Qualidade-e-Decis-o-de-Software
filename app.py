@@ -1,11 +1,16 @@
 """
 ================================================================================
-JIRA DASHBOARD v8.0 - NINA TECNOLOGIA - VERSÃO COMPLETA E ENRIQUECIDA
+JIRA DASHBOARD v8.4 - NINA TECNOLOGIA - VERSÃO COMPLETA E ENRIQUECIDA
 ================================================================================
 📊 NinaDash — Dashboard de Inteligência e Métricas de QA
 
 🎯 Propósito: Transformar o QA de um processo sem visibilidade em um sistema 
    de inteligência operacional baseado em dados.
+
+MELHORIAS v8.4:
+- Aba Backlog exclusiva para projeto PB (Product Backlog)
+- Health Score do backlog, análise de aging, cards estagnados
+- Recomendações automáticas de ação
 
 MELHORIAS v8.0:
 - Header com logo Nina + subtítulo explicativo do objetivo
