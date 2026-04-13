@@ -557,6 +557,32 @@ def calcular_lead_time(df: pd.DataFrame) -> Dict:
     }
 
 
+def analisar_dev_detalhado(df: pd.DataFrame, dev_nome: str) -> Optional[Dict]:
+    """Análise completa de um desenvolvedor."""
+    df_dev = df[df['desenvolvedor'] == dev_nome]
+    if df_dev.empty:
+        return None
+    
+    sp_total = int(df_dev['sp'].sum())
+    bugs_total = int(df_dev['bugs'].sum())
+    
+    fk_medio = calcular_fator_k(sp_total, bugs_total)
+    maturidade = classificar_maturidade(fk_medio)
+    
+    zero_bugs = len(df_dev[df_dev['bugs'] == 0]) / len(df_dev) * 100 if len(df_dev) > 0 else 0
+    
+    return {
+        'df': df_dev,
+        'cards': len(df_dev),
+        'sp_total': sp_total,
+        'bugs_total': bugs_total,
+        'fk_medio': fk_medio,
+        'maturidade': maturidade,
+        'zero_bugs': round(zero_bugs, 1),
+        'tempo_medio': round(df_dev['lead_time'].mean(), 1) if not df_dev.empty else 0,
+    }
+
+
 def calcular_metricas_governanca(df: pd.DataFrame) -> Dict:
     """Calcula métricas de governança de dados."""
     total = len(df)
@@ -1687,6 +1713,318 @@ def aba_qa(df: pd.DataFrame):
         mostrar_lista_df_completa(em_teste, "Em Validação")
 
 
+def aba_dev(df: pd.DataFrame):
+    """Aba de Dev - Performance, Ranking e Análise por Desenvolvedor."""
+    st.markdown("### 👨‍💻 Painel de Desenvolvimento")
+    st.caption("Performance individual, ranking e métricas de maturidade do time de desenvolvimento")
+    
+    devs = [d for d in df['desenvolvedor'].unique() if d != 'Não atribuído']
+    
+    dev_sel = st.selectbox("👤 Selecione o Desenvolvedor", ["🏆 Ranking Geral"] + sorted(devs))
+    st.markdown("---")
+    
+    if dev_sel == "🏆 Ranking Geral":
+        # Card explicativo sobre Fator K
+        with st.expander("📐 Como é calculada a Maturidade de Entrega (Fator K)?", expanded=False):
+            st.markdown("""
+            O **Fator K** mede a qualidade da entrega do desenvolvedor, considerando o esforço planejado (Story Points) 
+            e os bugs encontrados pelo QA.
+            
+            **Fórmula:** `FK = SP / (Bugs + 1)`
+            
+            **Exemplo:** Um dev com 13 SP e 2 bugs terá FK = (13 / 3) = **4.33** (Excelente!)
+            
+            | Selo | Fator K | Classificação |
+            |------|---------|---------------|
+            | 🥇 Gold | ≥ 3.0 | Excelente |
+            | 🥈 Silver | 2.0 - 2.9 | Bom |
+            | 🥉 Bronze | 1.0 - 1.9 | Regular |
+            | ⚠️ Risco | < 1.0 | Crítico |
+            """)
+            mostrar_tooltip("fator_k")
+        
+        # Ranking
+        with st.expander("🏆 Ranking de Performance", expanded=True):
+            dados_dev = []
+            for dev in devs:
+                analise = analisar_dev_detalhado(df, dev)
+                if analise:
+                    dados_dev.append({
+                        'Desenvolvedor': dev,
+                        'Cards': analise['cards'],
+                        'SP': analise['sp_total'],
+                        'Bugs': analise['bugs_total'],
+                        'Fator K': analise['fk_medio'],
+                        'FPY': f"{analise['zero_bugs']}%",
+                        'Tempo Médio': f"{analise['tempo_medio']} dias",
+                        'Selo': f"{analise['maturidade']['emoji']} {analise['maturidade']['selo']}"
+                    })
+            
+            if dados_dev:
+                df_rank = pd.DataFrame(dados_dev)
+                df_rank = df_rank.sort_values('Fator K', ascending=False)
+                
+                st.dataframe(df_rank, hide_index=True, use_container_width=True)
+                
+                # Gráfico Fator K
+                fig = px.bar(df_rank, x='Desenvolvedor', y='Fator K',
+                             color='Fator K',
+                             color_continuous_scale=['#ef4444', '#f97316', '#eab308', '#22c55e'],
+                             text='Selo')
+                fig.add_hline(y=2, line_dash="dash", annotation_text="Meta (FK ≥ 2)")
+                fig.update_layout(height=350)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Nenhum desenvolvedor com dados suficientes.")
+        
+        # Devs que precisam de atenção
+        with st.expander("⚠️ Desenvolvedores que Precisam de Atenção", expanded=False):
+            devs_atencao = [d for d in dados_dev if d['Fator K'] >= 0 and d['Fator K'] < 2 and d['Bugs'] > 0]
+            
+            if devs_atencao:
+                st.caption("Fator K abaixo de 2 com bugs encontrados - podem se beneficiar de code review mais rigoroso")
+                
+                for d in devs_atencao:
+                    df_dev_filter = df[df['desenvolvedor'] == d['Desenvolvedor']]
+                    cards_problematicos = df_dev_filter[df_dev_filter['bugs'] >= 2].head(3)
+                    
+                    with st.expander(f"⚠️ {d['Desenvolvedor']} - FK: {d['Fator K']} | {d['Bugs']} bugs em {d['Cards']} cards"):
+                        if not cards_problematicos.empty:
+                            st.markdown("**Cards com mais bugs:**")
+                            for _, row in cards_problematicos.iterrows():
+                                st.markdown(f"- [{row['ticket_id']}]({row['link']}) - {row['bugs']} bugs - {row['titulo'][:40]}...")
+            else:
+                st.success("✅ Todos os desenvolvedores estão com FK adequado!")
+        
+        # Análise do Time
+        with st.expander("📊 Análise do Time de Desenvolvimento", expanded=True):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**📋 Cards por Desenvolvedor**")
+                cards_por_dev = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor').size().reset_index(name='cards')
+                if not cards_por_dev.empty:
+                    cards_por_dev = cards_por_dev.nlargest(8, 'cards')
+                    fig_cards = px.bar(cards_por_dev, x='desenvolvedor', y='cards', 
+                                       color='cards', color_continuous_scale='Blues')
+                    fig_cards.update_layout(height=250, showlegend=False, xaxis_title="", yaxis_title="Cards")
+                    st.plotly_chart(fig_cards, use_container_width=True)
+                else:
+                    st.info("Sem dados de cards por desenvolvedor")
+            
+            with col2:
+                st.markdown("**🐛 Taxa de Bugs por Card**")
+                taxa_bugs = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor').agg({
+                    'bugs': 'sum', 'ticket_id': 'count'
+                }).reset_index()
+                taxa_bugs['taxa'] = (taxa_bugs['bugs'] / taxa_bugs['ticket_id']).round(2)
+                taxa_bugs = taxa_bugs.nlargest(8, 'taxa')
+                
+                if not taxa_bugs.empty and taxa_bugs['taxa'].sum() > 0:
+                    fig_taxa = px.bar(taxa_bugs, x='desenvolvedor', y='taxa', 
+                                      color='taxa', color_continuous_scale=['#22c55e', '#eab308', '#ef4444'])
+                    fig_taxa.update_layout(height=250, showlegend=False, xaxis_title="", yaxis_title="Bugs/Card")
+                    st.plotly_chart(fig_taxa, use_container_width=True)
+                else:
+                    st.success("✅ Sem bugs registrados!")
+            
+            # Métricas gerais do time
+            col3, col4, col5 = st.columns(3)
+            
+            with col3:
+                st.metric("Total de Cards", len(df))
+                em_andamento = len(df[df['status_cat'] == 'development'])
+                st.metric("Em Desenvolvimento", em_andamento)
+            
+            with col4:
+                total_bugs = df['bugs'].sum()
+                st.metric("Total de Bugs", int(total_bugs))
+                media_bugs = total_bugs / len(df) if len(df) > 0 else 0
+                st.metric("Média de Bugs/Card", f"{media_bugs:.2f}")
+            
+            with col5:
+                cards_zero_bugs = len(df[df['bugs'] == 0])
+                pct_zero_bugs = cards_zero_bugs / len(df) * 100 if len(df) > 0 else 0
+                st.metric("Cards sem Bugs", f"{cards_zero_bugs} ({pct_zero_bugs:.0f}%)")
+                lead_medio = df['lead_time'].mean() if not df.empty else 0
+                st.metric("Lead Time Médio", f"{lead_medio:.1f} dias")
+        
+        # Análise para Tech Lead
+        with st.expander("🎯 Análise para Tech Lead", expanded=False):
+            col_tl1, col_tl2 = st.columns(2)
+            
+            with col_tl1:
+                st.markdown("**📊 Distribuição de Story Points por Dev**")
+                st.caption("Quem está assumindo mais complexidade")
+                sp_por_dev = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor')['sp'].sum().reset_index()
+                sp_por_dev = sp_por_dev.sort_values('sp', ascending=False).head(8)
+                
+                if not sp_por_dev.empty and sp_por_dev['sp'].sum() > 0:
+                    fig_sp = px.pie(sp_por_dev, names='desenvolvedor', values='sp', 
+                                   color_discrete_sequence=px.colors.sequential.RdBu)
+                    fig_sp.update_layout(height=250)
+                    fig_sp.update_traces(textposition='inside', textinfo='percent+label')
+                    st.plotly_chart(fig_sp, use_container_width=True)
+                else:
+                    st.info("Sem dados de SP")
+            
+            with col_tl2:
+                st.markdown("**🚀 Status de Entrega por Dev**")
+                st.caption("Progresso: Concluído vs Em andamento")
+                
+                status_dev = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor').apply(
+                    lambda x: pd.Series({
+                        'Concluídos': len(x[x['status_cat'] == 'done']),
+                        'Em Andamento': len(x[x['status_cat'].isin(['development', 'code_review', 'testing', 'waiting_qa'])])
+                    })
+                ).reset_index()
+                
+                if not status_dev.empty:
+                    status_dev = status_dev.head(8)
+                    fig_status = px.bar(status_dev, x='desenvolvedor', y=['Concluídos', 'Em Andamento'],
+                                        barmode='stack', 
+                                        color_discrete_map={'Concluídos': '#22c55e', 'Em Andamento': '#3b82f6'})
+                    fig_status.update_layout(height=250, xaxis_title="", legend=dict(orientation="h", y=1.1))
+                    st.plotly_chart(fig_status, use_container_width=True)
+            
+            # WIP e Code Review
+            col_tl3, col_tl4 = st.columns(2)
+            
+            with col_tl3:
+                st.markdown("**⏳ Work-In-Progress (WIP) por Dev**")
+                st.caption("Quantos cards cada dev está trabalhando agora")
+                
+                wip_devs = df[(df['desenvolvedor'] != 'Não atribuído') & 
+                              (df['status_cat'].isin(['development', 'code_review']))].groupby('desenvolvedor').size().reset_index(name='WIP')
+                wip_devs = wip_devs.sort_values('WIP', ascending=False)
+                
+                if not wip_devs.empty:
+                    fig_wip = px.bar(wip_devs, x='desenvolvedor', y='WIP', 
+                                     color='WIP', color_continuous_scale=['#22c55e', '#eab308', '#ef4444'],
+                                     text='WIP')
+                    fig_wip.add_hline(y=3, line_dash="dash", annotation_text="WIP Ideal ≤ 3", line_color="#eab308")
+                    fig_wip.update_layout(height=250, showlegend=False, xaxis_title="")
+                    fig_wip.update_traces(textposition='outside')
+                    st.plotly_chart(fig_wip, use_container_width=True)
+                else:
+                    st.success("✅ Nenhum dev com WIP no momento")
+            
+            with col_tl4:
+                st.markdown("**🔍 Fila de Code Review**")
+                st.caption("Cards aguardando revisão de código")
+                
+                code_review = df[df['status_cat'] == 'code_review']
+                
+                if not code_review.empty:
+                    for _, row in code_review.head(5).iterrows():
+                        dias = row['dias_em_status']
+                        cor = '#ef4444' if dias > 3 else '#eab308' if dias > 1 else '#22c55e'
+                        st.markdown(f"""
+                        <div style="padding: 8px; margin: 4px 0; border-left: 3px solid {cor}; background: rgba(99, 102, 241, 0.1); border-radius: 4px;">
+                            <strong><a href="{row['link']}" style="color: #60a5fa;">{row['ticket_id']}</a></strong> - {row['titulo'][:35]}...<br>
+                            <small style="color: #94a3b8;">📅 {dias} dia(s) em CR | 👤 {row['desenvolvedor']}</small>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                    if len(code_review) > 5:
+                        st.caption(f"... e mais {len(code_review) - 5} cards em Code Review")
+                else:
+                    st.success("✅ Nenhum card aguardando Code Review")
+            
+            # Velocidade e Cards Críticos
+            col_tl5, col_tl6 = st.columns(2)
+            
+            with col_tl5:
+                st.markdown("**📈 Velocidade do Time (SP/Card)**")
+                st.caption("Eficiência: média de Story Points por card entregue")
+                
+                cards_done = df[df['status_cat'] == 'done']
+                if not cards_done.empty:
+                    vel_dev = cards_done.groupby('desenvolvedor').agg({
+                        'sp': ['sum', 'count']
+                    })
+                    vel_dev.columns = ['SP Total', 'Cards']
+                    vel_dev['SP/Card'] = (vel_dev['SP Total'] / vel_dev['Cards']).round(1)
+                    vel_dev = vel_dev.reset_index().sort_values('SP/Card', ascending=False).head(6)
+                    
+                    fig_vel = px.bar(vel_dev, x='desenvolvedor', y='SP/Card',
+                                     color='SP/Card', color_continuous_scale=['#f97316', '#22c55e'],
+                                     text='SP/Card')
+                    fig_vel.add_hline(y=vel_dev['SP/Card'].mean(), line_dash="dash", annotation_text=f"Média: {vel_dev['SP/Card'].mean():.1f}")
+                    fig_vel.update_layout(height=250, showlegend=False, xaxis_title="")
+                    fig_vel.update_traces(textposition='outside')
+                    st.plotly_chart(fig_vel, use_container_width=True)
+                else:
+                    st.info("Sem cards concluídos para análise")
+            
+            with col_tl6:
+                st.markdown("**🔴 Cards Críticos (Alta Prioridade em Dev)**")
+                st.caption("Cards urgentes ainda em desenvolvimento")
+                
+                criticos_dev = df[(df['prioridade'].isin(['Alta', 'Muito Alta', 'Muito alto', 'Alto'])) & 
+                                  (df['status_cat'].isin(['development', 'code_review', 'backlog']))]
+                
+                if not criticos_dev.empty:
+                    for _, row in criticos_dev.head(5).iterrows():
+                        st.markdown(f"""
+                        <div style="padding: 8px; margin: 4px 0; border-left: 3px solid #ef4444; background: rgba(239, 68, 68, 0.1); border-radius: 4px;">
+                            <strong><a href="{row['link']}" style="color: #f87171;">{row['ticket_id']}</a></strong> - {row['titulo'][:35]}...<br>
+                            <small style="color: #fca5a5;">⚠️ {row['prioridade']} | 👤 {row['desenvolvedor']} | {row['sp']} SP</small>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    if len(criticos_dev) > 5:
+                        st.warning(f"⚠️ {len(criticos_dev)} cards de alta prioridade ainda em desenvolvimento!")
+                else:
+                    st.success("✅ Nenhum card crítico pendente")
+    
+    else:
+        # ====== Métricas Individuais ======
+        analise = analisar_dev_detalhado(df, dev_sel)
+        
+        if analise:
+            st.markdown(f"### 👤 Métricas de {dev_sel}")
+            
+            mat = analise['maturidade']
+            
+            with st.expander(f"{mat['emoji']} Selo de Maturidade: {mat['selo']}", expanded=True):
+                col1, col2 = st.columns([1, 3])
+                
+                with col1:
+                    st.markdown(f"""
+                    <div style="background: {mat['cor']}20; border: 2px solid {mat['cor']}; padding: 20px; border-radius: 12px; text-align: center;">
+                        <p style="font-size: 48px; margin: 0;">{mat['emoji']}</p>
+                        <p style="font-size: 20px; font-weight: bold; margin: 5px 0; color: {mat['cor']};">{mat['selo']}</p>
+                        <p style="font-size: 14px; opacity: 0.8;">{mat['desc']}</p>
+                        <p style="font-size: 24px; font-weight: bold; margin-top: 10px; color: {mat['cor']};">FK: {analise['fk_medio']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col2:
+                    c1, c2, c3, c4 = st.columns(4)
+                    with c1:
+                        st.metric("Cards Desenvolvidos", analise['cards'])
+                    with c2:
+                        st.metric("Story Points", analise['sp_total'])
+                    with c3:
+                        st.metric("Bugs Encontrados", analise['bugs_total'])
+                    with c4:
+                        st.metric("Taxa Zero Bugs", f"{analise['zero_bugs']}%")
+            
+            # Cards do dev
+            with st.expander(f"📋 Cards de {dev_sel}", expanded=True):
+                for _, row in analise['df'].iterrows():
+                    bugs_cor = '#ef4444' if row['bugs'] >= 2 else '#eab308' if row['bugs'] == 1 else '#22c55e'
+                    st.markdown(f"""
+                    <div style="padding: 10px; margin: 5px 0; border-left: 3px solid {bugs_cor}; background: rgba(100,100,100,0.05); border-radius: 4px;">
+                        <strong><a href="{row['link']}" style="color: #60a5fa;">{row['ticket_id']}</a></strong> - {row['titulo'][:50]}...<br>
+                        <small style="color: #94a3b8;">🐛 {row['bugs']} bugs | 📊 {row['sp']} SP | 📍 {row['status']} | ⏱️ {row['lead_time']:.1f}d</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+        else:
+            st.warning(f"Nenhum card encontrado para {dev_sel}")
+
+
 def aba_governanca(df: pd.DataFrame):
     """Aba de Governança de Dados."""
     st.markdown("### 📋 Governança de Dados")
@@ -2298,10 +2636,54 @@ def aba_sobre():
         |------------|-------|
         | **Desenvolvido por** | QA NINA |
         | **Mantido por** | Vinícios Ferreira |
-        | **Versão** | v8.1 |
+        | **Versão** | v8.3 |
         | **Última atualização** | Abril 2026 |
         | **Stack** | Python, Streamlit, Plotly, Pandas |
         | **Integração** | Jira API REST |
+        """)
+    
+    # Abas Disponíveis
+    with st.expander("📑 Abas Disponíveis", expanded=True):
+        st.markdown("""
+        ### Visão Geral das Abas
+        
+        | Aba | Descrição | Público-Alvo |
+        |-----|-----------|---------------|
+        | **📊 Visão Geral** | KPIs principais, Health Score, alertas e progresso da release | Todos |
+        | **🔬 QA** | Funil de validação, carga por QA, aging, comparativo entre QAs, bugs | QA, Liderança |
+        | **👨‍💻 Dev** | Ranking Fator K, performance individual, WIP, code review, análise Tech Lead | Devs, Tech Lead |
+        | **📋 Governança** | Qualidade dos dados, campos obrigatórios, compliance | PO, Liderança |
+        | **📦 Produto** | Métricas por produto, Health Score, tendências | PO, Stakeholders |
+        | **📈 Histórico** | Evolução de métricas entre releases, tendências | Liderança |
+        | **🎯 Liderança** | Decisão Go/No-Go, riscos, simulações | Gerentes, Diretores |
+        | **ℹ️ Sobre** | Esta documentação | Todos |
+        
+        ---
+        
+        ### 👨‍💻 Aba de Dev em Detalhe
+        
+        **Ranking Geral:**
+        - 🏆 Tabela de ranking com Fator K, FPY, SP, Bugs
+        - 📊 Gráfico de Fator K com meta (FK ≥ 2)
+        - ⚠️ Lista de devs que precisam de atenção
+        
+        **Análise do Time:**
+        - Cards por desenvolvedor
+        - Taxa de bugs por card
+        - Métricas gerais (total cards, bugs, lead time)
+        
+        **Análise para Tech Lead:**
+        - Distribuição de SP por dev
+        - Status de entrega (Concluído vs Em andamento)
+        - Work-In-Progress (WIP)
+        - Fila de Code Review
+        - Velocidade (SP/Card)
+        - Cards críticos de alta prioridade
+        
+        **Visão Individual:**
+        - Selo de maturidade (Gold/Silver/Bronze/Risco)
+        - Métricas detalhadas
+        - Lista de cards com status
         """)
 
 
@@ -2330,7 +2712,7 @@ def main():
         ''', unsafe_allow_html=True)
         
         st.markdown("<h2 style='text-align: center; color: #AF0C37; margin: 0;'>NinaDash</h2>", unsafe_allow_html=True)
-        st.caption("v8.2 - Inteligência de QA")
+        st.caption("v8.3 - Aba Dev + QA Enriquecido")
         st.markdown("---")
         
         if not verificar_credenciais():
@@ -2388,9 +2770,10 @@ def main():
             df = df[df['produto'] == filtro_produto]
     
     # Abas - TODAS AS FUNCIONALIDADES
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "📊 Visão Geral",
         "🔬 QA",
+        "👨‍💻 Dev",
         "📋 Governança",
         "📦 Produto",
         "📈 Histórico",
@@ -2405,18 +2788,21 @@ def main():
         aba_qa(df)
     
     with tab3:
-        aba_governanca(df)
+        aba_dev(df)
     
     with tab4:
-        aba_produto(df)
+        aba_governanca(df)
     
     with tab5:
-        aba_historico(df)
+        aba_produto(df)
     
     with tab6:
-        aba_lideranca(df)
+        aba_historico(df)
     
     with tab7:
+        aba_lideranca(df)
+    
+    with tab8:
         aba_sobre()
 
 
