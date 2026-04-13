@@ -1422,15 +1422,53 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Di
         st.link_button("🔗 Abrir no Jira", card['link'], use_container_width=True)
     
     with col2:
-        # Botão que copia direto para clipboard usando JavaScript
+        # Botão que copia direto para clipboard usando JavaScript + Toast notification
         copy_button_id = f"copy_btn_{card['ticket_id'].replace('-', '_')}"
+        toast_id = f"toast_{card['ticket_id'].replace('-', '_')}"
         st.markdown(f"""
+        <style>
+            #{toast_id} {{
+                visibility: hidden;
+                min-width: 280px;
+                background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+                color: white;
+                text-align: center;
+                border-radius: 12px;
+                padding: 16px 24px;
+                position: fixed;
+                z-index: 9999;
+                left: 50%;
+                top: 80px;
+                transform: translateX(-50%);
+                font-size: 15px;
+                font-weight: 500;
+                box-shadow: 0 8px 32px rgba(34, 197, 94, 0.4);
+            }}
+            #{toast_id}.show {{
+                visibility: visible;
+                animation: toastfadein 0.3s, toastfadeout 0.5s 2s;
+            }}
+            @keyframes toastfadein {{
+                from {{ top: 0; opacity: 0; }}
+                to {{ top: 80px; opacity: 1; }}
+            }}
+            @keyframes toastfadeout {{
+                from {{ top: 80px; opacity: 1; }}
+                to {{ top: 0; opacity: 0; }}
+            }}
+        </style>
+        <div id="{toast_id}">✅ Link copiado para a área de transferência!</div>
         <button id="{copy_button_id}" onclick="
             navigator.clipboard.writeText('{share_url}').then(function() {{
-                document.getElementById('{copy_button_id}').innerHTML = '✅ Link copiado!';
+                document.getElementById('{copy_button_id}').innerHTML = '✅ Copiado!';
+                document.getElementById('{copy_button_id}').style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+                var toast = document.getElementById('{toast_id}');
+                toast.className = 'show';
                 setTimeout(function() {{
                     document.getElementById('{copy_button_id}').innerHTML = '📋 Copiar Link';
-                }}, 2000);
+                    document.getElementById('{copy_button_id}').style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+                    toast.className = toast.className.replace('show', '');
+                }}, 2500);
             }});
         " style="
             background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
@@ -1442,6 +1480,7 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Di
             width: 100%;
             font-size: 14px;
             font-weight: 500;
+            transition: all 0.3s ease;
         ">📋 Copiar Link</button>
         """, unsafe_allow_html=True)
     
