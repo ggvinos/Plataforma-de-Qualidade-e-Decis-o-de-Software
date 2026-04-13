@@ -419,6 +419,8 @@ def mostrar_tela_login():
         border-radius: 10px !important;
         border: 1.5px solid #E5E7EB !important;
         transition: all 0.2s ease !important;
+        display: flex !important;
+        align-items: center !important;
     }
     
     .stTextInput > div > div:hover {
@@ -440,10 +442,12 @@ def mostrar_tela_login():
         font-size: 15px !important;
         background: transparent !important;
         color: #1F2937 !important;
+        line-height: 48px !important;
     }
     
     .stTextInput > div > div > input::placeholder {
         color: #9CA3AF !important;
+        line-height: 48px !important;
     }
     
     .stTextInput label {
@@ -492,9 +496,9 @@ def mostrar_tela_login():
     col1, col2, col3 = st.columns([1, 1.4, 1])
     
     with col2:
-        # Logo NINA (robô)
+        # Logo NINA (robô) - centralizada
         st.markdown("""
-        <div style="text-align: center; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px;">
             <svg width="80" height="80" viewBox="0 0 187 187" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M173.709 89.2107C172.209 86.6048 169.414 84.838 166.225 84.838C163.036 84.838 160.241 86.5649 158.741 89.1627H151.683C149.465 58.8237 124.495 35 94.0216 35C63.5489 35 38.5862 58.8237 36.3678 89.1627H29.1759C27.6759 86.5649 24.8734 84.798 21.6682 84.798C18.463 84.798 15.6605 86.5806 14.1605 89.2031C13.4184 90.4899 13 92.001 13 93.6C13 95.1987 13.4184 96.7017 14.1605 97.997C15.6605 100.619 18.463 102.306 21.6682 102.306C24.8734 102.306 27.6838 100.435 29.1759 97.8369H36.3678C38.5862 128.168 63.5489 152 94.0216 152C124.495 152 149.465 128.176 151.675 97.8369H158.686C160.178 100.435 162.996 102.354 166.217 102.354C169.438 102.354 172.256 100.611 173.749 97.9648C174.475 96.6856 174.885 95.2148 174.885 93.6319C174.885 92.049 174.451 90.5222 173.701 89.2188L173.709 89.2107ZM111.145 125.554C107.971 131.518 101.758 135.459 94.5981 135.459C87.4374 135.459 81.2248 131.566 78.0509 125.602C77.1666 123.947 78.3667 122.092 80.2219 122.092H108.982C110.837 122.092 112.029 123.891 111.153 125.554H111.145ZM140.528 94.1277C140.528 103.825 132.76 111.691 123.184 111.691H65.4432C55.8675 111.691 48.0991 103.825 48.0991 94.1277V93.7199C48.0991 84.0223 55.8675 76.1557 65.4432 76.1557H123.184C132.76 76.1557 140.528 84.0223 140.528 93.7199V94.1277Z" fill="#AF0C37"/>
             <path d="M76.5809 105.311C82.9686 105.311 88.1466 100.068 88.1466 93.5996C88.1466 87.1312 82.9686 81.8875 76.5809 81.8875C70.1936 81.8875 65.0156 87.1312 65.0156 93.5996C65.0156 100.068 70.1936 105.311 76.5809 105.311Z" fill="#AF0C37"/>
@@ -503,14 +507,16 @@ def mostrar_tela_login():
         </div>
         """, unsafe_allow_html=True)
         
-        # Título e subtítulo
+        # Título e subtítulo - centralizados com NinaDash em vermelho
         st.markdown("""
-        <h1 style="text-align: center; font-size: 24px; font-weight: 600; color: #1F2937; margin: 0 0 4px; line-height: 1.3;">
-            Bem-vindo ao NinaDash
-        </h1>
-        <p style="text-align: center; font-size: 14px; color: #6B7280; margin: 0 0 28px; line-height: 1.4;">
-            Plataforma de Qualidade e Decisão de Software
-        </p>
+        <div style="text-align: center; margin-bottom: 28px;">
+            <h1 style="font-size: 24px; font-weight: 600; color: #1F2937; margin: 0 0 4px; line-height: 1.3;">
+                Bem-vindo ao <span style="color: #AF0C37;">NinaDash</span>
+            </h1>
+            <p style="font-size: 14px; color: #6B7280; margin: 0; line-height: 1.4;">
+                Plataforma de Qualidade e Decisão de Software
+            </p>
+        </div>
         """, unsafe_allow_html=True)
         
         # Formulário de login
