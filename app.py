@@ -4571,7 +4571,7 @@ def aba_sobre():
         |------------|-------|
         | **Desenvolvido por** | QA NINA |
         | **Mantido por** | Vinícios Ferreira |
-        | **Versão** | v8.7 |
+        | **Versão** | v8.18 |
         | **Última atualização** | Abril 2026 |
         | **Stack** | Python, Streamlit, Plotly, Pandas |
         | **Integração** | Jira API REST |
@@ -4806,10 +4806,61 @@ def main():
                 📌 NINA Tecnologia
             </p>
             <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                v8.11 • Dashboard de Inteligência QA
+                v8.18 • Dashboard de Inteligência QA
             </p>
         </div>
         """, unsafe_allow_html=True)
+        
+        # Changelog em expander
+        with st.expander("📋 Histórico de Versões", expanded=False):
+            st.markdown("""
+            **v8.18** *(13/04/2026)*
+            - ✅ Botão "Copiar Link" funcionando
+            
+            **v8.17** *(13/04/2026)*
+            - 🔧 Fix erro React #231
+            
+            **v8.16** *(13/04/2026)*
+            - 🔧 Fix busca (colunas iguais)
+            
+            **v8.15** *(13/04/2026)*
+            - 🔔 Toast ao copiar link
+            
+            **v8.14** *(13/04/2026)*
+            - 🎨 KPIs em cards estilizados
+            
+            **v8.13** *(13/04/2026)*
+            - ⌨️ Busca funciona com Enter
+            
+            **v8.12** *(13/04/2026)*
+            - ⚠️ Indicador SP estimado
+            
+            **v8.11** *(12/04/2026)*
+            - 🔍 Botão "Buscar" explícito
+            
+            **v8.10** *(12/04/2026)*
+            - 🏠 Logo centralizada, UX
+            
+            **v8.9** *(12/04/2026)*
+            - 💬 Comentários do Jira
+            - 📦 Conteúdo por projeto
+            
+            **v8.8** *(11/04/2026)*
+            - 🔗 Card linkages
+            - 🔍 Busca simplificada
+            
+            **v8.7** *(10/04/2026)*
+            - ⬅️ Botão voltar sidebar
+            - 🎨 Design refinado
+            
+            **v8.6** *(09/04/2026)*
+            - 📱 Sidebar refatorada
+            - 📤 Link compartilhável
+            
+            **v8.5** *(08/04/2026)*
+            - 🔍 Busca de card individual
+            - 📊 Painel completo do card
+            """, unsafe_allow_html=True)
     
     # ===== MODO BUSCA DE CARD ESPECÍFICO =====
     if st.session_state.busca_ativa and st.session_state.card_buscado:
