@@ -1,11 +1,18 @@
 """
 ================================================================================
-JIRA DASHBOARD v8.5 - NINA TECNOLOGIA - VERSÃO COMPLETA E ENRIQUECIDA
+JIRA DASHBOARD v8.6 - NINA TECNOLOGIA - VERSÃO COMPLETA E ENRIQUECIDA
 ================================================================================
 📊 NinaDash — Dashboard de Inteligência e Métricas de QA
 
 🎯 Propósito: Transformar o QA de um processo sem visibilidade em um sistema 
    de inteligência operacional baseado em dados.
+
+MELHORIAS v8.6:
+- 📱 SIDEBAR REFATORADA: Busca de card em destaque no topo
+- 📤 COMPARTILHAMENTO FUNCIONAL: Link direto via query params
+- Layout reorganizado: Logo → Busca → Filtros → Rodapé NINA
+- Botão de compartilhar visível com link copiável
+- URL persistente: ?card=SD-1234&projeto=SD
 
 MELHORIAS v8.5:
 - 🔍 BUSCA DE CARD INDIVIDUAL: Pesquise qualquer card pelo ID
@@ -13,7 +20,6 @@ MELHORIAS v8.5:
 - Fator K individual, janela de validação, aging, lead time
 - Flags de fluxo (criado/finalizado na sprint, fora período)
 - Timeline completa, resumo executivo automático
-- Sugestões de autocomplete na busca
 
 MELHORIAS v8.4:
 - Aba Backlog exclusiva para projeto PB (Product Backlog)
@@ -825,7 +831,7 @@ def calcular_metricas_dev(df: pd.DataFrame) -> Dict:
 # BUSCA E DETALHES DO CARD
 # ==============================================================================
 
-def exibir_card_detalhado(df: pd.DataFrame, ticket_id: str) -> bool:
+def exibir_card_detalhado(df: pd.DataFrame, ticket_id: str, projeto: str = "SD") -> bool:
     """
     Exibe painel detalhado com todas as informações de um card específico.
     Retorna True se o card foi encontrado, False caso contrário.
@@ -838,16 +844,47 @@ def exibir_card_detalhado(df: pd.DataFrame, ticket_id: str) -> bool:
     
     card = card.iloc[0]
     
-    # Header do card
-    st.markdown(f"""
-    <div style='background: linear-gradient(135deg, #AF0C37 0%, #8a0a2c 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;'>
-        <h2 style='margin: 0; color: white;'>🔍 {card['ticket_id']} - Detalhes do Card</h2>
-        <p style='margin: 5px 0 0 0; opacity: 0.9;'>{card['titulo'][:100]}{'...' if len(card['titulo']) > 100 else ''}</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Header do card com botão de compartilhar
+    col_header, col_share = st.columns([5, 1])
     
-    # Link para o Jira
-    st.markdown(f"🔗 [Abrir no Jira]({card['link']})")
+    with col_header:
+        st.markdown(f"""
+        <div style='background: linear-gradient(135deg, #AF0C37 0%, #8a0a2c 100%); color: white; padding: 20px; border-radius: 12px;'>
+            <h2 style='margin: 0; color: white;'>🔍 {card['ticket_id']} - Detalhes do Card</h2>
+            <p style='margin: 5px 0 0 0; opacity: 0.9;'>{card['titulo'][:100]}{'...' if len(card['titulo']) > 100 else ''}</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col_share:
+        # Gera URL de compartilhamento
+        base_url = "https://plataforma-de-qualidade-e-decis-o-de-software-8ze3ycurhvmdahdv.streamlit.app/"
+        share_url = f"{base_url}?card={card['ticket_id']}&projeto={projeto}"
+        
+        st.markdown(f"""
+        <div style='background: #22c55e; padding: 15px; border-radius: 12px; text-align: center; height: 100%;'>
+            <a href="{share_url}" target="_blank" style="text-decoration: none;">
+                <span style='font-size: 24px;'>📤</span>
+                <p style='color: white; margin: 5px 0 0 0; font-size: 0.85em; font-weight: bold;'>Compartilhar</p>
+            </a>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Linha de ações rápidas
+    col1, col2, col3 = st.columns([2, 2, 3])
+    
+    with col1:
+        st.markdown(f"🔗 [Abrir no Jira]({card['link']})")
+    
+    with col2:
+        # Botão de copiar link
+        if st.button("📋 Copiar Link", key="copy_link"):
+            st.code(share_url, language=None)
+            st.success("Link copiado! Use Ctrl+C para copiar.")
+    
+    with col3:
+        st.caption(f"🔗 Link direto: `?card={card['ticket_id']}&projeto={projeto}`")
+    
+    st.markdown("")  # Espaçamento
     
     # Colunas principais
     col1, col2, col3, col4 = st.columns(4)
@@ -3592,7 +3629,7 @@ def aba_sobre():
         |------------|-------|
         | **Desenvolvido por** | QA NINA |
         | **Mantido por** | Vinícios Ferreira |
-        | **Versão** | v8.5 |
+        | **Versão** | v8.6 |
         | **Última atualização** | Abril 2026 |
         | **Stack** | Python, Streamlit, Plotly, Pandas |
         | **Integração** | Jira API REST |
@@ -3655,22 +3692,53 @@ def main():
     # Header principal com logo Nina
     mostrar_header_nina()
     
-    # Sidebar
+    # Captura query params para compartilhamento de busca
+    query_params = st.query_params
+    card_compartilhado = query_params.get("card", None)
+    projeto_param = query_params.get("projeto", None)
+    
+    # Sidebar reorganizada
     with st.sidebar:
-        # Logo da Nina na sidebar
+        # ===== HEADER: Logo + Nome + Descrição =====
         st.markdown(f'''
-        <div style="text-align: center; padding: 10px 0;">
-            <svg width="80" height="80" viewBox="0 0 187 187" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <div style="text-align: center; padding: 10px 0 5px 0;">
+            <svg width="70" height="70" viewBox="0 0 187 187" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M173.709 89.2107C172.209 86.6048 169.414 84.838 166.225 84.838C163.036 84.838 160.241 86.5649 158.741 89.1627H151.683C149.465 58.8237 124.495 35 94.0216 35C63.5489 35 38.5862 58.8237 36.3678 89.1627H29.1759C27.6759 86.5649 24.8734 84.798 21.6682 84.798C18.463 84.798 15.6605 86.5806 14.1605 89.2031C13.4184 90.4899 13 92.001 13 93.6C13 95.1987 13.4184 96.7017 14.1605 97.997C15.6605 100.619 18.463 102.306 21.6682 102.306C24.8734 102.306 27.6838 100.435 29.1759 97.8369H36.3678C38.5862 128.168 63.5489 152 94.0216 152C124.495 152 149.465 128.176 151.675 97.8369H158.686C160.178 100.435 162.996 102.354 166.217 102.354C169.438 102.354 172.256 100.611 173.749 97.9648C174.475 96.6856 174.885 95.2148 174.885 93.6319C174.885 92.049 174.451 90.5222 173.701 89.2188L173.709 89.2107ZM111.145 125.554C107.971 131.518 101.758 135.459 94.5981 135.459C87.4374 135.459 81.2248 131.566 78.0509 125.602C77.1666 123.947 78.3667 122.092 80.2219 122.092H108.982C110.837 122.092 112.029 123.891 111.153 125.554H111.145ZM140.528 94.1277C140.528 103.825 132.76 111.691 123.184 111.691H65.4432C55.8675 111.691 48.0991 103.825 48.0991 94.1277V93.7199C48.0991 84.0223 55.8675 76.1557 65.4432 76.1557H123.184C132.76 76.1557 140.528 84.0223 140.528 93.7199V94.1277Z" fill="#AF0C37"/>
             <path d="M76.5809 105.311C82.9686 105.311 88.1466 100.068 88.1466 93.5996C88.1466 87.1312 82.9686 81.8875 76.5809 81.8875C70.1936 81.8875 65.0156 87.1312 65.0156 93.5996C65.0156 100.068 70.1936 105.311 76.5809 105.311Z" fill="#AF0C37"/>
             <path d="M111.437 105.311C117.824 105.311 123.002 100.068 123.002 93.5996C123.002 87.1312 117.824 81.8875 111.437 81.8875C105.049 81.8875 99.8712 87.1312 99.8712 93.5996C99.8712 100.068 105.049 105.311 111.437 105.311Z" fill="#AF0C37"/>
             </svg>
         </div>
+        <div style="text-align: center; margin-bottom: 5px;">
+            <h2 style="color: #AF0C37; margin: 0; font-size: 1.8em;">NinaDash</h2>
+            <p style="color: #666; font-size: 0.85em; margin: 2px 0 0 0; font-style: italic;">
+                Transformando dados em decisões
+            </p>
+        </div>
         ''', unsafe_allow_html=True)
         
-        st.markdown("<h2 style='text-align: center; color: #AF0C37; margin: 0;'>NinaDash</h2>", unsafe_allow_html=True)
-        st.caption("v8.5 - Busca de Card Individual")
+        # ===== SEÇÃO 1: BUSCA DE CARD (EM DESTAQUE) =====
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #AF0C37 0%, #8a0a2c 100%); 
+                    padding: 12px; border-radius: 10px; margin: 10px 0;">
+            <p style="color: white; margin: 0; font-weight: bold; font-size: 0.95em;">
+                🔍 Busca Rápida de Card
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Campo de busca com valor inicial do query param
+        busca_card = st.text_input(
+            "ID do Card",
+            value=card_compartilhado if card_compartilhado else "",
+            placeholder="Ex: SD-1234",
+            help="Pesquise qualquer card pelo ID para ver detalhes completos",
+            label_visibility="collapsed"
+        )
+        
         st.markdown("---")
+        
+        # ===== SEÇÃO 2: FILTROS =====
+        st.markdown("##### ⚙️ Filtros")
         
         if not verificar_credenciais():
             st.error("⚠️ Credenciais não configuradas!")
@@ -3684,7 +3752,13 @@ def main():
             """)
             st.stop()
         
-        projeto = st.selectbox("📁 Projeto", ["SD", "QA", "PB"], index=0)
+        # Projeto - usa param da URL se existir
+        projetos_lista = ["SD", "QA", "PB"]
+        projeto_index = 0
+        if projeto_param and projeto_param in projetos_lista:
+            projeto_index = projetos_lista.index(projeto_param)
+        
+        projeto = st.selectbox("📁 Projeto", projetos_lista, index=projeto_index)
         
         filtro_sprint = st.selectbox(
             "🗓️ Período",
@@ -3692,9 +3766,18 @@ def main():
             index=0
         )
         
+        # ===== SEÇÃO 3: RODAPÉ =====
         st.markdown("---")
-        st.caption("📌 NINA Tecnologia")
-        st.caption("Transformando dados em decisões")
+        st.markdown("""
+        <div style="text-align: center; padding: 10px 0;">
+            <p style="color: #AF0C37; font-weight: bold; margin: 0; font-size: 0.9em;">
+                📌 NINA Tecnologia
+            </p>
+            <p style="color: #888; font-size: 0.75em; margin: 3px 0 0 0;">
+                v8.6 • Dashboard de Inteligência QA
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
     
     # JQL
     if filtro_sprint == "Sprint Ativa":
@@ -3718,39 +3801,25 @@ def main():
     
     df = processar_issues(issues)
     
-    # Filtro por produto
+    # Filtro por produto (dentro da sidebar)
     with st.sidebar:
+        # Inserir antes do rodapé - filtro de produto
         produtos_disponiveis = ['Todos'] + sorted(df['produto'].unique().tolist())
-        filtro_produto = st.selectbox("📦 Produto", produtos_disponiveis, index=0)
+        filtro_produto = st.selectbox("📦 Produto", produtos_disponiveis, index=0, key="filtro_produto_main")
         
         if filtro_produto != 'Todos':
             df = df[df['produto'] == filtro_produto]
-        
-        # Busca de Card Individual
-        st.markdown("---")
-        st.markdown("### 🔍 Buscar Card")
-        busca_card = st.text_input(
-            "Digite o ID do card",
-            placeholder=f"Ex: {projeto}-1234",
-            help="Busque um card específico para ver detalhes completos"
-        )
-        
-        # Autocomplete com sugestões
-        if busca_card:
-            # Filtra cards que começam com o texto digitado
-            sugestoes = df[df['ticket_id'].str.upper().str.contains(busca_card.upper())]['ticket_id'].head(5).tolist()
-            if sugestoes and busca_card.upper() not in [s.upper() for s in sugestoes]:
-                st.caption("💡 Sugestões:")
-                for sug in sugestoes:
-                    if st.button(f"📌 {sug}", key=f"sug_{sug}"):
-                        busca_card = sug
     
     # Se um card foi pesquisado, mostra o painel de detalhes
     if busca_card:
+        # Atualiza a URL com os parâmetros de compartilhamento
+        st.query_params["card"] = busca_card
+        st.query_params["projeto"] = projeto
+        
         st.markdown("---")
         
         # Tenta encontrar o card
-        card_encontrado = exibir_card_detalhado(df, busca_card)
+        card_encontrado = exibir_card_detalhado(df, busca_card, projeto)
         
         if not card_encontrado:
             st.warning(f"⚠️ Card **{busca_card}** não encontrado na sprint/período atual.")
