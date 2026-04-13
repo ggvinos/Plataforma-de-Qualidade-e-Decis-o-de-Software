@@ -4622,16 +4622,6 @@ def main():
         if st.session_state.busca_ativa and st.session_state.projeto_buscado in projetos_lista:
             projeto_busca_index = projetos_lista.index(st.session_state.projeto_buscado)
         
-        col_proj, col_num = st.columns([1, 2])
-        with col_proj:
-            projeto_busca = st.selectbox(
-                "Projeto",
-                projetos_lista,
-                index=projeto_busca_index,
-                key="projeto_busca_input",
-                label_visibility="collapsed"
-            )
-        
         # Extrai número inicial se estiver buscando
         numero_inicial = ""
         if st.session_state.busca_ativa and st.session_state.card_buscado:
@@ -4641,24 +4631,36 @@ def main():
                     numero_inicial = numero_inicial[len(prefix):]
                     break
         
-        with col_num:
-            numero_card_input = st.text_input(
-                "Número",
-                value=numero_inicial,
-                placeholder="Ex: 1234",
-                key="numero_card_input",
-                label_visibility="collapsed"
-            )
-        
-        # Botão de buscar
-        if st.button("🔍 Buscar", use_container_width=True, key="btn_buscar"):
-            if numero_card_input:
-                st.session_state.busca_ativa = True
-                st.session_state.card_buscado = f"{projeto_busca}-{numero_card_input}"
-                st.session_state.projeto_buscado = projeto_busca
-                st.rerun()
-            else:
-                st.warning("Digite o número do card")
+        # Formulário permite Enter para buscar
+        with st.form(key="form_busca_card", clear_on_submit=False):
+            col_proj, col_num = st.columns([1, 2])
+            with col_proj:
+                projeto_busca = st.selectbox(
+                    "Projeto",
+                    projetos_lista,
+                    index=projeto_busca_index,
+                    label_visibility="collapsed"
+                )
+            
+            with col_num:
+                numero_card_input = st.text_input(
+                    "Número",
+                    value=numero_inicial,
+                    placeholder="Ex: 1234",
+                    label_visibility="collapsed"
+                )
+            
+            # Botão de buscar (submete com Enter também)
+            buscar_clicado = st.form_submit_button("🔍 Buscar", use_container_width=True)
+            
+            if buscar_clicado:
+                if numero_card_input:
+                    st.session_state.busca_ativa = True
+                    st.session_state.card_buscado = f"{projeto_busca}-{numero_card_input}"
+                    st.session_state.projeto_buscado = projeto_busca
+                    st.rerun()
+                else:
+                    st.warning("Digite o número do card")
         
         # Mostra indicador de pesquisa ativa
         if st.session_state.busca_ativa and st.session_state.card_buscado:
