@@ -793,29 +793,42 @@ def exportar_para_excel(df: pd.DataFrame, metricas: Dict) -> bytes:
 def aplicar_estilos():
     st.markdown("""
     <style>
-    /* Header Nina */
+    /* Header Nina - Fundo escuro para contrastar com logo vermelha */
     .nina-header {
-        background: linear-gradient(135deg, #AF0C37 0%, #8B0A2C 100%);
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
         color: white;
         padding: 20px 25px;
         border-radius: 12px;
         margin-bottom: 20px;
         display: flex;
         align-items: center;
-        gap: 15px;
+        gap: 20px;
+        border: 1px solid #334155;
     }
     .nina-logo {
-        font-size: 48px;
+        width: 60px;
+        height: 60px;
+        flex-shrink: 0;
+    }
+    .nina-logo svg {
+        width: 100%;
+        height: 100%;
     }
     .nina-title {
         font-size: 24px;
         font-weight: bold;
         margin: 0;
+        color: #f8fafc;
     }
     .nina-subtitle {
         font-size: 14px;
-        opacity: 0.9;
+        opacity: 0.85;
         margin: 5px 0 0 0;
+        color: #cbd5e1;
+    }
+    .nina-highlight {
+        color: #AF0C37;
+        font-weight: bold;
     }
     
     /* Cards de status */
@@ -932,12 +945,19 @@ def aplicar_estilos():
 # ==============================================================================
 
 def mostrar_header_nina():
-    """Mostra header principal com logo da Nina."""
-    st.markdown("""
+    """Mostra header principal com logo SVG da Nina."""
+    # Logo SVG da Nina (vermelho #AF0C37)
+    logo_svg = '''<svg width="60" height="60" viewBox="0 0 187 187" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M173.709 89.2107C172.209 86.6048 169.414 84.838 166.225 84.838C163.036 84.838 160.241 86.5649 158.741 89.1627H151.683C149.465 58.8237 124.495 35 94.0216 35C63.5489 35 38.5862 58.8237 36.3678 89.1627H29.1759C27.6759 86.5649 24.8734 84.798 21.6682 84.798C18.463 84.798 15.6605 86.5806 14.1605 89.2031C13.4184 90.4899 13 92.001 13 93.6C13 95.1987 13.4184 96.7017 14.1605 97.997C15.6605 100.619 18.463 102.306 21.6682 102.306C24.8734 102.306 27.6838 100.435 29.1759 97.8369H36.3678C38.5862 128.168 63.5489 152 94.0216 152C124.495 152 149.465 128.176 151.675 97.8369H158.686C160.178 100.435 162.996 102.354 166.217 102.354C169.438 102.354 172.256 100.611 173.749 97.9648C174.475 96.6856 174.885 95.2148 174.885 93.6319C174.885 92.049 174.451 90.5222 173.701 89.2188L173.709 89.2107ZM111.145 125.554C107.971 131.518 101.758 135.459 94.5981 135.459C87.4374 135.459 81.2248 131.566 78.0509 125.602C77.1666 123.947 78.3667 122.092 80.2219 122.092H108.982C110.837 122.092 112.029 123.891 111.153 125.554H111.145ZM140.528 94.1277C140.528 103.825 132.76 111.691 123.184 111.691H65.4432C55.8675 111.691 48.0991 103.825 48.0991 94.1277V93.7199C48.0991 84.0223 55.8675 76.1557 65.4432 76.1557H123.184C132.76 76.1557 140.528 84.0223 140.528 93.7199V94.1277Z" fill="#AF0C37"/>
+    <path d="M76.5809 105.311C82.9686 105.311 88.1466 100.068 88.1466 93.5996C88.1466 87.1312 82.9686 81.8875 76.5809 81.8875C70.1936 81.8875 65.0156 87.1312 65.0156 93.5996C65.0156 100.068 70.1936 105.311 76.5809 105.311Z" fill="#AF0C37"/>
+    <path d="M111.437 105.311C117.824 105.311 123.002 100.068 123.002 93.5996C123.002 87.1312 117.824 81.8875 111.437 81.8875C105.049 81.8875 99.8712 87.1312 99.8712 93.5996C99.8712 100.068 105.049 105.311 111.437 105.311Z" fill="#AF0C37"/>
+    </svg>'''
+    
+    st.markdown(f"""
     <div class="nina-header">
-        <span class="nina-logo">🌲</span>
+        <div class="nina-logo">{logo_svg}</div>
         <div>
-            <p class="nina-title">NinaDash — Dashboard de Inteligência e Métricas de QA</p>
+            <p class="nina-title"><span class="nina-highlight">NinaDash</span> — Dashboard de Inteligência e Métricas de QA</p>
             <p class="nina-subtitle">📊 Transformando dados em decisões: visibilidade de qualidade, gargalos e maturidade do time</p>
         </div>
     </div>
@@ -1926,6 +1946,227 @@ def aba_lideranca(df: pd.DataFrame):
                 st.info("Instale openpyxl para exportar Excel: pip install openpyxl")
 
 
+def aba_sobre():
+    """Aba Sobre - Objetivo do Dashboard e Fontes das Métricas."""
+    st.markdown("### ℹ️ Sobre o NinaDash")
+    st.caption("Objetivo, métricas utilizadas e referências teóricas")
+    
+    # Sobre a NINA
+    with st.expander("🤖 NINA Tecnologia", expanded=True):
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #AF0C37 0%, #8B0A2C 100%); padding: 24px; border-radius: 12px; margin-bottom: 16px;">
+            <h3 style="margin: 0 0 12px 0; color: #ffffff;">🤖 NINA Tecnologia</h3>
+            <p style="margin: 0 0 16px 0; color: #fecdd3; font-size: 15px; line-height: 1.6;">
+                A <b style="color: #fff;">NINA</b> é uma empresa de tecnologia especializada em <b style="color: #fff;">soluções digitais inovadoras</b>, 
+                com foco em desenvolvimento de software de alta qualidade. Nossa missão é transformar ideias em produtos 
+                digitais que geram valor real para nossos clientes.
+            </p>
+            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                <div style="background: rgba(255,255,255,0.15); padding: 12px 16px; border-radius: 8px; flex: 1; min-width: 200px;">
+                    <p style="margin: 0; color: #fecdd3; font-size: 12px;">🎯 MISSÃO</p>
+                    <p style="margin: 4px 0 0 0; color: #fff; font-size: 14px; font-weight: 500;">Entregar software de qualidade com excelência operacional</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.15); padding: 12px 16px; border-radius: 8px; flex: 1; min-width: 200px;">
+                    <p style="margin: 0; color: #fecdd3; font-size: 12px;">👁️ VISÃO</p>
+                    <p style="margin: 4px 0 0 0; color: #fff; font-size: 14px; font-weight: 500;">Ser referência em qualidade de software no Brasil</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.15); padding: 12px 16px; border-radius: 8px; flex: 1; min-width: 200px;">
+                    <p style="margin: 0; color: #fecdd3; font-size: 12px;">💎 VALORES</p>
+                    <p style="margin: 4px 0 0 0; color: #fff; font-size: 14px; font-weight: 500;">Qualidade, Transparência, Inovação</p>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Objetivo do Dashboard
+    with st.expander("🎯 Objetivo do Dashboard", expanded=True):
+        st.markdown("""
+        ### 📊 NinaDash — Dashboard de Inteligência e Métricas de QA
+        
+        **Propósito central:** Transformar o QA de um processo sem visibilidade em um **sistema de inteligência operacional baseado em dados**.
+        
+        ---
+        
+        #### 🚨 Problema que resolve
+        
+        | Antes do NinaDash | Depois do NinaDash |
+        |---|---|
+        | ❌ Falta de mensuração real do tempo de validação | ✅ Coleta automatizada de métricas |
+        | ❌ Zero previsibilidade de entregas | ✅ Cálculo em tempo real de SLAs |
+        | ❌ Uso do Notion como controle manual | ✅ Integração direta com Jira |
+        | ❌ Falta de segurança na validação de cards | ✅ Monitoramento da janela de release (3 dias úteis) |
+        | ❌ Decisões baseadas em "feeling" | ✅ Decisão orientada por dados |
+        
+        ---
+        
+        #### ⚡ Diferencial
+        
+        | Dashboards Comuns | NinaDash |
+        |---|---|
+        | Métricas genéricas | Métricas baseadas em QA (ISTQB) |
+        | Dados estáticos | Integração em tempo real |
+        | Foco em volume | Foco em **qualidade e maturidade** |
+        | Sem contexto de QA | Janela de release com dias úteis |
+        | Métricas isoladas | Health Score para decisão Go/No-Go |
+        """)
+    
+    # Métricas implementadas
+    with st.expander("📊 Métricas Implementadas (ISTQB-Aligned)", expanded=True):
+        st.markdown("""
+        O dashboard implementa métricas fundamentais do **ISTQB Foundation Level**, fornecendo uma visão completa do ciclo de qualidade:
+        
+        | Métrica | Descrição | Impacto |
+        |---------|-----------|---------|
+        | **FPY (First Pass Yield)** | Cards aprovados de primeira sem bugs | Mede eficiência do desenvolvimento |
+        | **DDP (Defect Detection Percentage)** | Eficácia do QA em encontrar bugs | Indica maturidade do processo de testes |
+        | **Fator K** | Relação SP/Bugs (SP/(Bugs+1)) | Classifica maturidade individual |
+        | **Lead Time** | Tempo do início ao fim do card | Identifica gargalos no fluxo |
+        | **Health Score** | Score composto de saúde da release | Suporta decisão Go/No-Go |
+        | **WIP (Work In Progress)** | Cards simultâneos por pessoa | Controla sobrecarga |
+        | **Throughput** | Vazão de entrega por sprint | Indica capacidade do time |
+        """)
+    
+    # Fórmulas
+    with st.expander("🧮 Fórmulas Principais", expanded=False):
+        st.markdown("""
+        ### Fator K (Maturidade)
+        ```
+        FK = SP / (Bugs + 1)
+        ```
+        - **🥇 Gold (≥3.0):** Excelente qualidade
+        - **🥈 Silver (2.0-2.9):** Boa qualidade
+        - **🥉 Bronze (1.0-1.9):** Regular
+        - **⚠️ Risco (<1.0):** Crítico
+        
+        ---
+        
+        ### Health Score (Saúde da Release)
+        ```
+        HS = (Conclusão×30 + DDP×25 + FPY×20 + Gargalos×15 + LeadTime×10) / 100
+        ```
+        - **🟢 ≥75:** Saudável - Release pode seguir
+        - **🟡 50-74:** Atenção - Monitorar riscos
+        - **🟠 25-49:** Alerta - Ação necessária
+        - **🔴 <25:** Crítico - Avaliar adiamento
+        
+        ---
+        
+        ### First Pass Yield (FPY)
+        ```
+        FPY = (Cards sem bugs / Total de cards) × 100
+        ```
+        
+        ### Defect Detection Percentage (DDP)
+        ```
+        DDP = (Bugs encontrados em QA / Total estimado de bugs) × 100
+        ```
+        
+        ### Janela de Release
+        ```
+        ≥ 3 dias úteis antes da release = Dentro da janela ✅
+        ```
+        """)
+    
+    # Fundamentos Teóricos
+    with st.expander("📚 Fundamentos Teóricos", expanded=False):
+        st.markdown("""
+        ### 🎓 ISTQB/CTFL - International Software Testing Qualifications Board
+        
+        O **ISTQB Foundation Level (CTFL)** define padrões globais para métricas de teste:
+        
+        **Métricas de Processo** (implementadas no dashboard):
+        - *Defect Detection Percentage (DDP)*: Eficácia do QA
+        - *First Pass Yield (FPY)*: Qualidade na primeira entrega
+        - *Rework Effort Ratio*: Esforço gasto em correções
+        
+        **Métricas de Produto**:
+        - *Defect Density*: Bugs por unidade de tamanho (SP)
+        - *Test Coverage*: Cobertura de testes automatizados
+        
+        > *"We cannot improve what we cannot measure"* - ISTQB Syllabus
+        
+        **Referência**: [ISTQB CTFL Syllabus v4.0](https://www.istqb.org/certifications/certified-tester-foundation-level)
+        
+        ---
+        
+        ### 🔄 TDD - Test-Driven Development (Kent Beck)
+        
+        O **TDD** segue o ciclo **Red-Green-Refactor**:
+        1. 🔴 **Red**: Escrever um teste que falha
+        2. 🟢 **Green**: Escrever código mínimo para passar
+        3. 🔵 **Refactor**: Melhorar o código mantendo testes passando
+        
+        **Como o Fator K se relaciona com TDD**:
+        - Devs que praticam TDD tendem a ter **FK mais alto**
+        - Menos bugs = maior proporção SP/Bugs
+        - Selo Gold incentiva a prática
+        
+        **Referência**: [Martin Fowler - TDD](https://martinfowler.com/bliki/TestDrivenDevelopment.html)
+        
+        ---
+        
+        ### 📈 Shift-Left Testing
+        
+        O conceito move as atividades de teste para o início do ciclo:
+        
+        ```
+        Tradicional:  Requisitos → Desenvolvimento → [TESTES] → Deploy
+        Shift-Left:   [TESTES] → Requisitos → [TESTES] → Dev → [TESTES] → Deploy
+        ```
+        
+        **Estatísticas da indústria**:
+        - Bug encontrado em dev: **$100** para corrigir
+        - Bug encontrado em QA: **$1.500** para corrigir  
+        - Bug encontrado em produção: **$10.000+** para corrigir
+        
+        > O dashboard ajuda a NINA a encontrar bugs mais cedo, economizando recursos.
+        """)
+    
+    # Tomada de Decisão
+    with st.expander("🧠 Tomada de Decisão por Perfil", expanded=False):
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown("""
+            ### 👥 Para QA
+            - Priorização de cards
+            - Gestão de carga
+            - Avaliação de risco de release
+            - Identificação de aging
+            """)
+        
+        with col2:
+            st.markdown("""
+            ### 🧑‍💼 Para Liderança
+            - Go / No-Go de release
+            - Performance do time
+            - Identificação de gargalos
+            - Health Score da sprint
+            """)
+        
+        with col3:
+            st.markdown("""
+            ### 👨‍💻 Para Devs
+            - Feedback de qualidade (Fator K)
+            - Taxa de retrabalho
+            - Tempo de ciclo
+            - Cards pendentes
+            """)
+    
+    # Governança
+    with st.expander("🏢 Governança", expanded=False):
+        st.markdown("""
+        | Informação | Valor |
+        |------------|-------|
+        | **Desenvolvido por** | QA NINA |
+        | **Mantido por** | Vinícios Ferreira |
+        | **Versão** | v8.1 |
+        | **Última atualização** | Abril 2026 |
+        | **Stack** | Python, Streamlit, Plotly, Pandas |
+        | **Integração** | Jira API REST |
+        """)
+
+
 # ==============================================================================
 # FUNÇÃO PRINCIPAL
 # ==============================================================================
@@ -1998,13 +2239,14 @@ def main():
             df = df[df['produto'] == filtro_produto]
     
     # Abas - TODAS AS FUNCIONALIDADES
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "📊 Visão Geral",
         "🔬 QA",
         "📋 Governança",
         "📦 Produto",
         "📈 Histórico",
-        "🎯 Liderança"
+        "🎯 Liderança",
+        "ℹ️ Sobre"
     ])
     
     with tab1:
@@ -2024,6 +2266,9 @@ def main():
     
     with tab6:
         aba_lideranca(df)
+    
+    with tab7:
+        aba_sobre()
 
 
 if __name__ == "__main__":
