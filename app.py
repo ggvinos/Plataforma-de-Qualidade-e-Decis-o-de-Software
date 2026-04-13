@@ -4571,7 +4571,7 @@ def aba_sobre():
         |------------|-------|
         | **Desenvolvido por** | QA NINA |
         | **Mantido por** | Vinícios Ferreira |
-        | **Versão** | v8.18 |
+        | **Versão** | v8.19 |
         | **Última atualização** | Abril 2026 |
         | **Stack** | Python, Streamlit, Plotly, Pandas |
         | **Integração** | Jira API REST |
@@ -4806,7 +4806,7 @@ def main():
                 📌 NINA Tecnologia
             </p>
             <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                v8.18 • Dashboard de Inteligência QA
+                v8.19 • Dashboard de Inteligência QA
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -4814,6 +4814,9 @@ def main():
         # Changelog em expander
         with st.expander("📋 Histórico de Versões", expanded=False):
             st.markdown("""
+            **v8.19** *(13/04/2026)*
+            - 📋 Changelog na sidebar
+            
             **v8.18** *(13/04/2026)*
             - ✅ Botão "Copiar Link" funcionando
             
