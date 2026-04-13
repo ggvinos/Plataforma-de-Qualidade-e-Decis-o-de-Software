@@ -2176,6 +2176,470 @@ def aba_produto(df: pd.DataFrame):
         st.dataframe(produto_stats.sort_values('Cards', ascending=False), hide_index=True, use_container_width=True)
 
 
+def calcular_metricas_backlog(df: pd.DataFrame) -> Dict:
+    """Calcula métricas específicas para análise do Product Backlog."""
+    hoje = datetime.now()
+    
+    # Filtrar apenas itens no backlog (não concluídos e não em progresso avançado)
+    df_backlog = df[df['status_cat'].isin(['backlog'])]
+    
+    # Se não houver itens no backlog "puro", considerar todos não concluídos
+    if df_backlog.empty:
+        df_backlog = df[~df['status_cat'].isin(['done', 'deferred'])]
+    
+    total_backlog = len(df_backlog)
+    
+    if total_backlog == 0:
+        return {
+            "total_itens": 0,
+            "sp_pendentes": 0,
+            "idade_media": 0,
+            "idade_mediana": 0,
+            "pct_sem_sp": 0,
+            "pct_sem_responsavel": 0,
+            "cards_aging": pd.DataFrame(),
+            "por_prioridade": {},
+            "por_tipo": {},
+            "por_produto": pd.DataFrame(),
+            "score_saude": 100,
+            "status_saude": "🟢 Saudável",
+            "faixas_idade": {"0-15": 0, "16-30": 0, "31-60": 0, "61-90": 0, "90+": 0},
+            "cards_sem_sprint": pd.DataFrame(),
+            "cards_sem_responsavel": pd.DataFrame(),
+            "cards_sem_sp": pd.DataFrame(),
+            "cards_estagnados": pd.DataFrame(),
+            "mais_antigo": 0,
+            "df_backlog": df_backlog,
+            "recomendacoes": [],
+        }
+    
+    # Calcular idade em dias
+    df_backlog = df_backlog.copy()
+    df_backlog['idade_dias'] = df_backlog['criado'].apply(lambda x: (hoje - x).days if pd.notna(x) else 0)
+    df_backlog['dias_sem_update'] = df_backlog['atualizado'].apply(lambda x: (hoje - x).days if pd.notna(x) else 0)
+    
+    # Métricas básicas
+    sp_pendentes = int(df_backlog['sp'].sum())
+    idade_media = df_backlog['idade_dias'].mean()
+    idade_mediana = df_backlog['idade_dias'].median()
+    mais_antigo = df_backlog['idade_dias'].max()
+    
+    # Cards sem estimativa
+    sem_sp = df_backlog[df_backlog['sp'] == 0]
+    pct_sem_sp = len(sem_sp) / total_backlog * 100 if total_backlog > 0 else 0
+    
+    # Cards sem responsável
+    sem_responsavel = df_backlog[df_backlog['desenvolvedor'] == 'Não atribuído']
+    pct_sem_responsavel = len(sem_responsavel) / total_backlog * 100 if total_backlog > 0 else 0
+    
+    # Faixas de idade
+    faixas_idade = {
+        "0-15": len(df_backlog[df_backlog['idade_dias'] <= 15]),
+        "16-30": len(df_backlog[(df_backlog['idade_dias'] > 15) & (df_backlog['idade_dias'] <= 30)]),
+        "31-60": len(df_backlog[(df_backlog['idade_dias'] > 30) & (df_backlog['idade_dias'] <= 60)]),
+        "61-90": len(df_backlog[(df_backlog['idade_dias'] > 60) & (df_backlog['idade_dias'] <= 90)]),
+        "90+": len(df_backlog[df_backlog['idade_dias'] > 90]),
+    }
+    
+    # Cards aging (> 60 dias)
+    cards_aging = df_backlog[df_backlog['idade_dias'] > 60].sort_values('idade_dias', ascending=False)
+    
+    # Cards estagnados (sem update há mais de 30 dias)
+    cards_estagnados = df_backlog[df_backlog['dias_sem_update'] > 30].sort_values('dias_sem_update', ascending=False)
+    
+    # Cards sem sprint
+    cards_sem_sprint = df_backlog[df_backlog['sprint'] == 'Sem Sprint']
+    
+    # Distribuição por prioridade
+    por_prioridade = df_backlog['prioridade'].value_counts().to_dict()
+    
+    # Distribuição por tipo
+    por_tipo = df_backlog['tipo'].value_counts().to_dict()
+    
+    # Por produto
+    por_produto = df_backlog.groupby('produto').agg({
+        'ticket_id': 'count',
+        'sp': 'sum',
+        'idade_dias': 'mean'
+    }).reset_index()
+    por_produto.columns = ['Produto', 'Cards', 'SP', 'Idade Média']
+    por_produto['Idade Média'] = por_produto['Idade Média'].round(1)
+    
+    # Calcular score de saúde do backlog (0-100)
+    # Componentes:
+    # - Idade média (30%) - penaliza se > 30 dias
+    # - % sem SP (25%) - penaliza itens sem estimativa
+    # - Taxa de crescimento aprox (25%) - baseado em aging
+    # - Priorização (20%) - penaliza se muitos críticos
+    
+    score_idade = max(0, 30 - (idade_media / 3)) if idade_media <= 90 else 0
+    score_sp = max(0, 25 - (pct_sem_sp / 2))
+    score_aging = max(0, 25 - (faixas_idade["90+"] * 2))
+    
+    pct_criticos = por_prioridade.get('Highest', 0) + por_prioridade.get('High', 0) + por_prioridade.get('Alta', 0)
+    pct_criticos = (pct_criticos / total_backlog * 100) if total_backlog > 0 else 0
+    score_priorizacao = max(0, 20 - (pct_criticos / 2))
+    
+    score_saude = round(score_idade + score_sp + score_aging + score_priorizacao, 0)
+    
+    if score_saude >= 75:
+        status_saude = "🟢 Saudável"
+    elif score_saude >= 50:
+        status_saude = "🟡 Atenção"
+    elif score_saude >= 25:
+        status_saude = "🟠 Alerta"
+    else:
+        status_saude = "🔴 Crítico"
+    
+    # Gerar recomendações
+    recomendacoes = []
+    
+    if faixas_idade["90+"] > 0:
+        recomendacoes.append({
+            "tipo": "🗑️ Candidatos a Descarte",
+            "msg": f"{faixas_idade['90+']} itens estão há mais de 90 dias no backlog. Considere descartá-los.",
+            "criticidade": "alta"
+        })
+    
+    if pct_sem_sp > 30:
+        recomendacoes.append({
+            "tipo": "📝 Refinamento Necessário",
+            "msg": f"{pct_sem_sp:.0f}% do backlog não tem estimativa. Agende um grooming.",
+            "criticidade": "media"
+        })
+    
+    if pct_sem_responsavel > 40:
+        recomendacoes.append({
+            "tipo": "👤 Atribuir Responsáveis",
+            "msg": f"{pct_sem_responsavel:.0f}% dos itens não têm responsável definido.",
+            "criticidade": "media"
+        })
+    
+    if len(cards_estagnados) > 5:
+        recomendacoes.append({
+            "tipo": "⏸️ Cards Estagnados",
+            "msg": f"{len(cards_estagnados)} cards não são atualizados há mais de 30 dias.",
+            "criticidade": "media"
+        })
+    
+    if idade_media > 60:
+        recomendacoes.append({
+            "tipo": "⚠️ Backlog Envelhecido",
+            "msg": f"Idade média de {idade_media:.0f} dias. Revise a priorização.",
+            "criticidade": "alta"
+        })
+    
+    return {
+        "total_itens": total_backlog,
+        "sp_pendentes": sp_pendentes,
+        "idade_media": round(idade_media, 1),
+        "idade_mediana": round(idade_mediana, 1),
+        "pct_sem_sp": round(pct_sem_sp, 1),
+        "pct_sem_responsavel": round(pct_sem_responsavel, 1),
+        "cards_aging": cards_aging,
+        "por_prioridade": por_prioridade,
+        "por_tipo": por_tipo,
+        "por_produto": por_produto,
+        "score_saude": score_saude,
+        "status_saude": status_saude,
+        "faixas_idade": faixas_idade,
+        "cards_sem_sprint": cards_sem_sprint,
+        "cards_sem_responsavel": sem_responsavel,
+        "cards_sem_sp": sem_sp,
+        "cards_estagnados": cards_estagnados,
+        "mais_antigo": mais_antigo,
+        "df_backlog": df_backlog,
+        "recomendacoes": recomendacoes,
+    }
+
+
+def criar_grafico_aging_backlog(faixas: Dict) -> go.Figure:
+    """Cria gráfico de barras para faixas de aging do backlog."""
+    labels = ['0-15 dias', '16-30 dias', '31-60 dias', '61-90 dias', '90+ dias']
+    values = [faixas['0-15'], faixas['16-30'], faixas['31-60'], faixas['61-90'], faixas['90+']]
+    colors = ['#22c55e', '#eab308', '#f97316', '#ef4444', '#7f1d1d']
+    
+    fig = go.Figure(go.Bar(
+        x=labels,
+        y=values,
+        marker_color=colors,
+        text=values,
+        textposition='auto',
+    ))
+    
+    fig.update_layout(
+        title="📊 Distribuição por Idade no Backlog",
+        xaxis_title="Faixa de Idade",
+        yaxis_title="Quantidade de Cards",
+        height=350,
+        margin=dict(l=20, r=20, t=50, b=20),
+        showlegend=False
+    )
+    
+    return fig
+
+
+def criar_grafico_prioridade_backlog(por_prioridade: Dict) -> go.Figure:
+    """Cria gráfico de pizza para distribuição por prioridade."""
+    labels = list(por_prioridade.keys())
+    values = list(por_prioridade.values())
+    
+    # Cores por prioridade
+    cores_prioridade = {
+        'Highest': '#7f1d1d',
+        'High': '#ef4444',
+        'Alta': '#ef4444',
+        'Medium': '#f59e0b',
+        'Média': '#f59e0b',
+        'Low': '#22c55e',
+        'Baixa': '#22c55e',
+        'Lowest': '#64748b',
+    }
+    colors = [cores_prioridade.get(l, '#6b7280') for l in labels]
+    
+    fig = go.Figure(go.Pie(
+        labels=labels,
+        values=values,
+        marker_colors=colors,
+        textinfo='label+percent',
+        hole=0.4
+    ))
+    
+    fig.update_layout(
+        title="🎯 Distribuição por Prioridade",
+        height=350,
+        margin=dict(l=20, r=20, t=50, b=20)
+    )
+    
+    return fig
+
+
+def criar_grafico_tipo_backlog(por_tipo: Dict) -> go.Figure:
+    """Cria gráfico de barras horizontais para distribuição por tipo."""
+    labels = list(por_tipo.keys())
+    values = list(por_tipo.values())
+    
+    cores_tipo = {
+        'TAREFA': '#3b82f6',
+        'BUG': '#ef4444',
+        'HOTFIX': '#f97316',
+        'SUGESTÃO': '#8b5cf6',
+    }
+    colors = [cores_tipo.get(l, '#6b7280') for l in labels]
+    
+    fig = go.Figure(go.Bar(
+        x=values,
+        y=labels,
+        orientation='h',
+        marker_color=colors,
+        text=values,
+        textposition='auto',
+    ))
+    
+    fig.update_layout(
+        title="📋 Distribuição por Tipo",
+        xaxis_title="Quantidade",
+        height=300,
+        margin=dict(l=20, r=20, t=50, b=20)
+    )
+    
+    return fig
+
+
+def criar_grafico_backlog_por_produto(df_produto: pd.DataFrame) -> go.Figure:
+    """Cria gráfico de barras para backlog por produto."""
+    if df_produto.empty:
+        fig = go.Figure()
+        fig.add_annotation(text="Sem dados por produto", xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False)
+        return fig
+    
+    fig = go.Figure()
+    
+    fig.add_trace(go.Bar(
+        x=df_produto['Produto'],
+        y=df_produto['Cards'],
+        name='Cards',
+        marker_color='#3b82f6',
+        text=df_produto['Cards'],
+        textposition='auto',
+    ))
+    
+    fig.update_layout(
+        title="📦 Backlog por Produto",
+        xaxis_title="Produto",
+        yaxis_title="Quantidade de Cards",
+        height=350,
+        margin=dict(l=20, r=20, t=50, b=20)
+    )
+    
+    return fig
+
+
+def aba_backlog(df: pd.DataFrame):
+    """Aba de análise do Product Backlog (PB)."""
+    st.markdown("### 📋 Product Backlog - Análise de Gargalos")
+    st.caption("Visualize a saúde do backlog, identifique itens estagnados e tome decisões de priorização")
+    
+    metricas = calcular_metricas_backlog(df)
+    
+    # Score de Saúde do Backlog
+    with st.expander("🏥 Saúde do Backlog", expanded=True):
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            score = metricas['score_saude']
+            cor = 'green' if score >= 75 else 'yellow' if score >= 50 else 'orange' if score >= 25 else 'red'
+            criar_card_metrica(f"{score:.0f}", "Health Score", cor, metricas['status_saude'])
+        
+        with col2:
+            criar_card_metrica(str(metricas['total_itens']), "Total no Backlog", "blue", f"{metricas['sp_pendentes']} SP pendentes")
+        
+        with col3:
+            cor = 'green' if metricas['idade_media'] <= 30 else 'yellow' if metricas['idade_media'] <= 60 else 'red'
+            criar_card_metrica(f"{metricas['idade_media']:.0f}d", "Idade Média", cor, f"Mediana: {metricas['idade_mediana']:.0f}d")
+        
+        with col4:
+            cor = 'green' if metricas['pct_sem_sp'] <= 20 else 'yellow' if metricas['pct_sem_sp'] <= 40 else 'red'
+            criar_card_metrica(f"{metricas['pct_sem_sp']:.0f}%", "Sem Estimativa", cor, f"{len(metricas['cards_sem_sp'])} cards")
+        
+        st.caption("💡 **Health Score:** Pontuação composta (0-100) baseada em idade, estimativas, aging e priorização")
+    
+    # Recomendações automáticas
+    if metricas['recomendacoes']:
+        with st.expander("💡 Recomendações Automáticas", expanded=True):
+            for rec in metricas['recomendacoes']:
+                classe = 'alert-critical' if rec['criticidade'] == 'alta' else 'alert-warning'
+                st.markdown(f"""
+                <div class="{classe}">
+                    <b>{rec['tipo']}</b>
+                    <p>{rec['msg']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+    
+    # Análise de Aging
+    with st.expander("📊 Análise de Envelhecimento (Aging)", expanded=True):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            fig = criar_grafico_aging_backlog(metricas['faixas_idade'])
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            st.markdown("#### 📈 Métricas de Aging")
+            
+            col_a, col_b = st.columns(2)
+            with col_a:
+                st.metric("Item Mais Antigo", f"{metricas['mais_antigo']} dias")
+                st.metric("Cards > 60 dias", f"{metricas['faixas_idade']['61-90'] + metricas['faixas_idade']['90+']}")
+            with col_b:
+                st.metric("Cards > 90 dias", f"{metricas['faixas_idade']['90+']}")
+                st.metric("Idade Mediana", f"{metricas['idade_mediana']:.0f} dias")
+            
+            if metricas['faixas_idade']['90+'] > 0:
+                st.warning(f"⚠️ {metricas['faixas_idade']['90+']} cards estão há mais de 90 dias no backlog - candidatos a descarte!")
+    
+    # Cards Aging (> 60 dias)
+    if not metricas['cards_aging'].empty:
+        with st.expander(f"⏰ Cards Aging - Mais de 60 dias ({len(metricas['cards_aging'])} cards)", expanded=False):
+            df_display = metricas['cards_aging'][['ticket_id', 'titulo', 'idade_dias', 'prioridade', 'produto', 'sp', 'desenvolvedor']].copy()
+            df_display.columns = ['Ticket', 'Título', 'Dias', 'Prioridade', 'Produto', 'SP', 'Responsável']
+            df_display['Título'] = df_display['Título'].str[:50] + '...'
+            
+            # Adicionar link
+            df_display['Ticket'] = df_display['Ticket'].apply(lambda x: f"[{x}]({link_jira(x)})")
+            
+            st.dataframe(df_display.head(20), hide_index=True, use_container_width=True)
+            
+            if len(metricas['cards_aging']) > 20:
+                st.caption(f"Mostrando 20 de {len(metricas['cards_aging'])} cards")
+    
+    # Distribuição
+    with st.expander("📊 Distribuição do Backlog", expanded=True):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if metricas['por_prioridade']:
+                fig = criar_grafico_prioridade_backlog(metricas['por_prioridade'])
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Sem dados de prioridade disponíveis")
+        
+        with col2:
+            if metricas['por_tipo']:
+                fig = criar_grafico_tipo_backlog(metricas['por_tipo'])
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Sem dados de tipo disponíveis")
+    
+    # Por Produto
+    with st.expander("📦 Backlog por Produto", expanded=True):
+        if not metricas['por_produto'].empty:
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                fig = criar_grafico_backlog_por_produto(metricas['por_produto'])
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                st.markdown("#### 📋 Resumo por Produto")
+                st.dataframe(metricas['por_produto'].sort_values('Cards', ascending=False), hide_index=True, use_container_width=True)
+        else:
+            st.info("Sem dados por produto disponíveis")
+    
+    # Cards Problemáticos
+    with st.expander("⚠️ Cards que Precisam de Atenção", expanded=False):
+        tab_sem_sp, tab_sem_resp, tab_estagnados = st.tabs([
+            f"📝 Sem Estimativa ({len(metricas['cards_sem_sp'])})",
+            f"👤 Sem Responsável ({len(metricas['cards_sem_responsavel'])})",
+            f"⏸️ Estagnados ({len(metricas['cards_estagnados'])})"
+        ])
+        
+        with tab_sem_sp:
+            if not metricas['cards_sem_sp'].empty:
+                st.markdown("Cards que precisam de estimativa (Story Points):")
+                mostrar_lista_df_completa(metricas['cards_sem_sp'], "Sem Estimativa")
+            else:
+                st.success("✅ Todos os cards têm estimativa!")
+        
+        with tab_sem_resp:
+            if not metricas['cards_sem_responsavel'].empty:
+                st.markdown("Cards sem responsável atribuído:")
+                mostrar_lista_df_completa(metricas['cards_sem_responsavel'], "Sem Responsável")
+            else:
+                st.success("✅ Todos os cards têm responsável!")
+        
+        with tab_estagnados:
+            if not metricas['cards_estagnados'].empty:
+                st.markdown("Cards sem movimentação há mais de 30 dias:")
+                df_estag = metricas['cards_estagnados'][['ticket_id', 'titulo', 'dias_sem_update', 'prioridade', 'desenvolvedor']].copy()
+                df_estag.columns = ['Ticket', 'Título', 'Dias sem Update', 'Prioridade', 'Responsável']
+                df_estag['Título'] = df_estag['Título'].str[:40] + '...'
+                st.dataframe(df_estag.head(15), hide_index=True, use_container_width=True)
+            else:
+                st.success("✅ Nenhum card estagnado!")
+    
+    # Tooltip explicativo
+    with st.expander("ℹ️ Sobre esta Aba", expanded=False):
+        st.markdown("""
+        ### 📋 Product Backlog - O que analisamos?
+        
+        Esta aba foi criada para ajudar na **gestão saudável do backlog**, identificando:
+        
+        | Métrica | O que significa |
+        |---------|-----------------|
+        | **Health Score** | Pontuação geral da saúde do backlog (0-100) |
+        | **Idade Média** | Quanto tempo os itens ficam parados |
+        | **Aging** | Cards que estão há muito tempo esperando |
+        | **Sem Estimativa** | Cards sem Story Points definidos |
+        | **Estagnados** | Cards sem movimentação recente |
+        
+        ### 🎯 Recomendações:
+        - Cards **> 90 dias** são candidatos a descarte
+        - **Idade média > 60 dias** indica backlog represado
+        - **> 30% sem estimativa** requer grooming urgente
+        """)
+
+
 def aba_historico(df: pd.DataFrame):
     """Aba de Histórico/Tendências - ENRIQUECIDA."""
     st.markdown("### 📈 Histórico e Tendências")
@@ -2639,7 +3103,7 @@ def aba_sobre():
         |------------|-------|
         | **Desenvolvido por** | QA NINA |
         | **Mantido por** | Vinícios Ferreira |
-        | **Versão** | v8.3 |
+        | **Versão** | v8.4 |
         | **Última atualização** | Abril 2026 |
         | **Stack** | Python, Streamlit, Plotly, Pandas |
         | **Integração** | Jira API REST |
@@ -2657,7 +3121,8 @@ def aba_sobre():
         | **👨‍💻 Dev** | Ranking Fator K, performance individual, WIP, code review, análise Tech Lead | Devs, Tech Lead |
         | **📋 Governança** | Qualidade dos dados, campos obrigatórios, compliance | PO, Liderança |
         | **📦 Produto** | Métricas por produto, Health Score, tendências | PO, Stakeholders |
-        | **📈 Histórico** | Evolução de métricas entre releases, tendências | Liderança |
+        | **� Backlog** | Saúde do backlog, aging, gargalos, cards problemáticos, recomendações | PO, Liderança |
+        | **�📈 Histórico** | Evolução de métricas entre releases, tendências | Liderança |
         | **🎯 Liderança** | Decisão Go/No-Go, riscos, simulações | Gerentes, Diretores |
         | **ℹ️ Sobre** | Esta documentação | Todos |
         
@@ -2715,7 +3180,7 @@ def main():
         ''', unsafe_allow_html=True)
         
         st.markdown("<h2 style='text-align: center; color: #AF0C37; margin: 0;'>NinaDash</h2>", unsafe_allow_html=True)
-        st.caption("v8.3 - Aba Dev + QA Enriquecido")
+        st.caption("v8.4 - Nova Aba Product Backlog")
         st.markdown("---")
         
         if not verificar_credenciais():
@@ -2773,12 +3238,13 @@ def main():
             df = df[df['produto'] == filtro_produto]
     
     # Abas - TODAS AS FUNCIONALIDADES
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
         "📊 Visão Geral",
         "🔬 QA",
         "👨‍💻 Dev",
         "📋 Governança",
         "📦 Produto",
+        "📋 Backlog",
         "📈 Histórico",
         "🎯 Liderança",
         "ℹ️ Sobre"
@@ -2800,12 +3266,15 @@ def main():
         aba_produto(df)
     
     with tab6:
-        aba_historico(df)
+        aba_backlog(df)
     
     with tab7:
-        aba_lideranca(df)
+        aba_historico(df)
     
     with tab8:
+        aba_lideranca(df)
+    
+    with tab9:
         aba_sobre()
 
 
