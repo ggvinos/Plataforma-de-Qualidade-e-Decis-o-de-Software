@@ -412,14 +412,14 @@ def buscar_dados_jira_cached(projeto: str, jql: str) -> Tuple[Optional[List[Dict
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[List[Dict]]]:
+def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[List[Dict]], Optional[List[Dict]]]:
     """
     Busca um card específico pelo ID, sem filtros de período.
-    Também retorna os links (vinculações) do card.
+    Retorna: (issue, links, comentarios)
     """
     secrets = get_secrets()
     if not secrets["email"] or not secrets["token"]:
-        return None, None
+        return None, None, None
     
     try:
         # Busca o card específico com links
@@ -429,6 +429,7 @@ def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[Lis
         fields = [
             "key", "summary", "status", "issuetype", "assignee", "created", "updated",
             "resolutiondate", "priority", "project", "labels", "issuelinks", "parent", "subtasks",
+            "description",
             CUSTOM_FIELDS["story_points"],
             CUSTOM_FIELDS["story_points_alt"],
             CUSTOM_FIELDS["sprint"],
@@ -438,7 +439,7 @@ def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[Lis
             CUSTOM_FIELDS["produto"],
         ]
         
-        params = {"fields": ",".join(fields)}
+        params = {"fields": ",".join(fields), "expand": "renderedFields"}
         
         response = requests.get(
             base_url,
@@ -449,7 +450,7 @@ def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[Lis
         )
         
         if response.status_code == 404:
-            return None, None
+            return None, None, None
         
         response.raise_for_status()
         issue = response.json()
@@ -511,11 +512,79 @@ def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[Lis
                 'link': f"{JIRA_BASE_URL}/browse/{sub.get('key', '')}"
             })
         
-        return issue, links
+        # Busca comentários do card
+        comentarios = []
+        try:
+            comments_url = f"{JIRA_BASE_URL}/rest/api/3/issue/{ticket_id}/comment"
+            comments_response = requests.get(
+                comments_url,
+                headers=headers,
+                auth=(secrets["email"], secrets["token"]),
+                timeout=15
+            )
+            if comments_response.status_code == 200:
+                comments_data = comments_response.json()
+                for comment in comments_data.get('comments', []):
+                    author = comment.get('author', {})
+                    author_type = author.get('accountType', 'user')
+                    
+                    # Filtra comentários de automações (bots, apps)
+                    # accountType: 'atlassian' = usuário, 'app' = automação
+                    if author_type == 'app':
+                        continue
+                    
+                    # Também ignora se o displayName contém patterns de automação
+                    display_name = author.get('displayName', '')
+                    bot_patterns = ['bot', 'automation', 'jira', 'webhook', 'integration', 'service']
+                    is_bot = any(pattern.lower() in display_name.lower() for pattern in bot_patterns)
+                    if is_bot:
+                        continue
+                    
+                    # Extrai texto do corpo do comentário (formato ADF)
+                    body = comment.get('body', {})
+                    body_text = extrair_texto_adf(body)
+                    
+                    if body_text.strip():
+                        comentarios.append({
+                            'autor': display_name,
+                            'avatar': author.get('avatarUrls', {}).get('24x24', ''),
+                            'data': comment.get('created', ''),
+                            'texto': body_text
+                        })
+        except Exception:
+            pass  # Comentários são opcionais
+        
+        return issue, links, comentarios
     
     except Exception as e:
         st.error(f"Erro ao buscar card: {e}")
-        return None, None
+        return None, None, None
+
+
+def extrair_texto_adf(adf_content: Dict) -> str:
+    """Extrai texto plano de conteúdo ADF (Atlassian Document Format)."""
+    if not adf_content:
+        return ""
+    
+    texto = []
+    
+    def extrair_recursivo(node):
+        if isinstance(node, dict):
+            if node.get('type') == 'text':
+                texto.append(node.get('text', ''))
+            elif node.get('type') == 'hardBreak':
+                texto.append('\n')
+            elif node.get('type') == 'mention':
+                texto.append(f"@{node.get('attrs', {}).get('text', '')}")
+            
+            for child in node.get('content', []):
+                extrair_recursivo(child)
+        elif isinstance(node, list):
+            for item in node:
+                extrair_recursivo(item)
+    
+    extrair_recursivo(adf_content)
+    return ' '.join(texto).strip()
 
 
 def processar_issue_unica(issue: Dict) -> Dict:
@@ -1081,10 +1150,13 @@ def calcular_metricas_dev(df: pd.DataFrame) -> Dict:
 # BUSCA E DETALHES DO CARD
 # ==============================================================================
 
-def exibir_card_detalhado_v2(card: Dict, links: List[Dict], projeto: str = "SD") -> bool:
+def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Dict], projeto: str = "SD") -> bool:
     """
-    Exibe painel detalhado com todas as informações de um card específico.
-    Versão 2: Aceita card processado e links do Jira.
+    Exibe painel detalhado com informações de um card específico.
+    Adapta o conteúdo conforme o projeto:
+    - SD: Completo (bugs, FK, qualidade, janela, comentários)
+    - QA: Foco em aging, automação, tempo parado
+    - PB: Backlog - sem bugs, foco em prioridade e estimativa
     """
     if not card:
         return False
@@ -1094,11 +1166,19 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], projeto: str = "SD")
     share_url = f"{base_url}?card={card['ticket_id']}&projeto={projeto}"
     
     # ===== HEADER DO CARD =====
+    # Cor do header varia por projeto
+    header_colors = {
+        "SD": ("linear-gradient(135deg, #AF0C37 0%, #8a0a2c 100%)", "🔍"),
+        "QA": ("linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)", "🤖"),
+        "PB": ("linear-gradient(135deg, #059669 0%, #047857 100%)", "📋")
+    }
+    header_bg, header_icon = header_colors.get(projeto, header_colors["SD"])
+    
     st.markdown(f"""
-    <div style='background: linear-gradient(135deg, #AF0C37 0%, #8a0a2c 100%); 
+    <div style='background: {header_bg}; 
                 color: white; padding: 20px; border-radius: 12px; margin-bottom: 15px;'>
         <h2 style='margin: 0; color: white; font-size: 1.5em;'>
-            🔍 {card['ticket_id']}
+            {header_icon} {card['ticket_id']}
         </h2>
         <p style='margin: 8px 0 0 0; opacity: 0.9; font-size: 0.95em;'>
             {card['titulo'][:120]}{'...' if len(card['titulo']) > 120 else ''}
@@ -1106,21 +1186,59 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], projeto: str = "SD")
     </div>
     """, unsafe_allow_html=True)
     
-    # ===== BOTÕES DE AÇÃO (compactos e lado a lado) =====
+    # ===== BOTÕES DE AÇÃO =====
     col1, col2, col3 = st.columns([1, 1, 2])
     
     with col1:
         st.link_button("🔗 Abrir no Jira", card['link'], use_container_width=True)
     
     with col2:
-        if st.button("📤 Compartilhar", key="btn_share", use_container_width=True):
-            st.code(share_url)
-            st.success("Link acima! Copie e compartilhe.")
+        # Botão que copia direto para clipboard usando JavaScript
+        copy_button_id = f"copy_btn_{card['ticket_id'].replace('-', '_')}"
+        st.markdown(f"""
+        <button id="{copy_button_id}" onclick="
+            navigator.clipboard.writeText('{share_url}').then(function() {{
+                document.getElementById('{copy_button_id}').innerHTML = '✅ Link copiado!';
+                setTimeout(function() {{
+                    document.getElementById('{copy_button_id}').innerHTML = '📋 Copiar Link';
+                }}, 2000);
+            }});
+        " style="
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 14px;
+            font-weight: 500;
+        ">📋 Copiar Link</button>
+        """, unsafe_allow_html=True)
     
     with col3:
         st.caption(f"Sprint: **{card['sprint']}** | Produto: **{card['produto']}**")
     
     st.markdown("<br>", unsafe_allow_html=True)
+    
+    # ========================================================================
+    # CONTEÚDO ESPECÍFICO POR PROJETO
+    # ========================================================================
+    
+    if projeto == "SD":
+        exibir_detalhes_sd(card, links, comentarios)
+    elif projeto == "QA":
+        exibir_detalhes_qa(card, links, comentarios)
+    elif projeto == "PB":
+        exibir_detalhes_pb(card, links, comentarios)
+    else:
+        exibir_detalhes_sd(card, links, comentarios)  # Fallback
+    
+    return True
+
+
+def exibir_detalhes_sd(card: Dict, links: List[Dict], comentarios: List[Dict]):
+    """Exibe detalhes para projeto SD (Service Desk) - Completo com qualidade."""
     
     # ===== KPIs PRINCIPAIS =====
     col1, col2, col3, col4 = st.columns(4)
@@ -1136,7 +1254,7 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], projeto: str = "SD")
         mat = classificar_maturidade(fk)
         st.metric("🎖️ Fator K", f"{fk:.2f} {mat['emoji']}")
     
-    st.markdown("<br>", unsafe_allow_html=True)  # Espaçamento
+    st.markdown("<br>", unsafe_allow_html=True)
     
     # ===== INFORMAÇÕES BÁSICAS =====
     with st.expander("📋 **Informações Básicas**", expanded=True):
@@ -1245,7 +1363,7 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], projeto: str = "SD")
 </div>
             """, unsafe_allow_html=True)
         
-        # Timeline compacta
+        # Timeline
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("**📅 Timeline**")
         col_t1, col_t2, col_t3 = st.columns(3)
@@ -1288,34 +1406,6 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], projeto: str = "SD")
 </div>
             """, unsafe_allow_html=True)
     
-    # ===== FLAGS E ALERTAS =====
-    with st.expander("🏷️ **Flags e Preenchimento**", expanded=False):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("**Flags de Fluxo:**")
-            if card['criado_na_sprint']:
-                st.markdown("✅ Criado na Sprint")
-            else:
-                st.markdown("📥 Herdado de sprint anterior")
-            
-            if card['finalizado_mesma_sprint']:
-                st.markdown("🏆 Finalizado na mesma sprint")
-            
-            if card['adicionado_fora_periodo']:
-                st.markdown("⚠️ Adicionado fora do período")
-        
-        with col2:
-            st.markdown("**Campos Preenchidos:**")
-            campos = [
-                ("SP", card['sp_preenchido']),
-                ("Bugs", card['bugs_preenchido']),
-                ("Complexidade", card['complexidade_preenchida']),
-                ("QA", card['qa_preenchido']),
-            ]
-            for campo, ok in campos:
-                st.markdown(f"{'✅' if ok else '❌'} {campo}")
-    
     # ===== RESUMO EXECUTIVO =====
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 📝 Resumo Executivo")
@@ -1323,36 +1413,282 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], projeto: str = "SD")
     insights = []
     
     if card['bugs'] == 0:
-        insights.append("✅ **Qualidade**: Zero bugs - excelente!")
+        insights.append("✅ **Qualidade**: Zero bugs")
     elif card['bugs'] <= 2:
-        insights.append(f"⚠️ **Qualidade**: {card['bugs']} bug(s) - aceitável")
+        insights.append(f"⚠️ **Qualidade**: {card['bugs']} bug(s)")
     else:
-        insights.append(f"🚨 **Qualidade**: {card['bugs']} bugs - atenção")
+        insights.append(f"🚨 **Qualidade**: {card['bugs']} bugs")
     
     if card['lead_time'] <= 7:
-        insights.append(f"✅ **Velocidade**: {card['lead_time']}d - rápido")
+        insights.append(f"✅ **Velocidade**: {card['lead_time']}d")
     elif card['lead_time'] <= 14:
-        insights.append(f"⚠️ **Velocidade**: {card['lead_time']}d - normal")
+        insights.append(f"⚠️ **Velocidade**: {card['lead_time']}d")
     else:
-        insights.append(f"🚨 **Velocidade**: {card['lead_time']}d - lento")
+        insights.append(f"🚨 **Velocidade**: {card['lead_time']}d")
     
     if card['janela_status'] == 'ok':
-        insights.append("✅ **Janela QA**: OK")
+        insights.append("✅ **Janela**: OK")
     elif card['janela_status'] == 'risco':
-        insights.append("⚠️ **Janela QA**: Em risco")
+        insights.append("⚠️ **Janela**: Risco")
     else:
-        insights.append("🚨 **Janela QA**: FORA!")
+        insights.append("🚨 **Janela**: FORA")
     
     if card['dias_em_status'] > 7:
-        insights.append(f"🚨 **Aging**: {card['dias_em_status']}d parado")
+        insights.append(f"🚨 **Aging**: {card['dias_em_status']}d")
     
-    # Exibe em colunas para ficar mais compacto
-    cols = st.columns(len(insights))
+    cols = st.columns(len(insights)) if insights else [st]
     for i, insight in enumerate(insights):
         with cols[i]:
             st.markdown(insight)
     
-    # ===== CARDS VINCULADOS (LINKS) =====
+    # ===== CARDS VINCULADOS =====
+    exibir_cards_vinculados(links)
+    
+    # ===== COMENTÁRIOS =====
+    exibir_comentarios(comentarios)
+
+
+def exibir_detalhes_qa(card: Dict, links: List[Dict], comentarios: List[Dict]):
+    """Exibe detalhes para projeto QA - Foco em automação e tempo parado."""
+    
+    # ===== KPIs PRINCIPAIS (SEM BUGS/FK) =====
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("📌 Status", card['status'])
+    with col2:
+        st.metric("🎯 Tipo", card['tipo'])
+    with col3:
+        st.metric("⚡ Prioridade", card['prioridade'])
+    with col4:
+        st.metric("📊 Story Points", card['sp'])
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # ===== ALERTA DE AGING (DESTAQUE PARA QA) =====
+    aging_cor = "#22c55e" if card['dias_em_status'] <= 7 else "#f97316" if card['dias_em_status'] <= 30 else "#ef4444"
+    aging_emoji = "✅" if card['dias_em_status'] <= 7 else "⚠️" if card['dias_em_status'] <= 30 else "🚨"
+    
+    st.markdown(f"""
+    <div style='background: {aging_cor}15; padding: 20px; border-radius: 12px; 
+                border-left: 4px solid {aging_cor}; margin-bottom: 20px;'>
+        <div style='display: flex; align-items: center; gap: 15px;'>
+            <span style='font-size: 40px;'>{aging_emoji}</span>
+            <div>
+                <h3 style='margin: 0; color: {aging_cor}; font-size: 1.3em;'>
+                    {card['dias_em_status']} dias no status atual
+                </h3>
+                <p style='margin: 5px 0 0 0; color: #666; font-size: 0.9em;'>
+                    Status: <b>{card['status']}</b> | 
+                    {'Atividade recente' if card['dias_em_status'] <= 7 else 'Possível bloqueio - verificar impedimentos' if card['dias_em_status'] <= 30 else 'Card parado há muito tempo - ação necessária'}
+                </p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # ===== INFORMAÇÕES DO CARD =====
+    with st.expander("📋 **Informações do Card de Automação**", expanded=True):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown(f"""
+| Campo | Valor |
+|-------|-------|
+| **Projeto** | {card['projeto']} |
+| **Sprint** | {card['sprint']} |
+| **Produto** | {card['produto']} |
+| **Tipo** | {card['tipo_original']} |
+            """)
+        
+        with col2:
+            st.markdown(f"""
+| Campo | Valor |
+|-------|-------|
+| **Responsável** | {card['desenvolvedor']} |
+| **Story Points** | {card['sp']} |
+| **Criado** | {card['criado'].strftime('%d/%m/%Y') if pd.notna(card['criado']) else 'N/A'} |
+| **Atualizado** | {card['atualizado'].strftime('%d/%m/%Y') if pd.notna(card['atualizado']) else 'N/A'} |
+            """)
+    
+    # ===== ANÁLISE DE TEMPO =====
+    with st.expander("⏱️ **Análise de Tempo**", expanded=True):
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            lead_cor = "#22c55e" if card['lead_time'] <= 14 else "#f97316" if card['lead_time'] <= 30 else "#ef4444"
+            st.markdown(f"""
+<div style='background: {lead_cor}15; padding: 15px; border-radius: 8px; text-align: center; border-left: 3px solid {lead_cor};'>
+    <h3 style='margin:0; color: {lead_cor}; font-size: 1.4em;'>{card['lead_time']} dias</h3>
+    <small style='color: #666;'>Lead Time Total</small>
+</div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+<div style='background: {aging_cor}15; padding: 15px; border-radius: 8px; text-align: center; border-left: 3px solid {aging_cor};'>
+    <h3 style='margin:0; color: {aging_cor}; font-size: 1.4em;'>{card['dias_em_status']} dias</h3>
+    <small style='color: #666;'>Parado no Status</small>
+</div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            criado_ha = (datetime.now() - card['criado']).days if pd.notna(card['criado']) else 0
+            st.markdown(f"""
+<div style='background: #6366f115; padding: 15px; border-radius: 8px; text-align: center; border-left: 3px solid #6366f1;'>
+    <h3 style='margin:0; color: #6366f1; font-size: 1.4em;'>{criado_ha} dias</h3>
+    <small style='color: #666;'>Desde Criação</small>
+</div>
+            """, unsafe_allow_html=True)
+    
+    # ===== RESUMO =====
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("### 📝 Situação do Card de Automação")
+    
+    if card['dias_em_status'] <= 7:
+        st.success("✅ Card com atividade recente. Desenvolvimento em andamento normal.")
+    elif card['dias_em_status'] <= 30:
+        st.warning("⚠️ Card parado há mais de uma semana. Verificar se há impedimentos ou necessidade de repriorização.")
+    else:
+        st.error("🚨 Card parado há muito tempo. Recomenda-se revisar a necessidade ou arquivar se não for mais relevante.")
+    
+    # ===== CARDS VINCULADOS =====
+    exibir_cards_vinculados(links)
+    
+    # ===== COMENTÁRIOS =====
+    exibir_comentarios(comentarios)
+
+
+def exibir_detalhes_pb(card: Dict, links: List[Dict], comentarios: List[Dict]):
+    """Exibe detalhes para projeto PB (Backlog) - Sem bugs, foco em prioridade."""
+    
+    # ===== KPIs PRINCIPAIS (BACKLOG - SEM BUGS) =====
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("📌 Status", card['status'])
+    with col2:
+        st.metric("🎯 Tipo", card['tipo'])
+    with col3:
+        st.metric("⚡ Prioridade", card['prioridade'])
+    with col4:
+        st.metric("📊 Estimativa (SP)", card['sp'] if card['sp'] > 0 else "Não estimado")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # ===== INDICADOR DE PRIORIZAÇÃO =====
+    prioridade_map = {
+        "Highest": ("#ef4444", "🔴", "Crítica"),
+        "High": ("#f97316", "🟠", "Alta"),
+        "Medium": ("#eab308", "🟡", "Média"),
+        "Low": ("#22c55e", "🟢", "Baixa"),
+        "Lowest": ("#6b7280", "⚪", "Muito Baixa")
+    }
+    prio_info = prioridade_map.get(card['prioridade'], ("#6b7280", "⚪", card['prioridade']))
+    
+    st.markdown(f"""
+    <div style='background: {prio_info[0]}15; padding: 20px; border-radius: 12px; 
+                border-left: 4px solid {prio_info[0]}; margin-bottom: 20px;'>
+        <div style='display: flex; align-items: center; gap: 15px;'>
+            <span style='font-size: 40px;'>{prio_info[1]}</span>
+            <div>
+                <h3 style='margin: 0; color: {prio_info[0]}; font-size: 1.3em;'>
+                    Prioridade: {prio_info[2]}
+                </h3>
+                <p style='margin: 5px 0 0 0; color: #666; font-size: 0.9em;'>
+                    Item de backlog aguardando priorização para desenvolvimento
+                </p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # ===== INFORMAÇÕES DO ITEM =====
+    with st.expander("📋 **Informações do Item de Backlog**", expanded=True):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown(f"""
+| Campo | Valor |
+|-------|-------|
+| **Projeto** | {card['projeto']} |
+| **Produto** | {card['produto']} |
+| **Tipo** | {card['tipo_original']} |
+| **Estimativa** | {card['sp']} SP |
+            """)
+        
+        with col2:
+            st.markdown(f"""
+| Campo | Valor |
+|-------|-------|
+| **Criado por** | {card['desenvolvedor']} |
+| **Data Criação** | {card['criado'].strftime('%d/%m/%Y') if pd.notna(card['criado']) else 'N/A'} |
+| **Última Atualização** | {card['atualizado'].strftime('%d/%m/%Y') if pd.notna(card['atualizado']) else 'N/A'} |
+| **Status** | {card['status']} |
+            """)
+    
+    # ===== TEMPO NO BACKLOG =====
+    with st.expander("⏱️ **Tempo no Backlog**", expanded=True):
+        dias_no_backlog = (datetime.now() - card['criado']).days if pd.notna(card['criado']) else 0
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            backlog_cor = "#22c55e" if dias_no_backlog <= 30 else "#f97316" if dias_no_backlog <= 90 else "#ef4444"
+            st.markdown(f"""
+<div style='background: {backlog_cor}15; padding: 15px; border-radius: 8px; text-align: center; border-left: 3px solid {backlog_cor};'>
+    <h3 style='margin:0; color: {backlog_cor}; font-size: 1.4em;'>{dias_no_backlog} dias</h3>
+    <small style='color: #666;'>No Backlog</small><br>
+    <small style='color: {backlog_cor};'>{'Recente' if dias_no_backlog <= 30 else 'Aguardando há algum tempo' if dias_no_backlog <= 90 else 'Revisar relevância'}</small>
+</div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            estimado = card['sp'] > 0
+            est_cor = "#22c55e" if estimado else "#f97316"
+            st.markdown(f"""
+<div style='background: {est_cor}15; padding: 15px; border-radius: 8px; text-align: center; border-left: 3px solid {est_cor};'>
+    <h3 style='margin:0; color: {est_cor}; font-size: 1.4em;'>{'✅' if estimado else '❓'}</h3>
+    <small style='color: #666;'>Estimativa</small><br>
+    <small style='color: {est_cor};'>{f'{card["sp"]} Story Points' if estimado else 'Não estimado'}</small>
+</div>
+            """, unsafe_allow_html=True)
+    
+    # ===== RESUMO =====
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("### 📝 Situação do Item")
+    
+    insights = []
+    
+    if dias_no_backlog <= 30:
+        insights.append("✅ Item recente no backlog")
+    elif dias_no_backlog <= 90:
+        insights.append("⚠️ Item aguardando há algum tempo")
+    else:
+        insights.append("🚨 Revisar relevância do item")
+    
+    if card['sp'] > 0:
+        insights.append(f"✅ Estimado: {card['sp']} SP")
+    else:
+        insights.append("⚠️ Sem estimativa")
+    
+    if card['prioridade'] in ["Highest", "High"]:
+        insights.append("🔴 Alta prioridade")
+    
+    cols = st.columns(len(insights)) if insights else [st]
+    for i, insight in enumerate(insights):
+        with cols[i]:
+            st.markdown(insight)
+    
+    # ===== CARDS VINCULADOS =====
+    exibir_cards_vinculados(links)
+    
+    # ===== COMENTÁRIOS =====
+    exibir_comentarios(comentarios)
+
+
+def exibir_cards_vinculados(links: List[Dict]):
+    """Exibe seção de cards vinculados."""
     if links and len(links) > 0:
         st.markdown("<br>", unsafe_allow_html=True)
         with st.expander(f"🔗 **Cards Vinculados ({len(links)})**", expanded=True):
@@ -1378,8 +1714,42 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], projeto: str = "SD")
     </div>
 </div>
                 """, unsafe_allow_html=True)
-    
-    return True
+
+
+def exibir_comentarios(comentarios: List[Dict]):
+    """Exibe seção de comentários do card."""
+    if comentarios and len(comentarios) > 0:
+        st.markdown("<br>", unsafe_allow_html=True)
+        with st.expander(f"💬 **Comentários ({len(comentarios)})**", expanded=True):
+            for i, com in enumerate(comentarios):
+                # Formata a data
+                try:
+                    data_com = datetime.fromisoformat(com['data'].replace('Z', '+00:00'))
+                    data_formatada = data_com.strftime('%d/%m/%Y às %H:%M')
+                except:
+                    data_formatada = com['data'][:10] if com['data'] else 'Data desconhecida'
+                
+                st.markdown(f"""
+<div style='background: #f8fafc; padding: 12px 15px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid #6366f1;'>
+    <div style='display: flex; align-items: center; gap: 10px; margin-bottom: 8px;'>
+        <div style='width: 32px; height: 32px; border-radius: 50%; background: #6366f1; 
+                    display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;'>
+            {com['autor'][0].upper() if com['autor'] else '?'}
+        </div>
+        <div>
+            <strong style='color: #333;'>{com['autor']}</strong>
+            <span style='color: #888; font-size: 0.8em; margin-left: 8px;'>{data_formatada}</span>
+        </div>
+    </div>
+    <div style='color: #444; font-size: 0.9em; line-height: 1.5; padding-left: 42px;'>
+        {com['texto'][:500]}{'...' if len(com['texto']) > 500 else ''}
+    </div>
+</div>
+                """, unsafe_allow_html=True)
+    else:
+        st.markdown("<br>", unsafe_allow_html=True)
+        with st.expander("💬 **Comentários (0)**", expanded=False):
+            st.caption("Nenhum comentário de usuário neste card.")
 
 
 # ==============================================================================
@@ -4056,7 +4426,7 @@ def main():
                 📌 NINA Tecnologia
             </p>
             <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                v8.8 • Dashboard de Inteligência QA
+                v8.9 • Dashboard de Inteligência QA
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -4069,12 +4439,12 @@ def main():
         
         # Busca o card específico (sem filtros de período)
         with st.spinner(f"🔍 Buscando {busca_card}..."):
-            issue, links = buscar_card_especifico(busca_card)
+            issue, links, comentarios = buscar_card_especifico(busca_card)
         
         if issue:
             # Processa o card encontrado
             card_data = processar_issue_unica(issue)
-            exibir_card_detalhado_v2(card_data, links, projeto_busca)
+            exibir_card_detalhado_v2(card_data, links, comentarios, projeto_busca)
         else:
             st.warning(f"⚠️ Card **{busca_card}** não encontrado.")
             st.info("💡 Verifique se o ID está correto. O card será buscado em todo o histórico do projeto.")
