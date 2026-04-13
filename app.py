@@ -411,6 +411,250 @@ def buscar_dados_jira_cached(projeto: str, jql: str) -> Tuple[Optional[List[Dict
         return None, datetime.now()
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[List[Dict]]]:
+    """
+    Busca um card específico pelo ID, sem filtros de período.
+    Também retorna os links (vinculações) do card.
+    """
+    secrets = get_secrets()
+    if not secrets["email"] or not secrets["token"]:
+        return None, None
+    
+    try:
+        # Busca o card específico com links
+        base_url = f"{JIRA_BASE_URL}/rest/api/3/issue/{ticket_id}"
+        headers = {"Accept": "application/json"}
+        
+        fields = [
+            "key", "summary", "status", "issuetype", "assignee", "created", "updated",
+            "resolutiondate", "priority", "project", "labels", "issuelinks", "parent", "subtasks",
+            CUSTOM_FIELDS["story_points"],
+            CUSTOM_FIELDS["story_points_alt"],
+            CUSTOM_FIELDS["sprint"],
+            CUSTOM_FIELDS["bugs_encontrados"],
+            CUSTOM_FIELDS["complexidade_teste"],
+            CUSTOM_FIELDS["qa_responsavel"],
+            CUSTOM_FIELDS["produto"],
+        ]
+        
+        params = {"fields": ",".join(fields)}
+        
+        response = requests.get(
+            base_url,
+            headers=headers,
+            params=params,
+            auth=(secrets["email"], secrets["token"]),
+            timeout=30
+        )
+        
+        if response.status_code == 404:
+            return None, None
+        
+        response.raise_for_status()
+        issue = response.json()
+        
+        # Extrai os links do card
+        links = []
+        fields_data = issue.get('fields', {})
+        
+        # Links diretos (issuelinks)
+        issue_links = fields_data.get('issuelinks', [])
+        for link in issue_links:
+            link_type = link.get('type', {}).get('name', 'Relacionado')
+            
+            # Link de saída (outwardIssue)
+            if 'outwardIssue' in link:
+                linked = link['outwardIssue']
+                links.append({
+                    'tipo': link_type,
+                    'direcao': link.get('type', {}).get('outward', 'relacionado a'),
+                    'ticket_id': linked.get('key', ''),
+                    'titulo': linked.get('fields', {}).get('summary', ''),
+                    'status': linked.get('fields', {}).get('status', {}).get('name', ''),
+                    'link': f"{JIRA_BASE_URL}/browse/{linked.get('key', '')}"
+                })
+            
+            # Link de entrada (inwardIssue)
+            if 'inwardIssue' in link:
+                linked = link['inwardIssue']
+                links.append({
+                    'tipo': link_type,
+                    'direcao': link.get('type', {}).get('inward', 'relacionado a'),
+                    'ticket_id': linked.get('key', ''),
+                    'titulo': linked.get('fields', {}).get('summary', ''),
+                    'status': linked.get('fields', {}).get('status', {}).get('name', ''),
+                    'link': f"{JIRA_BASE_URL}/browse/{linked.get('key', '')}"
+                })
+        
+        # Parent (Epic/Story pai)
+        parent = fields_data.get('parent')
+        if parent:
+            links.append({
+                'tipo': 'Parent',
+                'direcao': 'é filho de',
+                'ticket_id': parent.get('key', ''),
+                'titulo': parent.get('fields', {}).get('summary', ''),
+                'status': parent.get('fields', {}).get('status', {}).get('name', ''),
+                'link': f"{JIRA_BASE_URL}/browse/{parent.get('key', '')}"
+            })
+        
+        # Subtasks (tarefas filhas)
+        subtasks = fields_data.get('subtasks', [])
+        for sub in subtasks:
+            links.append({
+                'tipo': 'Subtask',
+                'direcao': 'é pai de',
+                'ticket_id': sub.get('key', ''),
+                'titulo': sub.get('fields', {}).get('summary', ''),
+                'status': sub.get('fields', {}).get('status', {}).get('name', ''),
+                'link': f"{JIRA_BASE_URL}/browse/{sub.get('key', '')}"
+            })
+        
+        return issue, links
+    
+    except Exception as e:
+        st.error(f"Erro ao buscar card: {e}")
+        return None, None
+
+
+def processar_issue_unica(issue: Dict) -> Dict:
+    """Processa uma issue única do Jira para dicionário de dados."""
+    hoje = datetime.now()
+    f = issue.get('fields', {})
+    
+    # Tipo do ticket
+    tipo_original = f.get('issuetype', {}).get('name', 'Desconhecido')
+    tipo = "TAREFA"
+    if any(t in tipo_original for t in ["Hotfix", "Hotfeature"]):
+        tipo = "HOTFIX"
+    elif any(t in tipo_original for t in ["Bug", "Impeditivo"]):
+        tipo = "BUG"
+    elif "Sugestão" in tipo_original:
+        tipo = "SUGESTÃO"
+    
+    # Projeto
+    projeto = f.get('project', {}).get('key', 'N/A')
+    
+    # Desenvolvedor
+    dev = f.get('assignee', {}).get('displayName', 'Não atribuído') if f.get('assignee') else 'Não atribuído'
+    
+    # Story Points
+    sp = f.get(CUSTOM_FIELDS['story_points']) or f.get(CUSTOM_FIELDS['story_points_alt']) or 0
+    sp_original = bool(f.get(CUSTOM_FIELDS['story_points']) or f.get(CUSTOM_FIELDS['story_points_alt']))
+    if sp == 0 and tipo == "HOTFIX":
+        sp = REGRAS["hotfix_sp_default"]
+    
+    # Sprint
+    sprint_f = f.get(CUSTOM_FIELDS['sprint'], [])
+    sprint = sprint_f[-1].get('name', 'Sem Sprint') if sprint_f else 'Sem Sprint'
+    sprint_end = None
+    if sprint_f:
+        sprint_end_str = sprint_f[-1].get('endDate')
+        if sprint_end_str:
+            try:
+                sprint_end = datetime.fromisoformat(sprint_end_str.replace('Z', '+00:00')).replace(tzinfo=None)
+            except:
+                pass
+    
+    # Status
+    status = f.get('status', {}).get('name', 'Desconhecido')
+    status_cat = 'unknown'
+    for cat, statuses in STATUS_FLOW.items():
+        if any(s.lower() == status.lower() for s in statuses):
+            status_cat = cat
+            break
+    
+    # Bugs
+    bugs = f.get(CUSTOM_FIELDS['bugs_encontrados']) or 0
+    
+    # Complexidade
+    comp = f.get(CUSTOM_FIELDS['complexidade_teste'])
+    complexidade = comp.get('value', '') if isinstance(comp, dict) else ''
+    
+    # QA
+    qa_f = f.get(CUSTOM_FIELDS['qa_responsavel'])
+    qa = 'Não atribuído'
+    if qa_f:
+        if isinstance(qa_f, dict):
+            qa = qa_f.get('displayName', 'Não atribuído')
+        elif isinstance(qa_f, list) and qa_f:
+            qa = qa_f[0].get('displayName', 'Não atribuído')
+    
+    # Produto
+    produto_f = f.get(CUSTOM_FIELDS['produto'], [])
+    produtos = [p.get('value', '') for p in produto_f] if produto_f else []
+    produto = produtos[0] if produtos else 'Não definido'
+    
+    # Datas
+    try:
+        criado = datetime.fromisoformat(f.get('created', '').replace('Z', '+00:00')).replace(tzinfo=None)
+    except:
+        criado = hoje
+    
+    try:
+        atualizado = datetime.fromisoformat(f.get('updated', '').replace('Z', '+00:00')).replace(tzinfo=None)
+    except:
+        atualizado = hoje
+    
+    resolutiondate = None
+    if f.get('resolutiondate'):
+        try:
+            resolutiondate = datetime.fromisoformat(f.get('resolutiondate').replace('Z', '+00:00')).replace(tzinfo=None)
+        except:
+            pass
+    
+    # Métricas calculadas
+    dias_em_status = (hoje - atualizado).days
+    lead_time = (resolutiondate - criado).days if resolutiondate else (hoje - criado).days
+    
+    # Dias até release
+    dias_ate_release = 0
+    if sprint_end:
+        dias_ate_release = max(0, (sprint_end - hoje).days)
+    
+    # Janela de validação
+    janela_info = avaliar_janela_validacao(dias_ate_release, complexidade)
+    
+    ticket_id = issue.get('key', '')
+    
+    return {
+        'ticket_id': ticket_id,
+        'link': link_jira(ticket_id),
+        'titulo': f.get('summary', ''),
+        'tipo': tipo,
+        'tipo_original': tipo_original,
+        'status': status,
+        'status_cat': status_cat,
+        'projeto': projeto,
+        'desenvolvedor': dev,
+        'qa': qa,
+        'sp': int(sp) if sp else 0,
+        'sp_original': sp_original,
+        'bugs': int(bugs) if bugs else 0,
+        'sprint': sprint,
+        'prioridade': f.get('priority', {}).get('name', 'Média') if f.get('priority') else 'Média',
+        'complexidade': complexidade,
+        'produto': produto,
+        'criado': criado,
+        'atualizado': atualizado,
+        'resolutiondate': resolutiondate,
+        'dias_em_status': dias_em_status,
+        'lead_time': lead_time,
+        'dias_ate_release': dias_ate_release,
+        'dentro_janela': janela_info["dentro_janela"],
+        'janela_status': janela_info["status"],
+        'janela_dias_necessarios': janela_info["dias_necessarios"],
+        'sp_preenchido': sp_original,
+        'bugs_preenchido': f.get(CUSTOM_FIELDS['bugs_encontrados']) is not None,
+        'complexidade_preenchida': bool(complexidade),
+        'qa_preenchido': qa != 'Não atribuído',
+        'criado_na_sprint': False,  # Simplificado para card individual
+        'finalizado_mesma_sprint': False,
+        'adicionado_fora_periodo': False,
+    }
+
+
 def processar_issues(issues: List[Dict]) -> pd.DataFrame:
     """Processa issues do Jira para DataFrame."""
     dados = []
@@ -837,18 +1081,13 @@ def calcular_metricas_dev(df: pd.DataFrame) -> Dict:
 # BUSCA E DETALHES DO CARD
 # ==============================================================================
 
-def exibir_card_detalhado(df: pd.DataFrame, ticket_id: str, projeto: str = "SD") -> bool:
+def exibir_card_detalhado_v2(card: Dict, links: List[Dict], projeto: str = "SD") -> bool:
     """
     Exibe painel detalhado com todas as informações de um card específico.
-    Retorna True se o card foi encontrado, False caso contrário.
+    Versão 2: Aceita card processado e links do Jira.
     """
-    # Busca case-insensitive
-    card = df[df['ticket_id'].str.upper() == ticket_id.upper()]
-    
-    if card.empty:
+    if not card:
         return False
-    
-    card = card.iloc[0]
     
     # Gera URL de compartilhamento
     base_url = "https://plataforma-de-qualidade-e-decis-o-de-software-8ze3ycurhvmdahdv.streamlit.app/"
@@ -857,30 +1096,31 @@ def exibir_card_detalhado(df: pd.DataFrame, ticket_id: str, projeto: str = "SD")
     # ===== HEADER DO CARD =====
     st.markdown(f"""
     <div style='background: linear-gradient(135deg, #AF0C37 0%, #8a0a2c 100%); 
-                color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;'>
-        <div style='display: flex; justify-content: space-between; align-items: flex-start;'>
-            <div style='flex: 1;'>
-                <h2 style='margin: 0; color: white; font-size: 1.5em;'>
-                    🔍 {card['ticket_id']}
-                </h2>
-                <p style='margin: 8px 0 0 0; opacity: 0.9; font-size: 0.95em;'>
-                    {card['titulo'][:120]}{'...' if len(card['titulo']) > 120 else ''}
-                </p>
-            </div>
-        </div>
+                color: white; padding: 20px; border-radius: 12px; margin-bottom: 15px;'>
+        <h2 style='margin: 0; color: white; font-size: 1.5em;'>
+            🔍 {card['ticket_id']}
+        </h2>
+        <p style='margin: 8px 0 0 0; opacity: 0.9; font-size: 0.95em;'>
+            {card['titulo'][:120]}{'...' if len(card['titulo']) > 120 else ''}
+        </p>
     </div>
     """, unsafe_allow_html=True)
     
-    # ===== AÇÕES RÁPIDAS (compacto) =====
-    col_jira, col_copy = st.columns([1, 1])
+    # ===== BOTÕES DE AÇÃO (compactos e lado a lado) =====
+    col1, col2, col3 = st.columns([1, 1, 2])
     
-    with col_jira:
-        st.markdown(f"🔗 [Abrir no Jira]({card['link']})")
+    with col1:
+        st.link_button("🔗 Abrir no Jira", card['link'], use_container_width=True)
     
-    with col_copy:
-        st.code(f"?card={card['ticket_id']}&projeto={projeto}", language=None)
+    with col2:
+        if st.button("📤 Compartilhar", key="btn_share", use_container_width=True):
+            st.code(share_url)
+            st.success("Link acima! Copie e compartilhe.")
     
-    st.markdown("")  # Espaçamento sutil
+    with col3:
+        st.caption(f"Sprint: **{card['sprint']}** | Produto: **{card['produto']}**")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
     
     # ===== KPIs PRINCIPAIS =====
     col1, col2, col3, col4 = st.columns(4)
@@ -1111,6 +1351,33 @@ def exibir_card_detalhado(df: pd.DataFrame, ticket_id: str, projeto: str = "SD")
     for i, insight in enumerate(insights):
         with cols[i]:
             st.markdown(insight)
+    
+    # ===== CARDS VINCULADOS (LINKS) =====
+    if links and len(links) > 0:
+        st.markdown("<br>", unsafe_allow_html=True)
+        with st.expander(f"🔗 **Cards Vinculados ({len(links)})**", expanded=True):
+            for link in links:
+                tipo_cor = "#6366f1" if link['tipo'] == 'Parent' else "#22c55e" if link['tipo'] == 'Subtask' else "#f59e0b"
+                st.markdown(f"""
+<div style='background: {tipo_cor}10; padding: 10px 15px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid {tipo_cor};'>
+    <div style='display: flex; justify-content: space-between; align-items: center;'>
+        <div>
+            <span style='color: {tipo_cor}; font-weight: bold; font-size: 0.85em;'>{link['tipo']}</span>
+            <span style='color: #666; font-size: 0.8em;'> • {link['direcao']}</span>
+            <br>
+            <a href="{link['link']}" target="_blank" style='color: #333; font-weight: bold; text-decoration: none;'>
+                {link['ticket_id']}
+            </a>
+            <span style='color: #666; font-size: 0.85em;'> - {link['titulo'][:60]}{'...' if len(link['titulo']) > 60 else ''}</span>
+        </div>
+        <div style='text-align: right;'>
+            <span style='background: #e5e7eb; padding: 3px 8px; border-radius: 4px; font-size: 0.75em;'>
+                {link['status']}
+            </span>
+        </div>
+    </div>
+</div>
+                """, unsafe_allow_html=True)
     
     return True
 
@@ -3667,6 +3934,16 @@ def main():
     card_compartilhado = query_params.get("card", None)
     projeto_param = query_params.get("projeto", None)
     
+    # Extrai número do card se veio completo (ex: SD-1234 -> 1234)
+    numero_card_inicial = ""
+    if card_compartilhado:
+        # Remove prefixo se existir (SD-, QA-, PB-)
+        numero_card_inicial = card_compartilhado.upper()
+        for prefix in ["SD-", "QA-", "PB-"]:
+            if numero_card_inicial.startswith(prefix):
+                numero_card_inicial = numero_card_inicial[len(prefix):]
+                break
+    
     # Sidebar reorganizada
     with st.sidebar:
         # ===== HEADER: Logo + Nome + Descrição =====
@@ -3686,46 +3963,6 @@ def main():
         </div>
         ''', unsafe_allow_html=True)
         
-        # ===== SEÇÃO 1: BUSCA DE CARD (EM DESTAQUE) =====
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, #AF0C37 0%, #8a0a2c 100%); 
-                    padding: 10px 12px; border-radius: 8px; margin: 8px 0 5px 0;">
-            <p style="color: white; margin: 0; font-weight: bold; font-size: 0.9em;">
-                🔍 Busca Rápida de Card
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Campo de busca com valor inicial do query param
-        busca_card = st.text_input(
-            "ID do Card",
-            value=card_compartilhado if card_compartilhado else "",
-            placeholder="Ex: SD-1234",
-            help="Pesquise qualquer card pelo ID para ver detalhes completos",
-            label_visibility="collapsed"
-        )
-        
-        # Mostra indicador de pesquisa ativa e botão de voltar
-        if busca_card:
-            st.markdown(f"""
-            <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; 
-                        padding: 8px; margin: 8px 0; text-align: center;">
-                <p style="margin: 0; color: #92400e; font-size: 0.85em;">
-                    📍 <b>Visualizando:</b> {busca_card.upper()}
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Botão para voltar ao dashboard
-            if st.button("⬅️ Voltar ao Dashboard", type="primary", use_container_width=True):
-                st.query_params.clear()
-                st.rerun()
-        
-        st.markdown("---")
-        
-        # ===== SEÇÃO 2: FILTROS =====
-        st.markdown("##### ⚙️ Filtros")
-        
         if not verificar_credenciais():
             st.error("⚠️ Credenciais não configuradas!")
             st.markdown("""
@@ -3738,19 +3975,78 @@ def main():
             """)
             st.stop()
         
-        # Projeto - usa param da URL se existir
+        # ===== SEÇÃO 1: BUSCA DE CARD (EM DESTAQUE) =====
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #AF0C37 0%, #8a0a2c 100%); 
+                    padding: 10px 12px; border-radius: 8px; margin: 8px 0 8px 0;">
+            <p style="color: white; margin: 0; font-weight: bold; font-size: 0.9em;">
+                🔍 Busca Rápida de Card
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Projeto para busca - usa param da URL se existir
         projetos_lista = ["SD", "QA", "PB"]
-        projeto_index = 0
+        projeto_busca_index = 0
         if projeto_param and projeto_param in projetos_lista:
-            projeto_index = projetos_lista.index(projeto_param)
+            projeto_busca_index = projetos_lista.index(projeto_param)
         
-        projeto = st.selectbox("📁 Projeto", projetos_lista, index=projeto_index)
+        col_proj, col_num = st.columns([1, 2])
+        with col_proj:
+            projeto_busca = st.selectbox(
+                "Projeto",
+                projetos_lista,
+                index=projeto_busca_index,
+                key="projeto_busca",
+                label_visibility="collapsed"
+            )
         
-        filtro_sprint = st.selectbox(
-            "🗓️ Período",
-            ["Sprint Ativa", "Últimos 30 dias", "Últimos 90 dias"],
-            index=0
-        )
+        with col_num:
+            numero_card = st.text_input(
+                "Número",
+                value=numero_card_inicial,
+                placeholder="Ex: 1234",
+                key="numero_card",
+                label_visibility="collapsed"
+            )
+        
+        # Monta o ID completo do card
+        busca_card = f"{projeto_busca}-{numero_card}" if numero_card else ""
+        
+        # Mostra indicador de pesquisa ativa e botão de voltar
+        if busca_card and numero_card:
+            st.markdown(f"""
+            <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; 
+                        padding: 8px; margin: 8px 0; text-align: center;">
+                <p style="margin: 0; color: #92400e; font-size: 0.85em;">
+                    📍 <b>Buscando:</b> {busca_card.upper()}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Botão para voltar ao dashboard
+            if st.button("⬅️ Voltar ao Dashboard", type="primary", use_container_width=True):
+                st.query_params.clear()
+                st.rerun()
+            
+            st.markdown("---")
+        
+        # ===== SEÇÃO 2: FILTROS (só mostra quando NÃO está pesquisando) =====
+        if not busca_card or not numero_card:
+            st.markdown("---")
+            st.markdown("##### ⚙️ Filtros do Dashboard")
+            
+            projeto = st.selectbox("📁 Projeto", projetos_lista, index=0, key="projeto_dash")
+            
+            filtro_sprint = st.selectbox(
+                "🗓️ Período",
+                ["Sprint Ativa", "Últimos 30 dias", "Últimos 90 dias"],
+                index=0
+            )
+        else:
+            # Quando pesquisando, usa o projeto da busca
+            projeto = projeto_busca
+            filtro_sprint = "Sprint Ativa"  # Não usado na busca específica
         
         # ===== SEÇÃO 3: RODAPÉ =====
         st.markdown("---")
@@ -3760,56 +4056,61 @@ def main():
                 📌 NINA Tecnologia
             </p>
             <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                v8.7 • Dashboard de Inteligência QA
+                v8.8 • Dashboard de Inteligência QA
             </p>
         </div>
         """, unsafe_allow_html=True)
     
-    # JQL
-    if filtro_sprint == "Sprint Ativa":
-        jql = f'project = {projeto} AND sprint in openSprints() ORDER BY created DESC'
-    elif filtro_sprint == "Últimos 30 dias":
-        jql = f'project = {projeto} AND created >= -30d ORDER BY created DESC'
-    else:
-        jql = f'project = {projeto} AND created >= -90d ORDER BY created DESC'
-    
-    # AUTO-LOAD
-    with st.spinner("🔄 Carregando dados do Jira..."):
-        issues, ultima_atualizacao = buscar_dados_jira_cached(projeto, jql)
-    
-    if issues is None:
-        st.error("❌ Não foi possível carregar dados do Jira")
-        st.stop()
-    
-    if len(issues) == 0:
-        st.warning("⚠️ Nenhum card encontrado para os filtros selecionados")
-        st.stop()
-    
-    df = processar_issues(issues)
-    
-    # Filtro por produto (dentro da sidebar)
-    with st.sidebar:
-        # Inserir antes do rodapé - filtro de produto
-        produtos_disponiveis = ['Todos'] + sorted(df['produto'].unique().tolist())
-        filtro_produto = st.selectbox("📦 Produto", produtos_disponiveis, index=0, key="filtro_produto_main")
-        
-        if filtro_produto != 'Todos':
-            df = df[df['produto'] == filtro_produto]
-    
-    # Se um card foi pesquisado, mostra o painel de detalhes
-    if busca_card:
+    # ===== MODO BUSCA DE CARD ESPECÍFICO =====
+    if busca_card and numero_card:
         # Atualiza a URL com os parâmetros de compartilhamento
         st.query_params["card"] = busca_card
-        st.query_params["projeto"] = projeto
+        st.query_params["projeto"] = projeto_busca
         
-        # Tenta encontrar o card
-        card_encontrado = exibir_card_detalhado(df, busca_card, projeto)
+        # Busca o card específico (sem filtros de período)
+        with st.spinner(f"🔍 Buscando {busca_card}..."):
+            issue, links = buscar_card_especifico(busca_card)
         
-        if not card_encontrado:
-            st.warning(f"⚠️ Card **{busca_card}** não encontrado na sprint/período atual.")
-            st.info("💡 Verifique se o ID está correto ou se o card pertence a outro período/projeto.")
+        if issue:
+            # Processa o card encontrado
+            card_data = processar_issue_unica(issue)
+            exibir_card_detalhado_v2(card_data, links, projeto_busca)
+        else:
+            st.warning(f"⚠️ Card **{busca_card}** não encontrado.")
+            st.info("💡 Verifique se o ID está correto. O card será buscado em todo o histórico do projeto.")
     
+    # ===== MODO DASHBOARD NORMAL =====
     else:
+        # JQL
+        if filtro_sprint == "Sprint Ativa":
+            jql = f'project = {projeto} AND sprint in openSprints() ORDER BY created DESC'
+        elif filtro_sprint == "Últimos 30 dias":
+            jql = f'project = {projeto} AND created >= -30d ORDER BY created DESC'
+        else:
+            jql = f'project = {projeto} AND created >= -90d ORDER BY created DESC'
+        
+        # AUTO-LOAD
+        with st.spinner("🔄 Carregando dados do Jira..."):
+            issues, ultima_atualizacao = buscar_dados_jira_cached(projeto, jql)
+        
+        if issues is None:
+            st.error("❌ Não foi possível carregar dados do Jira")
+            st.stop()
+        
+        if len(issues) == 0:
+            st.warning("⚠️ Nenhum card encontrado para os filtros selecionados")
+            st.stop()
+        
+        df = processar_issues(issues)
+        
+        # Filtro por produto (dentro da sidebar)
+        with st.sidebar:
+            produtos_disponiveis = ['Todos'] + sorted(df['produto'].unique().tolist())
+            filtro_produto = st.selectbox("📦 Produto", produtos_disponiveis, index=0, key="filtro_produto_main")
+            
+            if filtro_produto != 'Todos':
+                df = df[df['produto'] == filtro_produto]
+        
         # Abas condicionais por projeto (fluxo normal)
         if projeto == "PB":
             # Projeto PB: Aba de Backlog como foco principal
