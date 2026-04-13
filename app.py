@@ -227,6 +227,13 @@ REGRAS = {
     "hotfix_sp_default": 2,
     "cache_ttl_minutos": 5,
     "dias_aging_alerta": 3,
+    # Janela de validação por complexidade de teste (dias úteis necessários)
+    "janela_complexidade": {
+        "Alta": 3,      # Complexidade alta: precisa de 3+ dias
+        "Média": 2,     # Complexidade média: precisa de 2 dias  
+        "Baixa": 1,     # Complexidade baixa: pode validar em 1 dia
+        "default": 3,   # Sem complexidade definida: assume 3 dias (conservador)
+    },
 }
 
 # ==============================================================================
@@ -236,6 +243,53 @@ REGRAS = {
 def link_jira(ticket_id: str) -> str:
     """Gera link para o Jira."""
     return f"{JIRA_BASE_URL}/browse/{ticket_id}"
+
+
+def calcular_dias_necessarios_validacao(complexidade: str) -> int:
+    """
+    Calcula quantos dias úteis são necessários para validação baseado na complexidade de teste.
+    
+    - Alta: 3 dias (testes extensivos, múltiplos cenários)
+    - Média: 2 dias (validação padrão)
+    - Baixa: 1 dia (validação simples/rápida)
+    - Sem definição: 3 dias (conservador)
+    """
+    janela = REGRAS["janela_complexidade"]
+    return janela.get(complexidade, janela["default"])
+
+
+def avaliar_janela_validacao(dias_ate_release: int, complexidade: str) -> Dict:
+    """
+    Avalia se um card está dentro ou fora da janela de validação.
+    
+    Retorna:
+        - dentro_janela: bool
+        - dias_necessarios: int
+        - dias_disponiveis: int
+        - status: str ('ok', 'risco', 'fora')
+        - mensagem: str
+    """
+    dias_necessarios = calcular_dias_necessarios_validacao(complexidade)
+    dias_disponiveis = dias_ate_release
+    
+    if dias_disponiveis >= dias_necessarios:
+        status = "ok"
+        mensagem = f"✅ Dentro da janela ({dias_disponiveis}d disponíveis, {dias_necessarios}d necessários)"
+    elif dias_disponiveis >= dias_necessarios - 1:
+        status = "risco"
+        mensagem = f"⚠️ Em risco ({dias_disponiveis}d disponíveis, {dias_necessarios}d necessários)"
+    else:
+        status = "fora"
+        mensagem = f"🚨 Fora da janela ({dias_disponiveis}d disponíveis, {dias_necessarios}d necessários)"
+    
+    return {
+        "dentro_janela": status == "ok",
+        "dias_necessarios": dias_necessarios,
+        "dias_disponiveis": dias_disponiveis,
+        "status": status,
+        "mensagem": mensagem,
+        "complexidade_usada": complexidade if complexidade else "Não definida (assumindo 3d)"
+    }
 
 
 def get_secrets():
@@ -456,8 +510,11 @@ def processar_issues(issues: List[Dict]) -> pd.DataFrame:
         if sprint_start and criado > sprint_start + timedelta(days=2):
             adicionado_fora_periodo = True
         
-        # Janela de 3 dias úteis
-        dentro_janela = dias_ate_release >= 3
+        # Janela de validação inteligente (considera complexidade de teste)
+        janela_info = avaliar_janela_validacao(dias_ate_release, complexidade)
+        dentro_janela = janela_info["dentro_janela"]
+        janela_status = janela_info["status"]  # 'ok', 'risco', 'fora'
+        janela_dias_necessarios = janela_info["dias_necessarios"]
         
         # Flags de preenchimento
         sp_preenchido = sp_original
@@ -496,6 +553,8 @@ def processar_issues(issues: List[Dict]) -> pd.DataFrame:
             'lead_time': lead_time,
             'dias_ate_release': dias_ate_release,
             'dentro_janela': dentro_janela,
+            'janela_status': janela_status,
+            'janela_dias_necessarios': janela_dias_necessarios,
             # Flags de preenchimento
             'sp_preenchido': sp_preenchido,
             'bugs_preenchido': bugs_preenchido,
@@ -1690,6 +1749,120 @@ def aba_qa(df: pd.DataFrame):
         else:
             st.success("✅ Nenhum desenvolvedor com bugs significativos!")
     
+    # ========== NOVO: JANELA DE VALIDAÇÃO (considera complexidade) ==========
+    with st.expander("🕐 Janela de Validação (Análise de Risco)", expanded=True):
+        st.markdown("""
+        <div class="alert-info">
+            <b>📋 Regras de Janela de Validação</b>
+            <p>A janela considera a <b>complexidade de teste</b> do card para determinar se há tempo suficiente:</p>
+            <ul style="margin: 5px 0 0 20px;">
+                <li><b>Alta:</b> 3+ dias necessários</li>
+                <li><b>Média:</b> 2 dias necessários</li>
+                <li><b>Baixa:</b> 1 dia é suficiente</li>
+                <li><b>Não definida:</b> Assume 3 dias (conservador)</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Filtrar cards em fila de QA ou validação
+        cards_qa = df[df['status_cat'].isin(['waiting_qa', 'testing'])]
+        
+        if not cards_qa.empty:
+            # Contagem por status de janela
+            fora_janela = cards_qa[cards_qa['janela_status'] == 'fora']
+            em_risco = cards_qa[cards_qa['janela_status'] == 'risco']
+            dentro_janela = cards_qa[cards_qa['janela_status'] == 'ok']
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                cor = 'red' if len(fora_janela) > 0 else 'green'
+                criar_card_metrica(str(len(fora_janela)), "🚨 Fora da Janela", cor, "Validar próxima sprint")
+            
+            with col2:
+                cor = 'yellow' if len(em_risco) > 0 else 'green'
+                criar_card_metrica(str(len(em_risco)), "⚠️ Em Risco", cor, "Priorizar imediatamente")
+            
+            with col3:
+                criar_card_metrica(str(len(dentro_janela)), "✅ Dentro da Janela", "green", "Tempo adequado")
+            
+            # Lista de cards FORA da janela
+            if not fora_janela.empty:
+                st.markdown("### 🚨 Cards FORA da Janela de Validação")
+                st.markdown("""
+                <div class="alert-critical">
+                    <b>Estes cards não têm tempo suficiente para validação completa nesta sprint.</b>
+                    <p>Recomendação: Considerar para a próxima sprint ou priorizar validação simplificada.</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                df_fora = fora_janela[['ticket_id', 'titulo', 'complexidade', 'dias_ate_release', 'janela_dias_necessarios', 'desenvolvedor', 'qa', 'sp']].copy()
+                df_fora.columns = ['Ticket', 'Título', 'Complexidade', 'Dias Disponíveis', 'Dias Necessários', 'Dev', 'QA', 'SP']
+                df_fora['Título'] = df_fora['Título'].str[:40] + '...'
+                df_fora['Complexidade'] = df_fora['Complexidade'].replace('', 'Não definida')
+                df_fora['Déficit'] = df_fora['Dias Necessários'] - df_fora['Dias Disponíveis']
+                
+                st.dataframe(df_fora.sort_values('Déficit', ascending=False), hide_index=True, use_container_width=True)
+                
+                # Análise por desenvolvedor
+                st.markdown("#### 📊 Cards fora da janela por Desenvolvedor")
+                dev_fora = fora_janela.groupby('desenvolvedor').size().reset_index(name='Cards Fora')
+                dev_fora = dev_fora.sort_values('Cards Fora', ascending=False)
+                
+                fig = px.bar(dev_fora, x='desenvolvedor', y='Cards Fora', 
+                            color='Cards Fora', color_continuous_scale='Reds',
+                            title='Quem mais encaminhou cards sem tempo adequado?')
+                fig.update_layout(height=300, showlegend=False)
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # Lista de cards EM RISCO
+            if not em_risco.empty:
+                st.markdown("### ⚠️ Cards EM RISCO")
+                st.markdown("""
+                <div class="alert-warning">
+                    <b>Estes cards estão no limite do tempo - priorizar validação!</b>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                df_risco = em_risco[['ticket_id', 'titulo', 'complexidade', 'dias_ate_release', 'janela_dias_necessarios', 'qa', 'sp']].copy()
+                df_risco.columns = ['Ticket', 'Título', 'Complexidade', 'Dias Disponíveis', 'Dias Necessários', 'QA', 'SP']
+                df_risco['Título'] = df_risco['Título'].str[:40] + '...'
+                df_risco['Complexidade'] = df_risco['Complexidade'].replace('', 'Não definida')
+                
+                st.dataframe(df_risco, hide_index=True, use_container_width=True)
+            
+            # Análise por complexidade
+            st.markdown("#### 📈 Análise de Complexidade vs Tempo Disponível")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                # Distribuição de complexidade
+                complex_dist = cards_qa['complexidade'].replace('', 'Não definida').value_counts().reset_index()
+                complex_dist.columns = ['Complexidade', 'Quantidade']
+                
+                cores_complex = {'Alta': '#ef4444', 'Média': '#f59e0b', 'Baixa': '#22c55e', 'Não definida': '#6b7280'}
+                fig = px.pie(complex_dist, names='Complexidade', values='Quantidade',
+                            title='Distribuição por Complexidade',
+                            color='Complexidade', color_discrete_map=cores_complex)
+                fig.update_layout(height=300)
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                # Status da janela
+                status_dist = cards_qa['janela_status'].value_counts().reset_index()
+                status_dist.columns = ['Status', 'Quantidade']
+                status_dist['Status'] = status_dist['Status'].map({'ok': '✅ OK', 'risco': '⚠️ Risco', 'fora': '🚨 Fora'})
+                
+                cores_status = {'✅ OK': '#22c55e', '⚠️ Risco': '#f59e0b', '🚨 Fora': '#ef4444'}
+                fig = px.pie(status_dist, names='Status', values='Quantidade',
+                            title='Status da Janela de Validação',
+                            color='Status', color_discrete_map=cores_status)
+                fig.update_layout(height=300)
+                st.plotly_chart(fig, use_container_width=True)
+        
+        else:
+            st.success("✅ Nenhum card aguardando validação no momento!")
+    
     # Cards com aging - COM LISTAGEM COMPLETA
     with st.expander("⏰ Cards Envelhecidos (Aging)", expanded=False):
         aging_waiting = metricas_qa['aging']['waiting']
@@ -2858,17 +3031,33 @@ def aba_lideranca(df: pd.DataFrame):
             """, unsafe_allow_html=True)
             mostrar_lista_df_completa(alta_prio, "Alta Prioridade Pendentes")
         
-        # Fora da janela de 3 dias
-        fora_janela = df[(~df['dentro_janela']) & (df['status_cat'] != 'done')]
+        # Fora da janela de validação (considera complexidade)
+        cards_pendentes = df[df['status_cat'].isin(['waiting_qa', 'testing'])]
+        fora_janela = cards_pendentes[cards_pendentes['janela_status'] == 'fora'] if not cards_pendentes.empty else pd.DataFrame()
+        em_risco = cards_pendentes[cards_pendentes['janela_status'] == 'risco'] if not cards_pendentes.empty else pd.DataFrame()
+        
         if not fora_janela.empty:
             st.markdown(f"""
-            <div class="alert-info">
-                <b>ℹ️ {len(fora_janela)} card(s) fora da janela de 3 dias úteis</b>
+            <div class="alert-critical">
+                <b>🚨 {len(fora_janela)} card(s) SEM TEMPO para validação nesta sprint!</b>
+                <p style="font-size: 12px; margin-top: 5px;">Considerar para próxima sprint baseado na complexidade de teste.</p>
             </div>
             """, unsafe_allow_html=True)
-            mostrar_lista_df_completa(fora_janela, "Fora da Janela de Release")
+            # Mostrar tabela com detalhes
+            df_fora = fora_janela[['ticket_id', 'titulo', 'complexidade', 'dias_ate_release', 'janela_dias_necessarios', 'qa']].copy()
+            df_fora.columns = ['Ticket', 'Título', 'Complexidade', 'Dias Disponíveis', 'Dias Necessários', 'QA']
+            df_fora['Título'] = df_fora['Título'].str[:35] + '...'
+            df_fora['Complexidade'] = df_fora['Complexidade'].replace('', 'Não definida')
+            st.dataframe(df_fora, hide_index=True, use_container_width=True)
         
-        if bloqueados_df.empty and alta_prio.empty and fora_janela.empty:
+        if not em_risco.empty:
+            st.markdown(f"""
+            <div class="alert-warning">
+                <b>⚠️ {len(em_risco)} card(s) EM RISCO - no limite de tempo!</b>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        if bloqueados_df.empty and alta_prio.empty and fora_janela.empty and em_risco.empty:
             st.success("✅ Nenhum ponto crítico identificado!")
     
     # Performance por Desenvolvedor
