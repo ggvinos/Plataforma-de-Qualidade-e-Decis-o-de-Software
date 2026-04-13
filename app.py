@@ -611,8 +611,10 @@ def processar_issue_unica(issue: Dict) -> Dict:
     # Story Points
     sp = f.get(CUSTOM_FIELDS['story_points']) or f.get(CUSTOM_FIELDS['story_points_alt']) or 0
     sp_original = bool(f.get(CUSTOM_FIELDS['story_points']) or f.get(CUSTOM_FIELDS['story_points_alt']))
+    sp_estimado = False  # Flag para indicar se SP foi estimado pela regra de Hotfix
     if sp == 0 and tipo == "HOTFIX":
         sp = REGRAS["hotfix_sp_default"]
+        sp_estimado = True  # SP calculado automaticamente
     
     # Sprint
     sprint_f = f.get(CUSTOM_FIELDS['sprint'], [])
@@ -700,6 +702,7 @@ def processar_issue_unica(issue: Dict) -> Dict:
         'qa': qa,
         'sp': int(sp) if sp else 0,
         'sp_original': sp_original,
+        'sp_estimado': sp_estimado,  # True quando SP foi calculado pela regra de Hotfix
         'bugs': int(bugs) if bugs else 0,
         'sprint': sprint,
         'prioridade': f.get('priority', {}).get('name', 'Média') if f.get('priority') else 'Média',
@@ -1271,12 +1274,14 @@ def exibir_detalhes_sd(card: Dict, links: List[Dict], comentarios: List[Dict]):
             """)
         
         with col2:
+            # Indicador visual se SP foi estimado pela regra de Hotfix
+            sp_display = f"{card['sp']} ⚠️ *estimado*" if card.get('sp_estimado', False) else str(card['sp'])
             st.markdown(f"""
 | Campo | Valor |
 |-------|-------|
 | **Desenvolvedor** | {card['desenvolvedor']} |
 | **QA Responsável** | {card['qa']} |
-| **Story Points** | {card['sp']} |
+| **Story Points** | {sp_display} |
 | **Complexidade** | {card['complexidade'] if card['complexidade'] else 'Não definida'} |
             """)
     
@@ -1308,10 +1313,11 @@ def exibir_detalhes_sd(card: Dict, links: List[Dict], comentarios: List[Dict]):
             """, unsafe_allow_html=True)
         
         with col3:
+            sp_estimado_aviso = "<br><small style='color: #f59e0b;'>⚠️ Estimado</small>" if card.get('sp_estimado', False) else ""
             st.markdown(f"""
 <div style='background: #3b82f615; padding: 12px; border-radius: 8px; text-align: center; border-left: 3px solid #3b82f6; margin-bottom: 8px;'>
     <h3 style='margin:0; color: #3b82f6; font-size: 1.4em;'>{card['sp']}</h3>
-    <small style='color: #666;'>Story Points</small><br>
+    <small style='color: #666;'>Story Points</small>{sp_estimado_aviso}<br>
     <span style='font-size: 18px;'>{'🎯' if card['sp'] > 0 else '❓'}</span>
 </div>
             """, unsafe_allow_html=True)
@@ -1461,7 +1467,12 @@ def exibir_detalhes_qa(card: Dict, links: List[Dict], comentarios: List[Dict]):
     with col3:
         st.metric("⚡ Prioridade", card['prioridade'])
     with col4:
-        st.metric("📊 Story Points", card['sp'])
+        sp_label_qa = "📊 Story Points"
+        if card.get('sp_estimado', False):
+            sp_label_qa += " ⚠️"
+        st.metric(sp_label_qa, card['sp'])
+        if card.get('sp_estimado', False):
+            st.caption("*estimado*")
     
     st.markdown("<br>", unsafe_allow_html=True)
     
@@ -1502,11 +1513,12 @@ def exibir_detalhes_qa(card: Dict, links: List[Dict], comentarios: List[Dict]):
             """)
         
         with col2:
+            sp_display_pb = f"{card['sp']} ⚠️ *estimado*" if card.get('sp_estimado', False) else str(card['sp'])
             st.markdown(f"""
 | Campo | Valor |
 |-------|-------|
 | **Responsável** | {card['desenvolvedor']} |
-| **Story Points** | {card['sp']} |
+| **Story Points** | {sp_display_pb} |
 | **Criado** | {card['criado'].strftime('%d/%m/%Y') if pd.notna(card['criado']) else 'N/A'} |
 | **Atualizado** | {card['atualizado'].strftime('%d/%m/%Y') if pd.notna(card['atualizado']) else 'N/A'} |
             """)
