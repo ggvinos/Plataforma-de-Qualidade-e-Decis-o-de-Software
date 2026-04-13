@@ -56,6 +56,7 @@ CAMPOS MAPEADOS JIRA NINA:
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -1422,55 +1423,50 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Di
         st.link_button("🔗 Abrir no Jira", card['link'], use_container_width=True)
     
     with col2:
-        # Usar componente HTML com script separado para evitar conflito React
-        copy_id = f"copy_{card['ticket_id'].replace('-', '_')}"
-        st.markdown(f"""
-        <div id="{copy_id}_container">
-            <button id="{copy_id}" class="copy-link-btn" data-url="{share_url}" style="
-                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
-                cursor: pointer;
-                width: 100%;
-                font-size: 14px;
-                font-weight: 500;
-                transition: all 0.2s ease;
-            ">📋 Copiar Link</button>
-        </div>
+        # Usar components.html para JavaScript funcionar (iframe isolado)
+        components.html(f"""
+        <button id="copyBtn" style="
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 14px;
+            font-weight: 500;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            transition: all 0.2s ease;
+        ">📋 Copiar Link</button>
         <script>
-            (function() {{
-                var btn = document.getElementById('{copy_id}');
-                if (btn && !btn.hasAttribute('data-listener')) {{
-                    btn.setAttribute('data-listener', 'true');
-                    btn.addEventListener('click', function() {{
-                        var url = this.getAttribute('data-url');
-                        navigator.clipboard.writeText(url).then(function() {{
-                            btn.innerHTML = '✅ Copiado!';
-                            btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
-                            setTimeout(function() {{
-                                btn.innerHTML = '📋 Copiar Link';
-                                btn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
-                            }}, 2000);
-                        }}).catch(function() {{
-                            // Fallback para browsers antigos
-                            var temp = document.createElement('textarea');
-                            temp.value = url;
-                            document.body.appendChild(temp);
-                            temp.select();
-                            document.execCommand('copy');
-                            document.body.removeChild(temp);
-                            btn.innerHTML = '✅ Copiado!';
-                            setTimeout(function() {{
-                                btn.innerHTML = '📋 Copiar Link';
-                            }}, 2000);
-                        }});
-                    }});
-                }}
-            }})();
+            document.getElementById('copyBtn').addEventListener('click', function() {{
+                var url = '{share_url}';
+                var btn = this;
+                navigator.clipboard.writeText(url).then(function() {{
+                    btn.innerHTML = '✅ Copiado!';
+                    btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+                    setTimeout(function() {{
+                        btn.innerHTML = '📋 Copiar Link';
+                        btn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+                    }}, 2000);
+                }}).catch(function() {{
+                    // Fallback
+                    var temp = document.createElement('textarea');
+                    temp.value = url;
+                    document.body.appendChild(temp);
+                    temp.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(temp);
+                    btn.innerHTML = '✅ Copiado!';
+                    btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+                    setTimeout(function() {{
+                        btn.innerHTML = '📋 Copiar Link';
+                        btn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+                    }}, 2000);
+                }});
+            }});
         </script>
-        """, unsafe_allow_html=True)
+        """, height=45)
     
     with col3:
         st.caption(f"Sprint: **{card['sprint']}** | Produto: **{card['produto']}**")
