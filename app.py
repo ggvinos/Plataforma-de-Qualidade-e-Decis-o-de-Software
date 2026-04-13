@@ -1469,21 +1469,47 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Di
 def exibir_detalhes_sd(card: Dict, links: List[Dict], comentarios: List[Dict]):
     """Exibe detalhes para projeto SD (Service Desk) - Completo com qualidade."""
     
-    # ===== KPIs PRINCIPAIS =====
-    col1, col2, col3, col4 = st.columns(4)
+    # ===== KPIs PRINCIPAIS (CARDS ESTILIZADOS) =====
+    fk = calcular_fator_k(card['sp'], card['bugs'])
+    mat = classificar_maturidade(fk)
     
-    with col1:
-        st.metric("📌 Status", card['status'])
-    with col2:
-        st.metric("🎯 Tipo", card['tipo'])
-    with col3:
-        st.metric("⚡ Prioridade", card['prioridade'])
-    with col4:
-        fk = calcular_fator_k(card['sp'], card['bugs'])
-        mat = classificar_maturidade(fk)
-        st.metric("🎖️ Fator K", f"{fk:.2f} {mat['emoji']}")
+    # Cores por status
+    status_cores = {
+        "Done": "#22c55e", "Concluído": "#22c55e",
+        "Em Validação": "#3b82f6", "Aguardando Validação": "#f59e0b",
+        "Desenvolvimento": "#8b5cf6", "Code Review": "#ec4899",
+        "Blocked": "#ef4444", "Reprovado": "#ef4444"
+    }
+    status_cor = status_cores.get(card['status'], "#6b7280")
     
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style='display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;'>
+        <div style='background: linear-gradient(135deg, {status_cor}15, {status_cor}05); border: 1px solid {status_cor}40; 
+                    border-radius: 12px; padding: 16px; text-align: center;'>
+            <div style='font-size: 24px; margin-bottom: 8px;'>📌</div>
+            <div style='font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;'>Status</div>
+            <div style='font-size: 14px; font-weight: 600; color: {status_cor}; margin-top: 4px; word-wrap: break-word;'>{card['status']}</div>
+        </div>
+        <div style='background: linear-gradient(135deg, #6366f115, #6366f105); border: 1px solid #6366f140; 
+                    border-radius: 12px; padding: 16px; text-align: center;'>
+            <div style='font-size: 24px; margin-bottom: 8px;'>🎯</div>
+            <div style='font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;'>Tipo</div>
+            <div style='font-size: 14px; font-weight: 600; color: #6366f1; margin-top: 4px;'>{card['tipo']}</div>
+        </div>
+        <div style='background: linear-gradient(135deg, #f9731615, #f9731605); border: 1px solid #f9731640; 
+                    border-radius: 12px; padding: 16px; text-align: center;'>
+            <div style='font-size: 24px; margin-bottom: 8px;'>⚡</div>
+            <div style='font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;'>Prioridade</div>
+            <div style='font-size: 14px; font-weight: 600; color: #f97316; margin-top: 4px;'>{card['prioridade']}</div>
+        </div>
+        <div style='background: linear-gradient(135deg, {mat['cor']}15, {mat['cor']}05); border: 1px solid {mat['cor']}40; 
+                    border-radius: 12px; padding: 16px; text-align: center;'>
+            <div style='font-size: 24px; margin-bottom: 8px;'>🎖️</div>
+            <div style='font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;'>Fator K</div>
+            <div style='font-size: 14px; font-weight: 600; color: {mat['cor']}; margin-top: 4px;'>{fk:.2f} {mat['emoji']}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     # ===== INFORMAÇÕES BÁSICAS =====
     with st.expander("📋 **Informações Básicas**", expanded=True):
@@ -1683,24 +1709,45 @@ def exibir_detalhes_sd(card: Dict, links: List[Dict], comentarios: List[Dict]):
 def exibir_detalhes_qa(card: Dict, links: List[Dict], comentarios: List[Dict]):
     """Exibe detalhes para projeto QA - Foco em automação e tempo parado."""
     
-    # ===== KPIs PRINCIPAIS (SEM BUGS/FK) =====
-    col1, col2, col3, col4 = st.columns(4)
+    # ===== KPIs PRINCIPAIS (CARDS ESTILIZADOS - QA) =====
+    # Cores por status
+    status_cores = {
+        "Done": "#22c55e", "Concluído": "#22c55e",
+        "Em Validação": "#3b82f6", "Aguardando Validação": "#f59e0b",
+        "Desenvolvimento": "#8b5cf6", "Code Review": "#ec4899",
+        "Blocked": "#ef4444", "Reprovado": "#ef4444"
+    }
+    status_cor = status_cores.get(card['status'], "#6b7280")
+    sp_estimado_badge = "<span style='background:#f59e0b; color:white; font-size:9px; padding:2px 6px; border-radius:4px; margin-left:4px;'>estimado</span>" if card.get('sp_estimado', False) else ""
     
-    with col1:
-        st.metric("📌 Status", card['status'])
-    with col2:
-        st.metric("🎯 Tipo", card['tipo'])
-    with col3:
-        st.metric("⚡ Prioridade", card['prioridade'])
-    with col4:
-        sp_label_qa = "📊 Story Points"
-        if card.get('sp_estimado', False):
-            sp_label_qa += " ⚠️"
-        st.metric(sp_label_qa, card['sp'])
-        if card.get('sp_estimado', False):
-            st.caption("*estimado*")
-    
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style='display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;'>
+        <div style='background: linear-gradient(135deg, {status_cor}15, {status_cor}05); border: 1px solid {status_cor}40; 
+                    border-radius: 12px; padding: 16px; text-align: center;'>
+            <div style='font-size: 24px; margin-bottom: 8px;'>📌</div>
+            <div style='font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;'>Status</div>
+            <div style='font-size: 14px; font-weight: 600; color: {status_cor}; margin-top: 4px; word-wrap: break-word;'>{card['status']}</div>
+        </div>
+        <div style='background: linear-gradient(135deg, #6366f115, #6366f105); border: 1px solid #6366f140; 
+                    border-radius: 12px; padding: 16px; text-align: center;'>
+            <div style='font-size: 24px; margin-bottom: 8px;'>🎯</div>
+            <div style='font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;'>Tipo</div>
+            <div style='font-size: 14px; font-weight: 600; color: #6366f1; margin-top: 4px;'>{card['tipo']}</div>
+        </div>
+        <div style='background: linear-gradient(135deg, #f9731615, #f9731605); border: 1px solid #f9731640; 
+                    border-radius: 12px; padding: 16px; text-align: center;'>
+            <div style='font-size: 24px; margin-bottom: 8px;'>⚡</div>
+            <div style='font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;'>Prioridade</div>
+            <div style='font-size: 14px; font-weight: 600; color: #f97316; margin-top: 4px;'>{card['prioridade']}</div>
+        </div>
+        <div style='background: linear-gradient(135deg, #3b82f615, #3b82f605); border: 1px solid #3b82f640; 
+                    border-radius: 12px; padding: 16px; text-align: center;'>
+            <div style='font-size: 24px; margin-bottom: 8px;'>📊</div>
+            <div style='font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;'>Story Points</div>
+            <div style='font-size: 14px; font-weight: 600; color: #3b82f6; margin-top: 4px;'>{card['sp']}{sp_estimado_badge}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     # ===== ALERTA DE AGING (DESTAQUE PARA QA) =====
     aging_cor = "#22c55e" if card['dias_em_status'] <= 7 else "#f97316" if card['dias_em_status'] <= 30 else "#ef4444"
@@ -1800,19 +1847,46 @@ def exibir_detalhes_qa(card: Dict, links: List[Dict], comentarios: List[Dict]):
 def exibir_detalhes_pb(card: Dict, links: List[Dict], comentarios: List[Dict]):
     """Exibe detalhes para projeto PB (Backlog) - Sem bugs, foco em prioridade."""
     
-    # ===== KPIs PRINCIPAIS (BACKLOG - SEM BUGS) =====
-    col1, col2, col3, col4 = st.columns(4)
+    # ===== KPIs PRINCIPAIS (CARDS ESTILIZADOS - PB) =====
+    # Cores por status
+    status_cores = {
+        "Done": "#22c55e", "Concluído": "#22c55e",
+        "Em Validação": "#3b82f6", "Aguardando Validação": "#f59e0b",
+        "Desenvolvimento": "#8b5cf6", "Code Review": "#ec4899",
+        "Blocked": "#ef4444", "Reprovado": "#ef4444",
+        "Backlog": "#6b7280", "To Do": "#6b7280"
+    }
+    status_cor = status_cores.get(card['status'], "#6b7280")
+    sp_valor = card['sp'] if card['sp'] > 0 else "N/A"
     
-    with col1:
-        st.metric("📌 Status", card['status'])
-    with col2:
-        st.metric("🎯 Tipo", card['tipo'])
-    with col3:
-        st.metric("⚡ Prioridade", card['prioridade'])
-    with col4:
-        st.metric("📊 Estimativa (SP)", card['sp'] if card['sp'] > 0 else "Não estimado")
-    
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style='display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;'>
+        <div style='background: linear-gradient(135deg, {status_cor}15, {status_cor}05); border: 1px solid {status_cor}40; 
+                    border-radius: 12px; padding: 16px; text-align: center;'>
+            <div style='font-size: 24px; margin-bottom: 8px;'>📌</div>
+            <div style='font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;'>Status</div>
+            <div style='font-size: 14px; font-weight: 600; color: {status_cor}; margin-top: 4px; word-wrap: break-word;'>{card['status']}</div>
+        </div>
+        <div style='background: linear-gradient(135deg, #6366f115, #6366f105); border: 1px solid #6366f140; 
+                    border-radius: 12px; padding: 16px; text-align: center;'>
+            <div style='font-size: 24px; margin-bottom: 8px;'>🎯</div>
+            <div style='font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;'>Tipo</div>
+            <div style='font-size: 14px; font-weight: 600; color: #6366f1; margin-top: 4px;'>{card['tipo']}</div>
+        </div>
+        <div style='background: linear-gradient(135deg, #f9731615, #f9731605); border: 1px solid #f9731640; 
+                    border-radius: 12px; padding: 16px; text-align: center;'>
+            <div style='font-size: 24px; margin-bottom: 8px;'>⚡</div>
+            <div style='font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;'>Prioridade</div>
+            <div style='font-size: 14px; font-weight: 600; color: #f97316; margin-top: 4px;'>{card['prioridade']}</div>
+        </div>
+        <div style='background: linear-gradient(135deg, #3b82f615, #3b82f605); border: 1px solid #3b82f640; 
+                    border-radius: 12px; padding: 16px; text-align: center;'>
+            <div style='font-size: 24px; margin-bottom: 8px;'>📊</div>
+            <div style='font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;'>Estimativa</div>
+            <div style='font-size: 14px; font-weight: 600; color: #3b82f6; margin-top: 4px;'>{sp_valor} SP</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     # ===== INDICADOR DE PRIORIZAÇÃO =====
     prioridade_map = {
