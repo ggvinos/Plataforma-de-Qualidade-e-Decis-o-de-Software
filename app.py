@@ -2312,106 +2312,12 @@ def aplicar_estilos():
     
     /* Hide Streamlit elements */
     #MainMenu, .stDeployButton { display: none !important; }
-    
-    /* Tooltips para métricas */
-    .metric-with-tooltip {
-        position: relative;
-    }
-    .metric-tooltip {
-        visibility: hidden;
-        opacity: 0;
-        position: absolute;
-        bottom: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #1e293b;
-        color: white;
-        padding: 12px 15px;
-        border-radius: 8px;
-        font-size: 12px;
-        line-height: 1.5;
-        width: max-content;
-        max-width: 280px;
-        z-index: 1000;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        transition: all 0.2s ease;
-        text-align: left;
-        margin-bottom: 10px;
-    }
-    .metric-tooltip::after {
-        content: '';
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        border-width: 8px;
-        border-style: solid;
-        border-color: #1e293b transparent transparent transparent;
-    }
-    .metric-with-tooltip:hover .metric-tooltip {
-        visibility: visible;
-        opacity: 1;
-    }
-    
-    /* Tooltip inline para textos */
-    .tooltip-inline {
-        position: relative;
-        display: inline-block;
-        cursor: help;
-        border-bottom: 1px dotted #6b7280;
-    }
-    .tooltip-inline .tooltip-text {
-        visibility: hidden;
-        opacity: 0;
-        position: absolute;
-        bottom: 125%;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #1e293b;
-        color: white;
-        padding: 10px 14px;
-        border-radius: 6px;
-        font-size: 12px;
-        line-height: 1.4;
-        width: max-content;
-        max-width: 260px;
-        z-index: 1000;
-        box-shadow: 0 3px 12px rgba(0,0,0,0.25);
-        transition: all 0.2s ease;
-    }
-    .tooltip-inline .tooltip-text::after {
-        content: '';
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        border-width: 6px;
-        border-style: solid;
-        border-color: #1e293b transparent transparent transparent;
-    }
-    .tooltip-inline:hover .tooltip-text {
-        visibility: visible;
-        opacity: 1;
-    }
     </style>
     """, unsafe_allow_html=True)
 
 
-def tooltip_text(texto: str, tooltip_key: str) -> str:
-    """Retorna HTML com tooltip inline para um texto."""
-    if tooltip_key not in TOOLTIPS:
-        return texto
-    
-    tip = TOOLTIPS[tooltip_key]
-    tooltip_content = f"{tip['descricao']}"
-    if tip.get('formula'):
-        tooltip_content += f"<br><em style='color:#94a3b8;'>{tip['formula']}</em>"
-    
-    return f'''<span class="tooltip-inline">{texto}<span class="tooltip-text">{tooltip_content}</span></span>'''
-
-
 def get_tooltip_help(tooltip_key: str) -> str:
-    """Retorna texto de ajuda para st.metric."""
+    """Retorna texto de ajuda para st.metric (aparece no ícone ?)."""
     if tooltip_key not in TOOLTIPS:
         return ""
     
@@ -2465,26 +2371,12 @@ def mostrar_indicador_atualizacao(ultima_atualizacao: datetime):
 
 
 def criar_card_metrica(valor: str, titulo: str, cor: str = "blue", subtitulo: str = "", tooltip_key: str = ""):
-    """Cria card de métrica visual com tooltip opcional."""
-    tooltip_html = ""
-    if tooltip_key and tooltip_key in TOOLTIPS:
-        tip = TOOLTIPS[tooltip_key]
-        tooltip_html = f'''
-        <div class="metric-tooltip">
-            <strong>{tip["titulo"]}</strong><br>
-            {tip["descricao"]}<br>
-            <em style="color: #94a3b8; font-size: 11px;">{tip.get("formula", "")}</em>
-        </div>
-        '''
-    
-    cursor_style = "cursor: help;" if tooltip_key else ""
-    
+    """Cria card de métrica visual. tooltip_key é ignorado (usar st.metric com help para tooltips)."""
     st.markdown(f"""
-    <div class="status-card status-{cor} metric-with-tooltip" style="{cursor_style}">
+    <div class="status-card status-{cor}">
         <p class="big-number">{valor}</p>
         <p class="card-label">{titulo}</p>
         {f'<p class="card-sublabel">{subtitulo}</p>' if subtitulo else ''}
-        {tooltip_html}
     </div>
     """, unsafe_allow_html=True)
 
@@ -5305,7 +5197,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.26 • Dashboard de Inteligência QA
+                    v8.27 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -5313,7 +5205,11 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.26** *(Atual)*
+                **v8.27** *(Atual)*
+                - 🔧 Fix: Removido tooltips customizados que quebravam layout
+                - ℹ️ Mantido help nativo do Streamlit (ícone ?) nos st.metric
+                
+                **v8.26** *(14/04/2026)*
                 - 💡 Tooltips em todas as métricas (hover para explicação)
                 - ℹ️ FPY, DDP, Fator K, Lead Time, Health Score explicados
                 - 📊 Captions explicativos em Throughput e Produtividade
