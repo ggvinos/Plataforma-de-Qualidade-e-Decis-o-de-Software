@@ -4013,7 +4013,7 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
     # ===== NOVA SEÇÃO ELLEN: ANÁLISE DE SPRINT =====
     projeto_atual = df['projeto'].iloc[0] if not df.empty else 'SD'
     if projeto_atual in ['SD', 'QA']:
-        with st.expander("🎯 Análise de Sprint (Ellen)", expanded=True):
+        with st.expander("🎯 Análise de Sprint - Planejamento vs Entrega", expanded=False):
             st.markdown("#### Planejamento vs Entrega da Sprint")
             
             # Separar cards por categoria
@@ -5737,7 +5737,7 @@ def aba_backlog(df: pd.DataFrame):
     
     # 3. Total de cards por Temas e por Produto
     if 'temas' in df.columns:
-        with st.expander("🏷️ Análise por Temas e Produto (Ellen)", expanded=True):
+        with st.expander("🏷️ Análise por Temas e Produto", expanded=False):
             st.markdown("#### Cards por Tema/Cliente")
             
             # Expandir temas (multi-value)
@@ -6607,7 +6607,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.39 • Dashboard de Inteligência QA
+                    v8.40 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -6615,7 +6615,19 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.39** *(Atual)*
+                **v8.40** *(Atual)*
+                - 🎯 **Análise de Sprint (SD)** - Planejado vs Entregue!
+                - 📊 Taxa de entrega da sprint com métricas visuais
+                - 🚨 Cards fora do planejamento (Hotfix, PB, Criação direta)
+                - 📋 Cards originados do PB por produto
+                - ⏰ **PB: Aguarda Revisão** com alerta de SLA atrasado
+                - 😴 **PB: Cards parados** - slider para definir dias sem atuação
+                - 🏷️ **PB: Análise por Temas** - total por tema/cliente + cruzamento
+                - ⏱️ **PB: Tempo de Vida por Importância** - Alto/Médio/Baixo
+                - 🔎 **Filtros de comentários**: busca por texto + filtro por autor
+                - 📦 Novos campos: Temas, Importância, SLA, Issue Links
+                
+                **v8.39**
                 - 📦 **Tags específicas por projeto** - PB tem tags de Produto!
                 - ✅ PB: Decisão (verde) - aprovações e definições
                 - ❓ PB: Dúvida (amarelo) - perguntas e questionamentos
