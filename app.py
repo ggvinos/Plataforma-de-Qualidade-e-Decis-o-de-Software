@@ -2221,6 +2221,7 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
     - bug: Comentário relacionado a bug/defeito
     - reprovacao: Comentário de reprovação
     - impedido: Comentário de impedimento
+    - retorno_dev: Resposta do desenvolvedor a bug/reprovação
     - normal: Comentário comum (com contexto temporal)
     """
     if not comentarios:
@@ -2249,40 +2250,107 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
         "Elintondm /",
         "on branch sd-",
         "on branch SD-",
+        "into homolog",
+        "into master",
+        "into main",
+        "into develop",
     ]
     
-    # Padrões para identificar comentários de bugs
+    # Padrões para identificar comentários de bugs (AMPLIADO)
     padroes_bug = [
+        # Padrões diretos de bug
         "bug encontrado",
         "bug identificado", 
-        "bug:",
         "bug registrado",
+        "bug:",
+        "bug 1",
+        "bug 2", 
+        "bug 3",
+        "bug 4",
+        "bug 5",
+        "bug#",
+        "bug #",
+        # Defeitos/erros
         "defeito encontrado",
         "defeito identificado",
+        "defeito:",
         "erro encontrado",
         "erro identificado",
+        "erro:",
         "falha encontrada",
         "falha identificada",
+        "falha:",
+        # Problemas
         "problema encontrado",
         "problema identificado",
+        "problema:",
         "inconsistência",
+        "inconsistência encontrada",
+        # Comportamento
         "não está funcionando",
         "não funciona",
+        "não funcionou",
+        "parou de funcionar",
         "comportamento incorreto",
         "comportamento inesperado",
+        "comportamento errado",
+        # Erros técnicos
         "retornou erro",
+        "retorna erro",
         "apresentou erro",
+        "apresenta erro",
+        "deu erro",
+        "está com erro",
+        "erro ao",
+        "falhou ao",
+        "não consegue",
+        "não carrega",
+        "não abre",
+        "não salva",
+        "não exibe",
+        "não mostra",
+        "não aparece",
+        "trava",
+        "travou",
+        "congelou",
+        "quebrou",
+        "crashou",
+        # Cenários de teste
         "cenário de bug",
-        "evidência de bug",
-        "evidência do bug",
-        "registrando bug",
-        "registrar bug",
-        "abrir bug",
-        "aberto bug",
         "cenário:",
         "cenário 1",
         "cenário 2",
         "cenário 3",
+        "cenário 4",
+        "cenário 5",
+        "caso de bug",
+        # Evidências
+        "evidência de bug",
+        "evidência do bug",
+        "evidência:",
+        "print do bug",
+        "screenshot do erro",
+        "anexo do bug",
+        # Registro
+        "registrando bug",
+        "registrar bug",
+        "abrir bug",
+        "aberto bug",
+        "abrindo bug",
+        "novo bug",
+        # QA reportando
+        "encontrei um",
+        "encontrei o",
+        "identifiquei um",
+        "identifiquei o",
+        "verifiquei que",
+        "percebi que",
+        "notei que",
+        "observei que",
+        "ao testar",
+        "durante o teste",
+        "na validação",
+        "validando",
     ]
     
     # Padrões para identificar comentários de reprovação
@@ -2290,6 +2358,7 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
         "reprovado",
         "reprovação",
         "reprovei",
+        "reprovando",
         "não aprovado",
         "reprovar",
         "card reprovado",
@@ -2299,17 +2368,25 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
         "devolvido para",
         "voltando para desenvolvimento",
         "retornar para desenvolvimento",
+        "retornado para desenvolvimento",
         "ajustes necessários",
         "necessita de ajustes",
         "correções necessárias",
         "necessita correção",
         "não passou na validação",
+        "não passou no teste",
         "falhou na validação",
         "não atende",
         "não atendeu",
         "favor corrigir",
         "por favor corrigir",
         "correção necessária",
+        "precisa de correção",
+        "precisa corrigir",
+        "precisa ajustar",
+        "não está conforme",
+        "fora do esperado",
+        "diferente do esperado",
     ]
     
     # Padrões para identificar comentários de impedimento
@@ -2322,6 +2399,7 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
         "aguardando",
         "aguardar",
         "esperar",
+        "esperando",
         "não pode prosseguir",
         "não consigo continuar",
         "não é possível continuar",
@@ -2329,6 +2407,45 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
         "pausado",
         "travado",
         "bloqueando",
+        "depende de",
+        "dependendo de",
+        "precisa de",
+        "necessita de ambiente",
+        "ambiente indisponível",
+        "sem acesso",
+        "não tenho acesso",
+        "aguardando retorno",
+        "aguardando resposta",
+    ]
+    
+    # Padrões para identificar retorno do DEV
+    padroes_retorno_dev = [
+        "corrigido",
+        "correção feita",
+        "correção realizada",
+        "ajustado",
+        "ajuste feito",
+        "ajuste realizado",
+        "pronto para",
+        "disponível para",
+        "liberado para",
+        "pode testar",
+        "pode validar",
+        "favor validar",
+        "por favor validar",
+        "validar novamente",
+        "retestando",
+        "para revalidação",
+        "para retestar",
+        "já corrigi",
+        "já ajustei",
+        "feito o ajuste",
+        "feita a correção",
+        "resolvido",
+        "solucionado",
+        "implementado",
+        "alterado conforme",
+        "atualizado conforme",
     ]
     
     # Primeira passagem: filtrar automações e classificar
@@ -2350,26 +2467,34 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
         if eh_automacao:
             continue
         
-        # Classifica o comentário
+        # Classifica o comentário (ordem de prioridade)
         classificacao = 'normal'
         
-        # Verifica impedido
-        for padrao in padroes_impedido:
+        # 1. Verifica bug (maior prioridade para QA)
+        for padrao in padroes_bug:
             if padrao in texto_lower:
-                classificacao = 'impedido'
+                classificacao = 'bug'
                 break
         
-        # Verifica reprovação (prioridade sobre impedido se ambos)
-        for padrao in padroes_reprovacao:
-            if padrao in texto_lower:
-                classificacao = 'reprovacao'
-                break
-        
-        # Verifica bug
+        # 2. Verifica reprovação
         if classificacao == 'normal':
-            for padrao in padroes_bug:
+            for padrao in padroes_reprovacao:
                 if padrao in texto_lower:
-                    classificacao = 'bug'
+                    classificacao = 'reprovacao'
+                    break
+        
+        # 3. Verifica impedimento
+        if classificacao == 'normal':
+            for padrao in padroes_impedido:
+                if padrao in texto_lower:
+                    classificacao = 'impedido'
+                    break
+        
+        # 4. Verifica retorno do DEV
+        if classificacao == 'normal':
+            for padrao in padroes_retorno_dev:
+                if padrao in texto_lower:
+                    classificacao = 'retorno_dev'
                     break
         
         # Parse da data
@@ -2382,14 +2507,13 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
             **com,
             'classificacao': classificacao,
             'data_parsed': data_parsed,
-            'contexto': None  # Será preenchido na segunda passagem
+            'contexto': None
         })
     
     # Ordena por data
     comentarios_pre.sort(key=lambda x: x['data_parsed'])
     
     # Segunda passagem: adicionar contexto temporal
-    # Encontra índices dos eventos importantes
     eventos = []
     for i, com in enumerate(comentarios_pre):
         if com['classificacao'] in ['bug', 'reprovacao', 'impedido']:
@@ -2400,10 +2524,9 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
                 'numero': len([e for e in eventos if e['tipo'] == com['classificacao']]) + 1
             })
     
-    # Atribui contexto aos comentários normais
+    # Atribui contexto aos comentários normais e retorno_dev
     for i, com in enumerate(comentarios_pre):
-        if com['classificacao'] == 'normal':
-            # Encontra o evento mais próximo
+        if com['classificacao'] in ['normal', 'retorno_dev']:
             evento_anterior = None
             evento_posterior = None
             
@@ -2413,9 +2536,7 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
                 elif ev['indice'] > i and evento_posterior is None:
                     evento_posterior = ev
             
-            # Define contexto baseado na proximidade
             if evento_anterior and evento_posterior:
-                # Entre dois eventos - pega o mais próximo
                 dist_ant = i - evento_anterior['indice']
                 dist_pos = evento_posterior['indice'] - i
                 
@@ -2433,7 +2554,7 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
                 com['contexto'] = f"Antes {tipo_nome} #{evento_posterior['numero']}"
     
     # Numera os eventos no resultado final
-    contadores = {'bug': 0, 'reprovacao': 0, 'impedido': 0}
+    contadores = {'bug': 0, 'reprovacao': 0, 'impedido': 0, 'retorno_dev': 0}
     for com in comentarios_pre:
         if com['classificacao'] in contadores:
             contadores[com['classificacao']] += 1
@@ -2443,7 +2564,7 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
 
 
 def exibir_comentarios(comentarios: List[Dict]):
-    """Exibe seção de comentários do card (filtrados e classificados)."""
+    """Exibe seção de comentários do card (filtrados e classificados) com filtros interativos."""
     # Filtra e classifica comentários
     comentarios_filtrados = filtrar_e_classificar_comentarios(comentarios)
     
@@ -2455,6 +2576,8 @@ def exibir_comentarios(comentarios: List[Dict]):
     bugs = sum(1 for c in comentarios_filtrados if c.get('classificacao') == 'bug')
     reprovacoes = sum(1 for c in comentarios_filtrados if c.get('classificacao') == 'reprovacao')
     impedidos = sum(1 for c in comentarios_filtrados if c.get('classificacao') == 'impedido')
+    retornos = sum(1 for c in comentarios_filtrados if c.get('classificacao') == 'retorno_dev')
+    normais = sum(1 for c in comentarios_filtrados if c.get('classificacao') == 'normal')
     
     if comentarios_filtrados and len(comentarios_filtrados) > 0:
         st.markdown("<br>", unsafe_allow_html=True)
@@ -2467,6 +2590,8 @@ def exibir_comentarios(comentarios: List[Dict]):
             titulo_extra.append(f"❌ {reprovacoes}")
         if impedidos > 0:
             titulo_extra.append(f"🚫 {impedidos}")
+        if retornos > 0:
+            titulo_extra.append(f"🔄 {retornos}")
         titulo_sufixo = f" | {' '.join(titulo_extra)}" if titulo_extra else ""
         
         with st.expander(f"💬 **Comentários ({total_filtrado})**{titulo_sufixo}", expanded=True):
@@ -2474,17 +2599,65 @@ def exibir_comentarios(comentarios: List[Dict]):
             if filtrados > 0:
                 st.caption(f"ℹ️ {filtrados} comentário(s) de automação foram ocultados")
             
+            # FILTROS INTERATIVOS
+            st.markdown("##### 🔍 Filtrar por tipo:")
+            col1, col2, col3, col4, col5, col6 = st.columns(6)
+            
+            with col1:
+                filtro_todos = st.checkbox("Todos", value=True, key="filtro_com_todos")
+            with col2:
+                filtro_bug = st.checkbox(f"🐛 Bug ({bugs})", value=False, key="filtro_com_bug", disabled=bugs==0)
+            with col3:
+                filtro_reprov = st.checkbox(f"❌ Reprov ({reprovacoes})", value=False, key="filtro_com_reprov", disabled=reprovacoes==0)
+            with col4:
+                filtro_imped = st.checkbox(f"🚫 Imped ({impedidos})", value=False, key="filtro_com_imped", disabled=impedidos==0)
+            with col5:
+                filtro_retorno = st.checkbox(f"🔄 Retorno ({retornos})", value=False, key="filtro_com_retorno", disabled=retornos==0)
+            with col6:
+                filtro_normal = st.checkbox(f"💬 Outros ({normais})", value=False, key="filtro_com_normal", disabled=normais==0)
+            
+            # Determina quais tipos exibir
+            tipos_exibir = []
+            if filtro_todos and not (filtro_bug or filtro_reprov or filtro_imped or filtro_retorno or filtro_normal):
+                tipos_exibir = ['bug', 'reprovacao', 'impedido', 'retorno_dev', 'normal']
+            else:
+                if filtro_bug:
+                    tipos_exibir.append('bug')
+                if filtro_reprov:
+                    tipos_exibir.append('reprovacao')
+                if filtro_imped:
+                    tipos_exibir.append('impedido')
+                if filtro_retorno:
+                    tipos_exibir.append('retorno_dev')
+                if filtro_normal:
+                    tipos_exibir.append('normal')
+            
+            # Se nenhum selecionado, mostra todos
+            if not tipos_exibir:
+                tipos_exibir = ['bug', 'reprovacao', 'impedido', 'retorno_dev', 'normal']
+            
+            # Filtra comentários
+            comentarios_exibir = [c for c in comentarios_filtrados if c.get('classificacao') in tipos_exibir]
+            
+            st.markdown("---")
+            
             # Legenda
             st.markdown("""
-            <div style='display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;'>
-                <span style='font-size: 0.8em;'>🐛 <span style='color: #dc2626;'>Bug</span></span>
-                <span style='font-size: 0.8em;'>❌ <span style='color: #ea580c;'>Reprovação</span></span>
-                <span style='font-size: 0.8em;'>🚫 <span style='color: #9333ea;'>Impedimento</span></span>
-                <span style='font-size: 0.8em;'>💬 <span style='color: #64748b;'>Contexto</span></span>
+            <div style='display: flex; gap: 12px; margin-bottom: 15px; flex-wrap: wrap; font-size: 0.85em;'>
+                <span>🐛 <b style='color: #dc2626;'>Bug</b></span>
+                <span>❌ <b style='color: #ea580c;'>Reprovação</b></span>
+                <span>🚫 <b style='color: #9333ea;'>Impedimento</b></span>
+                <span>🔄 <b style='color: #0891b2;'>Retorno DEV</b></span>
+                <span>💬 <b style='color: #64748b;'>Contexto</b></span>
             </div>
             """, unsafe_allow_html=True)
             
-            for i, com in enumerate(comentarios_filtrados):
+            if not comentarios_exibir:
+                st.info("Nenhum comentário encontrado para os filtros selecionados.")
+            else:
+                st.caption(f"Exibindo {len(comentarios_exibir)} de {total_filtrado} comentários")
+            
+            for i, com in enumerate(comentarios_exibir):
                 # Formata a data
                 try:
                     data_com = datetime.fromisoformat(com['data'].replace('Z', '+00:00'))
@@ -2498,23 +2671,29 @@ def exibir_comentarios(comentarios: List[Dict]):
                 contexto = com.get('contexto', '')
                 
                 if classificacao == 'bug':
-                    cor_borda = '#dc2626'  # Vermelho forte
-                    cor_fundo = '#fef2f2'  # Vermelho bem claro
+                    cor_borda = '#dc2626'
+                    cor_fundo = '#fef2f2'
                     cor_avatar = '#dc2626'
                     badge = f'<span style="background: #dc2626; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; font-weight: bold;">🐛 Bug #{numero_evento}</span>'
                 elif classificacao == 'reprovacao':
-                    cor_borda = '#ea580c'  # Laranja forte
-                    cor_fundo = '#fff7ed'  # Laranja bem claro
+                    cor_borda = '#ea580c'
+                    cor_fundo = '#fff7ed'
                     cor_avatar = '#ea580c'
                     badge = f'<span style="background: #ea580c; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; font-weight: bold;">❌ Reprovação #{numero_evento}</span>'
                 elif classificacao == 'impedido':
-                    cor_borda = '#9333ea'  # Roxo forte
-                    cor_fundo = '#faf5ff'  # Roxo bem claro
+                    cor_borda = '#9333ea'
+                    cor_fundo = '#faf5ff'
                     cor_avatar = '#9333ea'
                     badge = f'<span style="background: #9333ea; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; font-weight: bold;">🚫 Impedimento #{numero_evento}</span>'
+                elif classificacao == 'retorno_dev':
+                    cor_borda = '#0891b2'
+                    cor_fundo = '#ecfeff'
+                    cor_avatar = '#0891b2'
+                    contexto_badge = f' <span style="background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 8px; font-size: 0.7em; margin-left: 5px;">{contexto}</span>' if contexto else ''
+                    badge = f'<span style="background: #0891b2; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; font-weight: bold;">🔄 Retorno #{numero_evento}</span>{contexto_badge}'
                 else:
-                    cor_borda = '#94a3b8'  # Cinza
-                    cor_fundo = '#f8fafc'  # Cinza bem claro
+                    cor_borda = '#94a3b8'
+                    cor_fundo = '#f8fafc'
                     cor_avatar = '#64748b'
                     if contexto:
                         badge = f'<span style="background: #e2e8f0; color: #475569; padding: 3px 10px; border-radius: 12px; font-size: 0.75em;">{contexto}</span>'
@@ -2536,7 +2715,7 @@ def exibir_comentarios(comentarios: List[Dict]):
         </div>
         <div>{badge}</div>
     </div>
-    <div style='color: #334155; font-size: 0.9em; line-height: 1.6; padding-left: 46px; white-space: pre-wrap;'>{com['texto'][:800]}{'...' if len(com['texto']) > 800 else ''}</div>
+    <div style='color: #334155; font-size: 0.9em; line-height: 1.6; padding-left: 46px; white-space: pre-wrap;'>{com['texto'][:1000]}{'...' if len(com['texto']) > 1000 else ''}</div>
 </div>
                 """, unsafe_allow_html=True)
     else:
@@ -5664,7 +5843,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.36 • Dashboard de Inteligência QA
+                    v8.37 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -5672,7 +5851,15 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.36** *(Atual)*
+                **v8.37** *(Atual)*
+                - 🔍 **Filtros interativos** para tipos de comentários
+                - 🐛 Detecção de bugs ampliada (80+ padrões)
+                - 🔄 Nova categoria: **Retorno DEV** (ciano)
+                - 📊 Checkboxes para filtrar: Bug, Reprovação, Impedimento, Retorno, Outros
+                - 🎨 Visual ainda mais distinto por categoria
+                - 📈 Contador de comentários exibidos vs total
+                
+                **v8.36** *(14/04/2026)*
                 - 🎨 Visual de comentários completamente reformulado
                 - 🐛 Bug: fundo vermelho claro + borda vermelha + badge numerado
                 - ❌ Reprovação: fundo laranja claro + borda laranja + badge numerado  
