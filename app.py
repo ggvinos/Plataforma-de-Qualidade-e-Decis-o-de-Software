@@ -2851,321 +2851,345 @@ def aba_qa(df: pd.DataFrame):
     metricas_qa = calcular_metricas_qa(df)
     qas = [q for q in df['qa'].unique() if q != 'Não atribuído']
     
-    # KPIs de QA
-    with st.expander("📊 Indicadores de QA", expanded=True):
-        col1, col2, col3, col4, col5 = st.columns(5)
-        
-        with col1:
-            total_fila = metricas_qa['funil']['waiting_qa'] + metricas_qa['funil']['testing']
-            cor = 'green' if total_fila < 5 else 'yellow' if total_fila < 10 else 'red'
-            criar_card_metrica(str(total_fila), "Fila de QA", cor, f"({metricas_qa['funil']['waiting_qa']} aguardando)")
-        
-        with col2:
-            tempo = metricas_qa['tempo']['waiting']
-            cor = 'green' if tempo < 2 else 'yellow' if tempo < 5 else 'red'
-            criar_card_metrica(f"{tempo:.1f}d", "Tempo Médio Fila", cor)
-        
-        with col3:
-            aging = metricas_qa['aging']['total']
-            cor = 'green' if aging == 0 else 'yellow' if aging < 3 else 'red'
-            criar_card_metrica(str(aging), f"Cards Aging (>{REGRAS['dias_aging_alerta']}d)", cor)
-        
-        with col4:
-            taxa = metricas_qa['taxa_reprovacao']
-            cor = 'green' if taxa < 10 else 'yellow' if taxa < 20 else 'red'
-            criar_card_metrica(f"{taxa:.0f}%", "Taxa Reprovação", cor)
-        
-        with col5:
-            # DDP
-            ddp = calcular_ddp(df)
-            cor = 'green' if ddp['valor'] >= 85 else 'yellow' if ddp['valor'] >= 70 else 'red'
-            criar_card_metrica(f"{ddp['valor']:.0f}%", "DDP", cor, "Detecção de Defeitos")
-        
-        mostrar_tooltip("ddp")
+    # SELETOR DE QA
+    qa_sel = st.selectbox("🔍 Selecione o QA", ["👀 Visão Geral do Time"] + sorted(qas))
+    st.markdown("---")
     
-    # Funil e Carga
-    with st.expander("📈 Funil de Validação e Carga por QA", expanded=True):
-        col1, col2 = st.columns(2)
+    if qa_sel == "👀 Visão Geral do Time":
+        # ====== VISÃO GERAL DO TIME DE QA ======
         
-        with col1:
-            fig = criar_grafico_funil_qa(metricas_qa)
-            st.plotly_chart(fig, use_container_width=True)
+        # KPIs de QA
+        with st.expander("📊 Indicadores de QA", expanded=True):
+            col1, col2, col3, col4, col5 = st.columns(5)
+            
+            with col1:
+                total_fila = metricas_qa['funil']['waiting_qa'] + metricas_qa['funil']['testing']
+                cor = 'green' if total_fila < 5 else 'yellow' if total_fila < 10 else 'red'
+                criar_card_metrica(str(total_fila), "Fila de QA", cor, f"({metricas_qa['funil']['waiting_qa']} aguardando)")
+            
+            with col2:
+                tempo = metricas_qa['tempo']['waiting']
+                cor = 'green' if tempo < 2 else 'yellow' if tempo < 5 else 'red'
+                criar_card_metrica(f"{tempo:.1f}d", "Tempo Médio Fila", cor)
+            
+            with col3:
+                aging = metricas_qa['aging']['total']
+                cor = 'green' if aging == 0 else 'yellow' if aging < 3 else 'red'
+                criar_card_metrica(str(aging), f"Cards Aging (>{REGRAS['dias_aging_alerta']}d)", cor)
+            
+            with col4:
+                taxa = metricas_qa['taxa_reprovacao']
+                cor = 'green' if taxa < 10 else 'yellow' if taxa < 20 else 'red'
+                criar_card_metrica(f"{taxa:.0f}%", "Taxa Reprovação", cor)
+            
+            with col5:
+                ddp = calcular_ddp(df)
+                cor = 'green' if ddp['valor'] >= 85 else 'yellow' if ddp['valor'] >= 70 else 'red'
+                criar_card_metrica(f"{ddp['valor']:.0f}%", "DDP", cor, "Detecção de Defeitos")
+            
+            mostrar_tooltip("ddp")
         
-        with col2:
-            if not metricas_qa['carga_qa'].empty:
-                fig = px.bar(
-                    metricas_qa['carga_qa'].sort_values('Cards', ascending=True),
-                    x='Cards', y='QA', orientation='h', color='SP',
-                    color_continuous_scale='Blues', title='Carga por QA'
-                )
-                fig.update_layout(height=350)
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.info("Nenhum card em validação no momento.")
-    
-    # ========== NOVO: Comparativo entre QAs ==========
-    with st.expander("📊 Comparativo de Performance entre QAs", expanded=True):
-        if qas:
-            # Tabela comparativa
-            dados_qa = []
-            for qa in qas:
-                df_qa = df[df['qa'] == qa]
-                validados = len(df_qa[df_qa['status_cat'] == 'done'])
-                em_fila = len(df_qa[df_qa['status_cat'].isin(['waiting_qa', 'testing'])])
-                bugs_encontrados = int(df_qa['bugs'].sum())
-                cards_sem_bugs = len(df_qa[(df_qa['status_cat'] == 'done') & (df_qa['bugs'] == 0)])
-                fpy_val = cards_sem_bugs / validados * 100 if validados > 0 else 0
-                sp_total = int(df_qa['sp'].sum())
-                lead_time_medio = df_qa['lead_time'].mean() if not df_qa.empty else 0
-                
-                dados_qa.append({
-                    'QA': qa,
-                    'Cards': len(df_qa),
-                    'Validados': validados,
-                    'Em Fila': em_fila,
-                    'Bugs Encontrados': bugs_encontrados,
-                    'FPY': f"{fpy_val:.0f}%",
-                    'SP Total': sp_total,
-                    'Lead Time': f"{lead_time_medio:.1f}d",
-                })
-            
-            df_comparativo = pd.DataFrame(dados_qa)
-            st.dataframe(df_comparativo.sort_values('Cards', ascending=False), hide_index=True, use_container_width=True)
-            
-            # Gráficos comparativos
+        # Funil e Carga
+        with st.expander("📈 Funil de Validação e Carga por QA", expanded=True):
             col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown("**🐛 Bugs Encontrados por QA**")
-                bugs_por_qa = df[df['qa'] != 'Não atribuído'].groupby('qa')['bugs'].sum().reset_index()
-                bugs_por_qa.columns = ['QA', 'Bugs']
-                if not bugs_por_qa.empty and bugs_por_qa['Bugs'].sum() > 0:
-                    fig = px.bar(bugs_por_qa.sort_values('Bugs', ascending=False), 
-                                 x='QA', y='Bugs', color='Bugs',
-                                 color_continuous_scale=['#22c55e', '#f97316', '#ef4444'],
-                                 title='')
-                    fig.update_layout(height=350, showlegend=False)
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.info("Sem dados de bugs por QA")
+                fig = criar_grafico_funil_qa(metricas_qa)
+                st.plotly_chart(fig, use_container_width=True)
             
             with col2:
-                st.markdown("**✅ Cards Validados por QA**")
-                validados_por_qa = df[(df['qa'] != 'Não atribuído') & (df['status_cat'] == 'done')].groupby('qa').size().reset_index(name='Validados')
-                if not validados_por_qa.empty:
-                    fig = px.pie(validados_por_qa, values='Validados', names='qa', 
-                                 hole=0.4, color_discrete_sequence=px.colors.qualitative.Set2)
+                if not metricas_qa['carga_qa'].empty:
+                    fig = px.bar(
+                        metricas_qa['carga_qa'].sort_values('Cards', ascending=True),
+                        x='Cards', y='QA', orientation='h', color='SP',
+                        color_continuous_scale='Blues', title='Carga por QA'
+                    )
                     fig.update_layout(height=350)
                     st.plotly_chart(fig, use_container_width=True)
                 else:
-                    st.info("Nenhum card validado ainda")
-        else:
-            st.info("Nenhum QA atribuído aos cards.")
-    
-    # ========== NOVO: Bugs por Tipo e Impacto ==========
-    with st.expander("🐛 Análise de Bugs e Retrabalho", expanded=False):
-        col1, col2 = st.columns(2)
+                    st.info("Nenhum card em validação no momento.")
         
-        with col1:
-            st.markdown("**🎯 Bugs por Tipo de Card**")
-            bugs_por_tipo = df.groupby('tipo')['bugs'].sum().reset_index()
-            if not bugs_por_tipo.empty and bugs_por_tipo['bugs'].sum() > 0:
-                fig = px.pie(bugs_por_tipo, values='bugs', names='tipo', hole=0.4,
-                             color_discrete_sequence=px.colors.qualitative.Set2)
-                fig.update_layout(height=350)
-                st.plotly_chart(fig, use_container_width=True)
+        # Comparativo entre QAs
+        with st.expander("📊 Comparativo de Performance entre QAs", expanded=True):
+            if qas:
+                dados_qa = []
+                for qa in qas:
+                    df_qa = df[df['qa'] == qa]
+                    validados = len(df_qa[df_qa['status_cat'] == 'done'])
+                    em_fila = len(df_qa[df_qa['status_cat'].isin(['waiting_qa', 'testing'])])
+                    bugs_encontrados = int(df_qa['bugs'].sum())
+                    cards_sem_bugs = len(df_qa[(df_qa['status_cat'] == 'done') & (df_qa['bugs'] == 0)])
+                    fpy_val = cards_sem_bugs / validados * 100 if validados > 0 else 0
+                    sp_total = int(df_qa['sp'].sum())
+                    lead_time_medio = df_qa['lead_time'].mean() if not df_qa.empty else 0
+                    
+                    dados_qa.append({
+                        'QA': qa,
+                        'Cards': len(df_qa),
+                        'Validados': validados,
+                        'Em Fila': em_fila,
+                        'Bugs Encontrados': bugs_encontrados,
+                        'FPY': f"{fpy_val:.0f}%",
+                        'SP Total': sp_total,
+                        'Lead Time': f"{lead_time_medio:.1f}d",
+                    })
+                
+                df_comparativo = pd.DataFrame(dados_qa)
+                st.dataframe(df_comparativo.sort_values('Cards', ascending=False), hide_index=True, use_container_width=True)
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("**🐛 Bugs Encontrados por QA**")
+                    bugs_por_qa = df[df['qa'] != 'Não atribuído'].groupby('qa')['bugs'].sum().reset_index()
+                    bugs_por_qa.columns = ['QA', 'Bugs']
+                    if not bugs_por_qa.empty and bugs_por_qa['Bugs'].sum() > 0:
+                        fig = px.bar(bugs_por_qa.sort_values('Bugs', ascending=False), 
+                                     x='QA', y='Bugs', color='Bugs',
+                                     color_continuous_scale=['#22c55e', '#f97316', '#ef4444'],
+                                     title='')
+                        fig.update_layout(height=350, showlegend=False)
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("Sem dados de bugs por QA")
+                
+                with col2:
+                    st.markdown("**✅ Cards Validados por QA**")
+                    validados_por_qa = df[(df['qa'] != 'Não atribuído') & (df['status_cat'] == 'done')].groupby('qa').size().reset_index(name='Validados')
+                    if not validados_por_qa.empty:
+                        fig = px.pie(validados_por_qa, values='Validados', names='qa', 
+                                     hole=0.4, color_discrete_sequence=px.colors.qualitative.Set2)
+                        fig.update_layout(height=350)
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("Nenhum card validado ainda")
             else:
-                st.info("Sem bugs registrados")
+                st.info("Nenhum QA atribuído aos cards.")
         
-        with col2:
-            st.markdown("**📊 Métricas de Eficiência**")
-            concluidos = df[df['status_cat'] == 'done']
-            if not concluidos.empty:
-                # FPY geral
-                fpy = calcular_fpy(df)
-                st.metric("FPY (First Pass Yield)", f"{fpy['valor']}%", 
-                         help="Cards aprovados sem bugs na primeira validação")
-                
-                # Taxa de retrabalho
-                cards_com_bugs = len(concluidos[concluidos['bugs'] > 0])
-                taxa_retrabalho = cards_com_bugs / len(concluidos) * 100 if len(concluidos) > 0 else 0
-                st.metric("Taxa de Retrabalho", f"{taxa_retrabalho:.1f}%",
-                         help="Cards que precisaram de correção")
-                
-                # Lead time médio
-                lead = calcular_lead_time(df)
-                st.metric("Lead Time Médio", f"{lead['medio']:.1f} dias")
-            else:
-                st.info("Sem cards concluídos")
-        
-        # Devs que mais geraram bugs
-        st.markdown("---")
-        st.markdown("**⚠️ Desenvolvedores com mais bugs (requer atenção do QA)**")
-        
-        dev_bugs = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor').agg({
-            'bugs': 'sum',
-            'sp': 'sum',
-            'ticket_id': 'count'
-        }).reset_index()
-        dev_bugs.columns = ['Desenvolvedor', 'Bugs', 'SP', 'Cards']
-        dev_bugs['FK'] = dev_bugs.apply(lambda x: round(x['SP'] / (x['Bugs'] + 1), 2), axis=1)
-        dev_bugs = dev_bugs[dev_bugs['Bugs'] > 0].sort_values('Bugs', ascending=False)
-        
-        if not dev_bugs.empty:
-            for _, row in dev_bugs.head(5).iterrows():
-                cor = '#ef4444' if row['FK'] < 1.5 else '#f97316' if row['FK'] < 2.5 else '#22c55e'
-                st.markdown(f"""
-                <div style="background: rgba(100,100,100,0.05); padding: 10px; border-radius: 8px; margin: 5px 0; border-left: 3px solid {cor};">
-                    <b>{row['Desenvolvedor']}</b><br>
-                    <span style="font-size: 12px;">🐛 {row['Bugs']} bugs | FK: {row['FK']} | {row['Cards']} cards</span>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.success("✅ Nenhum desenvolvedor com bugs significativos!")
-    
-    # ========== NOVO: JANELA DE VALIDAÇÃO (considera complexidade) ==========
-    with st.expander("🕐 Janela de Validação (Análise de Risco)", expanded=True):
-        st.markdown("""
-        <div class="alert-info">
-            <b>📋 Regras de Janela de Validação</b>
-            <p>A janela considera a <b>complexidade de teste</b> do card para determinar se há tempo suficiente:</p>
-            <ul style="margin: 5px 0 0 20px;">
-                <li><b>Alta:</b> 3+ dias necessários</li>
-                <li><b>Média:</b> 2 dias necessários</li>
-                <li><b>Baixa:</b> 1 dia é suficiente</li>
-                <li><b>Não definida:</b> Assume 3 dias (conservador)</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Filtrar cards em fila de QA ou validação
-        cards_qa = df[df['status_cat'].isin(['waiting_qa', 'testing'])]
-        
-        if not cards_qa.empty:
-            # Contagem por status de janela
-            fora_janela = cards_qa[cards_qa['janela_status'] == 'fora']
-            em_risco = cards_qa[cards_qa['janela_status'] == 'risco']
-            dentro_janela = cards_qa[cards_qa['janela_status'] == 'ok']
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                cor = 'red' if len(fora_janela) > 0 else 'green'
-                criar_card_metrica(str(len(fora_janela)), "🚨 Fora da Janela", cor, "Validar próxima sprint")
-            
-            with col2:
-                cor = 'yellow' if len(em_risco) > 0 else 'green'
-                criar_card_metrica(str(len(em_risco)), "⚠️ Em Risco", cor, "Priorizar imediatamente")
-            
-            with col3:
-                criar_card_metrica(str(len(dentro_janela)), "✅ Dentro da Janela", "green", "Tempo adequado")
-            
-            # Lista de cards FORA da janela
-            if not fora_janela.empty:
-                st.markdown("### 🚨 Cards FORA da Janela de Validação")
-                st.markdown("""
-                <div class="alert-critical">
-                    <b>Estes cards não têm tempo suficiente para validação completa nesta sprint.</b>
-                    <p>Recomendação: Considerar para a próxima sprint ou priorizar validação simplificada.</p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                df_fora = fora_janela[['ticket_id', 'titulo', 'complexidade', 'dias_ate_release', 'janela_dias_necessarios', 'desenvolvedor', 'qa', 'sp']].copy()
-                df_fora.columns = ['Ticket', 'Título', 'Complexidade', 'Dias Disponíveis', 'Dias Necessários', 'Dev', 'QA', 'SP']
-                df_fora['Título'] = df_fora['Título'].str[:40] + '...'
-                df_fora['Complexidade'] = df_fora['Complexidade'].replace('', 'Não definida')
-                df_fora['Déficit'] = df_fora['Dias Necessários'] - df_fora['Dias Disponíveis']
-                
-                st.dataframe(df_fora.sort_values('Déficit', ascending=False), hide_index=True, use_container_width=True)
-                
-                # Análise por desenvolvedor
-                st.markdown("#### 📊 Cards fora da janela por Desenvolvedor")
-                dev_fora = fora_janela.groupby('desenvolvedor').size().reset_index(name='Cards Fora')
-                dev_fora = dev_fora.sort_values('Cards Fora', ascending=False)
-                
-                fig = px.bar(dev_fora, x='desenvolvedor', y='Cards Fora', 
-                            color='Cards Fora', color_continuous_scale='Reds',
-                            title='Quem mais encaminhou cards sem tempo adequado?')
-                fig.update_layout(height=300, showlegend=False)
-                st.plotly_chart(fig, use_container_width=True)
-            
-            # Lista de cards EM RISCO
-            if not em_risco.empty:
-                st.markdown("### ⚠️ Cards EM RISCO")
-                st.markdown("""
-                <div class="alert-warning">
-                    <b>Estes cards estão no limite do tempo - priorizar validação!</b>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                df_risco = em_risco[['ticket_id', 'titulo', 'complexidade', 'dias_ate_release', 'janela_dias_necessarios', 'qa', 'sp']].copy()
-                df_risco.columns = ['Ticket', 'Título', 'Complexidade', 'Dias Disponíveis', 'Dias Necessários', 'QA', 'SP']
-                df_risco['Título'] = df_risco['Título'].str[:40] + '...'
-                df_risco['Complexidade'] = df_risco['Complexidade'].replace('', 'Não definida')
-                
-                st.dataframe(df_risco, hide_index=True, use_container_width=True)
-            
-            # Análise por complexidade
-            st.markdown("#### 📈 Análise de Complexidade vs Tempo Disponível")
-            
+        # Análise de Bugs
+        with st.expander("🐛 Análise de Bugs e Retrabalho", expanded=False):
             col1, col2 = st.columns(2)
+            
             with col1:
-                # Distribuição de complexidade
-                complex_dist = cards_qa['complexidade'].replace('', 'Não definida').value_counts().reset_index()
-                complex_dist.columns = ['Complexidade', 'Quantidade']
-                
-                cores_complex = {'Alta': '#ef4444', 'Média': '#f59e0b', 'Baixa': '#22c55e', 'Não definida': '#6b7280'}
-                fig = px.pie(complex_dist, names='Complexidade', values='Quantidade',
-                            title='Distribuição por Complexidade',
-                            color='Complexidade', color_discrete_map=cores_complex)
-                fig.update_layout(height=300)
-                st.plotly_chart(fig, use_container_width=True)
+                st.markdown("**🎯 Bugs por Tipo de Card**")
+                bugs_por_tipo = df.groupby('tipo')['bugs'].sum().reset_index()
+                if not bugs_por_tipo.empty and bugs_por_tipo['bugs'].sum() > 0:
+                    fig = px.pie(bugs_por_tipo, values='bugs', names='tipo', hole=0.4,
+                                 color_discrete_sequence=px.colors.qualitative.Set2)
+                    fig.update_layout(height=350)
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("Sem bugs registrados")
             
             with col2:
-                # Status da janela
-                status_dist = cards_qa['janela_status'].value_counts().reset_index()
-                status_dist.columns = ['Status', 'Quantidade']
-                status_dist['Status'] = status_dist['Status'].map({'ok': '✅ OK', 'risco': '⚠️ Risco', 'fora': '🚨 Fora'})
-                
-                cores_status = {'✅ OK': '#22c55e', '⚠️ Risco': '#f59e0b', '🚨 Fora': '#ef4444'}
-                fig = px.pie(status_dist, names='Status', values='Quantidade',
-                            title='Status da Janela de Validação',
-                            color='Status', color_discrete_map=cores_status)
-                fig.update_layout(height=300)
-                st.plotly_chart(fig, use_container_width=True)
+                st.markdown("**📊 Métricas de Eficiência**")
+                concluidos = df[df['status_cat'] == 'done']
+                if not concluidos.empty:
+                    fpy = calcular_fpy(df)
+                    st.metric("FPY (First Pass Yield)", f"{fpy['valor']}%", help="Cards aprovados sem bugs na primeira validação")
+                    
+                    cards_com_bugs = len(concluidos[concluidos['bugs'] > 0])
+                    taxa_retrabalho = cards_com_bugs / len(concluidos) * 100 if len(concluidos) > 0 else 0
+                    st.metric("Taxa de Retrabalho", f"{taxa_retrabalho:.1f}%", help="Cards que precisaram de correção")
+                    
+                    lead = calcular_lead_time(df)
+                    st.metric("Lead Time Médio", f"{lead['medio']:.1f} dias")
+                else:
+                    st.info("Sem cards concluídos")
+            
+            st.markdown("---")
+            st.markdown("**⚠️ Desenvolvedores com mais bugs (requer atenção do QA)**")
+            
+            dev_bugs = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor').agg({
+                'bugs': 'sum', 'sp': 'sum', 'ticket_id': 'count'
+            }).reset_index()
+            dev_bugs.columns = ['Desenvolvedor', 'Bugs', 'SP', 'Cards']
+            dev_bugs['FK'] = dev_bugs.apply(lambda x: round(x['SP'] / (x['Bugs'] + 1), 2), axis=1)
+            dev_bugs = dev_bugs[dev_bugs['Bugs'] > 0].sort_values('Bugs', ascending=False)
+            
+            if not dev_bugs.empty:
+                for _, row in dev_bugs.head(5).iterrows():
+                    cor = '#ef4444' if row['FK'] < 1.5 else '#f97316' if row['FK'] < 2.5 else '#22c55e'
+                    st.markdown(f"""
+                    <div style="background: rgba(100,100,100,0.05); padding: 10px; border-radius: 8px; margin: 5px 0; border-left: 3px solid {cor};">
+                        <b>{row['Desenvolvedor']}</b><br>
+                        <span style="font-size: 12px;">🐛 {row['Bugs']} bugs | FK: {row['FK']} | {row['Cards']} cards</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.success("✅ Nenhum desenvolvedor com bugs significativos!")
         
-        else:
-            st.success("✅ Nenhum card aguardando validação no momento!")
-    
-    # Cards com aging - COM LISTAGEM COMPLETA
-    with st.expander("⏰ Cards Envelhecidos (Aging)", expanded=False):
-        aging_waiting = metricas_qa['aging']['waiting']
-        aging_testing = metricas_qa['aging']['testing']
-        
-        if not aging_waiting.empty or not aging_testing.empty:
-            st.markdown(f"""
-            <div class="alert-warning">
-                <b>⚠️ {metricas_qa['aging']['total']} card(s) estão há mais de {REGRAS['dias_aging_alerta']} dias no mesmo status!</b>
+        # Janela de Validação
+        with st.expander("🕐 Janela de Validação (Análise de Risco)", expanded=True):
+            st.markdown("""
+            <div class="alert-info">
+                <b>📋 Regras de Janela de Validação</b>
+                <p>A janela considera a <b>complexidade de teste</b> do card para determinar se há tempo suficiente:</p>
+                <ul style="margin: 5px 0 0 20px;">
+                    <li><b>Alta:</b> 3+ dias necessários</li>
+                    <li><b>Média:</b> 2 dias necessários</li>
+                    <li><b>Baixa:</b> 1 dia é suficiente</li>
+                </ul>
             </div>
             """, unsafe_allow_html=True)
             
-            if not aging_waiting.empty:
-                mostrar_lista_df_completa(aging_waiting, "Aging - Aguardando QA")
+            cards_qa = df[df['status_cat'].isin(['waiting_qa', 'testing'])]
             
-            if not aging_testing.empty:
-                mostrar_lista_df_completa(aging_testing, "Aging - Em Validação")
-        else:
-            st.success("✅ Nenhum card envelhecido! Fluxo de QA saudável.")
+            if not cards_qa.empty:
+                fora_janela = cards_qa[cards_qa['janela_status'] == 'fora']
+                em_risco = cards_qa[cards_qa['janela_status'] == 'risco']
+                dentro_janela = cards_qa[cards_qa['janela_status'] == 'ok']
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    cor = 'red' if len(fora_janela) > 0 else 'green'
+                    criar_card_metrica(str(len(fora_janela)), "🚨 Fora da Janela", cor)
+                with col2:
+                    cor = 'yellow' if len(em_risco) > 0 else 'green'
+                    criar_card_metrica(str(len(em_risco)), "⚠️ Em Risco", cor)
+                with col3:
+                    criar_card_metrica(str(len(dentro_janela)), "✅ Dentro da Janela", "green")
+                
+                if not fora_janela.empty:
+                    st.markdown("### 🚨 Cards FORA da Janela")
+                    df_fora = fora_janela[['ticket_id', 'titulo', 'complexidade', 'dias_ate_release', 'desenvolvedor', 'sp']].copy()
+                    df_fora.columns = ['Ticket', 'Título', 'Complexidade', 'Dias Disponíveis', 'Dev', 'SP']
+                    df_fora['Título'] = df_fora['Título'].str[:40] + '...'
+                    st.dataframe(df_fora, hide_index=True, use_container_width=True)
+            else:
+                st.success("✅ Nenhum card aguardando validação!")
+        
+        # Cards Aging
+        with st.expander("⏰ Cards Envelhecidos (Aging)", expanded=False):
+            aging_waiting = metricas_qa['aging']['waiting']
+            aging_testing = metricas_qa['aging']['testing']
+            
+            if not aging_waiting.empty or not aging_testing.empty:
+                st.markdown(f"""
+                <div class="alert-warning">
+                    <b>⚠️ {metricas_qa['aging']['total']} card(s) há mais de {REGRAS['dias_aging_alerta']} dias no mesmo status!</b>
+                </div>
+                """, unsafe_allow_html=True)
+                if not aging_waiting.empty:
+                    mostrar_lista_df_completa(aging_waiting, "Aging - Aguardando QA")
+                if not aging_testing.empty:
+                    mostrar_lista_df_completa(aging_testing, "Aging - Em Validação")
+            else:
+                st.success("✅ Nenhum card envelhecido!")
+        
+        # Filas
+        with st.expander("📋 Fila - Aguardando Validação", expanded=False):
+            fila_qa = df[df['status_cat'] == 'waiting_qa'].sort_values('dias_em_status', ascending=False)
+            mostrar_lista_df_completa(fila_qa, "Aguardando QA")
+        
+        with st.expander("🧪 Em Validação", expanded=False):
+            em_teste = df[df['status_cat'] == 'testing'].sort_values('dias_em_status', ascending=False)
+            mostrar_lista_df_completa(em_teste, "Em Validação")
     
-    # Fila completa COM LISTAGEM COMPLETA
-    with st.expander("📋 Fila Completa - Aguardando Validação", expanded=False):
-        fila_qa = df[df['status_cat'] == 'waiting_qa'].sort_values('dias_em_status', ascending=False)
-        mostrar_lista_df_completa(fila_qa, "Aguardando QA")
-    
-    # Em validação COM LISTAGEM COMPLETA
-    with st.expander("🧪 Em Validação", expanded=False):
-        em_teste = df[df['status_cat'] == 'testing'].sort_values('dias_em_status', ascending=False)
-        mostrar_lista_df_completa(em_teste, "Em Validação")
+    else:
+        # ====== VISÃO INDIVIDUAL DO QA SELECIONADO ======
+        df_qa = df[df['qa'] == qa_sel]
+        
+        if df_qa.empty:
+            st.warning(f"Nenhum card atribuído para {qa_sel}")
+            return
+        
+        st.markdown(f"### 👤 Métricas de {qa_sel}")
+        
+        # KPIs individuais
+        with st.expander("📊 Indicadores Individuais", expanded=True):
+            validados = len(df_qa[df_qa['status_cat'] == 'done'])
+            em_fila = len(df_qa[df_qa['status_cat'].isin(['waiting_qa', 'testing'])])
+            bugs_encontrados = int(df_qa['bugs'].sum())
+            cards_sem_bugs = len(df_qa[(df_qa['status_cat'] == 'done') & (df_qa['bugs'] == 0)])
+            fpy_val = cards_sem_bugs / validados * 100 if validados > 0 else 0
+            sp_total = int(df_qa['sp'].sum())
+            lead_time_medio = df_qa['lead_time'].mean() if not df_qa.empty else 0
+            
+            col1, col2, col3, col4, col5 = st.columns(5)
+            
+            with col1:
+                criar_card_metrica(str(len(df_qa)), "Total Cards", "blue")
+            with col2:
+                criar_card_metrica(str(validados), "Validados", "green")
+            with col3:
+                criar_card_metrica(str(em_fila), "Em Fila", "yellow")
+            with col4:
+                criar_card_metrica(str(bugs_encontrados), "Bugs Encontrados", "purple")
+            with col5:
+                cor = 'green' if fpy_val >= 80 else 'yellow' if fpy_val >= 60 else 'red'
+                criar_card_metrica(f"{fpy_val:.0f}%", "FPY", cor)
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Story Points Total", sp_total)
+            with col2:
+                st.metric("Lead Time Médio", f"{lead_time_medio:.1f} dias")
+            with col3:
+                aging_qa = len(df_qa[df_qa['dias_em_status'] > REGRAS['dias_aging_alerta']])
+                st.metric("Cards Aging", aging_qa)
+        
+        # Distribuição por Status
+        with st.expander("📊 Distribuição por Status", expanded=True):
+            status_count = df_qa['status_cat'].value_counts().reset_index()
+            status_count.columns = ['Status', 'Cards']
+            status_count['Status'] = status_count['Status'].map(lambda x: STATUS_NOMES.get(x, x))
+            
+            fig = px.pie(status_count, values='Cards', names='Status', hole=0.4,
+                         color_discrete_sequence=px.colors.qualitative.Set2)
+            fig.update_layout(height=350)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Bugs por Desenvolvedor (que esse QA validou)
+        with st.expander("🐛 Bugs por Desenvolvedor", expanded=True):
+            bugs_dev = df_qa.groupby('desenvolvedor').agg({
+                'bugs': 'sum', 'sp': 'sum', 'ticket_id': 'count'
+            }).reset_index()
+            bugs_dev.columns = ['Desenvolvedor', 'Bugs', 'SP', 'Cards']
+            bugs_dev = bugs_dev.sort_values('Bugs', ascending=False)
+            
+            if not bugs_dev.empty:
+                st.dataframe(bugs_dev, hide_index=True, use_container_width=True)
+                
+                fig = px.bar(bugs_dev.head(8), x='Desenvolvedor', y='Bugs', color='Bugs',
+                             color_continuous_scale=['#22c55e', '#f97316', '#ef4444'])
+                fig.update_layout(height=300, showlegend=False)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Sem dados de bugs por desenvolvedor")
+        
+        # Cards em Fila do QA
+        with st.expander("📋 Cards em Fila (Aguardando/Validando)", expanded=True):
+            cards_fila = df_qa[df_qa['status_cat'].isin(['waiting_qa', 'testing'])].sort_values('dias_em_status', ascending=False)
+            
+            if not cards_fila.empty:
+                for _, row in cards_fila.iterrows():
+                    dias = row['dias_em_status']
+                    cor = '#ef4444' if dias > 3 else '#eab308' if dias > 1 else '#22c55e'
+                    st.markdown(f"""
+                    <div style="padding: 10px; margin: 5px 0; border-left: 3px solid {cor}; background: rgba(100,100,100,0.05); border-radius: 4px;">
+                        <strong><a href="{row['link']}" style="color: #60a5fa;">{row['ticket_id']}</a></strong> - {row['titulo'][:50]}...<br>
+                        <small style="color: #94a3b8;">📅 {dias} dia(s) | 👤 {row['desenvolvedor']} | {row['sp']} SP | {row['status']}</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.success("✅ Nenhum card na fila!")
+        
+        # Cards Validados
+        with st.expander("✅ Cards Validados (Histórico)", expanded=False):
+            cards_done = df_qa[df_qa['status_cat'] == 'done'].sort_values('lead_time', ascending=False)
+            
+            if not cards_done.empty:
+                for _, row in cards_done.iterrows():
+                    bugs_cor = '#ef4444' if row['bugs'] >= 2 else '#eab308' if row['bugs'] == 1 else '#22c55e'
+                    st.markdown(f"""
+                    <div style="padding: 10px; margin: 5px 0; border-left: 3px solid {bugs_cor}; background: rgba(100,100,100,0.05); border-radius: 4px;">
+                        <strong><a href="{row['link']}" style="color: #60a5fa;">{row['ticket_id']}</a></strong> - {row['titulo'][:50]}...<br>
+                        <small style="color: #94a3b8;">🐛 {row['bugs']} bugs | 👤 {row['desenvolvedor']} | {row['sp']} SP | ⏱️ {row['lead_time']:.1f}d</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.info("Nenhum card validado ainda")
 
 
 def aba_dev(df: pd.DataFrame):
