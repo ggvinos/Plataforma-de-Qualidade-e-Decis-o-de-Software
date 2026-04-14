@@ -1834,7 +1834,7 @@ def exibir_detalhes_sd(card: Dict, links: List[Dict], comentarios: List[Dict]):
     exibir_cards_vinculados(links)
     
     # ===== COMENTÁRIOS =====
-    exibir_comentarios(comentarios)
+    exibir_comentarios(comentarios, projeto="SD")
 
 
 def exibir_detalhes_qa(card: Dict, links: List[Dict], comentarios: List[Dict]):
@@ -1972,7 +1972,7 @@ def exibir_detalhes_qa(card: Dict, links: List[Dict], comentarios: List[Dict]):
     exibir_cards_vinculados(links)
     
     # ===== COMENTÁRIOS =====
-    exibir_comentarios(comentarios)
+    exibir_comentarios(comentarios, projeto="QA")
 
 
 def exibir_detalhes_pb(card: Dict, links: List[Dict], comentarios: List[Dict]):
@@ -2180,7 +2180,7 @@ def exibir_detalhes_pb(card: Dict, links: List[Dict], comentarios: List[Dict]):
     exibir_cards_vinculados(links)
     
     # ===== COMENTÁRIOS =====
-    exibir_comentarios(comentarios)
+    exibir_comentarios(comentarios, projeto="PB")
 
 
 def exibir_cards_vinculados(links: List[Dict]):
@@ -2619,9 +2619,15 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
     return comentarios_pre
 
 
-def exibir_comentarios(comentarios: List[Dict]):
+def exibir_comentarios(comentarios: List[Dict], projeto: str = "SD"):
     """Exibe seção de comentários do card (filtrados e classificados) com filtros interativos."""
-    # Filtra e classifica comentários
+    
+    # Usa classificação diferente para PB (Product Backlog)
+    if projeto == "PB":
+        exibir_comentarios_pb(comentarios)
+        return
+    
+    # Para SD e QA: classificação com tags de QA
     comentarios_filtrados = filtrar_e_classificar_comentarios(comentarios)
     
     total_original = len(comentarios) if comentarios else 0
@@ -2782,6 +2788,391 @@ def exibir_comentarios(comentarios: List[Dict]):
                 st.caption(f"ℹ️ Este card tem {filtrados} comentário(s) de automação que foram ocultados.")
             else:
                 st.caption("Nenhum comentário de usuário neste card.")
+
+
+def filtrar_comentarios_pb(comentarios: List[Dict]) -> List[Dict]:
+    """
+    Filtra e classifica comentários para Product Backlog (PB).
+    Tags específicas para contexto de produto, não de QA.
+    
+    Classificações PB:
+    - decisao: Aprovações, decisões, definições
+    - duvida: Perguntas, questionamentos
+    - requisito: Detalhamento, escopo, critérios
+    - alinhamento: Reuniões, alinhamentos
+    - normal: Comentários gerais
+    """
+    if not comentarios:
+        return []
+    
+    # Padrões de automação a serem filtrados
+    padroes_automacao = [
+        "mentioned this issue in a commit",
+        "mentioned this issue in a branch",
+        "merge branch",
+        "pushed a commit",
+        "created a branch",
+        "deleted branch",
+        "opened a pull request",
+        "closed a pull request",
+        "merged a pull request",
+        "mentioned this issue in a pull request",
+        "linked a pull request",
+        "connected this issue",
+        "referenced this issue",
+        "/confirmationcall on branch",
+        "on branch sd-",
+        "on branch SD-",
+        "on branch pb-",
+        "on branch PB-",
+    ]
+    
+    # Padrões para DECISÃO/APROVAÇÃO
+    padroes_decisao = [
+        "aprovado",
+        "aprovação",
+        "aprovei",
+        "aprovar",
+        "decidido",
+        "decisão",
+        "definido",
+        "definição",
+        "definimos",
+        "ficou definido",
+        "ficou decidido",
+        "vamos fazer",
+        "vamos seguir",
+        "seguir com",
+        "ok para",
+        "pode seguir",
+        "pode prosseguir",
+        "liberado",
+        "confirmado",
+        "confirmação",
+        "validado pelo",
+        "validado por",
+        "alinhado com",
+        "combinado",
+        "acordado",
+    ]
+    
+    # Padrões para DÚVIDA/PERGUNTA
+    padroes_duvida = [
+        "dúvida",
+        "duvida",
+        "pergunta",
+        "questão",
+        "questao",
+        "?",  # comentários com interrogação
+        "não entendi",
+        "não ficou claro",
+        "poderia esclarecer",
+        "pode explicar",
+        "como funciona",
+        "como seria",
+        "qual seria",
+        "qual é",
+        "o que seria",
+        "o que significa",
+        "faz sentido",
+        "seria possível",
+        "é possível",
+        "tem como",
+        "precisamos entender",
+        "preciso entender",
+        "precisamos definir",
+        "aguardando esclarecimento",
+        "aguardando retorno",
+        "favor esclarecer",
+        "por favor esclarecer",
+    ]
+    
+    # Padrões para REQUISITO/ESCOPO
+    padroes_requisito = [
+        "requisito",
+        "critério de aceite",
+        "critérios de aceite",
+        "criterio de aceite",
+        "ac:",
+        "escopo",
+        "funcionalidade",
+        "deve permitir",
+        "deve ser possível",
+        "o sistema deve",
+        "o usuário deve",
+        "o usuário poderá",
+        "será necessário",
+        "deverá",
+        "regra de negócio",
+        "regra:",
+        "detalhamento",
+        "especificação",
+        "fluxo:",
+        "comportamento esperado",
+        "cenário de uso",
+        "caso de uso",
+        "user story",
+        "história de usuário",
+        "como um",
+        "eu quero",
+        "para que",
+    ]
+    
+    # Padrões para ALINHAMENTO
+    padroes_alinhamento = [
+        "alinhamento",
+        "alinhado",
+        "alinhei",
+        "reunião",
+        "conversei",
+        "conversamos",
+        "falei com",
+        "falamos com",
+        "discutimos",
+        "discutido",
+        "apresentamos",
+        "apresentado",
+        "feedback do",
+        "retorno do",
+        "segundo o",
+        "conforme",
+        "de acordo com",
+        "stakeholder",
+        "product owner",
+        "po disse",
+        "cliente disse",
+        "cliente solicitou",
+        "solicitação do",
+        "pedido do",
+    ]
+    
+    comentarios_filtrados = []
+    
+    for com in comentarios:
+        texto_lower = com.get('texto', '').lower()
+        autor = com.get('autor', '').lower()
+        
+        # Verifica se é automação
+        eh_automacao = False
+        for padrao in padroes_automacao:
+            if padrao.lower() in texto_lower:
+                eh_automacao = True
+                break
+        
+        if any(bot in autor for bot in ['automation', 'bot', 'github', 'bitbucket', 'gitlab', 'jira']):
+            eh_automacao = True
+        
+        if eh_automacao:
+            continue
+        
+        # Classifica (ordem de prioridade)
+        classificacao = 'normal'
+        
+        # 1. Decisão
+        for padrao in padroes_decisao:
+            if padrao in texto_lower:
+                classificacao = 'decisao'
+                break
+        
+        # 2. Dúvida (se não foi decisão)
+        if classificacao == 'normal':
+            for padrao in padroes_duvida:
+                if padrao in texto_lower:
+                    classificacao = 'duvida'
+                    break
+        
+        # 3. Requisito
+        if classificacao == 'normal':
+            for padrao in padroes_requisito:
+                if padrao in texto_lower:
+                    classificacao = 'requisito'
+                    break
+        
+        # 4. Alinhamento
+        if classificacao == 'normal':
+            for padrao in padroes_alinhamento:
+                if padrao in texto_lower:
+                    classificacao = 'alinhamento'
+                    break
+        
+        # Parse da data
+        try:
+            data_parsed = datetime.fromisoformat(com['data'].replace('Z', '+00:00')).replace(tzinfo=None)
+        except:
+            data_parsed = datetime.now()
+        
+        comentarios_filtrados.append({
+            **com,
+            'classificacao': classificacao,
+            'data_parsed': data_parsed,
+        })
+    
+    # Ordena por data
+    comentarios_filtrados.sort(key=lambda x: x['data_parsed'])
+    
+    # Numera os eventos
+    contadores = {'decisao': 0, 'duvida': 0, 'requisito': 0, 'alinhamento': 0}
+    for com in comentarios_filtrados:
+        if com['classificacao'] in contadores:
+            contadores[com['classificacao']] += 1
+            com['numero_evento'] = contadores[com['classificacao']]
+    
+    return comentarios_filtrados
+
+
+def exibir_comentarios_pb(comentarios: List[Dict]):
+    """Exibe comentários para cards de Product Backlog (PB) com tags de produto."""
+    
+    comentarios_filtrados = filtrar_comentarios_pb(comentarios)
+    
+    total_original = len(comentarios) if comentarios else 0
+    total_filtrado = len(comentarios_filtrados)
+    filtrados = total_original - total_filtrado
+    
+    # Conta por classificação
+    decisoes = sum(1 for c in comentarios_filtrados if c.get('classificacao') == 'decisao')
+    duvidas = sum(1 for c in comentarios_filtrados if c.get('classificacao') == 'duvida')
+    requisitos = sum(1 for c in comentarios_filtrados if c.get('classificacao') == 'requisito')
+    alinhamentos = sum(1 for c in comentarios_filtrados if c.get('classificacao') == 'alinhamento')
+    normais = sum(1 for c in comentarios_filtrados if c.get('classificacao') == 'normal')
+    
+    if comentarios_filtrados and len(comentarios_filtrados) > 0:
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Monta título com contagens
+        titulo_extra = []
+        if decisoes > 0:
+            titulo_extra.append(f"✅ {decisoes}")
+        if duvidas > 0:
+            titulo_extra.append(f"❓ {duvidas}")
+        if requisitos > 0:
+            titulo_extra.append(f"📋 {requisitos}")
+        if alinhamentos > 0:
+            titulo_extra.append(f"🤝 {alinhamentos}")
+        titulo_sufixo = f" | {' '.join(titulo_extra)}" if titulo_extra else ""
+        
+        with st.expander(f"💬 **Comentários ({total_filtrado})**{titulo_sufixo}", expanded=True):
+            if filtrados > 0:
+                st.caption(f"ℹ️ {filtrados} comentário(s) de automação foram ocultados")
+            
+            # FILTROS INTERATIVOS para PB
+            st.markdown("##### 🔍 Filtrar por tipo:")
+            col1, col2, col3, col4, col5, col6 = st.columns(6)
+            
+            with col1:
+                filtro_todos = st.checkbox("Todos", value=True, key="filtro_pb_todos")
+            with col2:
+                filtro_decisao = st.checkbox(f"✅ Decisão ({decisoes})", value=False, key="filtro_pb_decisao", disabled=decisoes==0)
+            with col3:
+                filtro_duvida = st.checkbox(f"❓ Dúvida ({duvidas})", value=False, key="filtro_pb_duvida", disabled=duvidas==0)
+            with col4:
+                filtro_requisito = st.checkbox(f"📋 Requisito ({requisitos})", value=False, key="filtro_pb_requisito", disabled=requisitos==0)
+            with col5:
+                filtro_alinhamento = st.checkbox(f"🤝 Alinhamento ({alinhamentos})", value=False, key="filtro_pb_alinhamento", disabled=alinhamentos==0)
+            with col6:
+                filtro_normal = st.checkbox(f"💬 Outros ({normais})", value=False, key="filtro_pb_normal", disabled=normais==0)
+            
+            # Determina quais tipos exibir
+            tipos_exibir = []
+            if filtro_todos and not (filtro_decisao or filtro_duvida or filtro_requisito or filtro_alinhamento or filtro_normal):
+                tipos_exibir = ['decisao', 'duvida', 'requisito', 'alinhamento', 'normal']
+            else:
+                if filtro_decisao:
+                    tipos_exibir.append('decisao')
+                if filtro_duvida:
+                    tipos_exibir.append('duvida')
+                if filtro_requisito:
+                    tipos_exibir.append('requisito')
+                if filtro_alinhamento:
+                    tipos_exibir.append('alinhamento')
+                if filtro_normal:
+                    tipos_exibir.append('normal')
+            
+            if not tipos_exibir:
+                tipos_exibir = ['decisao', 'duvida', 'requisito', 'alinhamento', 'normal']
+            
+            comentarios_exibir = [c for c in comentarios_filtrados if c.get('classificacao') in tipos_exibir]
+            
+            st.markdown("---")
+            
+            # Legenda para PB
+            st.markdown("""
+            <div style='display: flex; gap: 12px; margin-bottom: 15px; flex-wrap: wrap; font-size: 0.85em;'>
+                <span>✅ <b style='color: #16a34a;'>Decisão</b></span>
+                <span>❓ <b style='color: #ca8a04;'>Dúvida</b></span>
+                <span>📋 <b style='color: #2563eb;'>Requisito</b></span>
+                <span>🤝 <b style='color: #7c3aed;'>Alinhamento</b></span>
+                <span>💬 <b style='color: #64748b;'>Geral</b></span>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if not comentarios_exibir:
+                st.info("Nenhum comentário encontrado para os filtros selecionados.")
+            else:
+                st.caption(f"Exibindo {len(comentarios_exibir)} de {total_filtrado} comentários")
+            
+            for i, com in enumerate(comentarios_exibir):
+                try:
+                    data_com = datetime.fromisoformat(com['data'].replace('Z', '+00:00'))
+                    data_formatada = data_com.strftime('%d/%m/%Y %H:%M')
+                except:
+                    data_formatada = com['data'][:10] if com['data'] else 'Data desconhecida'
+                
+                classificacao = com.get('classificacao', 'normal')
+                numero_evento = com.get('numero_evento', '')
+                
+                if classificacao == 'decisao':
+                    cor_borda = '#16a34a'  # Verde
+                    cor_fundo = '#f0fdf4'
+                    cor_avatar = '#16a34a'
+                    badge = f'<span style="background: #16a34a; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; font-weight: bold;">✅ Decisão #{numero_evento}</span>'
+                elif classificacao == 'duvida':
+                    cor_borda = '#ca8a04'  # Amarelo escuro
+                    cor_fundo = '#fefce8'
+                    cor_avatar = '#ca8a04'
+                    badge = f'<span style="background: #ca8a04; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; font-weight: bold;">❓ Dúvida #{numero_evento}</span>'
+                elif classificacao == 'requisito':
+                    cor_borda = '#2563eb'  # Azul
+                    cor_fundo = '#eff6ff'
+                    cor_avatar = '#2563eb'
+                    badge = f'<span style="background: #2563eb; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; font-weight: bold;">📋 Requisito #{numero_evento}</span>'
+                elif classificacao == 'alinhamento':
+                    cor_borda = '#7c3aed'  # Roxo
+                    cor_fundo = '#f5f3ff'
+                    cor_avatar = '#7c3aed'
+                    badge = f'<span style="background: #7c3aed; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; font-weight: bold;">🤝 Alinhamento #{numero_evento}</span>'
+                else:
+                    cor_borda = '#94a3b8'
+                    cor_fundo = '#f8fafc'
+                    cor_avatar = '#64748b'
+                    badge = ''
+                
+                st.markdown(f"""
+<div style='background: {cor_fundo}; padding: 14px 16px; border-radius: 10px; margin-bottom: 12px; border-left: 4px solid {cor_borda}; box-shadow: 0 1px 3px rgba(0,0,0,0.05);'>
+    <div style='display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;'>
+        <div style='display: flex; align-items: center; gap: 10px;'>
+            <div style='width: 36px; height: 36px; border-radius: 50%; background: {cor_avatar}; 
+                        display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.9em;'>
+                {com['autor'][0].upper() if com['autor'] else '?'}
+            </div>
+            <div>
+                <strong style='color: #1e293b; font-size: 0.95em;'>{com['autor']}</strong>
+                <div style='color: #64748b; font-size: 0.8em;'>{data_formatada}</div>
+            </div>
+        </div>
+        <div>{badge}</div>
+    </div>
+    <div style='color: #334155; font-size: 0.9em; line-height: 1.6; padding-left: 46px; white-space: pre-wrap;'>{com['texto'][:1000]}{'...' if len(com['texto']) > 1000 else ''}</div>
+</div>
+                """, unsafe_allow_html=True)
+    else:
+        st.markdown("<br>", unsafe_allow_html=True)
+        filtrados_msg = f" ({filtrados} de automação ocultados)" if filtrados > 0 else ""
+        with st.expander(f"💬 **Comentários (0)**{filtrados_msg}", expanded=False):
+            if filtrados > 0:
+                st.caption(f"ℹ️ Este card tem {filtrados} comentário(s) de automação que foram ocultados.")
+            else:
+                st.caption("Nenhum comentário neste card.")
 
 
 # ==============================================================================
@@ -5899,7 +6290,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.38 • Dashboard de Inteligência QA
+                    v8.39 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -5907,8 +6298,16 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.38** *(Atual)*
-                - 🐛 Detecção de **#bug** (hashtag) - padrão do QA
+                **v8.39** *(Atual)*
+                - 📦 **Tags específicas por projeto** - PB tem tags de Produto!
+                - ✅ PB: Decisão (verde) - aprovações e definições
+                - ❓ PB: Dúvida (amarelo) - perguntas e questionamentos
+                - 📋 PB: Requisito (azul) - escopo e critérios de aceite
+                - 🤝 PB: Alinhamento (roxo) - reuniões e conversas
+                - 🎨 SD/QA mantém tags de QA (Bug, Reprovação, etc.)
+                
+                **v8.38** *(14/04/2026)*
+                - 🐛 Detecção de #bug (hashtag) - padrão do QA
                 - 🔍 +50 novos padrões de bugs adicionados
                 - 🌐 Detecta problemas de tradução, UX, interface
                 - ⚠️ Detecta "sistema retornou", "api retornou", "devTools"
