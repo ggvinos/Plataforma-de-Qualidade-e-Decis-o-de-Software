@@ -2851,8 +2851,26 @@ def aba_qa(df: pd.DataFrame):
     metricas_qa = calcular_metricas_qa(df)
     qas = [q for q in df['qa'].unique() if q != 'Não atribuído']
     
+    # Verificar se há QA na URL para compartilhamento
+    qa_url = st.query_params.get("qa", None)
+    opcoes_qa = ["👀 Visão Geral do Time"] + sorted(qas)
+    
+    # Determinar índice inicial baseado na URL
+    indice_inicial = 0
+    if qa_url and qa_url in qas:
+        indice_inicial = opcoes_qa.index(qa_url)
+    
     # SELETOR DE QA
-    qa_sel = st.selectbox("🔍 Selecione o QA", ["👀 Visão Geral do Time"] + sorted(qas))
+    qa_sel = st.selectbox("🔍 Selecione o QA", opcoes_qa, index=indice_inicial, key="select_qa")
+    
+    # Atualizar URL quando selecionar um QA
+    if qa_sel != "👀 Visão Geral do Time":
+        st.query_params["qa"] = qa_sel
+        st.query_params["aba"] = "qa"
+    else:
+        if "qa" in st.query_params:
+            del st.query_params["qa"]
+    
     st.markdown("---")
     
     if qa_sel == "👀 Visão Geral do Time":
@@ -3094,7 +3112,15 @@ def aba_qa(df: pd.DataFrame):
             st.warning(f"Nenhum card atribuído para {qa_sel}")
             return
         
-        st.markdown(f"### 👤 Métricas de {qa_sel}")
+        col_titulo, col_share = st.columns([8, 2])
+        with col_titulo:
+            st.markdown(f"### 👤 Métricas de {qa_sel}")
+        with col_share:
+            import urllib.parse
+            base_url = "https://ninatecnologia.streamlit.app"
+            share_url = f"{base_url}?aba=qa&qa={urllib.parse.quote(qa_sel)}"
+            st.code(share_url, language=None)
+            st.markdown(f'<a href="{share_url}" target="_blank">🔗 Abrir Link</a>', unsafe_allow_html=True)
         
         # KPIs individuais
         with st.expander("📊 Indicadores Individuais", expanded=True):
@@ -3175,6 +3201,83 @@ def aba_qa(df: pd.DataFrame):
             else:
                 st.success("✅ Nenhum card na fila!")
         
+        # NOVAS MÉTRICAS INDIVIDUAIS
+        with st.expander("📈 Throughput e Eficiência", expanded=True):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Throughput semanal
+                df_done_qa = df_qa[df_qa['status_cat'] == 'done'].copy()
+                if not df_done_qa.empty and 'updated_at' in df_done_qa.columns:
+                    df_done_qa['semana'] = pd.to_datetime(df_done_qa['updated_at']).dt.isocalendar().week
+                    throughput_sem = df_done_qa.groupby('semana').size().reset_index(name='Cards')
+                    
+                    if len(throughput_sem) > 1:
+                        fig = px.line(throughput_sem, x='semana', y='Cards', markers=True,
+                                      title=f'📊 Throughput Semanal - {qa_sel}')
+                        fig.update_layout(height=250, xaxis_title="Semana", yaxis_title="Cards Validados")
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("Dados insuficientes para gráfico de throughput")
+                else:
+                    st.info("Sem histórico de validações")
+            
+            with col2:
+                # Eficiência: SP por card
+                sp_medio = df_qa['sp'].mean() if not df_qa.empty else 0
+                bugs_por_card = df_qa['bugs'].mean() if not df_qa.empty else 0
+                
+                # Taxa de retrabalho
+                cards_com_bugs = len(df_qa[df_qa['bugs'] > 0])
+                total_validados = len(df_qa[df_qa['status_cat'] == 'done'])
+                taxa_retrabalho = (cards_com_bugs / total_validados * 100) if total_validados > 0 else 0
+                
+                st.markdown(f"""
+                <div style="padding: 15px; background: rgba(100,100,100,0.1); border-radius: 8px; margin-bottom: 10px;">
+                    <h4 style="margin-top: 0;">📊 Indicadores de Eficiência</h4>
+                    <p><strong>SP Médio por Card:</strong> {sp_medio:.1f}</p>
+                    <p><strong>Bugs Médio por Card:</strong> {bugs_por_card:.2f}</p>
+                    <p><strong>Taxa de Retrabalho:</strong> {taxa_retrabalho:.1f}%</p>
+                    <p><strong>Validações Limpas (FPY):</strong> {fpy_val:.1f}%</p>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # Comparativo com a Média do Time
+        with st.expander("📊 Comparativo com o Time", expanded=True):
+            # Métricas do time
+            todos_qas = df[df['status_cat'] == 'done']
+            media_time_bugs = todos_qas.groupby('qa')['bugs'].sum().mean() if not todos_qas.empty else 0
+            media_time_sp = todos_qas.groupby('qa')['sp'].sum().mean() if not todos_qas.empty else 0
+            media_time_validados = len(todos_qas) / len(todos_qas['qa'].unique()) if not todos_qas.empty else 0
+            
+            # Métricas individuais
+            meus_bugs = int(df_qa['bugs'].sum())
+            meu_sp = int(df_qa['sp'].sum())
+            meus_validados = validados
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                diff_validados = meus_validados - media_time_validados
+                cor = "green" if diff_validados >= 0 else "red"
+                st.metric("Cards Validados", meus_validados, f"{diff_validados:+.0f} vs média", delta_color="normal")
+            with col2:
+                diff_sp = meu_sp - media_time_sp
+                st.metric("Story Points", meu_sp, f"{diff_sp:+.0f} vs média", delta_color="normal")
+            with col3:
+                diff_bugs = meus_bugs - media_time_bugs
+                st.metric("Bugs Encontrados", meus_bugs, f"{diff_bugs:+.0f} vs média", delta_color="inverse")
+        
+        # Distribuição de Complexidade
+        with st.expander("🎯 Distribuição de Complexidade (SP)", expanded=False):
+            sp_dist = df_qa.groupby('sp').size().reset_index(name='Cards')
+            if not sp_dist.empty:
+                fig = px.bar(sp_dist, x='sp', y='Cards', title="Cards por Story Points",
+                             color='sp', color_continuous_scale='Blues')
+                fig.update_layout(height=300, xaxis_title="Story Points", yaxis_title="Quantidade")
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Sem dados de SP")
+        
         # Cards Validados
         with st.expander("✅ Cards Validados (Histórico)", expanded=False):
             cards_done = df_qa[df_qa['status_cat'] == 'done'].sort_values('lead_time', ascending=False)
@@ -3199,7 +3302,22 @@ def aba_dev(df: pd.DataFrame):
     
     devs = [d for d in df['desenvolvedor'].unique() if d != 'Não atribuído']
     
-    dev_sel = st.selectbox("👤 Selecione o Desenvolvedor", ["🏆 Ranking Geral"] + sorted(devs))
+    # Suporte a query params para compartilhamento
+    dev_url = st.query_params.get("dev", None)
+    opcoes_dev = ["🏆 Ranking Geral"] + sorted(devs)
+    indice_inicial = 0
+    if dev_url and dev_url in devs:
+        indice_inicial = opcoes_dev.index(dev_url)
+    
+    dev_sel = st.selectbox("👤 Selecione o Desenvolvedor", opcoes_dev, index=indice_inicial, key="select_dev")
+    
+    # Atualiza query params para link compartilhável
+    if dev_sel != "🏆 Ranking Geral":
+        st.query_params["dev"] = dev_sel
+        st.query_params["aba"] = "dev"
+    elif "dev" in st.query_params:
+        del st.query_params["dev"]
+    
     st.markdown("---")
     
     if dev_sel == "🏆 Ranking Geral":
@@ -3462,7 +3580,16 @@ def aba_dev(df: pd.DataFrame):
         analise = analisar_dev_detalhado(df, dev_sel)
         
         if analise:
-            st.markdown(f"### 👤 Métricas de {dev_sel}")
+            # Título com botão de compartilhamento
+            col_titulo, col_share = st.columns([8, 2])
+            with col_titulo:
+                st.markdown(f"### 👤 Métricas de {dev_sel}")
+            with col_share:
+                import urllib.parse
+                base_url = "https://ninatecnologia.streamlit.app"
+                share_url = f"{base_url}?aba=dev&dev={urllib.parse.quote(dev_sel)}"
+                st.code(share_url, language=None)
+                st.markdown(f'<a href="{share_url}" target="_blank">🔗 Abrir Link</a>', unsafe_allow_html=True)
             
             mat = analise['maturidade']
             
@@ -3500,6 +3627,92 @@ def aba_dev(df: pd.DataFrame):
                         <small style="color: #94a3b8;">🐛 {row['bugs']} bugs | 📊 {row['sp']} SP | 📍 {row['status']} | ⏱️ {row['lead_time']:.1f}d</small>
                     </div>
                     """, unsafe_allow_html=True)
+            
+            # NOVAS MÉTRICAS INDIVIDUAIS DEV
+            with st.expander("📈 Throughput e Produtividade", expanded=True):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Throughput semanal
+                    df_dev = analise['df'].copy()
+                    if not df_dev.empty and 'updated_at' in df_dev.columns:
+                        df_done_dev = df_dev[df_dev['status_cat'] == 'done']
+                        if not df_done_dev.empty:
+                            df_done_dev = df_done_dev.copy()
+                            df_done_dev['semana'] = pd.to_datetime(df_done_dev['updated_at']).dt.isocalendar().week
+                            throughput_sem = df_done_dev.groupby('semana').agg({
+                                'ticket_id': 'count',
+                                'sp': 'sum'
+                            }).reset_index()
+                            throughput_sem.columns = ['Semana', 'Cards', 'SP']
+                            
+                            if len(throughput_sem) > 1:
+                                fig = px.line(throughput_sem, x='Semana', y='SP', markers=True,
+                                              title=f'📊 SP Entregues por Semana')
+                                fig.update_layout(height=250, xaxis_title="Semana", yaxis_title="Story Points")
+                                st.plotly_chart(fig, use_container_width=True)
+                            else:
+                                st.info("Dados insuficientes para gráfico de throughput")
+                        else:
+                            st.info("Sem cards finalizados")
+                    else:
+                        st.info("Sem histórico disponível")
+                
+                with col2:
+                    # Métricas de eficiência
+                    sp_medio = analise['df']['sp'].mean() if not analise['df'].empty else 0
+                    bugs_por_sp = analise['bugs_total'] / analise['sp_total'] if analise['sp_total'] > 0 else 0
+                    lead_time_medio = analise['df']['lead_time'].mean() if 'lead_time' in analise['df'].columns else 0
+                    
+                    st.markdown(f"""
+                    <div style="padding: 15px; background: rgba(100,100,100,0.1); border-radius: 8px; margin-bottom: 10px;">
+                        <h4 style="margin-top: 0;">📊 Indicadores de Eficiência</h4>
+                        <p><strong>SP Médio por Card:</strong> {sp_medio:.1f}</p>
+                        <p><strong>Bugs por SP:</strong> {bugs_por_sp:.2f}</p>
+                        <p><strong>Lead Time Médio:</strong> {lead_time_medio:.1f} dias</p>
+                        <p><strong>Fator K:</strong> {analise['fk_medio']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            # Comparativo com a Média do Time
+            with st.expander("📊 Comparativo com o Time", expanded=True):
+                # Métricas do time
+                todos_devs = df[df['status_cat'] == 'done']
+                devs_list = [d for d in todos_devs['desenvolvedor'].unique() if d != 'Não atribuído']
+                
+                if devs_list:
+                    media_time_bugs = todos_devs.groupby('desenvolvedor')['bugs'].sum().mean()
+                    media_time_sp = todos_devs.groupby('desenvolvedor')['sp'].sum().mean()
+                    media_time_cards = len(todos_devs) / len(devs_list) if devs_list else 0
+                    media_time_fk = (todos_devs.groupby('desenvolvedor')['sp'].sum() / (todos_devs.groupby('desenvolvedor')['bugs'].sum() + 1)).mean()
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        diff_cards = analise['cards'] - media_time_cards
+                        st.metric("Cards", analise['cards'], f"{diff_cards:+.0f} vs média", delta_color="normal")
+                    with col2:
+                        diff_sp = analise['sp_total'] - media_time_sp
+                        st.metric("Story Points", analise['sp_total'], f"{diff_sp:+.0f} vs média", delta_color="normal")
+                    with col3:
+                        diff_bugs = analise['bugs_total'] - media_time_bugs
+                        st.metric("Bugs", analise['bugs_total'], f"{diff_bugs:+.0f} vs média", delta_color="inverse")
+                    with col4:
+                        diff_fk = analise['fk_medio'] - media_time_fk
+                        st.metric("Fator K", f"{analise['fk_medio']:.1f}", f"{diff_fk:+.1f} vs média", delta_color="normal")
+                else:
+                    st.info("Dados insuficientes para comparativo")
+            
+            # Distribuição por Status
+            with st.expander("📊 Distribuição por Status", expanded=False):
+                status_count = analise['df']['status_cat'].value_counts().reset_index()
+                status_count.columns = ['Status', 'Cards']
+                status_count['Status'] = status_count['Status'].map(lambda x: STATUS_NOMES.get(x, x))
+                
+                if not status_count.empty:
+                    fig = px.pie(status_count, values='Cards', names='Status', hole=0.4,
+                                 color_discrete_sequence=px.colors.qualitative.Set2)
+                    fig.update_layout(height=350)
+                    st.plotly_chart(fig, use_container_width=True)
         else:
             st.warning(f"Nenhum card encontrado para {dev_sel}")
 
@@ -4883,7 +5096,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.20 • Dashboard de Inteligência QA
+                    v8.21 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -4891,6 +5104,12 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
+                **v8.21** *(Atual)*
+                - 🔗 Links compartilháveis para QA e Dev individuais
+                - 📊 Novas métricas: throughput, eficiência, comparativo
+                - 📈 Gráficos de tendência individual
+                - 🎯 URL params: ?aba=qa&qa=Nome ou ?aba=dev&dev=Nome
+                
                 **v8.20** *(14/04/2026)*
                 - 📦 Filtro Produto acima do rodapé
                 
@@ -4944,6 +5163,18 @@ def main():
                 - 🔍 Busca de card individual
                 - 📊 Painel completo do card
                 """, unsafe_allow_html=True)
+        
+        # Captura query params para navegação direta (QA/Dev individual)
+        aba_param = st.query_params.get("aba", None)
+        qa_param = st.query_params.get("qa", None)
+        dev_param = st.query_params.get("dev", None)
+        
+        # Alerta de navegação para links compartilhados
+        if qa_param or dev_param:
+            nome_colaborador = qa_param if qa_param else dev_param
+            tipo = "QA" if qa_param else "Dev"
+            aba_destino = "🔬 QA" if qa_param else "👨‍💻 Dev"
+            st.info(f"🔗 **Link Compartilhado:** Métricas de **{nome_colaborador}** ({tipo}). Clique na aba **{aba_destino}** abaixo para visualizar.")
         
         # Abas condicionais por projeto (fluxo normal)
         if projeto == "PB":
