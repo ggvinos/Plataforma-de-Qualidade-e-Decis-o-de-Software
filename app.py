@@ -972,6 +972,37 @@ def processar_issue_unica(issue: Dict) -> Dict:
         except:
             pass
     
+    # ===== CAMPOS EXTRAS PARA PRODUTO (PB) =====
+    # Descrição
+    descricao = f.get('description', '') or ''
+    if isinstance(descricao, dict):
+        # Jira Cloud pode retornar ADF (Atlassian Document Format)
+        try:
+            # Tenta extrair texto do ADF
+            content = descricao.get('content', [])
+            partes = []
+            for item in content:
+                if item.get('type') == 'paragraph':
+                    for text_item in item.get('content', []):
+                        if text_item.get('type') == 'text':
+                            partes.append(text_item.get('text', ''))
+            descricao = ' '.join(partes)
+        except:
+            descricao = ''
+    
+    # Labels
+    labels = f.get('labels', []) or []
+    
+    # Componentes
+    componentes_raw = f.get('components', []) or []
+    componentes = [c.get('name', '') for c in componentes_raw] if componentes_raw else []
+    
+    # Epic Link / Parent
+    epic_link = ''
+    parent = f.get('parent', {})
+    if parent:
+        epic_link = parent.get('key', '')
+    
     # Métricas calculadas
     dias_em_status = (hoje - atualizado).days
     lead_time = (resolutiondate - criado).days if resolutiondate else (hoje - criado).days
@@ -1023,6 +1054,11 @@ def processar_issue_unica(issue: Dict) -> Dict:
         'criado_na_sprint': False,  # Simplificado para card individual
         'finalizado_mesma_sprint': False,
         'adicionado_fora_periodo': False,
+        # Campos extras para Produto (PB)
+        'descricao': descricao,
+        'labels': labels,
+        'componentes': componentes,
+        'epic_link': epic_link,
     }
 
 
@@ -2015,6 +2051,7 @@ def exibir_detalhes_pb(card: Dict, links: List[Dict], comentarios: List[Dict]):
         col1, col2 = st.columns(2)
         
         with col1:
+            epic_texto = f"[{card.get('epic_link', '')}]({link_jira(card.get('epic_link', ''))})" if card.get('epic_link') else 'Sem Epic'
             st.markdown(f"""
 | Campo | Valor |
 |-------|-------|
@@ -2022,18 +2059,45 @@ def exibir_detalhes_pb(card: Dict, links: List[Dict], comentarios: List[Dict]):
 | **Produto** | {card['produto']} |
 | **Tipo** | {card['tipo_original']} |
 | **Estimativa** | {card['sp']} SP |
+| **Epic/Parent** | {epic_texto} |
             """)
         
         with col2:
-            resolucao_texto = card.get('resolucao', '') if card.get('resolucao') else 'Não definida'
+            responsavel = card.get('desenvolvedor', 'Não atribuído')
+            if responsavel == 'Não atribuído':
+                responsavel = card.get('relator', 'Não informado')
             st.markdown(f"""
 | Campo | Valor |
 |-------|-------|
 | **Relator** | {card.get('relator', 'Não informado')} |
+| **Responsável** | {responsavel} |
 | **Data Criação** | {card['criado'].strftime('%d/%m/%Y') if pd.notna(card['criado']) else 'N/A'} |
 | **Última Atualização** | {card['atualizado'].strftime('%d/%m/%Y') if pd.notna(card['atualizado']) else 'N/A'} |
 | **Status** | {card['status']} |
             """)
+        
+        # Componentes se houver
+        componentes = card.get('componentes', [])
+        if componentes:
+            comp_texto = ', '.join(componentes)
+            st.markdown(f"""
+            <div style='background: #6366f115; padding: 10px 15px; border-radius: 8px; 
+                        border-left: 3px solid #6366f1; margin-top: 10px;'>
+                <strong style='color: #6366f1;'>🧩 Componentes:</strong> {comp_texto}
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Labels se houver
+        labels = card.get('labels', [])
+        if labels:
+            labels_html = ' '.join([f"<span style='background: #8b5cf620; color: #8b5cf6; padding: 3px 8px; border-radius: 12px; font-size: 0.85em; margin-right: 5px;'>{l}</span>" for l in labels])
+            st.markdown(f"""
+            <div style='background: #8b5cf610; padding: 10px 15px; border-radius: 8px; 
+                        border-left: 3px solid #8b5cf6; margin-top: 10px;'>
+                <strong style='color: #8b5cf6;'>🏷️ Labels:</strong><br>
+                <div style='margin-top: 8px;'>{labels_html}</div>
+            </div>
+            """, unsafe_allow_html=True)
         
         # Resolução/Roteiro em destaque se estiver preenchido
         resolucao = card.get('resolucao', '')
@@ -2043,6 +2107,19 @@ def exibir_detalhes_pb(card: Dict, links: List[Dict], comentarios: List[Dict]):
             <div style='background: {cor_resolucao}15; padding: 12px 15px; border-radius: 8px; 
                         border-left: 3px solid {cor_resolucao}; margin-top: 10px;'>
                 <strong style='color: {cor_resolucao};'>📋 Resolução/Roteiro:</strong> {resolucao}
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # ===== DESCRIÇÃO DO ITEM =====
+    descricao = card.get('descricao', '')
+    if descricao and len(descricao.strip()) > 0:
+        with st.expander("📝 **Descrição**", expanded=True):
+            # Limita a descrição se for muito longa
+            desc_display = descricao[:2000] + '...' if len(descricao) > 2000 else descricao
+            st.markdown(f"""
+            <div style='background: #f8fafc; padding: 15px; border-radius: 8px; 
+                        border: 1px solid #e2e8f0; line-height: 1.6;'>
+                {desc_display}
             </div>
             """, unsafe_allow_html=True)
     
@@ -4061,6 +4138,9 @@ def calcular_metricas_backlog(df: pd.DataFrame) -> Dict:
     if df_backlog.empty:
         df_backlog = df[~df['status_cat'].isin(['done', 'deferred'])]
     
+    # REMOVER HOTFIX - não passa por produto, vai direto pra dev
+    df_backlog = df_backlog[df_backlog['tipo'] != 'HOTFIX']
+    
     total_backlog = len(df_backlog)
     
     if total_backlog == 0:
@@ -5212,7 +5292,7 @@ def main():
             
             filtro_sprint = st.selectbox(
                 "🗓️ Período",
-                ["Sprint Ativa", "Últimos 30 dias", "Últimos 90 dias"],
+                ["Todo o período", "Sprint Ativa", "Últimos 30 dias", "Últimos 90 dias"],
                 index=0
             )
         else:
@@ -5244,7 +5324,9 @@ def main():
     # ===== MODO DASHBOARD NORMAL =====
     else:
         # JQL
-        if filtro_sprint == "Sprint Ativa":
+        if filtro_sprint == "Todo o período":
+            jql = f'project = {projeto} ORDER BY created DESC'
+        elif filtro_sprint == "Sprint Ativa":
             jql = f'project = {projeto} AND sprint in openSprints() ORDER BY created DESC'
         elif filtro_sprint == "Últimos 30 dias":
             jql = f'project = {projeto} AND created >= -30d ORDER BY created DESC'
@@ -5281,7 +5363,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.33 • Dashboard de Inteligência QA
+                    v8.34 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -5289,7 +5371,14 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.33** *(Atual)*
+                **v8.34** *(Atual)*
+                - 📦 Refatoração da aba Produto (PB) a pedido da Ellen
+                - 🚫 PB: Hotfix removido (não passa por produto)
+                - 📅 Filtro: "Todo o período" agora é padrão
+                - 📝 PB: Descrição, Labels, Componentes e Epic nos cards
+                - 👤 PB: Mostra Responsável no card pesquisado
+                
+                **v8.33** *(14/04/2026)*
                 - 🔧 Fix: Login persistente restaurado corretamente
                 - 🍪 Usa get_all() para aguardar cookies carregarem
                 - ⚡ Corrigido timing assíncrono do CookieManager
