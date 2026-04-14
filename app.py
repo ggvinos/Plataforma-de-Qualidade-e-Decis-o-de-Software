@@ -344,6 +344,49 @@ def verificar_login() -> bool:
     return st.session_state.get("logged_in", False) and st.session_state.get("user_email")
 
 
+def verificar_login_salvo():
+    """
+    Verifica se há um login salvo no localStorage do navegador.
+    Usa JavaScript para ler e envia via query params.
+    """
+    # Se já está logado, não faz nada
+    if st.session_state.get("logged_in", False):
+        return
+    
+    # Verifica se há email nos query params (vindo do localStorage)
+    email_salvo = st.query_params.get("_auth", None)
+    
+    if email_salvo:
+        # Faz login automático
+        if fazer_login(email_salvo):
+            # Remove o param de auth da URL para não ficar visível
+            st.query_params.pop("_auth", None)
+            st.rerun()
+
+
+def carregar_login_do_navegador():
+    """Injeta JavaScript para verificar localStorage e redirecionar com o email salvo."""
+    # Só executa se não estiver logado
+    if st.session_state.get("logged_in", False):
+        return
+    
+    # JavaScript que verifica localStorage e adiciona param à URL se houver login salvo
+    components.html("""
+    <script>
+    (function() {
+        const savedEmail = localStorage.getItem('ninadash_email');
+        const currentUrl = new URL(window.location.href);
+        
+        // Se há email salvo e não está nos params atuais
+        if (savedEmail && !currentUrl.searchParams.has('_auth')) {
+            currentUrl.searchParams.set('_auth', savedEmail);
+            window.location.href = currentUrl.toString();
+        }
+    })();
+    </script>
+    """, height=0)
+
+
 def extrair_nome_usuario(email: str) -> str:
     """Extrai o nome do usuário do e-mail corporativo (nome.sobrenome@...)."""
     if not email or "@" not in email:
@@ -354,7 +397,7 @@ def extrair_nome_usuario(email: str) -> str:
     return nome_formatado
 
 
-def fazer_login(email: str) -> bool:
+def fazer_login(email: str, lembrar: bool = False) -> bool:
     """
     Valida e realiza login do usuário.
     Apenas e-mails com domínio @confirmationcall.com.br são aceitos.
@@ -366,13 +409,35 @@ def fazer_login(email: str) -> bool:
         st.session_state.logged_in = True
         st.session_state.user_email = email_lower
         st.session_state.user_nome = extrair_nome_usuario(email_lower)
+        st.session_state.lembrar_login = lembrar
         return True
     
     return False
 
 
+def salvar_login_no_navegador(email: str):
+    """Salva o email no localStorage do navegador para login persistente."""
+    components.html(f"""
+    <script>
+    localStorage.setItem('ninadash_email', '{email}');
+    </script>
+    """, height=0)
+
+
+def limpar_login_do_navegador():
+    """Remove o email salvo do localStorage."""
+    components.html("""
+    <script>
+    localStorage.removeItem('ninadash_email');
+    </script>
+    """, height=0)
+
+
 def fazer_logout():
-    """Remove sessão do usuário."""
+    """Remove sessão do usuário e limpa localStorage."""
+    # Limpa localStorage
+    limpar_login_do_navegador()
+    
     st.session_state.logged_in = False
     st.session_state.user_email = None
     st.session_state.user_nome = None
@@ -528,8 +593,11 @@ def mostrar_tela_login():
                 help="Utilize seu e-mail corporativo para acessar"
             )
             
+            # Checkbox para lembrar login
+            lembrar = st.checkbox("🔒 Lembrar de mim neste navegador", value=True)
+            
             st.markdown(
-                '<p style="text-align: center; font-size: 12px; color: #9CA3AF; margin: 16px 0 8px;">'
+                '<p style="text-align: center; font-size: 12px; color: #9CA3AF; margin: 8px 0 8px;">'
                 '🔐 Acesso restrito a colaboradores</p>',
                 unsafe_allow_html=True
             )
@@ -543,7 +611,10 @@ def mostrar_tela_login():
                     st.error("E-mail inválido")
                 else:
                     with st.spinner("Verificando..."):
-                        if fazer_login(email):
+                        if fazer_login(email, lembrar):
+                            # Se marcou "lembrar", salva no localStorage
+                            if lembrar:
+                                salvar_login_no_navegador(email.lower().strip())
                             st.success(f"Bem-vindo(a), {st.session_state.user_nome}!")
                             st.rerun()
                         else:
@@ -4989,8 +5060,14 @@ def aba_sobre():
 def main():
     """Função principal do dashboard."""
     
+    # ========== VERIFICAR LOGIN SALVO (localStorage) ==========
+    # Primeiro verifica se há login salvo no navegador
+    verificar_login_salvo()
+    
     # ========== VERIFICAR LOGIN ==========
     if not verificar_login():
+        # Tenta carregar login do localStorage do navegador
+        carregar_login_do_navegador()
         mostrar_tela_login()
         return
     
@@ -5218,7 +5295,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.28 • Dashboard de Inteligência QA
+                    v8.29 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -5226,7 +5303,12 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.28** *(Atual)*
+                **v8.29** *(Atual)*
+                - 🔒 "Lembrar de mim" - login persistente no navegador
+                - 🔓 Não precisa mais fazer login toda vez que atualiza
+                - 🧹 Logout limpa o login salvo
+                
+                **v8.28** *(14/04/2026)*
                 - 📋 PB: Mostra "Relator" em vez de "Criado por"
                 - 📋 PB: Adiciona campo "Resolução/Roteiro" em destaque
                 - 🔍 Melhoria na visão de produto para itens de backlog
