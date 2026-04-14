@@ -921,12 +921,26 @@ def processar_issue_unica(issue: Dict) -> Dict:
         sp = REGRAS["hotfix_sp_default"]
         sp_estimado = True  # SP calculado automaticamente
     
-    # Sprint
+    # Sprint - CORRIGIDO: pegar sprint ATIVA, não a última da lista
     sprint_f = f.get(CUSTOM_FIELDS['sprint'], [])
-    sprint = sprint_f[-1].get('name', 'Sem Sprint') if sprint_f else 'Sem Sprint'
-    sprint_end = None
+    
+    # Encontra a sprint ativa (state == 'active') ou a mais recente
+    sprint_atual = None
     if sprint_f:
-        sprint_end_str = sprint_f[-1].get('endDate')
+        # Primeiro tenta encontrar a sprint ativa
+        for s in sprint_f:
+            if s.get('state') == 'active':
+                sprint_atual = s
+                break
+        # Se não encontrou ativa, pega a mais recente por endDate
+        if not sprint_atual:
+            sprint_atual = sprint_f[-1]
+    
+    sprint = sprint_atual.get('name', 'Sem Sprint') if sprint_atual else 'Sem Sprint'
+    sprint_end = None
+    sprint_state = sprint_atual.get('state', '') if sprint_atual else ''
+    if sprint_atual:
+        sprint_end_str = sprint_atual.get('endDate')
         if sprint_end_str:
             try:
                 sprint_end = datetime.fromisoformat(sprint_end_str.replace('Z', '+00:00')).replace(tzinfo=None)
@@ -1100,15 +1114,29 @@ def processar_issues(issues: List[Dict]) -> pd.DataFrame:
         if sp == 0 and tipo == "HOTFIX":
             sp = REGRAS["hotfix_sp_default"]
         
-        # Sprint
+        # Sprint - CORRIGIDO: pegar sprint ATIVA, não a última da lista
         sprint_f = f.get(CUSTOM_FIELDS['sprint'], [])
-        sprint = sprint_f[-1].get('name', 'Sem Sprint') if sprint_f else 'Sem Sprint'
-        sprint_id = sprint_f[-1].get('id') if sprint_f else None
+        
+        # Encontra a sprint ativa (state == 'active') ou a mais recente
+        sprint_atual = None
+        if sprint_f:
+            # Primeiro tenta encontrar a sprint ativa
+            for s in sprint_f:
+                if s.get('state') == 'active':
+                    sprint_atual = s
+                    break
+            # Se não encontrou ativa, pega a mais recente por endDate
+            if not sprint_atual:
+                sprint_atual = sprint_f[-1]
+        
+        sprint = sprint_atual.get('name', 'Sem Sprint') if sprint_atual else 'Sem Sprint'
+        sprint_id = sprint_atual.get('id') if sprint_atual else None
+        sprint_state = sprint_atual.get('state', '') if sprint_atual else ''
         sprint_start = None
         sprint_end = None
-        if sprint_f:
-            sprint_start_str = sprint_f[-1].get('startDate')
-            sprint_end_str = sprint_f[-1].get('endDate')
+        if sprint_atual:
+            sprint_start_str = sprint_atual.get('startDate')
+            sprint_end_str = sprint_atual.get('endDate')
             if sprint_start_str:
                 try:
                     sprint_start = datetime.fromisoformat(sprint_start_str.replace('Z', '+00:00')).replace(tzinfo=None)
@@ -3900,14 +3928,44 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
             st.cache_data.clear()
             st.rerun()
     
-    # Sprint info
+    # Sprint info - MELHORADO: mostra status da release
     sprint_atual = df['sprint'].mode().iloc[0] if not df.empty else "Sem Sprint"
-    dias_release = df['dias_ate_release'].max() if 'dias_ate_release' in df.columns else 0
+    
+    # Pega a data da sprint diretamente dos dados
+    sprint_end = None
+    if 'sprint_end' in df.columns and not df['sprint_end'].isna().all():
+        sprint_end = df['sprint_end'].dropna().iloc[0] if not df['sprint_end'].dropna().empty else None
+    
+    hoje = datetime.now()
+    dias_diff = None
+    release_bold = "normal"
+    
+    if sprint_end:
+        dias_diff = (sprint_end - hoje).days
+        
+        if dias_diff < 0:
+            # Release ATRASADA
+            dias_atraso = abs(dias_diff)
+            release_info = f"🚨 Release ATRASADA ({dias_atraso}d)"
+            cor_barra = "#ef4444"  # Vermelho
+            release_bold = "bold"
+        elif dias_diff == 0:
+            # Release é HOJE
+            release_info = "⚡ Release HOJE!"
+            cor_barra = "#f59e0b"  # Amarelo/Laranja
+            release_bold = "bold"
+        else:
+            # Dias restantes
+            release_info = f"📅 {dias_diff} dias até a release"
+            cor_barra = "#AF0C37"  # Cor padrão
+    else:
+        release_info = "📅 Data não definida"
+        cor_barra = "#64748b"  # Cinza
     
     st.markdown(f"""
-    <div style="background: linear-gradient(90deg, #AF0C37, #8B0A2C); color: white; padding: 15px 20px; border-radius: 10px; margin-bottom: 20px;">
+    <div style="background: linear-gradient(90deg, {cor_barra}, {cor_barra}99); color: white; padding: 15px 20px; border-radius: 10px; margin-bottom: 20px;">
         <span style="font-size: 18px; font-weight: bold;">🚀 {sprint_atual}</span>
-        <span style="float: right;">📅 {dias_release} dias até a release</span>
+        <span style="float: right; font-weight: {release_bold};">{release_info}</span>
     </div>
     """, unsafe_allow_html=True)
     
@@ -6607,7 +6665,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.40 • Dashboard de Inteligência QA
+                    v8.41 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -6615,7 +6673,13 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.40** *(Atual)*
+                **v8.41** *(Atual)*
+                - 🔧 **Fix crítico:** Sprint agora pega a ATIVA, não a última da lista
+                - 🚨 **Release atrasada:** Barra vermelha + alerta visual
+                - ⚡ **Release hoje:** Barra amarela com destaque
+                - 📅 Cálculo correto de dias até release
+                
+                **v8.40**
                 - 🎯 **Análise de Sprint (SD)** - Planejado vs Entregue!
                 - 📊 Taxa de entrega da sprint com métricas visuais
                 - 🚨 Cards fora do planejamento (Hotfix, PB, Criação direta)
