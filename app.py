@@ -340,10 +340,11 @@ def verificar_credenciais() -> bool:
 # AUTENTICAÇÃO DE USUÁRIO
 # ==============================================================================
 
-@st.cache_resource
 def get_cookie_manager():
-    """Retorna o CookieManager (singleton)."""
-    return stx.CookieManager()
+    """Retorna o CookieManager (usa session_state para evitar recriação)."""
+    if 'cookie_manager' not in st.session_state:
+        st.session_state.cookie_manager = stx.CookieManager(key="ninadash_cookies")
+    return st.session_state.cookie_manager
 
 
 def verificar_login() -> bool:
@@ -353,15 +354,19 @@ def verificar_login() -> bool:
         return True
     
     # Se não está logado na sessão, verifica cookie
-    cookie_manager = get_cookie_manager()
-    email_cookie = cookie_manager.get("ninadash_email")
-    
-    if email_cookie and validar_email_corporativo(email_cookie):
-        # Restaura sessão a partir do cookie
-        st.session_state.logged_in = True
-        st.session_state.user_email = email_cookie
-        st.session_state.user_nome = extrair_nome_usuario(email_cookie)
-        return True
+    try:
+        cookie_manager = get_cookie_manager()
+        email_cookie = cookie_manager.get("ninadash_email")
+        
+        if email_cookie and validar_email_corporativo(email_cookie):
+            # Restaura sessão a partir do cookie
+            st.session_state.logged_in = True
+            st.session_state.user_email = email_cookie
+            st.session_state.user_nome = extrair_nome_usuario(email_cookie)
+            return True
+    except Exception:
+        # Se houver erro ao ler cookie, ignora e pede login
+        pass
     
     return False
 
@@ -398,9 +403,12 @@ def fazer_login(email: str, lembrar: bool = False) -> bool:
         
         # Se marcou "lembrar", salva no cookie
         if lembrar:
-            cookie_manager = get_cookie_manager()
-            # Cookie expira em 30 dias
-            cookie_manager.set("ninadash_email", email_lower, expires_at=datetime.now() + timedelta(days=30))
+            try:
+                cookie_manager = get_cookie_manager()
+                # Cookie expira em 30 dias
+                cookie_manager.set("ninadash_email", email_lower, expires_at=datetime.now() + timedelta(days=30))
+            except Exception:
+                pass  # Falha silenciosa se não conseguir salvar cookie
         
         return True
     
@@ -409,9 +417,12 @@ def fazer_login(email: str, lembrar: bool = False) -> bool:
 
 def fazer_logout():
     """Remove sessão do usuário e limpa cookie."""
-    # Limpa cookie
-    cookie_manager = get_cookie_manager()
-    cookie_manager.delete("ninadash_email")
+    # Tenta limpar cookie
+    try:
+        cookie_manager = get_cookie_manager()
+        cookie_manager.delete("ninadash_email")
+    except Exception:
+        pass  # Falha silenciosa
     
     # Limpa session_state
     st.session_state.logged_in = False
@@ -5263,7 +5274,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.31 • Dashboard de Inteligência QA
+                    v8.32 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -5271,7 +5282,12 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.31** *(Atual)*
+                **v8.32** *(Atual)*
+                - 🔧 Fix: CachedWidgetWarning no CookieManager
+                - 🍪 Removido @st.cache_resource (widgets não podem ser cacheados)
+                - 🛡️ Tratamento de erros em todas operações com cookies
+                
+                **v8.31** *(14/04/2026)*
                 - 🔒 Login persistente agora usa cookies (mais confiável)
                 - 🍪 Biblioteca extra-streamlit-components para gerenciar cookies
                 - ⏰ Cookie expira em 30 dias
