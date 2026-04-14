@@ -341,10 +341,9 @@ def verificar_credenciais() -> bool:
 # ==============================================================================
 
 def get_cookie_manager():
-    """Retorna o CookieManager (usa session_state para evitar recriação)."""
-    if 'cookie_manager' not in st.session_state:
-        st.session_state.cookie_manager = stx.CookieManager(key="ninadash_cookies")
-    return st.session_state.cookie_manager
+    """Retorna o CookieManager."""
+    # Cria uma nova instância a cada chamada - necessário para funcionar corretamente
+    return stx.CookieManager(key="ninadash_cookies")
 
 
 def verificar_login() -> bool:
@@ -356,7 +355,15 @@ def verificar_login() -> bool:
     # Se não está logado na sessão, verifica cookie
     try:
         cookie_manager = get_cookie_manager()
-        email_cookie = cookie_manager.get("ninadash_email")
+        
+        # Aguarda os cookies serem carregados do navegador
+        all_cookies = cookie_manager.get_all()
+        
+        # Se cookies ainda não carregaram (None), espera próximo ciclo
+        if all_cookies is None:
+            return False
+        
+        email_cookie = all_cookies.get("ninadash_email")
         
         if email_cookie and validar_email_corporativo(email_cookie):
             # Restaura sessão a partir do cookie
@@ -5274,7 +5281,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.32 • Dashboard de Inteligência QA
+                    v8.33 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -5282,7 +5289,12 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.32** *(Atual)*
+                **v8.33** *(Atual)*
+                - 🔧 Fix: Login persistente restaurado corretamente
+                - 🍪 Usa get_all() para aguardar cookies carregarem
+                - ⚡ Corrigido timing assíncrono do CookieManager
+                
+                **v8.32** *(14/04/2026)*
                 - 🔧 Fix: CachedWidgetWarning no CookieManager
                 - 🍪 Removido @st.cache_resource (widgets não podem ser cacheados)
                 - 🛡️ Tratamento de erros em todas operações com cookies
