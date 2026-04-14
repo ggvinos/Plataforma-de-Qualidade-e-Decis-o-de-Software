@@ -592,7 +592,7 @@ def buscar_dados_jira_cached(projeto: str, jql: str) -> Tuple[Optional[List[Dict
     
     fields = [
         "key", "summary", "status", "issuetype", "assignee", "created", "updated",
-        "resolutiondate", "priority", "project", "labels",
+        "resolutiondate", "priority", "project", "labels", "reporter", "resolution",
         CUSTOM_FIELDS["story_points"],
         CUSTOM_FIELDS["story_points_alt"],
         CUSTOM_FIELDS["sprint"],
@@ -656,7 +656,7 @@ def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[Lis
         fields = [
             "key", "summary", "status", "issuetype", "assignee", "created", "updated",
             "resolutiondate", "priority", "project", "labels", "issuelinks", "parent", "subtasks",
-            "description",
+            "description", "reporter", "resolution",
             CUSTOM_FIELDS["story_points"],
             CUSTOM_FIELDS["story_points_alt"],
             CUSTOM_FIELDS["sprint"],
@@ -835,6 +835,13 @@ def processar_issue_unica(issue: Dict) -> Dict:
     # Desenvolvedor
     dev = f.get('assignee', {}).get('displayName', 'Não atribuído') if f.get('assignee') else 'Não atribuído'
     
+    # Relator (reporter) - quem criou/solicitou o item
+    relator = f.get('reporter', {}).get('displayName', 'Não informado') if f.get('reporter') else 'Não informado'
+    
+    # Resolução/Roteiro - indica decisão sobre o item (ex: "Vai ser feito", "Aguardando retorno")
+    resolution = f.get('resolution', {})
+    resolucao = resolution.get('name', '') if resolution else ''
+    
     # Story Points
     sp = f.get(CUSTOM_FIELDS['story_points']) or f.get(CUSTOM_FIELDS['story_points_alt']) or 0
     sp_original = bool(f.get(CUSTOM_FIELDS['story_points']) or f.get(CUSTOM_FIELDS['story_points_alt']))
@@ -926,6 +933,8 @@ def processar_issue_unica(issue: Dict) -> Dict:
         'status_cat': status_cat,
         'projeto': projeto,
         'desenvolvedor': dev,
+        'relator': relator,
+        'resolucao': resolucao,
         'qa': qa,
         'sp': int(sp) if sp else 0,
         'sp_original': sp_original,
@@ -1953,14 +1962,26 @@ def exibir_detalhes_pb(card: Dict, links: List[Dict], comentarios: List[Dict]):
             """)
         
         with col2:
+            resolucao_texto = card.get('resolucao', '') if card.get('resolucao') else 'Não definida'
             st.markdown(f"""
 | Campo | Valor |
 |-------|-------|
-| **Criado por** | {card['desenvolvedor']} |
+| **Relator** | {card.get('relator', 'Não informado')} |
 | **Data Criação** | {card['criado'].strftime('%d/%m/%Y') if pd.notna(card['criado']) else 'N/A'} |
 | **Última Atualização** | {card['atualizado'].strftime('%d/%m/%Y') if pd.notna(card['atualizado']) else 'N/A'} |
 | **Status** | {card['status']} |
             """)
+        
+        # Resolução/Roteiro em destaque se estiver preenchido
+        resolucao = card.get('resolucao', '')
+        if resolucao:
+            cor_resolucao = "#22c55e" if resolucao.lower() in ['done', 'concluído', 'vai ser feito', 'aprovado'] else "#f59e0b"
+            st.markdown(f"""
+            <div style='background: {cor_resolucao}15; padding: 12px 15px; border-radius: 8px; 
+                        border-left: 3px solid {cor_resolucao}; margin-top: 10px;'>
+                <strong style='color: {cor_resolucao};'>📋 Resolução/Roteiro:</strong> {resolucao}
+            </div>
+            """, unsafe_allow_html=True)
     
     # ===== TEMPO NO BACKLOG =====
     with st.expander("⏱️ **Tempo no Backlog**", expanded=True):
@@ -5197,7 +5218,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.27 • Dashboard de Inteligência QA
+                    v8.28 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -5205,7 +5226,12 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.27** *(Atual)*
+                **v8.28** *(Atual)*
+                - 📋 PB: Mostra "Relator" em vez de "Criado por"
+                - 📋 PB: Adiciona campo "Resolução/Roteiro" em destaque
+                - 🔍 Melhoria na visão de produto para itens de backlog
+                
+                **v8.27** *(14/04/2026)*
                 - 🔧 Fix: Removido tooltips customizados que quebravam layout
                 - ℹ️ Mantido help nativo do Streamlit (ícone ?) nos st.metric
                 
