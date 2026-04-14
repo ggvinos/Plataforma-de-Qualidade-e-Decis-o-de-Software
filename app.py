@@ -2258,10 +2258,18 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
     
     # Padrões para identificar comentários de bugs (AMPLIADO)
     padroes_bug = [
+        # HASHTAG BUG (padrão usado pelo QA)
+        "#bug",
+        "# bug",
+        "#Bug",
+        "# Bug",
         # Padrões diretos de bug
         "bug encontrado",
         "bug identificado", 
         "bug registrado",
+        "bugs identificados",
+        "bugs encontrados",
+        "alguns bugs",
         "bug:",
         "bug 1",
         "bug 2", 
@@ -2270,6 +2278,11 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
         "bug 5",
         "bug#",
         "bug #",
+        # Foram identificados
+        "foram identificados",
+        "foi identificado",
+        "foram encontrados",
+        "foi encontrado",
         # Defeitos/erros
         "defeito encontrado",
         "defeito identificado",
@@ -2277,15 +2290,42 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
         "erro encontrado",
         "erro identificado",
         "erro:",
+        "erro interno",
+        "erro genérico",
         "falha encontrada",
         "falha identificada",
         "falha:",
-        # Problemas
+        # Problemas de comportamento
         "problema encontrado",
         "problema identificado",
         "problema:",
         "inconsistência",
         "inconsistência encontrada",
+        "falta de feedback",
+        "não dá retorno",
+        "sem retorno ao",
+        "não dá feedback",
+        # Interface/UX com problemas
+        "funciona apenas como",
+        "impedindo que o usuário",
+        "obrigando-o",
+        "obrigando o usuário",
+        "não é possível realizar",
+        "não estão traduzidas",
+        "informação em inglês",
+        "informações não estão",
+        "deve impedir",
+        "deveria impedir",
+        "não impede",
+        # Sistema retornando erros
+        "sistema retornou",
+        "sistema permitiu",
+        "sistema não",
+        "api retorna",
+        "api retornou",
+        "backend retornar",
+        "retornar invalid",
+        "retorna a informação",
         # Comportamento
         "não está funcionando",
         "não funciona",
@@ -2315,6 +2355,13 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
         "congelou",
         "quebrou",
         "crashou",
+        # Porém/mas com problemas
+        "porem",  # usuário usa sem acento
+        "porém",
+        "ainda não é possível",
+        "ainda não",
+        "mas não",
+        "mas as informações",
         # Cenários de teste
         "cenário de bug",
         "cenário:",
@@ -2331,6 +2378,9 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
         "print do bug",
         "screenshot do erro",
         "anexo do bug",
+        "devtools",
+        "devTools",
+        "DevTools",
         # Registro
         "registrando bug",
         "registrar bug",
@@ -2351,6 +2401,12 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
         "durante o teste",
         "na validação",
         "validando",
+        "ao tentar",
+        "ao clicar",
+        "ao acessar",
+        "ao editar",
+        "ao criar",
+        "ao salvar",
     ]
     
     # Padrões para identificar comentários de reprovação
@@ -5843,7 +5899,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.37 • Dashboard de Inteligência QA
+                    v8.38 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -5851,10 +5907,17 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.37** *(Atual)*
-                - 🔍 **Filtros interativos** para tipos de comentários
+                **v8.38** *(Atual)*
+                - 🐛 Detecção de **#bug** (hashtag) - padrão do QA
+                - 🔍 +50 novos padrões de bugs adicionados
+                - 🌐 Detecta problemas de tradução, UX, interface
+                - ⚠️ Detecta "sistema retornou", "api retornou", "devTools"
+                - 📝 Detecta "ao tentar", "ao clicar", "ao criar", etc.
+                
+                **v8.37** *(14/04/2026)*
+                - 🔍 Filtros interativos para tipos de comentários
                 - 🐛 Detecção de bugs ampliada (80+ padrões)
-                - 🔄 Nova categoria: **Retorno DEV** (ciano)
+                - 🔄 Nova categoria: Retorno DEV (ciano)
                 - 📊 Checkboxes para filtrar: Bug, Reprovação, Impedimento, Retorno, Outros
                 - 🎨 Visual ainda mais distinto por categoria
                 - 📈 Contador de comentários exibidos vs total
