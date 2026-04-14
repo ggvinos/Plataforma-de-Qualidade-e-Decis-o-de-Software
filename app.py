@@ -2312,8 +2312,114 @@ def aplicar_estilos():
     
     /* Hide Streamlit elements */
     #MainMenu, .stDeployButton { display: none !important; }
+    
+    /* Tooltips para métricas */
+    .metric-with-tooltip {
+        position: relative;
+    }
+    .metric-tooltip {
+        visibility: hidden;
+        opacity: 0;
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1e293b;
+        color: white;
+        padding: 12px 15px;
+        border-radius: 8px;
+        font-size: 12px;
+        line-height: 1.5;
+        width: max-content;
+        max-width: 280px;
+        z-index: 1000;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        transition: all 0.2s ease;
+        text-align: left;
+        margin-bottom: 10px;
+    }
+    .metric-tooltip::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 8px;
+        border-style: solid;
+        border-color: #1e293b transparent transparent transparent;
+    }
+    .metric-with-tooltip:hover .metric-tooltip {
+        visibility: visible;
+        opacity: 1;
+    }
+    
+    /* Tooltip inline para textos */
+    .tooltip-inline {
+        position: relative;
+        display: inline-block;
+        cursor: help;
+        border-bottom: 1px dotted #6b7280;
+    }
+    .tooltip-inline .tooltip-text {
+        visibility: hidden;
+        opacity: 0;
+        position: absolute;
+        bottom: 125%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1e293b;
+        color: white;
+        padding: 10px 14px;
+        border-radius: 6px;
+        font-size: 12px;
+        line-height: 1.4;
+        width: max-content;
+        max-width: 260px;
+        z-index: 1000;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+        transition: all 0.2s ease;
+    }
+    .tooltip-inline .tooltip-text::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 6px;
+        border-style: solid;
+        border-color: #1e293b transparent transparent transparent;
+    }
+    .tooltip-inline:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+    }
     </style>
     """, unsafe_allow_html=True)
+
+
+def tooltip_text(texto: str, tooltip_key: str) -> str:
+    """Retorna HTML com tooltip inline para um texto."""
+    if tooltip_key not in TOOLTIPS:
+        return texto
+    
+    tip = TOOLTIPS[tooltip_key]
+    tooltip_content = f"{tip['descricao']}"
+    if tip.get('formula'):
+        tooltip_content += f"<br><em style='color:#94a3b8;'>{tip['formula']}</em>"
+    
+    return f'''<span class="tooltip-inline">{texto}<span class="tooltip-text">{tooltip_content}</span></span>'''
+
+
+def get_tooltip_help(tooltip_key: str) -> str:
+    """Retorna texto de ajuda para st.metric."""
+    if tooltip_key not in TOOLTIPS:
+        return ""
+    
+    tip = TOOLTIPS[tooltip_key]
+    help_text = f"{tip['titulo']}: {tip['descricao']}"
+    if tip.get('formula'):
+        help_text += f" | Fórmula: {tip['formula']}"
+    return help_text
 
 
 # ==============================================================================
@@ -2358,13 +2464,27 @@ def mostrar_indicador_atualizacao(ultima_atualizacao: datetime):
     st.markdown(f'<span class="{classe}">🕐 {texto}</span>', unsafe_allow_html=True)
 
 
-def criar_card_metrica(valor: str, titulo: str, cor: str = "blue", subtitulo: str = ""):
-    """Cria card de métrica visual."""
+def criar_card_metrica(valor: str, titulo: str, cor: str = "blue", subtitulo: str = "", tooltip_key: str = ""):
+    """Cria card de métrica visual com tooltip opcional."""
+    tooltip_html = ""
+    if tooltip_key and tooltip_key in TOOLTIPS:
+        tip = TOOLTIPS[tooltip_key]
+        tooltip_html = f'''
+        <div class="metric-tooltip">
+            <strong>{tip["titulo"]}</strong><br>
+            {tip["descricao"]}<br>
+            <em style="color: #94a3b8; font-size: 11px;">{tip.get("formula", "")}</em>
+        </div>
+        '''
+    
+    cursor_style = "cursor: help;" if tooltip_key else ""
+    
     st.markdown(f"""
-    <div class="status-card status-{cor}">
+    <div class="status-card status-{cor} metric-with-tooltip" style="{cursor_style}">
         <p class="big-number">{valor}</p>
         <p class="card-label">{titulo}</p>
         {f'<p class="card-sublabel">{subtitulo}</p>' if subtitulo else ''}
+        {tooltip_html}
     </div>
     """, unsafe_allow_html=True)
 
@@ -2753,10 +2873,7 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
             fk = calcular_fator_k(sp_total, bugs_total)
             mat = classificar_maturidade(fk)
             cor_map = {'#22c55e': 'green', '#eab308': 'yellow', '#f97316': 'orange', '#ef4444': 'red'}
-            criar_card_metrica(f"{fk:.1f}", f"Fator K {mat['emoji']}", cor_map.get(mat['cor'], 'blue'), mat['selo'])
-        
-        # Tooltip do Fator K
-        mostrar_tooltip("fator_k")
+            criar_card_metrica(f"{fk:.1f}", f"Fator K {mat['emoji']}", cor_map.get(mat['cor'], 'blue'), mat['selo'], "fator_k")
     
     # Métricas de Qualidade COM TOOLTIPS
     with st.expander("🎯 Métricas de Qualidade", expanded=True):
@@ -2769,19 +2886,19 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
         
         with col1:
             cor = 'green' if fpy['valor'] >= 80 else 'yellow' if fpy['valor'] >= 60 else 'red'
-            criar_card_metrica(f"{fpy['valor']:.0f}%", "FPY", cor, f"{fpy['sem_bugs']}/{fpy['total']} sem bugs")
+            criar_card_metrica(f"{fpy['valor']:.0f}%", "FPY", cor, f"{fpy['sem_bugs']}/{fpy['total']} sem bugs", "fpy")
         
         with col2:
             cor = 'green' if ddp['valor'] >= 85 else 'yellow' if ddp['valor'] >= 70 else 'red'
-            criar_card_metrica(f"{ddp['valor']:.0f}%", "DDP", cor, f"{ddp['bugs_qa']} bugs detectados")
+            criar_card_metrica(f"{ddp['valor']:.0f}%", "DDP", cor, f"{ddp['bugs_qa']} bugs detectados", "ddp")
         
         with col3:
             cor = 'green' if lead['medio'] <= 7 else 'yellow' if lead['medio'] <= 14 else 'red'
-            criar_card_metrica(f"{lead['medio']:.1f}d", "Lead Time", cor, f"P85: {lead['p85']}d")
+            criar_card_metrica(f"{lead['medio']:.1f}d", "Lead Time", cor, f"P85: {lead['p85']}d", "lead_time")
         
         with col4:
             cor = 'green' if health['score'] >= 75 else 'yellow' if health['score'] >= 50 else 'red'
-            criar_card_metrica(f"{health['score']:.0f}", "Health Score", cor, health['status'])
+            criar_card_metrica(f"{health['score']:.0f}", "Health Score", cor, health['status'], "health_score")
         
         # Tooltips das métricas
         col1, col2, col3, col4 = st.columns(4)
@@ -2906,9 +3023,7 @@ def aba_qa(df: pd.DataFrame):
             with col5:
                 ddp = calcular_ddp(df)
                 cor = 'green' if ddp['valor'] >= 85 else 'yellow' if ddp['valor'] >= 70 else 'red'
-                criar_card_metrica(f"{ddp['valor']:.0f}%", "DDP", cor, "Detecção de Defeitos")
-            
-            mostrar_tooltip("ddp")
+                criar_card_metrica(f"{ddp['valor']:.0f}%", "DDP", cor, "Detecção de Defeitos", "ddp")
         
         # Funil e Carga
         with st.expander("📈 Funil de Validação e Carga por QA", expanded=True):
@@ -3007,14 +3122,14 @@ def aba_qa(df: pd.DataFrame):
                 concluidos = df[df['status_cat'] == 'done']
                 if not concluidos.empty:
                     fpy = calcular_fpy(df)
-                    st.metric("FPY (First Pass Yield)", f"{fpy['valor']}%", help="Cards aprovados sem bugs na primeira validação")
+                    st.metric("FPY (First Pass Yield)", f"{fpy['valor']}%", help=get_tooltip_help("fpy"))
                     
                     cards_com_bugs = len(concluidos[concluidos['bugs'] > 0])
                     taxa_retrabalho = cards_com_bugs / len(concluidos) * 100 if len(concluidos) > 0 else 0
-                    st.metric("Taxa de Retrabalho", f"{taxa_retrabalho:.1f}%", help="Cards que precisaram de correção")
+                    st.metric("Taxa de Retrabalho", f"{taxa_retrabalho:.1f}%", help="Percentual de cards que voltaram para correção após QA encontrar bugs")
                     
                     lead = calcular_lead_time(df)
-                    st.metric("Lead Time Médio", f"{lead['medio']:.1f} dias")
+                    st.metric("Lead Time Médio", f"{lead['medio']:.1f} dias", help=get_tooltip_help("lead_time"))
                 else:
                     st.info("Sem cards concluídos")
             
@@ -3185,21 +3300,21 @@ def aba_qa(df: pd.DataFrame):
             with col2:
                 criar_card_metrica(str(validados), "Validados", "green")
             with col3:
-                criar_card_metrica(str(em_fila), "Em Fila", "yellow")
+                criar_card_metrica(str(em_fila), "Em Fila", "yellow", "", "wip")
             with col4:
                 criar_card_metrica(str(bugs_encontrados), "Bugs Encontrados", "purple")
             with col5:
                 cor = 'green' if fpy_val >= 80 else 'yellow' if fpy_val >= 60 else 'red'
-                criar_card_metrica(f"{fpy_val:.0f}%", "FPY", cor)
+                criar_card_metrica(f"{fpy_val:.0f}%", "FPY", cor, "", "fpy")
             
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric("Story Points Total", sp_total)
+                st.metric("Story Points Total", sp_total, help="Soma de todos os Story Points dos cards atribuídos a este QA")
             with col2:
-                st.metric("Lead Time Médio", f"{lead_time_medio:.1f} dias")
+                st.metric("Lead Time Médio", f"{lead_time_medio:.1f} dias", help=get_tooltip_help("lead_time"))
             with col3:
                 aging_qa = len(df_qa[df_qa['dias_em_status'] > REGRAS['dias_aging_alerta']])
-                st.metric("Cards Aging", aging_qa)
+                st.metric("Cards Aging", aging_qa, help="Cards parados há mais de 3 dias no mesmo status - requer atenção")
         
         # Distribuição por Status
         with st.expander("📊 Distribuição por Status", expanded=True):
@@ -3249,6 +3364,7 @@ def aba_qa(df: pd.DataFrame):
         
         # NOVAS MÉTRICAS INDIVIDUAIS
         with st.expander("📈 Throughput e Eficiência", expanded=True):
+            st.caption("💡 **Throughput**: Quantidade de cards/SP entregues por período. Indica capacidade de entrega.")
             col1, col2 = st.columns(2)
             
             with col1:
@@ -3492,9 +3608,9 @@ def aba_dev(df: pd.DataFrame):
             with col5:
                 cards_zero_bugs = len(df[df['bugs'] == 0])
                 pct_zero_bugs = cards_zero_bugs / len(df) * 100 if len(df) > 0 else 0
-                st.metric("Cards sem Bugs", f"{cards_zero_bugs} ({pct_zero_bugs:.0f}%)")
+                st.metric("Cards sem Bugs", f"{cards_zero_bugs} ({pct_zero_bugs:.0f}%)", help=get_tooltip_help("fpy"))
                 lead_medio = df['lead_time'].mean() if not df.empty else 0
-                st.metric("Lead Time Médio", f"{lead_medio:.1f} dias")
+                st.metric("Lead Time Médio", f"{lead_medio:.1f} dias", help=get_tooltip_help("lead_time"))
         
         # Análise para Tech Lead
         with st.expander("🎯 Análise para Tech Lead", expanded=False):
@@ -3701,13 +3817,13 @@ def aba_dev(df: pd.DataFrame):
                 with col2:
                     c1, c2, c3, c4 = st.columns(4)
                     with c1:
-                        st.metric("Cards Desenvolvidos", analise['cards'])
+                        st.metric("Cards Desenvolvidos", analise['cards'], help="Total de cards atribuídos a este desenvolvedor no período")
                     with c2:
-                        st.metric("Story Points", analise['sp_total'])
+                        st.metric("Story Points", analise['sp_total'], help="Soma de Story Points de todos os cards do desenvolvedor")
                     with c3:
-                        st.metric("Bugs Encontrados", analise['bugs_total'])
+                        st.metric("Bugs Encontrados", analise['bugs_total'], help="Total de bugs encontrados pelo QA nos cards deste desenvolvedor")
                     with c4:
-                        st.metric("Taxa Zero Bugs", f"{analise['zero_bugs']}%")
+                        st.metric("Taxa Zero Bugs", f"{analise['zero_bugs']}%", help=get_tooltip_help("fpy"))
             
             # Cards do dev
             with st.expander(f"📋 Cards de {dev_sel}", expanded=True):
@@ -3722,6 +3838,7 @@ def aba_dev(df: pd.DataFrame):
             
             # NOVAS MÉTRICAS INDIVIDUAIS DEV
             with st.expander("📈 Throughput e Produtividade", expanded=True):
+                st.caption("💡 **Throughput**: Vazão de entregas por período. **Fator K**: Qualidade = SP / (Bugs + 1)")
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -5188,7 +5305,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.25 • Dashboard de Inteligência QA
+                    v8.26 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -5196,7 +5313,12 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.25** *(Atual)*
+                **v8.26** *(Atual)*
+                - 💡 Tooltips em todas as métricas (hover para explicação)
+                - ℹ️ FPY, DDP, Fator K, Lead Time, Health Score explicados
+                - 📊 Captions explicativos em Throughput e Produtividade
+                
+                **v8.25** *(14/04/2026)*
                 - 🧹 Fix: URL limpa - remove params cruzados QA/Dev
                 - 🧹 Clear total ao voltar para visão geral
                 
