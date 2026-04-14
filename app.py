@@ -1280,6 +1280,7 @@ def processar_issues(issues: List[Dict]) -> pd.DataFrame:
             'bugs': int(bugs) if bugs else 0,
             'sprint': sprint,
             'sprint_id': sprint_id,
+            'sprint_state': sprint_state,  # 'active', 'closed', 'future'
             'sprint_start': sprint_start,
             'sprint_end': sprint_end,
             'prioridade': f.get('priority', {}).get('name', 'Média') if f.get('priority') else 'Média',
@@ -3928,13 +3929,28 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
             st.cache_data.clear()
             st.rerun()
     
-    # Sprint info - MELHORADO: mostra status da release
-    sprint_atual = df['sprint'].mode().iloc[0] if not df.empty else "Sem Sprint"
-    
-    # Pega a data da sprint diretamente dos dados
+    # Sprint info - MELHORADO: pega sprint ATIVA, não a mais frequente
+    # Primeiro tenta filtrar por sprint ativa
+    sprint_atual = "Sem Sprint"
     sprint_end = None
-    if 'sprint_end' in df.columns and not df['sprint_end'].isna().all():
-        sprint_end = df['sprint_end'].dropna().iloc[0] if not df['sprint_end'].dropna().empty else None
+    
+    if 'sprint_state' in df.columns:
+        df_sprint_ativa = df[df['sprint_state'] == 'active']
+        if not df_sprint_ativa.empty:
+            # Tem cards com sprint ativa - usa ela
+            sprint_atual = df_sprint_ativa['sprint'].iloc[0]
+            if 'sprint_end' in df_sprint_ativa.columns:
+                sprint_end = df_sprint_ativa['sprint_end'].dropna().iloc[0] if not df_sprint_ativa['sprint_end'].isna().all() else None
+        else:
+            # Fallback: pega a sprint mais frequente
+            sprint_atual = df['sprint'].mode().iloc[0] if not df.empty else "Sem Sprint"
+            if 'sprint_end' in df.columns and not df['sprint_end'].isna().all():
+                sprint_end = df['sprint_end'].dropna().iloc[0] if not df['sprint_end'].dropna().empty else None
+    else:
+        # Fallback se não tiver a coluna
+        sprint_atual = df['sprint'].mode().iloc[0] if not df.empty else "Sem Sprint"
+        if 'sprint_end' in df.columns and not df['sprint_end'].isna().all():
+            sprint_end = df['sprint_end'].dropna().iloc[0] if not df['sprint_end'].dropna().empty else None
     
     hoje = datetime.now()
     dias_diff = None
@@ -6674,7 +6690,8 @@ def main():
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
                 **v8.41** *(Atual)*
-                - 🔧 **Fix crítico:** Sprint agora pega a ATIVA, não a última da lista
+                - 🔧 **Fix crítico:** Sprint agora pega a ATIVA, não a mais frequente
+                - 📊 Filtra por `sprint_state == 'active'` antes de exibir
                 - 🚨 **Release atrasada:** Barra vermelha + alerta visual
                 - ⚡ **Release hoje:** Barra amarela com destaque
                 - 📅 Cálculo correto de dias até release
