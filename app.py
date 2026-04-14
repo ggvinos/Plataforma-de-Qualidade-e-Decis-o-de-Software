@@ -2212,12 +2212,171 @@ def exibir_cards_vinculados(links: List[Dict]):
                 """, unsafe_allow_html=True)
 
 
+def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
+    """
+    Filtra comentários de automação e classifica os relevantes.
+    
+    Filtros (remove):
+    - Automações do GitHub (commits, branches, merges)
+    - Mensagens automáticas de integração
+    
+    Classificações:
+    - bug: Comentário relacionado a bug/defeito
+    - reprovacao: Comentário de reprovação
+    - normal: Comentário comum
+    """
+    if not comentarios:
+        return []
+    
+    # Padrões de automação a serem filtrados (case insensitive)
+    padroes_automacao = [
+        "mentioned this issue in a commit",
+        "mentioned this issue in a branch",
+        "merge branch",
+        "pushed a commit",
+        "created a branch",
+        "deleted branch",
+        "opened a pull request",
+        "closed a pull request",
+        "merged a pull request",
+        "mentioned this issue in a pull request",
+        "linked a pull request",
+        "connected this issue",
+        "disconnected this issue",
+        "moved this issue",
+        "added a commit",
+        "referenced this issue",
+        "mentioned this page",
+        "/confirmationcall on branch",  # Padrão específico do exemplo
+        "Elintondm /",  # Outro padrão do exemplo
+    ]
+    
+    # Padrões para identificar comentários de bugs
+    padroes_bug = [
+        "bug encontrado",
+        "bug identificado",
+        "defeito encontrado",
+        "defeito identificado",
+        "erro encontrado",
+        "erro identificado",
+        "falha encontrada",
+        "falha identificada",
+        "problema encontrado",
+        "problema identificado",
+        "inconsistência",
+        "não está funcionando",
+        "não funciona",
+        "comportamento incorreto",
+        "comportamento inesperado",
+        "retornou erro",
+        "apresentou erro",
+        "cenário de bug",
+        "evidência de bug",
+        "evidência do bug",
+        "registrando bug",
+        "registrar bug",
+        "abrir bug",
+        "aberto bug",
+    ]
+    
+    # Padrões para identificar comentários de reprovação
+    padroes_reprovacao = [
+        "reprovado",
+        "reprovação",
+        "reprovei",
+        "não aprovado",
+        "reprovar",
+        "card reprovado",
+        "tarefa reprovada",
+        "retornando para",
+        "devolvendo para",
+        "devolvido para",
+        "voltando para desenvolvimento",
+        "retornar para desenvolvimento",
+        "ajustes necessários",
+        "necessita de ajustes",
+        "correções necessárias",
+        "necessita correção",
+        "não passou na validação",
+        "falhou na validação",
+        "não atende",
+        "não atendeu",
+    ]
+    
+    comentarios_filtrados = []
+    
+    for com in comentarios:
+        texto_lower = com.get('texto', '').lower()
+        autor = com.get('autor', '').lower()
+        
+        # Verifica se é automação (pula se for)
+        eh_automacao = False
+        for padrao in padroes_automacao:
+            if padrao.lower() in texto_lower:
+                eh_automacao = True
+                break
+        
+        # Também verifica se o autor indica automação
+        if any(bot in autor for bot in ['automation', 'bot', 'github', 'bitbucket', 'gitlab', 'jira']):
+            eh_automacao = True
+        
+        if eh_automacao:
+            continue
+        
+        # Classifica o comentário
+        classificacao = 'normal'
+        
+        # Primeiro verifica reprovação (tem prioridade)
+        for padrao in padroes_reprovacao:
+            if padrao in texto_lower:
+                classificacao = 'reprovacao'
+                break
+        
+        # Depois verifica bug
+        if classificacao == 'normal':
+            for padrao in padroes_bug:
+                if padrao in texto_lower:
+                    classificacao = 'bug'
+                    break
+        
+        comentarios_filtrados.append({
+            **com,
+            'classificacao': classificacao
+        })
+    
+    return comentarios_filtrados
+
+
 def exibir_comentarios(comentarios: List[Dict]):
-    """Exibe seção de comentários do card."""
-    if comentarios and len(comentarios) > 0:
+    """Exibe seção de comentários do card (filtrados e classificados)."""
+    # Filtra e classifica comentários
+    comentarios_filtrados = filtrar_e_classificar_comentarios(comentarios)
+    
+    total_original = len(comentarios) if comentarios else 0
+    total_filtrado = len(comentarios_filtrados)
+    filtrados = total_original - total_filtrado
+    
+    # Conta por classificação
+    bugs = sum(1 for c in comentarios_filtrados if c.get('classificacao') == 'bug')
+    reprovacoes = sum(1 for c in comentarios_filtrados if c.get('classificacao') == 'reprovacao')
+    
+    if comentarios_filtrados and len(comentarios_filtrados) > 0:
         st.markdown("<br>", unsafe_allow_html=True)
-        with st.expander(f"💬 **Comentários ({len(comentarios)})**", expanded=True):
-            for i, com in enumerate(comentarios):
+        
+        # Monta título com contagens
+        titulo_extra = []
+        if bugs > 0:
+            titulo_extra.append(f"🐛 {bugs}")
+        if reprovacoes > 0:
+            titulo_extra.append(f"❌ {reprovacoes}")
+        titulo_sufixo = f" | {' '.join(titulo_extra)}" if titulo_extra else ""
+        
+        with st.expander(f"💬 **Comentários ({total_filtrado})**{titulo_sufixo}", expanded=True):
+            # Aviso sobre comentários filtrados
+            if filtrados > 0:
+                st.caption(f"ℹ️ {filtrados} comentário(s) de automação foram ocultados")
+            
+            for i, com in enumerate(comentarios_filtrados):
                 # Formata a data
                 try:
                     data_com = datetime.fromisoformat(com['data'].replace('Z', '+00:00'))
@@ -2225,15 +2384,30 @@ def exibir_comentarios(comentarios: List[Dict]):
                 except:
                     data_formatada = com['data'][:10] if com['data'] else 'Data desconhecida'
                 
+                # Define cores e ícones baseado na classificação
+                classificacao = com.get('classificacao', 'normal')
+                if classificacao == 'bug':
+                    cor_borda = '#ef4444'  # Vermelho
+                    cor_avatar = '#ef4444'
+                    badge = '<span style="background: #ef444420; color: #ef4444; padding: 2px 8px; border-radius: 10px; font-size: 0.75em; margin-left: 8px;">🐛 Bug</span>'
+                elif classificacao == 'reprovacao':
+                    cor_borda = '#f97316'  # Laranja
+                    cor_avatar = '#f97316'
+                    badge = '<span style="background: #f9731620; color: #f97316; padding: 2px 8px; border-radius: 10px; font-size: 0.75em; margin-left: 8px;">❌ Reprovação</span>'
+                else:
+                    cor_borda = '#6366f1'  # Roxo (padrão)
+                    cor_avatar = '#6366f1'
+                    badge = ''
+                
                 st.markdown(f"""
-<div style='background: #f8fafc; padding: 12px 15px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid #6366f1;'>
+<div style='background: #f8fafc; padding: 12px 15px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid {cor_borda};'>
     <div style='display: flex; align-items: center; gap: 10px; margin-bottom: 8px;'>
-        <div style='width: 32px; height: 32px; border-radius: 50%; background: #6366f1; 
+        <div style='width: 32px; height: 32px; border-radius: 50%; background: {cor_avatar}; 
                     display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;'>
             {com['autor'][0].upper() if com['autor'] else '?'}
         </div>
         <div>
-            <strong style='color: #333;'>{com['autor']}</strong>
+            <strong style='color: #333;'>{com['autor']}</strong>{badge}
             <span style='color: #888; font-size: 0.8em; margin-left: 8px;'>{data_formatada}</span>
         </div>
     </div>
@@ -2244,8 +2418,12 @@ def exibir_comentarios(comentarios: List[Dict]):
                 """, unsafe_allow_html=True)
     else:
         st.markdown("<br>", unsafe_allow_html=True)
-        with st.expander("💬 **Comentários (0)**", expanded=False):
-            st.caption("Nenhum comentário de usuário neste card.")
+        filtrados_msg = f" ({filtrados} de automação ocultados)" if filtrados > 0 else ""
+        with st.expander(f"💬 **Comentários (0)**{filtrados_msg}", expanded=False):
+            if filtrados > 0:
+                st.caption(f"ℹ️ Este card tem {filtrados} comentário(s) de automação que foram ocultados.")
+            else:
+                st.caption("Nenhum comentário de usuário neste card.")
 
 
 # ==============================================================================
@@ -5363,7 +5541,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.34 • Dashboard de Inteligência QA
+                    v8.35 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -5371,7 +5549,14 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.34** *(Atual)*
+                **v8.35** *(Atual)*
+                - 🧠 Comentários inteligentes: filtra automações do GitHub
+                - 🐛 Destaca comentários de bugs (borda vermelha)
+                - ❌ Destaca comentários de reprovação (borda laranja)
+                - 📊 Mostra contagem de bugs/reprovações no título
+                - ℹ️ Informa quantos comentários de automação foram ocultados
+                
+                **v8.34** *(14/04/2026)*
                 - 📦 Refatoração da aba Produto (PB) a pedido da Ellen
                 - 🚫 PB: Hotfix removido (não passa por produto)
                 - 📅 Filtro: "Todo o período" agora é padrão
