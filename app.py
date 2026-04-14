@@ -205,6 +205,10 @@ CUSTOM_FIELDS = {
     "complexidade_teste": "customfield_11290",
     "qa_responsavel": "customfield_10487",
     "produto": "customfield_10102",
+    # Campos para análise de Produto (Ellen)
+    "temas": "customfield_10520",  # Temas/Clientes (multi-value)
+    "importancia": "customfield_10522",  # Importância: Alto/Médio/Baixo
+    "sla_status": "customfield_11124",  # SLA: Atrasado
 }
 
 STATUS_FLOW = {
@@ -656,6 +660,7 @@ def buscar_dados_jira_cached(projeto: str, jql: str) -> Tuple[Optional[List[Dict
     fields = [
         "key", "summary", "status", "issuetype", "assignee", "created", "updated",
         "resolutiondate", "priority", "project", "labels", "reporter", "resolution",
+        "issuelinks",  # Links para rastrear origem do PB
         CUSTOM_FIELDS["story_points"],
         CUSTOM_FIELDS["story_points_alt"],
         CUSTOM_FIELDS["sprint"],
@@ -663,6 +668,9 @@ def buscar_dados_jira_cached(projeto: str, jql: str) -> Tuple[Optional[List[Dict
         CUSTOM_FIELDS["complexidade_teste"],
         CUSTOM_FIELDS["qa_responsavel"],
         CUSTOM_FIELDS["produto"],
+        CUSTOM_FIELDS["temas"],
+        CUSTOM_FIELDS["importancia"],
+        CUSTOM_FIELDS["sla_status"],
     ]
     
     all_issues = []
@@ -1141,6 +1149,39 @@ def processar_issues(issues: List[Dict]) -> pd.DataFrame:
         produtos = [p.get('value', '') for p in produto_f] if produto_f else []
         produto = produtos[0] if produtos else 'Não definido'
         
+        # ===== NOVOS CAMPOS ELLEN =====
+        # Temas/Clientes (multi-value)
+        temas_f = f.get(CUSTOM_FIELDS['temas'], [])
+        temas = temas_f if isinstance(temas_f, list) else []
+        tema_principal = temas[0] if temas else 'Sem tema'
+        
+        # Importância (Alto/Médio/Baixo)
+        importancia_f = f.get(CUSTOM_FIELDS['importancia'])
+        importancia = importancia_f.get('value', 'Não definido') if isinstance(importancia_f, dict) else 'Não definido'
+        
+        # SLA Status (Atrasado ou null)
+        sla_f = f.get(CUSTOM_FIELDS['sla_status'])
+        sla_status = sla_f.get('value', '') if isinstance(sla_f, dict) else ''
+        sla_atrasado = sla_status == 'Atrasado'
+        
+        # Issue Links - detectar origem do PB
+        issuelinks = f.get('issuelinks', [])
+        origem_pb = None
+        tem_link_pb = False
+        for link in issuelinks:
+            # Link para card do PB (outward = implements)
+            outward = link.get('outwardIssue', {})
+            if outward.get('key', '').startswith('PB-'):
+                origem_pb = outward.get('key')
+                tem_link_pb = True
+                break
+            # Link reverso (inward = is implemented by)
+            inward = link.get('inwardIssue', {})
+            if inward.get('key', '').startswith('PB-'):
+                origem_pb = inward.get('key')
+                tem_link_pb = True
+                break
+        
         # Datas
         try:
             criado = datetime.fromisoformat(f.get('created', '').replace('Z', '+00:00')).replace(tzinfo=None)
@@ -1235,6 +1276,14 @@ def processar_issues(issues: List[Dict]) -> pd.DataFrame:
             'criado_na_sprint': criado_na_sprint,
             'finalizado_mesma_sprint': finalizado_mesma_sprint,
             'adicionado_fora_periodo': adicionado_fora_periodo,
+            # Campos Ellen - Análise de Sprint e PB
+            'temas': temas,
+            'tema_principal': tema_principal,
+            'importancia': importancia,
+            'sla_status': sla_status,
+            'sla_atrasado': sla_atrasado,
+            'origem_pb': origem_pb,
+            'tem_link_pb': tem_link_pb,
         })
     
     return pd.DataFrame(dados)
@@ -2662,7 +2711,21 @@ def exibir_comentarios(comentarios: List[Dict], projeto: str = "SD"):
                 st.caption(f"ℹ️ {filtrados} comentário(s) de automação foram ocultados")
             
             # FILTROS INTERATIVOS
-            st.markdown("##### 🔍 Filtrar por tipo:")
+            st.markdown("##### 🔍 Filtrar comentários:")
+            
+            # Filtro de busca por texto
+            col_busca, col_autor = st.columns([2, 1])
+            with col_busca:
+                busca_texto = st.text_input("🔎 Buscar no texto:", placeholder="Digite para filtrar...", key="busca_comentario_texto")
+            
+            # Filtro por autor
+            autores = list(set([c.get('autor', 'Desconhecido') for c in comentarios_filtrados]))
+            autores.sort()
+            with col_autor:
+                autor_selecionado = st.selectbox("👤 Filtrar por autor:", ["Todos"] + autores, key="filtro_autor_comentario")
+            
+            # Filtros por tipo
+            st.markdown("**Por tipo:**")
             col1, col2, col3, col4, col5, col6 = st.columns(6)
             
             with col1:
@@ -2698,8 +2761,17 @@ def exibir_comentarios(comentarios: List[Dict], projeto: str = "SD"):
             if not tipos_exibir:
                 tipos_exibir = ['bug', 'reprovacao', 'impedido', 'retorno_dev', 'normal']
             
-            # Filtra comentários
+            # Filtra comentários por tipo
             comentarios_exibir = [c for c in comentarios_filtrados if c.get('classificacao') in tipos_exibir]
+            
+            # Aplica filtro de busca por texto
+            if busca_texto:
+                busca_lower = busca_texto.lower()
+                comentarios_exibir = [c for c in comentarios_exibir if busca_lower in c.get('texto', '').lower()]
+            
+            # Aplica filtro por autor
+            if autor_selecionado and autor_selecionado != "Todos":
+                comentarios_exibir = [c for c in comentarios_exibir if c.get('autor') == autor_selecionado]
             
             st.markdown("---")
             
@@ -3056,7 +3128,20 @@ def exibir_comentarios_pb(comentarios: List[Dict]):
                 st.caption(f"ℹ️ {filtrados} comentário(s) de automação foram ocultados")
             
             # FILTROS INTERATIVOS para PB
-            st.markdown("##### 🔍 Filtrar por tipo:")
+            st.markdown("##### 🔍 Filtrar comentários:")
+            
+            # Filtro de busca por texto e autor
+            col_busca, col_autor = st.columns([2, 1])
+            with col_busca:
+                busca_texto_pb = st.text_input("🔎 Buscar no texto:", placeholder="Digite para filtrar...", key="busca_comentario_texto_pb")
+            
+            autores_pb = list(set([c.get('autor', 'Desconhecido') for c in comentarios_filtrados]))
+            autores_pb.sort()
+            with col_autor:
+                autor_selecionado_pb = st.selectbox("👤 Filtrar por autor:", ["Todos"] + autores_pb, key="filtro_autor_comentario_pb")
+            
+            # Filtros por tipo
+            st.markdown("**Por tipo:**")
             col1, col2, col3, col4, col5, col6 = st.columns(6)
             
             with col1:
@@ -3092,6 +3177,15 @@ def exibir_comentarios_pb(comentarios: List[Dict]):
                 tipos_exibir = ['decisao', 'duvida', 'requisito', 'alinhamento', 'normal']
             
             comentarios_exibir = [c for c in comentarios_filtrados if c.get('classificacao') in tipos_exibir]
+            
+            # Aplica filtro de busca por texto
+            if busca_texto_pb:
+                busca_lower = busca_texto_pb.lower()
+                comentarios_exibir = [c for c in comentarios_exibir if busca_lower in c.get('texto', '').lower()]
+            
+            # Aplica filtro por autor
+            if autor_selecionado_pb and autor_selecionado_pb != "Todos":
+                comentarios_exibir = [c for c in comentarios_exibir if c.get('autor') == autor_selecionado_pb]
             
             st.markdown("---")
             
@@ -3915,6 +4009,90 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
                 df_status = df[df['status_cat'] == status]
                 if not df_status.empty:
                     mostrar_lista_df_completa(df_status, nome)
+    
+    # ===== NOVA SEÇÃO ELLEN: ANÁLISE DE SPRINT =====
+    projeto_atual = df['projeto'].iloc[0] if not df.empty else 'SD'
+    if projeto_atual in ['SD', 'QA']:
+        with st.expander("🎯 Análise de Sprint (Ellen)", expanded=True):
+            st.markdown("#### Planejamento vs Entrega da Sprint")
+            
+            # Separar cards por categoria
+            df_sprint = df[df['sprint'] != 'Sem Sprint'].copy()
+            
+            if not df_sprint.empty:
+                # Métricas de sprint
+                total_sprint = len(df_sprint)
+                planejados = df_sprint[df_sprint['criado_na_sprint'] == False]
+                adicionados_depois = df_sprint[df_sprint['adicionado_fora_periodo'] == True]
+                concluidos = df_sprint[df_sprint['status_cat'] == 'done']
+                
+                # Categorização por tipo de entrada
+                hotfixes = df_sprint[df_sprint['tipo'] == 'HOTFIX']
+                com_link_pb = df_sprint[df_sprint['tem_link_pb'] == True]
+                sem_link_pb = df_sprint[(df_sprint['tem_link_pb'] == False) & (df_sprint['tipo'] != 'HOTFIX')]
+                
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    pct_entrega = len(concluidos) / total_sprint * 100 if total_sprint > 0 else 0
+                    cor = 'green' if pct_entrega >= 80 else 'yellow' if pct_entrega >= 60 else 'red'
+                    criar_card_metrica(f"{pct_entrega:.0f}%", "Taxa de Entrega", cor, f"{len(concluidos)}/{total_sprint} cards")
+                
+                with col2:
+                    cor = 'green' if len(adicionados_depois) <= 3 else 'yellow' if len(adicionados_depois) <= 6 else 'red'
+                    criar_card_metrica(str(len(adicionados_depois)), "Fora do Planejamento", cor, "Adicionados após início")
+                
+                with col3:
+                    criar_card_metrica(str(len(hotfixes)), "Hotfix/Hotfeature", "orange", "Urgências da sprint")
+                
+                with col4:
+                    pct_pb = len(com_link_pb) / total_sprint * 100 if total_sprint > 0 else 0
+                    criar_card_metrica(f"{pct_pb:.0f}%", "Originados do PB", "blue", f"{len(com_link_pb)} cards")
+            
+                # Tabela de cards fora do planejamento
+                if not adicionados_depois.empty:
+                    st.markdown("---")
+                    st.markdown("##### 🚨 Cards Fora do Planejamento Original")
+                    st.caption("Cards adicionados após o início da sprint comprometem a previsibilidade")
+                    
+                    # Categorizar motivos
+                    for _, card in adicionados_depois.iterrows():
+                        if card['tipo'] == 'HOTFIX':
+                            categoria = "🔥 Hotfix/Hotfeature"
+                            cor_tag = "#f97316"
+                        elif card['tem_link_pb']:
+                            categoria = "📋 Puxado do PB"
+                            cor_tag = "#3b82f6"
+                        else:
+                            categoria = "➕ Criação Direta"
+                            cor_tag = "#8b5cf6"
+                        
+                        st.markdown(f"""
+                        <div style="background: #f8fafc; border-left: 4px solid {cor_tag}; padding: 10px 15px; margin: 5px 0; border-radius: 4px;">
+                            <span style="background: {cor_tag}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{categoria}</span>
+                            <a href="{card['link']}" target="_blank" style="margin-left: 10px; font-weight: bold;">{card['ticket_id']}</a>
+                            <span style="color: #64748b;"> - {card['titulo'][:60]}...</span>
+                            <span style="float: right; color: #94a3b8; font-size: 12px;">{card['status']}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                # Cards por origem do PB
+                if not com_link_pb.empty:
+                    st.markdown("---")
+                    st.markdown("##### 📋 Cards Originados do Product Backlog")
+                    
+                    # Agrupar por produto
+                    por_produto = com_link_pb.groupby('produto').agg({
+                        'ticket_id': 'count',
+                        'sp': 'sum',
+                        'status_cat': lambda x: (x == 'done').sum()
+                    }).reset_index()
+                    por_produto.columns = ['Produto', 'Cards', 'SP Total', 'Concluídos']
+                    por_produto = por_produto.sort_values('Cards', ascending=False)
+                    
+                    st.dataframe(por_produto, hide_index=True, use_container_width=True)
+            else:
+                st.info("Nenhum card com sprint definida no período")
     
     # Gráficos
     with st.expander("📊 Gráficos de Distribuição", expanded=False):
@@ -5498,6 +5676,145 @@ def aba_backlog(df: pd.DataFrame):
                 st.dataframe(df_estag.head(15), hide_index=True, use_container_width=True)
             else:
                 st.success("✅ Nenhum card estagnado!")
+    
+    # ===== NOVAS SEÇÕES ELLEN - PRODUTO =====
+    
+    # 1. Cards "Aguarda Revisão de Produto" com SLA Atrasado
+    status_aguarda_revisao = "AGUARDA REVISÃO DE PRODUTO"
+    df_aguarda_revisao = df[df['status'].str.upper() == status_aguarda_revisao.upper()].copy()
+    
+    if not df_aguarda_revisao.empty:
+        with st.expander(f"⏰ Aguarda Revisão de Produto ({len(df_aguarda_revisao)} cards)", expanded=True):
+            # Separar os atrasados
+            df_atrasados = df_aguarda_revisao[df_aguarda_revisao['sla_atrasado'] == True] if 'sla_atrasado' in df_aguarda_revisao.columns else pd.DataFrame()
+            df_no_prazo = df_aguarda_revisao[df_aguarda_revisao['sla_atrasado'] != True] if 'sla_atrasado' in df_aguarda_revisao.columns else df_aguarda_revisao
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                criar_card_metrica(str(len(df_aguarda_revisao)), "Total Aguardando", "blue", "Cards para revisar")
+            with col2:
+                cor = 'red' if len(df_atrasados) > 0 else 'green'
+                criar_card_metrica(str(len(df_atrasados)), "SLA Atrasado", cor, "Precisam atenção urgente!")
+            with col3:
+                criar_card_metrica(str(len(df_no_prazo)), "No Prazo", "green", "Dentro do SLA")
+            
+            # Listar atrasados primeiro
+            if not df_atrasados.empty:
+                st.markdown("##### 🚨 Cards com SLA Atrasado")
+                for _, card in df_atrasados.iterrows():
+                    dias_esperando = (datetime.now() - card['atualizado']).days if pd.notna(card['atualizado']) else 0
+                    st.markdown(f"""
+                    <div style="background: #fee2e2; border-left: 4px solid #ef4444; padding: 10px 15px; margin: 5px 0; border-radius: 4px;">
+                        <span style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">🚨 ATRASADO</span>
+                        <a href="{link_jira(card['ticket_id'])}" target="_blank" style="margin-left: 10px; font-weight: bold;">{card['ticket_id']}</a>
+                        <span style="color: #64748b;"> - {card['titulo'][:50]}...</span>
+                        <span style="float: right; color: #dc2626; font-size: 12px;">{dias_esperando}d sem atualização</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+    
+    # 2. Cards sem atuação há X dias (análise de tempo parado)
+    dias_alerta = st.slider("⏳ Alertar cards sem atuação há mais de (dias):", 7, 60, 15, key="slider_dias_sem_atuacao")
+    df['dias_sem_atuacao'] = (datetime.now() - pd.to_datetime(df['atualizado'])).dt.days
+    df_sem_atuacao = df[df['dias_sem_atuacao'] >= dias_alerta].copy()
+    
+    if not df_sem_atuacao.empty:
+        with st.expander(f"😴 Cards sem Atuação há {dias_alerta}+ dias ({len(df_sem_atuacao)} cards)", expanded=True):
+            # Ordenar por dias sem atuação
+            df_sem_atuacao = df_sem_atuacao.sort_values('dias_sem_atuacao', ascending=False)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                criar_card_metrica(str(len(df_sem_atuacao)), "Cards Parados", "orange", f"Sem atuação há {dias_alerta}+ dias")
+            with col2:
+                media_dias = df_sem_atuacao['dias_sem_atuacao'].mean()
+                criar_card_metrica(f"{media_dias:.0f}d", "Média Parado", "red" if media_dias > 30 else "yellow", "Tempo médio sem atuação")
+            
+            # Tabela
+            df_display = df_sem_atuacao[['ticket_id', 'titulo', 'dias_sem_atuacao', 'status', 'prioridade', 'produto']].head(15).copy()
+            df_display.columns = ['Ticket', 'Título', 'Dias Parado', 'Status', 'Prioridade', 'Produto']
+            df_display['Título'] = df_display['Título'].str[:40] + '...'
+            st.dataframe(df_display, hide_index=True, use_container_width=True)
+    
+    # 3. Total de cards por Temas e por Produto
+    if 'temas' in df.columns:
+        with st.expander("🏷️ Análise por Temas e Produto (Ellen)", expanded=True):
+            st.markdown("#### Cards por Tema/Cliente")
+            
+            # Expandir temas (multi-value)
+            df_temas = df.explode('temas')
+            df_temas = df_temas[df_temas['temas'].notna() & (df_temas['temas'] != '')]
+            
+            if not df_temas.empty:
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Por Tema
+                    tema_counts = df_temas.groupby('temas').agg({
+                        'ticket_id': 'count',
+                        'sp': 'sum'
+                    }).reset_index()
+                    tema_counts.columns = ['Tema', 'Cards', 'SP Total']
+                    tema_counts = tema_counts.sort_values('Cards', ascending=False)
+                    
+                    fig = px.bar(tema_counts.head(10), x='Tema', y='Cards', 
+                                 title='📊 Top 10 Temas/Clientes',
+                                 color='Cards', color_continuous_scale='Blues')
+                    fig.update_layout(height=350, showlegend=False)
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                with col2:
+                    # Por Produto E Tema (cruzamento)
+                    produto_tema = df_temas.groupby(['produto', 'temas']).size().reset_index(name='Cards')
+                    produto_tema = produto_tema.sort_values('Cards', ascending=False).head(15)
+                    
+                    st.markdown("##### 📦 Cruzamento Produto x Tema")
+                    st.dataframe(produto_tema, hide_index=True, use_container_width=True)
+            else:
+                st.info("Nenhum card com tema definido")
+    
+    # 4. Tempo de Vida por Importância
+    if 'importancia' in df.columns:
+        with st.expander("⏱️ Tempo de Vida por Importância", expanded=True):
+            st.markdown("##### Quanto tempo cada prioridade fica no backlog?")
+            
+            df['idade_dias'] = (datetime.now() - pd.to_datetime(df['criado'])).dt.days
+            
+            importancia_stats = df.groupby('importancia').agg({
+                'ticket_id': 'count',
+                'idade_dias': ['mean', 'median', 'max'],
+                'sp': 'sum'
+            }).reset_index()
+            importancia_stats.columns = ['Importância', 'Cards', 'Idade Média', 'Idade Mediana', 'Mais Antigo', 'SP Total']
+            
+            # Ordenar por importância
+            ordem_importancia = {'Alto': 1, 'Médio': 2, 'Baixo': 3, 'Não definido': 4}
+            importancia_stats['ordem'] = importancia_stats['Importância'].map(ordem_importancia).fillna(5)
+            importancia_stats = importancia_stats.sort_values('ordem').drop('ordem', axis=1)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Gráfico de barras
+                fig = px.bar(importancia_stats, x='Importância', y='Idade Média',
+                             title='📊 Idade Média por Importância (dias)',
+                             color='Importância',
+                             color_discrete_map={'Alto': '#ef4444', 'Médio': '#f59e0b', 'Baixo': '#22c55e', 'Não definido': '#94a3b8'})
+                fig.update_layout(height=300, showlegend=False)
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                # Tabela
+                importancia_stats['Idade Média'] = importancia_stats['Idade Média'].round(1).astype(str) + 'd'
+                importancia_stats['Idade Mediana'] = importancia_stats['Idade Mediana'].round(1).astype(str) + 'd'
+                importancia_stats['Mais Antigo'] = importancia_stats['Mais Antigo'].astype(str) + 'd'
+                st.dataframe(importancia_stats, hide_index=True, use_container_width=True)
+            
+            # Alerta se itens de alta prioridade estão velhos
+            df_alta = df[df['importancia'] == 'Alto']
+            if not df_alta.empty:
+                alta_velhos = df_alta[df_alta['idade_dias'] > 30]
+                if not alta_velhos.empty:
+                    st.warning(f"⚠️ {len(alta_velhos)} cards de **Alta Importância** estão há mais de 30 dias no backlog!")
     
     # Tooltip explicativo
     with st.expander("ℹ️ Sobre esta Aba", expanded=False):
