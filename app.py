@@ -2868,8 +2868,11 @@ def aba_qa(df: pd.DataFrame):
         st.query_params["qa"] = qa_sel
         st.query_params["aba"] = "qa"
     else:
+        # Limpa todos os params de QA ao voltar para visão geral
         if "qa" in st.query_params:
             del st.query_params["qa"]
+        if "aba" in st.query_params and st.query_params.get("aba") == "qa":
+            del st.query_params["aba"]
     
     st.markdown("---")
     
@@ -3358,8 +3361,12 @@ def aba_dev(df: pd.DataFrame):
     if dev_sel != "🏆 Ranking Geral":
         st.query_params["dev"] = dev_sel
         st.query_params["aba"] = "dev"
-    elif "dev" in st.query_params:
-        del st.query_params["dev"]
+    else:
+        # Limpa todos os params de Dev ao voltar para ranking geral
+        if "dev" in st.query_params:
+            del st.query_params["dev"]
+        if "aba" in st.query_params and st.query_params.get("aba") == "dev":
+            del st.query_params["aba"]
     
     st.markdown("---")
     
@@ -5181,7 +5188,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.23 • Dashboard de Inteligência QA
+                    v8.24 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -5189,7 +5196,10 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.23** *(Atual)*
+                **v8.24** *(Atual)*
+                - 🧹 Fix: Limpa parâmetros da URL ao voltar para visão geral
+                
+                **v8.23** *(14/04/2026)*
                 - 🚀 Navegação direta via link compartilhado
                 - ⬅️ Botão "Ver Dashboard Completo" para voltar
                 
