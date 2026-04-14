@@ -357,18 +357,19 @@ def verificar_login_salvo():
     email_salvo = st.query_params.get("_auth", None)
     
     if email_salvo:
-        # Faz login automático
-        if fazer_login(email_salvo):
-            # Remove o param de auth da URL para não ficar visível
-            st.query_params.pop("_auth", None)
-            st.rerun()
+        # Faz login automático (mantém o param na URL para não perder o login)
+        fazer_login(email_salvo, lembrar=True)
+        # NÃO remove o param nem faz rerun - deixa o fluxo continuar naturalmente
 
 
 def carregar_login_do_navegador():
     """Injeta JavaScript para verificar localStorage e redirecionar com o email salvo."""
-    # Só executa se não estiver logado
+    # Só executa se não estiver logado e não tem _auth na URL
     if st.session_state.get("logged_in", False):
         return
+    
+    if st.query_params.get("_auth", None):
+        return  # Já tem _auth, não precisa injetar JS
     
     # JavaScript que verifica localStorage e adiciona param à URL se houver login salvo
     components.html("""
@@ -437,6 +438,10 @@ def fazer_logout():
     """Remove sessão do usuário e limpa localStorage."""
     # Limpa localStorage
     limpar_login_do_navegador()
+    
+    # Limpa o _auth da URL
+    if "_auth" in st.query_params:
+        del st.query_params["_auth"]
     
     st.session_state.logged_in = False
     st.session_state.user_email = None
@@ -5295,7 +5300,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.29 • Dashboard de Inteligência QA
+                    v8.30 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -5303,7 +5308,11 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.29** *(Atual)*
+                **v8.30** *(Atual)*
+                - 🔧 Fix: Login persistente agora funciona corretamente
+                - 🔒 Mantém sessão entre atualizações e novas abas
+                
+                **v8.29** *(14/04/2026)*
                 - 🔒 "Lembrar de mim" - login persistente no navegador
                 - 🔓 Não precisa mais fazer login toda vez que atualiza
                 - 🧹 Logout limpa o login salvo
