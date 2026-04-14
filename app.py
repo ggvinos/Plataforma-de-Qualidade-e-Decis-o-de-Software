@@ -2215,15 +2215,13 @@ def exibir_cards_vinculados(links: List[Dict]):
 def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
     """
     Filtra comentários de automação e classifica os relevantes.
-    
-    Filtros (remove):
-    - Automações do GitHub (commits, branches, merges)
-    - Mensagens automáticas de integração
+    Adiciona contexto temporal (antes/depois de eventos importantes).
     
     Classificações:
     - bug: Comentário relacionado a bug/defeito
     - reprovacao: Comentário de reprovação
-    - normal: Comentário comum
+    - impedido: Comentário de impedimento
+    - normal: Comentário comum (com contexto temporal)
     """
     if not comentarios:
         return []
@@ -2247,14 +2245,18 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
         "added a commit",
         "referenced this issue",
         "mentioned this page",
-        "/confirmationcall on branch",  # Padrão específico do exemplo
-        "Elintondm /",  # Outro padrão do exemplo
+        "/confirmationcall on branch",
+        "Elintondm /",
+        "on branch sd-",
+        "on branch SD-",
     ]
     
     # Padrões para identificar comentários de bugs
     padroes_bug = [
         "bug encontrado",
-        "bug identificado",
+        "bug identificado", 
+        "bug:",
+        "bug registrado",
         "defeito encontrado",
         "defeito identificado",
         "erro encontrado",
@@ -2277,6 +2279,10 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
         "registrar bug",
         "abrir bug",
         "aberto bug",
+        "cenário:",
+        "cenário 1",
+        "cenário 2",
+        "cenário 3",
     ]
     
     # Padrões para identificar comentários de reprovação
@@ -2301,10 +2307,32 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
         "falhou na validação",
         "não atende",
         "não atendeu",
+        "favor corrigir",
+        "por favor corrigir",
+        "correção necessária",
     ]
     
-    comentarios_filtrados = []
+    # Padrões para identificar comentários de impedimento
+    padroes_impedido = [
+        "impedido",
+        "impedimento",
+        "bloqueado",
+        "bloqueio",
+        "dependência",
+        "aguardando",
+        "aguardar",
+        "esperar",
+        "não pode prosseguir",
+        "não consigo continuar",
+        "não é possível continuar",
+        "parado",
+        "pausado",
+        "travado",
+        "bloqueando",
+    ]
     
+    # Primeira passagem: filtrar automações e classificar
+    comentarios_pre = []
     for com in comentarios:
         texto_lower = com.get('texto', '').lower()
         autor = com.get('autor', '').lower()
@@ -2316,7 +2344,6 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
                 eh_automacao = True
                 break
         
-        # Também verifica se o autor indica automação
         if any(bot in autor for bot in ['automation', 'bot', 'github', 'bitbucket', 'gitlab', 'jira']):
             eh_automacao = True
         
@@ -2326,25 +2353,93 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
         # Classifica o comentário
         classificacao = 'normal'
         
-        # Primeiro verifica reprovação (tem prioridade)
+        # Verifica impedido
+        for padrao in padroes_impedido:
+            if padrao in texto_lower:
+                classificacao = 'impedido'
+                break
+        
+        # Verifica reprovação (prioridade sobre impedido se ambos)
         for padrao in padroes_reprovacao:
             if padrao in texto_lower:
                 classificacao = 'reprovacao'
                 break
         
-        # Depois verifica bug
+        # Verifica bug
         if classificacao == 'normal':
             for padrao in padroes_bug:
                 if padrao in texto_lower:
                     classificacao = 'bug'
                     break
         
-        comentarios_filtrados.append({
+        # Parse da data
+        try:
+            data_parsed = datetime.fromisoformat(com['data'].replace('Z', '+00:00')).replace(tzinfo=None)
+        except:
+            data_parsed = datetime.now()
+        
+        comentarios_pre.append({
             **com,
-            'classificacao': classificacao
+            'classificacao': classificacao,
+            'data_parsed': data_parsed,
+            'contexto': None  # Será preenchido na segunda passagem
         })
     
-    return comentarios_filtrados
+    # Ordena por data
+    comentarios_pre.sort(key=lambda x: x['data_parsed'])
+    
+    # Segunda passagem: adicionar contexto temporal
+    # Encontra índices dos eventos importantes
+    eventos = []
+    for i, com in enumerate(comentarios_pre):
+        if com['classificacao'] in ['bug', 'reprovacao', 'impedido']:
+            eventos.append({
+                'indice': i,
+                'tipo': com['classificacao'],
+                'data': com['data_parsed'],
+                'numero': len([e for e in eventos if e['tipo'] == com['classificacao']]) + 1
+            })
+    
+    # Atribui contexto aos comentários normais
+    for i, com in enumerate(comentarios_pre):
+        if com['classificacao'] == 'normal':
+            # Encontra o evento mais próximo
+            evento_anterior = None
+            evento_posterior = None
+            
+            for ev in eventos:
+                if ev['indice'] < i:
+                    evento_anterior = ev
+                elif ev['indice'] > i and evento_posterior is None:
+                    evento_posterior = ev
+            
+            # Define contexto baseado na proximidade
+            if evento_anterior and evento_posterior:
+                # Entre dois eventos - pega o mais próximo
+                dist_ant = i - evento_anterior['indice']
+                dist_pos = evento_posterior['indice'] - i
+                
+                if dist_ant <= dist_pos:
+                    tipo_nome = {'bug': 'Bug', 'reprovacao': 'Reprovação', 'impedido': 'Impedimento'}[evento_anterior['tipo']]
+                    com['contexto'] = f"Após {tipo_nome} #{evento_anterior['numero']}"
+                else:
+                    tipo_nome = {'bug': 'Bug', 'reprovacao': 'Reprovação', 'impedido': 'Impedimento'}[evento_posterior['tipo']]
+                    com['contexto'] = f"Antes {tipo_nome} #{evento_posterior['numero']}"
+            elif evento_anterior:
+                tipo_nome = {'bug': 'Bug', 'reprovacao': 'Reprovação', 'impedido': 'Impedimento'}[evento_anterior['tipo']]
+                com['contexto'] = f"Após {tipo_nome} #{evento_anterior['numero']}"
+            elif evento_posterior:
+                tipo_nome = {'bug': 'Bug', 'reprovacao': 'Reprovação', 'impedido': 'Impedimento'}[evento_posterior['tipo']]
+                com['contexto'] = f"Antes {tipo_nome} #{evento_posterior['numero']}"
+    
+    # Numera os eventos no resultado final
+    contadores = {'bug': 0, 'reprovacao': 0, 'impedido': 0}
+    for com in comentarios_pre:
+        if com['classificacao'] in contadores:
+            contadores[com['classificacao']] += 1
+            com['numero_evento'] = contadores[com['classificacao']]
+    
+    return comentarios_pre
 
 
 def exibir_comentarios(comentarios: List[Dict]):
@@ -2359,6 +2454,7 @@ def exibir_comentarios(comentarios: List[Dict]):
     # Conta por classificação
     bugs = sum(1 for c in comentarios_filtrados if c.get('classificacao') == 'bug')
     reprovacoes = sum(1 for c in comentarios_filtrados if c.get('classificacao') == 'reprovacao')
+    impedidos = sum(1 for c in comentarios_filtrados if c.get('classificacao') == 'impedido')
     
     if comentarios_filtrados and len(comentarios_filtrados) > 0:
         st.markdown("<br>", unsafe_allow_html=True)
@@ -2369,6 +2465,8 @@ def exibir_comentarios(comentarios: List[Dict]):
             titulo_extra.append(f"🐛 {bugs}")
         if reprovacoes > 0:
             titulo_extra.append(f"❌ {reprovacoes}")
+        if impedidos > 0:
+            titulo_extra.append(f"🚫 {impedidos}")
         titulo_sufixo = f" | {' '.join(titulo_extra)}" if titulo_extra else ""
         
         with st.expander(f"💬 **Comentários ({total_filtrado})**{titulo_sufixo}", expanded=True):
@@ -2376,28 +2474,79 @@ def exibir_comentarios(comentarios: List[Dict]):
             if filtrados > 0:
                 st.caption(f"ℹ️ {filtrados} comentário(s) de automação foram ocultados")
             
+            # Legenda
+            st.markdown("""
+            <div style='display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;'>
+                <span style='font-size: 0.8em;'>🐛 <span style='color: #dc2626;'>Bug</span></span>
+                <span style='font-size: 0.8em;'>❌ <span style='color: #ea580c;'>Reprovação</span></span>
+                <span style='font-size: 0.8em;'>🚫 <span style='color: #9333ea;'>Impedimento</span></span>
+                <span style='font-size: 0.8em;'>💬 <span style='color: #64748b;'>Contexto</span></span>
+            </div>
+            """, unsafe_allow_html=True)
+            
             for i, com in enumerate(comentarios_filtrados):
                 # Formata a data
                 try:
                     data_com = datetime.fromisoformat(com['data'].replace('Z', '+00:00'))
-                    data_formatada = data_com.strftime('%d/%m/%Y às %H:%M')
+                    data_formatada = data_com.strftime('%d/%m/%Y %H:%M')
                 except:
                     data_formatada = com['data'][:10] if com['data'] else 'Data desconhecida'
                 
-                # Define cores e ícones baseado na classificação
+                # Define cores e badges baseado na classificação
                 classificacao = com.get('classificacao', 'normal')
+                numero_evento = com.get('numero_evento', '')
+                contexto = com.get('contexto', '')
+                
                 if classificacao == 'bug':
-                    cor_borda = '#ef4444'  # Vermelho
-                    cor_avatar = '#ef4444'
-                    badge = '<span style="background: #ef444420; color: #ef4444; padding: 2px 8px; border-radius: 10px; font-size: 0.75em; margin-left: 8px;">🐛 Bug</span>'
+                    cor_borda = '#dc2626'  # Vermelho forte
+                    cor_fundo = '#fef2f2'  # Vermelho bem claro
+                    cor_avatar = '#dc2626'
+                    badge = f'<span style="background: #dc2626; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; font-weight: bold;">🐛 Bug #{numero_evento}</span>'
                 elif classificacao == 'reprovacao':
-                    cor_borda = '#f97316'  # Laranja
-                    cor_avatar = '#f97316'
-                    badge = '<span style="background: #f9731620; color: #f97316; padding: 2px 8px; border-radius: 10px; font-size: 0.75em; margin-left: 8px;">❌ Reprovação</span>'
+                    cor_borda = '#ea580c'  # Laranja forte
+                    cor_fundo = '#fff7ed'  # Laranja bem claro
+                    cor_avatar = '#ea580c'
+                    badge = f'<span style="background: #ea580c; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; font-weight: bold;">❌ Reprovação #{numero_evento}</span>'
+                elif classificacao == 'impedido':
+                    cor_borda = '#9333ea'  # Roxo forte
+                    cor_fundo = '#faf5ff'  # Roxo bem claro
+                    cor_avatar = '#9333ea'
+                    badge = f'<span style="background: #9333ea; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; font-weight: bold;">🚫 Impedimento #{numero_evento}</span>'
                 else:
-                    cor_borda = '#6366f1'  # Roxo (padrão)
-                    cor_avatar = '#6366f1'
-                    badge = ''
+                    cor_borda = '#94a3b8'  # Cinza
+                    cor_fundo = '#f8fafc'  # Cinza bem claro
+                    cor_avatar = '#64748b'
+                    if contexto:
+                        badge = f'<span style="background: #e2e8f0; color: #475569; padding: 3px 10px; border-radius: 12px; font-size: 0.75em;">{contexto}</span>'
+                    else:
+                        badge = ''
+                
+                st.markdown(f"""
+<div style='background: {cor_fundo}; padding: 14px 16px; border-radius: 10px; margin-bottom: 12px; border-left: 4px solid {cor_borda}; box-shadow: 0 1px 3px rgba(0,0,0,0.05);'>
+    <div style='display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;'>
+        <div style='display: flex; align-items: center; gap: 10px;'>
+            <div style='width: 36px; height: 36px; border-radius: 50%; background: {cor_avatar}; 
+                        display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.9em;'>
+                {com['autor'][0].upper() if com['autor'] else '?'}
+            </div>
+            <div>
+                <strong style='color: #1e293b; font-size: 0.95em;'>{com['autor']}</strong>
+                <div style='color: #64748b; font-size: 0.8em;'>{data_formatada}</div>
+            </div>
+        </div>
+        <div>{badge}</div>
+    </div>
+    <div style='color: #334155; font-size: 0.9em; line-height: 1.6; padding-left: 46px; white-space: pre-wrap;'>{com['texto'][:800]}{'...' if len(com['texto']) > 800 else ''}</div>
+</div>
+                """, unsafe_allow_html=True)
+    else:
+        st.markdown("<br>", unsafe_allow_html=True)
+        filtrados_msg = f" ({filtrados} de automação ocultados)" if filtrados > 0 else ""
+        with st.expander(f"💬 **Comentários (0)**{filtrados_msg}", expanded=False):
+            if filtrados > 0:
+                st.caption(f"ℹ️ Este card tem {filtrados} comentário(s) de automação que foram ocultados.")
+            else:
+                st.caption("Nenhum comentário de usuário neste card.")
                 
                 st.markdown(f"""
 <div style='background: #f8fafc; padding: 12px 15px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid {cor_borda};'>
@@ -5541,7 +5690,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.35 • Dashboard de Inteligência QA
+                    v8.36 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -5549,7 +5698,15 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.35** *(Atual)*
+                **v8.36** *(Atual)*
+                - 🎨 Visual de comentários completamente reformulado
+                - 🐛 Bug: fundo vermelho claro + borda vermelha + badge numerado
+                - ❌ Reprovação: fundo laranja claro + borda laranja + badge numerado  
+                - 🚫 Impedimento: fundo roxo claro + borda roxa + badge numerado
+                - 📍 Contexto temporal: "Antes Reprovação #1", "Após Bug #2"
+                - 📊 Legenda visual no topo dos comentários
+                
+                **v8.35** *(14/04/2026)*
                 - 🧠 Comentários inteligentes: filtra automações do GitHub
                 - 🐛 Destaca comentários de bugs (borda vermelha)
                 - ❌ Destaca comentários de reprovação (borda laranja)
