@@ -2865,14 +2865,14 @@ def aba_qa(df: pd.DataFrame):
     
     # Atualizar URL quando selecionar um QA
     if qa_sel != "👀 Visão Geral do Time":
+        # Limpa params de Dev antes de definir QA
+        if "dev" in st.query_params:
+            del st.query_params["dev"]
         st.query_params["qa"] = qa_sel
         st.query_params["aba"] = "qa"
     else:
-        # Limpa todos os params de QA ao voltar para visão geral
-        if "qa" in st.query_params:
-            del st.query_params["qa"]
-        if "aba" in st.query_params and st.query_params.get("aba") == "qa":
-            del st.query_params["aba"]
+        # Limpa TODOS os params ao voltar para visão geral
+        st.query_params.clear()
     
     st.markdown("---")
     
@@ -3359,14 +3359,14 @@ def aba_dev(df: pd.DataFrame):
     
     # Atualiza query params para link compartilhável
     if dev_sel != "🏆 Ranking Geral":
+        # Limpa params de QA antes de definir Dev
+        if "qa" in st.query_params:
+            del st.query_params["qa"]
         st.query_params["dev"] = dev_sel
         st.query_params["aba"] = "dev"
     else:
-        # Limpa todos os params de Dev ao voltar para ranking geral
-        if "dev" in st.query_params:
-            del st.query_params["dev"]
-        if "aba" in st.query_params and st.query_params.get("aba") == "dev":
-            del st.query_params["aba"]
+        # Limpa TODOS os params ao voltar para ranking geral
+        st.query_params.clear()
     
     st.markdown("---")
     
@@ -5188,7 +5188,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.24 • Dashboard de Inteligência QA
+                    v8.25 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -5196,7 +5196,11 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.24** *(Atual)*
+                **v8.25** *(Atual)*
+                - 🧹 Fix: URL limpa - remove params cruzados QA/Dev
+                - 🧹 Clear total ao voltar para visão geral
+                
+                **v8.24** *(14/04/2026)*
                 - 🧹 Fix: Limpa parâmetros da URL ao voltar para visão geral
                 
                 **v8.23** *(14/04/2026)*
