@@ -68,6 +68,7 @@ import os
 import io
 import base64
 import random
+import extra_streamlit_components as stx
 
 # ==============================================================================
 # CONFIGURAÇÃO DA PÁGINA (DEVE SER PRIMEIRO)
@@ -339,53 +340,37 @@ def verificar_credenciais() -> bool:
 # AUTENTICAÇÃO DE USUÁRIO
 # ==============================================================================
 
+@st.cache_resource
+def get_cookie_manager():
+    """Retorna o CookieManager (singleton)."""
+    return stx.CookieManager()
+
+
 def verificar_login() -> bool:
-    """Verifica se o usuário está logado."""
-    return st.session_state.get("logged_in", False) and st.session_state.get("user_email")
+    """Verifica se o usuário está logado (via session_state ou cookie)."""
+    # Primeiro verifica session_state
+    if st.session_state.get("logged_in", False) and st.session_state.get("user_email"):
+        return True
+    
+    # Se não está logado na sessão, verifica cookie
+    cookie_manager = get_cookie_manager()
+    email_cookie = cookie_manager.get("ninadash_email")
+    
+    if email_cookie and validar_email_corporativo(email_cookie):
+        # Restaura sessão a partir do cookie
+        st.session_state.logged_in = True
+        st.session_state.user_email = email_cookie
+        st.session_state.user_nome = extrair_nome_usuario(email_cookie)
+        return True
+    
+    return False
 
 
-def verificar_login_salvo():
-    """
-    Verifica se há um login salvo no localStorage do navegador.
-    Usa JavaScript para ler e envia via query params.
-    """
-    # Se já está logado, não faz nada
-    if st.session_state.get("logged_in", False):
-        return
-    
-    # Verifica se há email nos query params (vindo do localStorage)
-    email_salvo = st.query_params.get("_auth", None)
-    
-    if email_salvo:
-        # Faz login automático (mantém o param na URL para não perder o login)
-        fazer_login(email_salvo, lembrar=True)
-        # NÃO remove o param nem faz rerun - deixa o fluxo continuar naturalmente
-
-
-def carregar_login_do_navegador():
-    """Injeta JavaScript para verificar localStorage e redirecionar com o email salvo."""
-    # Só executa se não estiver logado e não tem _auth na URL
-    if st.session_state.get("logged_in", False):
-        return
-    
-    if st.query_params.get("_auth", None):
-        return  # Já tem _auth, não precisa injetar JS
-    
-    # JavaScript que verifica localStorage e adiciona param à URL se houver login salvo
-    components.html("""
-    <script>
-    (function() {
-        const savedEmail = localStorage.getItem('ninadash_email');
-        const currentUrl = new URL(window.location.href);
-        
-        // Se há email salvo e não está nos params atuais
-        if (savedEmail && !currentUrl.searchParams.has('_auth')) {
-            currentUrl.searchParams.set('_auth', savedEmail);
-            window.location.href = currentUrl.toString();
-        }
-    })();
-    </script>
-    """, height=0)
+def validar_email_corporativo(email: str) -> bool:
+    """Valida se é um email corporativo autorizado."""
+    if not email or "@" not in email:
+        return False
+    return email.lower().strip().endswith("@confirmationcall.com.br")
 
 
 def extrair_nome_usuario(email: str) -> str:
@@ -405,47 +390,34 @@ def fazer_login(email: str, lembrar: bool = False) -> bool:
     """
     email_lower = email.lower().strip()
     
-    # Valida se é e-mail corporativo (domínio @confirmationcall.com.br)
-    if email_lower.endswith("@confirmationcall.com.br"):
+    # Valida se é e-mail corporativo
+    if validar_email_corporativo(email_lower):
         st.session_state.logged_in = True
         st.session_state.user_email = email_lower
         st.session_state.user_nome = extrair_nome_usuario(email_lower)
-        st.session_state.lembrar_login = lembrar
+        
+        # Se marcou "lembrar", salva no cookie
+        if lembrar:
+            cookie_manager = get_cookie_manager()
+            # Cookie expira em 30 dias
+            cookie_manager.set("ninadash_email", email_lower, expires_at=datetime.now() + timedelta(days=30))
+        
         return True
     
     return False
 
 
-def salvar_login_no_navegador(email: str):
-    """Salva o email no localStorage do navegador para login persistente."""
-    components.html(f"""
-    <script>
-    localStorage.setItem('ninadash_email', '{email}');
-    </script>
-    """, height=0)
-
-
-def limpar_login_do_navegador():
-    """Remove o email salvo do localStorage."""
-    components.html("""
-    <script>
-    localStorage.removeItem('ninadash_email');
-    </script>
-    """, height=0)
-
-
 def fazer_logout():
-    """Remove sessão do usuário e limpa localStorage."""
-    # Limpa localStorage
-    limpar_login_do_navegador()
+    """Remove sessão do usuário e limpa cookie."""
+    # Limpa cookie
+    cookie_manager = get_cookie_manager()
+    cookie_manager.delete("ninadash_email")
     
-    # Limpa o _auth da URL
-    if "_auth" in st.query_params:
-        del st.query_params["_auth"]
-    
+    # Limpa session_state
     st.session_state.logged_in = False
     st.session_state.user_email = None
     st.session_state.user_nome = None
+    
     # Limpa dados carregados para forçar reload após novo login
     if 'dados_carregados' in st.session_state:
         del st.session_state.dados_carregados
@@ -617,9 +589,6 @@ def mostrar_tela_login():
                 else:
                     with st.spinner("Verificando..."):
                         if fazer_login(email, lembrar):
-                            # Se marcou "lembrar", salva no localStorage
-                            if lembrar:
-                                salvar_login_no_navegador(email.lower().strip())
                             st.success(f"Bem-vindo(a), {st.session_state.user_nome}!")
                             st.rerun()
                         else:
@@ -5065,14 +5034,8 @@ def aba_sobre():
 def main():
     """Função principal do dashboard."""
     
-    # ========== VERIFICAR LOGIN SALVO (localStorage) ==========
-    # Primeiro verifica se há login salvo no navegador
-    verificar_login_salvo()
-    
-    # ========== VERIFICAR LOGIN ==========
+    # ========== VERIFICAR LOGIN (via session_state ou cookie) ==========
     if not verificar_login():
-        # Tenta carregar login do localStorage do navegador
-        carregar_login_do_navegador()
         mostrar_tela_login()
         return
     
@@ -5300,7 +5263,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.30 • Dashboard de Inteligência QA
+                    v8.31 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -5308,7 +5271,12 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.30** *(Atual)*
+                **v8.31** *(Atual)*
+                - 🔒 Login persistente agora usa cookies (mais confiável)
+                - 🍪 Biblioteca extra-streamlit-components para gerenciar cookies
+                - ⏰ Cookie expira em 30 dias
+                
+                **v8.30** *(14/04/2026)*
                 - 🔧 Fix: Login persistente agora funciona corretamente
                 - 🔒 Mantém sessão entre atualizações e novas abas
                 

@@ -24,3 +24,6 @@ python-dotenv>=1.0.0
 
 # Exportação de dados para Excel
 openpyxl>=3.1.0
+
+# Componentes extras para Streamlit (CookieManager para login persistente)
+extra-streamlit-components>=0.1.60
