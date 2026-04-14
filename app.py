@@ -2547,32 +2547,6 @@ def exibir_comentarios(comentarios: List[Dict]):
                 st.caption(f"ℹ️ Este card tem {filtrados} comentário(s) de automação que foram ocultados.")
             else:
                 st.caption("Nenhum comentário de usuário neste card.")
-                
-                st.markdown(f"""
-<div style='background: #f8fafc; padding: 12px 15px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid {cor_borda};'>
-    <div style='display: flex; align-items: center; gap: 10px; margin-bottom: 8px;'>
-        <div style='width: 32px; height: 32px; border-radius: 50%; background: {cor_avatar}; 
-                    display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;'>
-            {com['autor'][0].upper() if com['autor'] else '?'}
-        </div>
-        <div>
-            <strong style='color: #333;'>{com['autor']}</strong>{badge}
-            <span style='color: #888; font-size: 0.8em; margin-left: 8px;'>{data_formatada}</span>
-        </div>
-    </div>
-    <div style='color: #444; font-size: 0.9em; line-height: 1.5; padding-left: 42px;'>
-        {com['texto'][:500]}{'...' if len(com['texto']) > 500 else ''}
-    </div>
-</div>
-                """, unsafe_allow_html=True)
-    else:
-        st.markdown("<br>", unsafe_allow_html=True)
-        filtrados_msg = f" ({filtrados} de automação ocultados)" if filtrados > 0 else ""
-        with st.expander(f"💬 **Comentários (0)**{filtrados_msg}", expanded=False):
-            if filtrados > 0:
-                st.caption(f"ℹ️ Este card tem {filtrados} comentário(s) de automação que foram ocultados.")
-            else:
-                st.caption("Nenhum comentário de usuário neste card.")
 
 
 # ==============================================================================
