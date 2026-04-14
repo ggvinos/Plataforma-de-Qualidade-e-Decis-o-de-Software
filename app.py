@@ -3112,15 +3112,58 @@ def aba_qa(df: pd.DataFrame):
             st.warning(f"Nenhum card atribuído para {qa_sel}")
             return
         
-        col_titulo, col_share = st.columns([8, 2])
+        # Header com título e botão de compartilhamento
+        import urllib.parse
+        base_url = "https://plataforma-de-qualidade-e-decis-o-de-software-8ze3ycurhvmdahdv.streamlit.app/"
+        share_url = f"{base_url}?aba=qa&qa={urllib.parse.quote(qa_sel)}"
+        
+        col_titulo, col_share = st.columns([3, 1])
         with col_titulo:
             st.markdown(f"### 👤 Métricas de {qa_sel}")
         with col_share:
-            import urllib.parse
-            base_url = "https://ninatecnologia.streamlit.app"
-            share_url = f"{base_url}?aba=qa&qa={urllib.parse.quote(qa_sel)}"
-            st.code(share_url, language=None)
-            st.markdown(f'<a href="{share_url}" target="_blank">🔗 Abrir Link</a>', unsafe_allow_html=True)
+            # Botão Copiar Link usando components.html (mesmo padrão do card individual)
+            components.html(f"""
+            <button id="copyBtnQA" style="
+                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                color: white;
+                border: none;
+                padding: 10px 16px;
+                border-radius: 6px;
+                cursor: pointer;
+                width: 100%;
+                font-size: 14px;
+                font-weight: 500;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                transition: all 0.2s ease;
+            ">📋 Copiar Link</button>
+            <script>
+                document.getElementById('copyBtnQA').addEventListener('click', function() {{
+                    var url = '{share_url}';
+                    var btn = this;
+                    navigator.clipboard.writeText(url).then(function() {{
+                        btn.innerHTML = '✅ Copiado!';
+                        btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+                        setTimeout(function() {{
+                            btn.innerHTML = '📋 Copiar Link';
+                            btn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+                        }}, 2000);
+                    }}).catch(function() {{
+                        var temp = document.createElement('textarea');
+                        temp.value = url;
+                        document.body.appendChild(temp);
+                        temp.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(temp);
+                        btn.innerHTML = '✅ Copiado!';
+                        btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+                        setTimeout(function() {{
+                            btn.innerHTML = '📋 Copiar Link';
+                            btn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+                        }}, 2000);
+                    }});
+                }});
+            </script>
+            """, height=45)
         
         # KPIs individuais
         with st.expander("📊 Indicadores Individuais", expanded=True):
@@ -3580,16 +3623,58 @@ def aba_dev(df: pd.DataFrame):
         analise = analisar_dev_detalhado(df, dev_sel)
         
         if analise:
-            # Título com botão de compartilhamento
-            col_titulo, col_share = st.columns([8, 2])
+            # Header com título e botão de compartilhamento
+            import urllib.parse
+            base_url = "https://plataforma-de-qualidade-e-decis-o-de-software-8ze3ycurhvmdahdv.streamlit.app/"
+            share_url = f"{base_url}?aba=dev&dev={urllib.parse.quote(dev_sel)}"
+            
+            col_titulo, col_share = st.columns([3, 1])
             with col_titulo:
                 st.markdown(f"### 👤 Métricas de {dev_sel}")
             with col_share:
-                import urllib.parse
-                base_url = "https://ninatecnologia.streamlit.app"
-                share_url = f"{base_url}?aba=dev&dev={urllib.parse.quote(dev_sel)}"
-                st.code(share_url, language=None)
-                st.markdown(f'<a href="{share_url}" target="_blank">🔗 Abrir Link</a>', unsafe_allow_html=True)
+                # Botão Copiar Link usando components.html (mesmo padrão do card individual)
+                components.html(f"""
+                <button id="copyBtnDev" style="
+                    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                    color: white;
+                    border: none;
+                    padding: 10px 16px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    width: 100%;
+                    font-size: 14px;
+                    font-weight: 500;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    transition: all 0.2s ease;
+                ">📋 Copiar Link</button>
+                <script>
+                    document.getElementById('copyBtnDev').addEventListener('click', function() {{
+                        var url = '{share_url}';
+                        var btn = this;
+                        navigator.clipboard.writeText(url).then(function() {{
+                            btn.innerHTML = '✅ Copiado!';
+                            btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+                            setTimeout(function() {{
+                                btn.innerHTML = '📋 Copiar Link';
+                                btn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+                            }}, 2000);
+                        }}).catch(function() {{
+                            var temp = document.createElement('textarea');
+                            temp.value = url;
+                            document.body.appendChild(temp);
+                            temp.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(temp);
+                            btn.innerHTML = '✅ Copiado!';
+                            btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+                            setTimeout(function() {{
+                                btn.innerHTML = '📋 Copiar Link';
+                                btn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+                            }}, 2000);
+                        }});
+                    }});
+                </script>
+                """, height=45)
             
             mat = analise['maturidade']
             
@@ -5096,7 +5181,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.21 • Dashboard de Inteligência QA
+                    v8.22 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -5104,7 +5189,11 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.21** *(Atual)*
+                **v8.22** *(Atual)*
+                - 🔗 Fix: Botão "Copiar Link" para QA/Dev (igual ao card individual)
+                - ✅ URL correta do Streamlit Cloud
+                
+                **v8.21** *(14/04/2026)*
                 - 🔗 Links compartilháveis para QA e Dev individuais
                 - 📊 Novas métricas: throughput, eficiência, comparativo
                 - 📈 Gráficos de tendência individual
