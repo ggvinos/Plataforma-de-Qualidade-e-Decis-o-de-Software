@@ -5181,7 +5181,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.22 • Dashboard de Inteligência QA
+                    v8.23 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -5189,7 +5189,11 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.22** *(Atual)*
+                **v8.23** *(Atual)*
+                - 🚀 Navegação direta via link compartilhado
+                - ⬅️ Botão "Ver Dashboard Completo" para voltar
+                
+                **v8.22** *(14/04/2026)*
                 - 🔗 Fix: Botão "Copiar Link" para QA/Dev (igual ao card individual)
                 - ✅ URL correta do Streamlit Cloud
                 
@@ -5258,12 +5262,32 @@ def main():
         qa_param = st.query_params.get("qa", None)
         dev_param = st.query_params.get("dev", None)
         
-        # Alerta de navegação para links compartilhados
-        if qa_param or dev_param:
-            nome_colaborador = qa_param if qa_param else dev_param
-            tipo = "QA" if qa_param else "Dev"
-            aba_destino = "🔬 QA" if qa_param else "👨‍💻 Dev"
-            st.info(f"🔗 **Link Compartilhado:** Métricas de **{nome_colaborador}** ({tipo}). Clique na aba **{aba_destino}** abaixo para visualizar.")
+        # NAVEGAÇÃO DIRETA via link compartilhado
+        if aba_param == "qa" and qa_param:
+            # Mostra diretamente a aba QA com o colaborador selecionado
+            col_header, col_voltar = st.columns([4, 1])
+            with col_header:
+                st.markdown(f"### 🔗 Link Compartilhado: Métricas de QA")
+            with col_voltar:
+                if st.button("⬅️ Ver Dashboard Completo", use_container_width=True, key="btn_voltar_qa"):
+                    st.query_params.clear()
+                    st.rerun()
+            st.markdown("---")
+            aba_qa(df)
+            return
+        
+        if aba_param == "dev" and dev_param:
+            # Mostra diretamente a aba Dev com o colaborador selecionado
+            col_header, col_voltar = st.columns([4, 1])
+            with col_header:
+                st.markdown(f"### 🔗 Link Compartilhado: Métricas de Dev")
+            with col_voltar:
+                if st.button("⬅️ Ver Dashboard Completo", use_container_width=True, key="btn_voltar_dev"):
+                    st.query_params.clear()
+                    st.rerun()
+            st.markdown("---")
+            aba_dev(df)
+            return
         
         # Abas condicionais por projeto (fluxo normal)
         if projeto == "PB":
