@@ -4639,83 +4639,130 @@ def aba_qa(df: pd.DataFrame):
         
         # ===== NOVA SEÇÃO: RESUMO DA SEMANA =====
         with st.expander("📅 Resumo da Semana", expanded=True):
-            st.caption("📊 Sua atividade dos últimos 7 dias - ideal para apresentar ao time!")
+            st.caption("📊 Sua atividade semanal - ideal para apresentar ao time!")
             
             hoje = datetime.now()
-            inicio_semana = hoje - timedelta(days=7)
             
-            # Filtra cards atualizados na última semana
-            df_semana = df_qa[df_qa['atualizado'] >= inicio_semana].copy()
-            df_validados_semana = df_qa[(df_qa['status_cat'] == 'done') & (df_qa['atualizado'] >= inicio_semana)].copy()
+            # Seletor de semana
+            semanas_opcoes = {
+                "Semana Atual": 0,
+                "Semana Passada": 1,
+                "2 Semanas Atrás": 2,
+                "3 Semanas Atrás": 3,
+                "4 Semanas Atrás": 4
+            }
+            
+            semana_selecionada = st.selectbox(
+                "📆 Selecione a semana:",
+                list(semanas_opcoes.keys()),
+                index=0,
+                key=f"semana_qa_{qa_sel}"
+            )
+            
+            semanas_atras = semanas_opcoes[semana_selecionada]
+            
+            # Calcula início e fim da semana selecionada (segunda a sexta)
+            # Encontra a segunda-feira da semana atual
+            dias_desde_segunda = hoje.weekday()  # 0=segunda, 6=domingo
+            segunda_atual = hoje - timedelta(days=dias_desde_segunda)
+            
+            # Ajusta para a semana selecionada
+            segunda_semana = segunda_atual - timedelta(weeks=semanas_atras)
+            sexta_semana = segunda_semana + timedelta(days=4)
+            fim_sexta = sexta_semana + timedelta(days=1) - timedelta(seconds=1)  # 23:59:59 da sexta
+            
+            # Exibe período selecionado
+            st.markdown(f"""
+            <div style="background: #f1f5f9; padding: 8px 15px; border-radius: 6px; margin-bottom: 15px; text-align: center;">
+                <span style="color: #64748b;">📅 Período: <strong>{segunda_semana.strftime('%d/%m')} (Seg)</strong> a <strong>{sexta_semana.strftime('%d/%m')} (Sex)</strong></span>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Filtra cards da semana selecionada
+            df_semana = df_qa[(df_qa['atualizado'] >= segunda_semana) & (df_qa['atualizado'] <= fim_sexta)].copy()
+            df_validados_semana = df_qa[(df_qa['status_cat'] == 'done') & (df_qa['atualizado'] >= segunda_semana) & (df_qa['atualizado'] <= fim_sexta)].copy()
+            df_aguardando_semana = df_qa[(df_qa['status_cat'] == 'waiting_qa') & (df_qa['atualizado'] >= segunda_semana) & (df_qa['atualizado'] <= fim_sexta)].copy()
+            df_validando_semana = df_qa[(df_qa['status_cat'] == 'testing') & (df_qa['atualizado'] >= segunda_semana) & (df_qa['atualizado'] <= fim_sexta)].copy()
             
             # KPIs da Semana
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                criar_card_metrica(str(len(df_semana)), "Cards Trabalhados", "blue", "Últimos 7 dias")
+                criar_card_metrica(str(len(df_semana)), "Cards Trabalhados", "blue", f"{semana_selecionada}")
             with col2:
-                criar_card_metrica(str(len(df_validados_semana)), "Validações", "green", "Concluídos na semana")
+                criar_card_metrica(str(len(df_validados_semana)), "Validações", "green", "Concluídos")
             with col3:
                 bugs_semana = int(df_validados_semana['bugs'].sum()) if not df_validados_semana.empty else 0
-                criar_card_metrica(str(bugs_semana), "Bugs Encontrados", "purple", "Na semana")
+                criar_card_metrica(str(bugs_semana), "Bugs Encontrados", "purple")
             with col4:
                 sp_semana = int(df_validados_semana['sp'].sum()) if not df_validados_semana.empty else 0
-                criar_card_metrica(str(sp_semana), "SP Entregues", "green", "Story Points")
+                criar_card_metrica(str(sp_semana), "SP Entregues", "green")
             
             st.markdown("---")
             
-            # Timeline estilo GitHub - Atividade por Dia
-            st.markdown("**📈 Atividade Diária (estilo GitHub)**")
+            # Atividade Diária (seg-sex)
+            st.markdown("**📈 Atividade Diária**")
             
-            # Cria dados para os últimos 7 dias
-            dias_semana = []
-            for i in range(6, -1, -1):
-                dia = hoje - timedelta(days=i)
+            # Cria dados para seg-sex da semana selecionada
+            dias_semana_dados = []
+            for i in range(5):  # 0=seg, 4=sex
+                dia = segunda_semana + timedelta(days=i)
                 dia_str = dia.strftime("%d/%m")
-                dia_nome = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'][dia.weekday()]
+                dia_nome = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'][i]
                 
-                # Cards atualizados nesse dia
+                # Cards por status nesse dia
                 cards_dia = df_qa[
                     (df_qa['atualizado'].dt.date == dia.date())
                 ].copy() if 'atualizado' in df_qa.columns else pd.DataFrame()
                 
-                validados_dia = len(cards_dia[cards_dia['status_cat'] == 'done']) if not cards_dia.empty else 0
-                trabalhados_dia = len(cards_dia)
+                aguardando_dia = len(cards_dia[cards_dia['status_cat'] == 'waiting_qa']) if not cards_dia.empty else 0
+                validando_dia = len(cards_dia[cards_dia['status_cat'] == 'testing']) if not cards_dia.empty else 0
+                concluidos_dia = len(cards_dia[cards_dia['status_cat'] == 'done']) if not cards_dia.empty else 0
                 
-                dias_semana.append({
+                dias_semana_dados.append({
                     'dia': f"{dia_nome}\n{dia_str}",
-                    'trabalhados': trabalhados_dia,
-                    'validados': validados_dia
+                    'Aguardando': aguardando_dia,
+                    'Em Validação': validando_dia,
+                    'Concluídos': concluidos_dia
                 })
             
-            df_timeline = pd.DataFrame(dias_semana)
+            df_timeline = pd.DataFrame(dias_semana_dados)
             
-            # Gráfico de barras empilhadas
-            if df_timeline['trabalhados'].sum() > 0:
+            # Gráfico de barras empilhadas por status
+            total_atividade = df_timeline['Aguardando'].sum() + df_timeline['Em Validação'].sum() + df_timeline['Concluídos'].sum()
+            
+            if total_atividade > 0:
+                df_melted = df_timeline.melt(id_vars=['dia'], value_vars=['Aguardando', 'Em Validação', 'Concluídos'], 
+                                             var_name='Status', value_name='Cards')
+                
+                cores_status = {'Aguardando': '#f59e0b', 'Em Validação': '#3b82f6', 'Concluídos': '#22c55e'}
+                
                 fig = px.bar(
-                    df_timeline, 
+                    df_melted, 
                     x='dia', 
-                    y='trabalhados',
-                    title='',
-                    color_discrete_sequence=['#3b82f6']
+                    y='Cards',
+                    color='Status',
+                    barmode='stack',
+                    color_discrete_map=cores_status,
+                    title=''
                 )
                 fig.update_layout(
-                    height=200,
+                    height=250,
                     margin=dict(l=20, r=20, t=20, b=20),
                     xaxis_title="",
-                    yaxis_title="Cards"
+                    yaxis_title="Cards",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5)
                 )
                 st.plotly_chart(fig, use_container_width=True)
             else:
-                # Mostra visual de "contributions" vazio mas bonito
                 st.markdown("""
                 <div style="display: flex; justify-content: space-around; margin: 10px 0;">
                 """ + "".join([
-                    f'<div style="text-align: center;"><div style="background: #e5e7eb; width: 40px; height: 40px; border-radius: 6px; margin: 0 auto;"></div><small style="color: #9ca3af;">{d["dia"].split(chr(10))[0]}</small></div>'
-                    for d in dias_semana
+                    f'<div style="text-align: center;"><div style="background: #e5e7eb; width: 50px; height: 50px; border-radius: 6px; margin: 0 auto;"></div><small style="color: #9ca3af;">{d["dia"].split(chr(10))[0]}</small></div>'
+                    for d in dias_semana_dados
                 ]) + """
                 </div>
-                <p style="text-align: center; color: #9ca3af; font-size: 12px;">Nenhuma atividade registrada nos últimos 7 dias</p>
+                <p style="text-align: center; color: #9ca3af; font-size: 12px;">Nenhuma atividade registrada nesta semana</p>
                 """, unsafe_allow_html=True)
             
             st.markdown("---")
@@ -4751,21 +4798,23 @@ def aba_qa(df: pd.DataFrame):
                 
                 # Resumo textual para copiar
                 st.markdown("---")
-                st.markdown("**📝 Resumo para copiar:**")
+                st.markdown("**📝 Resumo:**")
                 
                 total_validados = len(df_validados_semana)
                 total_sp = int(df_validados_semana['sp'].sum())
                 total_bugs = int(df_validados_semana['bugs'].sum())
                 clean_rate = len(df_validados_semana[df_validados_semana['bugs'] == 0]) / total_validados * 100 if total_validados > 0 else 0
                 
-                resumo_texto = f"""📊 **Resumo Semanal - {qa_sel}**
+                resumo_texto = f"""📊 Resumo Semanal - {qa_sel}
+📅 Período: {segunda_semana.strftime('%d/%m')} a {sexta_semana.strftime('%d/%m')}
+
 • {total_validados} cards validados
 • {total_sp} Story Points entregues
 • {total_bugs} bugs encontrados
 • {clean_rate:.0f}% taxa de validação limpa (FPY)
 
 Cards validados:
-""" + "\n".join([f"- {row['ticket_id']}: {row['titulo'][:40]}..." for _, row in df_validados_semana_sorted.head(10).iterrows()])
+""" + "\n".join([f"- {row['ticket_id']}: {row['titulo']}" for _, row in df_validados_semana_sorted.iterrows()])
                 
                 st.code(resumo_texto, language=None)
             else:
@@ -5304,85 +5353,130 @@ def aba_dev(df: pd.DataFrame):
             
             # ===== NOVA SEÇÃO: RESUMO DA SEMANA - DEV =====
             with st.expander("📅 Resumo da Semana", expanded=True):
-                st.caption("📊 Sua atividade dos últimos 7 dias - ideal para daily/retro!")
+                st.caption("📊 Sua atividade semanal - ideal para daily/retro!")
                 
                 hoje = datetime.now()
-                inicio_semana = hoje - timedelta(days=7)
+                
+                # Seletor de semana
+                semanas_opcoes = {
+                    "Semana Atual": 0,
+                    "Semana Passada": 1,
+                    "2 Semanas Atrás": 2,
+                    "3 Semanas Atrás": 3,
+                    "4 Semanas Atrás": 4
+                }
+                
+                semana_selecionada = st.selectbox(
+                    "📆 Selecione a semana:",
+                    list(semanas_opcoes.keys()),
+                    index=0,
+                    key=f"semana_dev_{dev_sel}"
+                )
+                
+                semanas_atras = semanas_opcoes[semana_selecionada]
+                
+                # Calcula início e fim da semana selecionada (segunda a sexta)
+                dias_desde_segunda = hoje.weekday()
+                segunda_atual = hoje - timedelta(days=dias_desde_segunda)
+                segunda_semana = segunda_atual - timedelta(weeks=semanas_atras)
+                sexta_semana = segunda_semana + timedelta(days=4)
+                fim_sexta = sexta_semana + timedelta(days=1) - timedelta(seconds=1)
+                
+                # Exibe período selecionado
+                st.markdown(f"""
+                <div style="background: #f1f5f9; padding: 8px 15px; border-radius: 6px; margin-bottom: 15px; text-align: center;">
+                    <span style="color: #64748b;">📅 Período: <strong>{segunda_semana.strftime('%d/%m')} (Seg)</strong> a <strong>{sexta_semana.strftime('%d/%m')} (Sex)</strong></span>
+                </div>
+                """, unsafe_allow_html=True)
                 
                 df_dev = analise['df'].copy()
                 
-                # Filtra cards atualizados na última semana
-                df_semana = df_dev[df_dev['atualizado'] >= inicio_semana].copy() if 'atualizado' in df_dev.columns else pd.DataFrame()
-                df_done_semana = df_dev[(df_dev['status_cat'] == 'done') & (df_dev['atualizado'] >= inicio_semana)].copy() if 'atualizado' in df_dev.columns else pd.DataFrame()
+                # Filtra cards da semana selecionada
+                df_semana = df_dev[(df_dev['atualizado'] >= segunda_semana) & (df_dev['atualizado'] <= fim_sexta)].copy() if 'atualizado' in df_dev.columns else pd.DataFrame()
+                df_done_semana = df_dev[(df_dev['status_cat'] == 'done') & (df_dev['atualizado'] >= segunda_semana) & (df_dev['atualizado'] <= fim_sexta)].copy() if 'atualizado' in df_dev.columns else pd.DataFrame()
+                df_dev_semana = df_dev[(df_dev['status_cat'] == 'development') & (df_dev['atualizado'] >= segunda_semana) & (df_dev['atualizado'] <= fim_sexta)].copy() if 'atualizado' in df_dev.columns else pd.DataFrame()
+                df_cr_semana = df_dev[(df_dev['status_cat'] == 'code_review') & (df_dev['atualizado'] >= segunda_semana) & (df_dev['atualizado'] <= fim_sexta)].copy() if 'atualizado' in df_dev.columns else pd.DataFrame()
                 
                 # KPIs da Semana
                 col1, col2, col3, col4 = st.columns(4)
                 
                 with col1:
-                    criar_card_metrica(str(len(df_semana)), "Cards Trabalhados", "blue", "Últimos 7 dias")
+                    criar_card_metrica(str(len(df_semana)), "Cards Trabalhados", "blue", f"{semana_selecionada}")
                 with col2:
-                    criar_card_metrica(str(len(df_done_semana)), "Concluídos", "green", "Entregues na semana")
+                    criar_card_metrica(str(len(df_done_semana)), "Concluídos", "green", "Entregues")
                 with col3:
                     bugs_semana = int(df_done_semana['bugs'].sum()) if not df_done_semana.empty else 0
                     cor_bugs = 'green' if bugs_semana == 0 else 'yellow' if bugs_semana < 3 else 'red'
-                    criar_card_metrica(str(bugs_semana), "Bugs Recebidos", cor_bugs, "Encontrados pelo QA")
+                    criar_card_metrica(str(bugs_semana), "Bugs Recebidos", cor_bugs, "Pelo QA")
                 with col4:
                     sp_semana = int(df_done_semana['sp'].sum()) if not df_done_semana.empty else 0
-                    criar_card_metrica(str(sp_semana), "SP Entregues", "green", "Story Points")
+                    criar_card_metrica(str(sp_semana), "SP Entregues", "green")
                 
                 st.markdown("---")
                 
-                # Timeline estilo GitHub - Atividade por Dia
-                st.markdown("**📈 Atividade Diária (estilo GitHub)**")
+                # Atividade Diária (seg-sex)
+                st.markdown("**📈 Atividade Diária**")
                 
-                # Cria dados para os últimos 7 dias
-                dias_semana = []
-                for i in range(6, -1, -1):
-                    dia = hoje - timedelta(days=i)
+                # Cria dados para seg-sex da semana selecionada
+                dias_semana_dados = []
+                for i in range(5):  # 0=seg, 4=sex
+                    dia = segunda_semana + timedelta(days=i)
                     dia_str = dia.strftime("%d/%m")
-                    dia_nome = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'][dia.weekday()]
+                    dia_nome = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'][i]
                     
-                    # Cards atualizados nesse dia
+                    # Cards atualizados nesse dia por status
                     cards_dia = df_dev[
                         (df_dev['atualizado'].dt.date == dia.date())
                     ].copy() if 'atualizado' in df_dev.columns else pd.DataFrame()
                     
-                    done_dia = len(cards_dia[cards_dia['status_cat'] == 'done']) if not cards_dia.empty else 0
-                    trabalhados_dia = len(cards_dia)
+                    em_dev_dia = len(cards_dia[cards_dia['status_cat'] == 'development']) if not cards_dia.empty else 0
+                    code_review_dia = len(cards_dia[cards_dia['status_cat'] == 'code_review']) if not cards_dia.empty else 0
+                    concluidos_dia = len(cards_dia[cards_dia['status_cat'] == 'done']) if not cards_dia.empty else 0
                     
-                    dias_semana.append({
+                    dias_semana_dados.append({
                         'dia': f"{dia_nome}\n{dia_str}",
-                        'trabalhados': trabalhados_dia,
-                        'concluidos': done_dia
+                        'Em Dev': em_dev_dia,
+                        'Code Review': code_review_dia,
+                        'Concluídos': concluidos_dia
                     })
                 
-                df_timeline = pd.DataFrame(dias_semana)
+                df_timeline = pd.DataFrame(dias_semana_dados)
                 
-                # Gráfico de barras
-                if df_timeline['trabalhados'].sum() > 0:
+                # Gráfico de barras empilhadas por status
+                total_atividade = df_timeline['Em Dev'].sum() + df_timeline['Code Review'].sum() + df_timeline['Concluídos'].sum()
+                
+                if total_atividade > 0:
+                    df_melted = df_timeline.melt(id_vars=['dia'], value_vars=['Em Dev', 'Code Review', 'Concluídos'], 
+                                                 var_name='Status', value_name='Cards')
+                    
+                    cores_status = {'Em Dev': '#8b5cf6', 'Code Review': '#f59e0b', 'Concluídos': '#22c55e'}
+                    
                     fig = px.bar(
-                        df_timeline, 
+                        df_melted, 
                         x='dia', 
-                        y='trabalhados',
-                        title='',
-                        color_discrete_sequence=['#8b5cf6']
+                        y='Cards',
+                        color='Status',
+                        barmode='stack',
+                        color_discrete_map=cores_status,
+                        title=''
                     )
                     fig.update_layout(
-                        height=200,
+                        height=250,
                         margin=dict(l=20, r=20, t=20, b=20),
                         xaxis_title="",
-                        yaxis_title="Cards"
+                        yaxis_title="Cards",
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5)
                     )
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.markdown("""
                     <div style="display: flex; justify-content: space-around; margin: 10px 0;">
                     """ + "".join([
-                        f'<div style="text-align: center;"><div style="background: #e5e7eb; width: 40px; height: 40px; border-radius: 6px; margin: 0 auto;"></div><small style="color: #9ca3af;">{d["dia"].split(chr(10))[0]}</small></div>'
-                        for d in dias_semana
+                        f'<div style="text-align: center;"><div style="background: #e5e7eb; width: 50px; height: 50px; border-radius: 6px; margin: 0 auto;"></div><small style="color: #9ca3af;">{d["dia"].split(chr(10))[0]}</small></div>'
+                        for d in dias_semana_dados
                     ]) + """
                     </div>
-                    <p style="text-align: center; color: #9ca3af; font-size: 12px;">Nenhuma atividade registrada nos últimos 7 dias</p>
+                    <p style="text-align: center; color: #9ca3af; font-size: 12px;">Nenhuma atividade registrada nesta semana</p>
                     """, unsafe_allow_html=True)
                 
                 st.markdown("---")
@@ -5403,7 +5497,7 @@ def aba_dev(df: pd.DataFrame):
                             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
                                 <div>
                                     <strong><a href="{row['link']}" target="_blank" style="color: #60a5fa; text-decoration: none;">{row['ticket_id']}</a></strong>
-                                    <span style="color: #64748b;"> - {row['titulo'][:45]}...</span>
+                                    <span style="color: #64748b;"> - {row['titulo']}</span>
                                 </div>
                                 <div style="display: flex; gap: 8px; align-items: center;">
                                     {badge_bugs}
@@ -5416,27 +5510,29 @@ def aba_dev(df: pd.DataFrame):
                         </div>
                         """, unsafe_allow_html=True)
                     
-                    # Resumo textual para copiar
+                    # Resumo textual
                     st.markdown("---")
-                    st.markdown("**📝 Resumo para copiar:**")
+                    st.markdown("**📝 Resumo:**")
                     
                     total_done = len(df_done_semana)
                     total_sp = int(df_done_semana['sp'].sum())
                     total_bugs = int(df_done_semana['bugs'].sum())
                     clean_rate = len(df_done_semana[df_done_semana['bugs'] == 0]) / total_done * 100 if total_done > 0 else 0
                     
-                    resumo_texto = f"""📊 **Resumo Semanal - {dev_sel}**
+                    resumo_texto = f"""📊 Resumo Semanal - {dev_sel}
+📅 Período: {segunda_semana.strftime('%d/%m')} a {sexta_semana.strftime('%d/%m')}
+
 • {total_done} cards entregues
 • {total_sp} Story Points
 • {total_bugs} bugs encontrados pelo QA
 • {clean_rate:.0f}% taxa de entrega limpa
 
 Cards concluídos:
-""" + "\n".join([f"- {row['ticket_id']}: {row['titulo'][:40]}..." for _, row in df_done_semana_sorted.head(10).iterrows()])
+""" + "\n".join([f"- {row['ticket_id']}: {row['titulo']}" for _, row in df_done_semana_sorted.iterrows()])
                     
                     st.code(resumo_texto, language=None)
                 else:
-                    st.info("💡 Nenhum card foi concluído nos últimos 7 dias.")
+                    st.info("💡 Nenhum card foi concluído nesta semana.")
                 
                 # Tempo de Ciclo por Card (se houver dados)
                 if not df_done_semana.empty:
@@ -5445,7 +5541,6 @@ Cards concluídos:
                     
                     df_tempo = df_done_semana[['ticket_id', 'titulo', 'lead_time', 'sp', 'bugs']].copy()
                     df_tempo.columns = ['Ticket', 'Título', 'Lead Time (dias)', 'SP', 'Bugs']
-                    df_tempo['Título'] = df_tempo['Título'].str[:40] + '...'
                     df_tempo = df_tempo.sort_values('Lead Time (dias)', ascending=False)
                     
                     st.dataframe(df_tempo, hide_index=True, use_container_width=True)
@@ -7231,7 +7326,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.45 • Dashboard de Inteligência QA
+                    v8.46 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -7247,6 +7342,13 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.46** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 📆 **Novo:** Seletor de semanas (atual, passada, 2-4 semanas atrás)
+                - 📅 **UX:** Apenas dias úteis (seg-sex) no resumo
+                - 📊 **Gráfico:** Barras empilhadas por status (Aguardando/Validando/Concluídos)
+                - 📝 **Resumo:** Nome completo dos cards (sem truncar)
+                - 🎯 **UX:** Exibe período selecionado claramente
+                
                 **v8.45** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 📅 **Novo:** "Resumo da Semana" na visão individual QA
                 - 📅 **Novo:** "Resumo da Semana" na visão individual DEV
