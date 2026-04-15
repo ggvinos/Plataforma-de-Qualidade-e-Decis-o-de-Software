@@ -4637,6 +4637,162 @@ def aba_qa(df: pd.DataFrame):
                 aging_qa = len(df_qa[df_qa['dias_em_status'] > REGRAS['dias_aging_alerta']])
                 st.metric("Cards Aging", aging_qa, help="Cards parados há mais de 3 dias no mesmo status - requer atenção")
         
+        # ===== NOVA SEÇÃO: RESUMO DA SEMANA =====
+        with st.expander("📅 Resumo da Semana", expanded=True):
+            st.caption("📊 Sua atividade dos últimos 7 dias - ideal para apresentar ao time!")
+            
+            hoje = datetime.now()
+            inicio_semana = hoje - timedelta(days=7)
+            
+            # Filtra cards atualizados na última semana
+            df_semana = df_qa[df_qa['atualizado'] >= inicio_semana].copy()
+            df_validados_semana = df_qa[(df_qa['status_cat'] == 'done') & (df_qa['atualizado'] >= inicio_semana)].copy()
+            
+            # KPIs da Semana
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                criar_card_metrica(str(len(df_semana)), "Cards Trabalhados", "blue", "Últimos 7 dias")
+            with col2:
+                criar_card_metrica(str(len(df_validados_semana)), "Validações", "green", "Concluídos na semana")
+            with col3:
+                bugs_semana = int(df_validados_semana['bugs'].sum()) if not df_validados_semana.empty else 0
+                criar_card_metrica(str(bugs_semana), "Bugs Encontrados", "purple", "Na semana")
+            with col4:
+                sp_semana = int(df_validados_semana['sp'].sum()) if not df_validados_semana.empty else 0
+                criar_card_metrica(str(sp_semana), "SP Entregues", "green", "Story Points")
+            
+            st.markdown("---")
+            
+            # Timeline estilo GitHub - Atividade por Dia
+            st.markdown("**📈 Atividade Diária (estilo GitHub)**")
+            
+            # Cria dados para os últimos 7 dias
+            dias_semana = []
+            for i in range(6, -1, -1):
+                dia = hoje - timedelta(days=i)
+                dia_str = dia.strftime("%d/%m")
+                dia_nome = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'][dia.weekday()]
+                
+                # Cards atualizados nesse dia
+                cards_dia = df_qa[
+                    (df_qa['atualizado'].dt.date == dia.date())
+                ].copy() if 'atualizado' in df_qa.columns else pd.DataFrame()
+                
+                validados_dia = len(cards_dia[cards_dia['status_cat'] == 'done']) if not cards_dia.empty else 0
+                trabalhados_dia = len(cards_dia)
+                
+                dias_semana.append({
+                    'dia': f"{dia_nome}\n{dia_str}",
+                    'trabalhados': trabalhados_dia,
+                    'validados': validados_dia
+                })
+            
+            df_timeline = pd.DataFrame(dias_semana)
+            
+            # Gráfico de barras empilhadas
+            if df_timeline['trabalhados'].sum() > 0:
+                fig = px.bar(
+                    df_timeline, 
+                    x='dia', 
+                    y='trabalhados',
+                    title='',
+                    color_discrete_sequence=['#3b82f6']
+                )
+                fig.update_layout(
+                    height=200,
+                    margin=dict(l=20, r=20, t=20, b=20),
+                    xaxis_title="",
+                    yaxis_title="Cards"
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                # Mostra visual de "contributions" vazio mas bonito
+                st.markdown("""
+                <div style="display: flex; justify-content: space-around; margin: 10px 0;">
+                """ + "".join([
+                    f'<div style="text-align: center;"><div style="background: #e5e7eb; width: 40px; height: 40px; border-radius: 6px; margin: 0 auto;"></div><small style="color: #9ca3af;">{d["dia"].split(chr(10))[0]}</small></div>'
+                    for d in dias_semana
+                ]) + """
+                </div>
+                <p style="text-align: center; color: #9ca3af; font-size: 12px;">Nenhuma atividade registrada nos últimos 7 dias</p>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("---")
+            
+            # Cards Validados na Semana (Timeline detalhada)
+            st.markdown("**✅ Cards Validados na Semana**")
+            
+            if not df_validados_semana.empty:
+                df_validados_semana_sorted = df_validados_semana.sort_values('atualizado', ascending=False)
+                
+                for _, row in df_validados_semana_sorted.iterrows():
+                    data_validacao = row['atualizado'].strftime("%d/%m %H:%M") if pd.notna(row['atualizado']) else "N/A"
+                    bugs_cor = '#22c55e' if row['bugs'] == 0 else '#f97316' if row['bugs'] == 1 else '#ef4444'
+                    badge_bugs = f'<span style="background: {bugs_cor}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">🐛 {int(row["bugs"])}</span>' if row['bugs'] > 0 else '<span style="background: #22c55e; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">✅ Clean</span>'
+                    
+                    st.markdown(f"""
+                    <div style="padding: 12px; margin: 8px 0; border-left: 4px solid #22c55e; background: rgba(34, 197, 94, 0.05); border-radius: 6px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                            <div>
+                                <strong><a href="{row['link']}" target="_blank" style="color: #60a5fa; text-decoration: none;">{row['ticket_id']}</a></strong>
+                                <span style="color: #64748b;"> - {row['titulo'][:45]}...</span>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                {badge_bugs}
+                                <span style="background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">{int(row['sp'])} SP</span>
+                            </div>
+                        </div>
+                        <div style="margin-top: 6px; font-size: 12px; color: #94a3b8;">
+                            📅 {data_validacao} | 👤 DEV: {row['desenvolvedor']} | ⏱️ Lead Time: {row['lead_time']:.1f}d
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                # Resumo textual para copiar
+                st.markdown("---")
+                st.markdown("**📝 Resumo para copiar:**")
+                
+                total_validados = len(df_validados_semana)
+                total_sp = int(df_validados_semana['sp'].sum())
+                total_bugs = int(df_validados_semana['bugs'].sum())
+                clean_rate = len(df_validados_semana[df_validados_semana['bugs'] == 0]) / total_validados * 100 if total_validados > 0 else 0
+                
+                resumo_texto = f"""📊 **Resumo Semanal - {qa_sel}**
+• {total_validados} cards validados
+• {total_sp} Story Points entregues
+• {total_bugs} bugs encontrados
+• {clean_rate:.0f}% taxa de validação limpa (FPY)
+
+Cards validados:
+""" + "\n".join([f"- {row['ticket_id']}: {row['titulo'][:40]}..." for _, row in df_validados_semana_sorted.head(10).iterrows()])
+                
+                st.code(resumo_texto, language=None)
+            else:
+                st.info("💡 Nenhum card foi validado nos últimos 7 dias. Continue o bom trabalho!")
+            
+            # Tempo de Ciclo por Card (se houver dados)
+            if not df_validados_semana.empty:
+                st.markdown("---")
+                st.markdown("**⏱️ Tempo de Ciclo dos Cards da Semana**")
+                
+                df_tempo = df_validados_semana[['ticket_id', 'titulo', 'lead_time', 'sp']].copy()
+                df_tempo.columns = ['Ticket', 'Título', 'Lead Time (dias)', 'SP']
+                df_tempo['Título'] = df_tempo['Título'].str[:40] + '...'
+                df_tempo = df_tempo.sort_values('Lead Time (dias)', ascending=False)
+                
+                st.dataframe(df_tempo, hide_index=True, use_container_width=True)
+                
+                media_lead = df_validados_semana['lead_time'].mean()
+                cor_media = 'green' if media_lead <= 5 else 'yellow' if media_lead <= 10 else 'red'
+                st.markdown(f"""
+                <p style="text-align: center; margin-top: 10px;">
+                    <span style="background: {cor_media}20; color: {cor_media}; padding: 5px 15px; border-radius: 20px; font-weight: bold;">
+                        ⏱️ Média de Lead Time: {media_lead:.1f} dias
+                    </span>
+                </p>
+                """, unsafe_allow_html=True)
+        
         # Distribuição por Status
         with st.expander("📊 Distribuição por Status", expanded=True):
             status_count = df_qa['status_cat'].value_counts().reset_index()
@@ -5145,6 +5301,164 @@ def aba_dev(df: pd.DataFrame):
                         st.metric("Bugs Encontrados", analise['bugs_total'], help="Total de bugs encontrados pelo QA nos cards deste desenvolvedor")
                     with c4:
                         st.metric("Taxa Zero Bugs", f"{analise['zero_bugs']}%", help=get_tooltip_help("fpy"))
+            
+            # ===== NOVA SEÇÃO: RESUMO DA SEMANA - DEV =====
+            with st.expander("📅 Resumo da Semana", expanded=True):
+                st.caption("📊 Sua atividade dos últimos 7 dias - ideal para daily/retro!")
+                
+                hoje = datetime.now()
+                inicio_semana = hoje - timedelta(days=7)
+                
+                df_dev = analise['df'].copy()
+                
+                # Filtra cards atualizados na última semana
+                df_semana = df_dev[df_dev['atualizado'] >= inicio_semana].copy() if 'atualizado' in df_dev.columns else pd.DataFrame()
+                df_done_semana = df_dev[(df_dev['status_cat'] == 'done') & (df_dev['atualizado'] >= inicio_semana)].copy() if 'atualizado' in df_dev.columns else pd.DataFrame()
+                
+                # KPIs da Semana
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    criar_card_metrica(str(len(df_semana)), "Cards Trabalhados", "blue", "Últimos 7 dias")
+                with col2:
+                    criar_card_metrica(str(len(df_done_semana)), "Concluídos", "green", "Entregues na semana")
+                with col3:
+                    bugs_semana = int(df_done_semana['bugs'].sum()) if not df_done_semana.empty else 0
+                    cor_bugs = 'green' if bugs_semana == 0 else 'yellow' if bugs_semana < 3 else 'red'
+                    criar_card_metrica(str(bugs_semana), "Bugs Recebidos", cor_bugs, "Encontrados pelo QA")
+                with col4:
+                    sp_semana = int(df_done_semana['sp'].sum()) if not df_done_semana.empty else 0
+                    criar_card_metrica(str(sp_semana), "SP Entregues", "green", "Story Points")
+                
+                st.markdown("---")
+                
+                # Timeline estilo GitHub - Atividade por Dia
+                st.markdown("**📈 Atividade Diária (estilo GitHub)**")
+                
+                # Cria dados para os últimos 7 dias
+                dias_semana = []
+                for i in range(6, -1, -1):
+                    dia = hoje - timedelta(days=i)
+                    dia_str = dia.strftime("%d/%m")
+                    dia_nome = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'][dia.weekday()]
+                    
+                    # Cards atualizados nesse dia
+                    cards_dia = df_dev[
+                        (df_dev['atualizado'].dt.date == dia.date())
+                    ].copy() if 'atualizado' in df_dev.columns else pd.DataFrame()
+                    
+                    done_dia = len(cards_dia[cards_dia['status_cat'] == 'done']) if not cards_dia.empty else 0
+                    trabalhados_dia = len(cards_dia)
+                    
+                    dias_semana.append({
+                        'dia': f"{dia_nome}\n{dia_str}",
+                        'trabalhados': trabalhados_dia,
+                        'concluidos': done_dia
+                    })
+                
+                df_timeline = pd.DataFrame(dias_semana)
+                
+                # Gráfico de barras
+                if df_timeline['trabalhados'].sum() > 0:
+                    fig = px.bar(
+                        df_timeline, 
+                        x='dia', 
+                        y='trabalhados',
+                        title='',
+                        color_discrete_sequence=['#8b5cf6']
+                    )
+                    fig.update_layout(
+                        height=200,
+                        margin=dict(l=20, r=20, t=20, b=20),
+                        xaxis_title="",
+                        yaxis_title="Cards"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.markdown("""
+                    <div style="display: flex; justify-content: space-around; margin: 10px 0;">
+                    """ + "".join([
+                        f'<div style="text-align: center;"><div style="background: #e5e7eb; width: 40px; height: 40px; border-radius: 6px; margin: 0 auto;"></div><small style="color: #9ca3af;">{d["dia"].split(chr(10))[0]}</small></div>'
+                        for d in dias_semana
+                    ]) + """
+                    </div>
+                    <p style="text-align: center; color: #9ca3af; font-size: 12px;">Nenhuma atividade registrada nos últimos 7 dias</p>
+                    """, unsafe_allow_html=True)
+                
+                st.markdown("---")
+                
+                # Cards Concluídos na Semana (Timeline detalhada)
+                st.markdown("**✅ Cards Concluídos na Semana**")
+                
+                if not df_done_semana.empty:
+                    df_done_semana_sorted = df_done_semana.sort_values('atualizado', ascending=False)
+                    
+                    for _, row in df_done_semana_sorted.iterrows():
+                        data_conclusao = row['atualizado'].strftime("%d/%m %H:%M") if pd.notna(row['atualizado']) else "N/A"
+                        bugs_cor = '#22c55e' if row['bugs'] == 0 else '#f97316' if row['bugs'] == 1 else '#ef4444'
+                        badge_bugs = f'<span style="background: {bugs_cor}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">🐛 {int(row["bugs"])}</span>' if row['bugs'] > 0 else '<span style="background: #22c55e; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">✅ Clean</span>'
+                        
+                        st.markdown(f"""
+                        <div style="padding: 12px; margin: 8px 0; border-left: 4px solid #8b5cf6; background: rgba(139, 92, 246, 0.05); border-radius: 6px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                                <div>
+                                    <strong><a href="{row['link']}" target="_blank" style="color: #60a5fa; text-decoration: none;">{row['ticket_id']}</a></strong>
+                                    <span style="color: #64748b;"> - {row['titulo'][:45]}...</span>
+                                </div>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    {badge_bugs}
+                                    <span style="background: #8b5cf6; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">{int(row['sp'])} SP</span>
+                                </div>
+                            </div>
+                            <div style="margin-top: 6px; font-size: 12px; color: #94a3b8;">
+                                📅 {data_conclusao} | 👤 QA: {row['qa']} | ⏱️ Lead Time: {row['lead_time']:.1f}d
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # Resumo textual para copiar
+                    st.markdown("---")
+                    st.markdown("**📝 Resumo para copiar:**")
+                    
+                    total_done = len(df_done_semana)
+                    total_sp = int(df_done_semana['sp'].sum())
+                    total_bugs = int(df_done_semana['bugs'].sum())
+                    clean_rate = len(df_done_semana[df_done_semana['bugs'] == 0]) / total_done * 100 if total_done > 0 else 0
+                    
+                    resumo_texto = f"""📊 **Resumo Semanal - {dev_sel}**
+• {total_done} cards entregues
+• {total_sp} Story Points
+• {total_bugs} bugs encontrados pelo QA
+• {clean_rate:.0f}% taxa de entrega limpa
+
+Cards concluídos:
+""" + "\n".join([f"- {row['ticket_id']}: {row['titulo'][:40]}..." for _, row in df_done_semana_sorted.head(10).iterrows()])
+                    
+                    st.code(resumo_texto, language=None)
+                else:
+                    st.info("💡 Nenhum card foi concluído nos últimos 7 dias.")
+                
+                # Tempo de Ciclo por Card (se houver dados)
+                if not df_done_semana.empty:
+                    st.markdown("---")
+                    st.markdown("**⏱️ Tempo de Ciclo dos Cards da Semana**")
+                    
+                    df_tempo = df_done_semana[['ticket_id', 'titulo', 'lead_time', 'sp', 'bugs']].copy()
+                    df_tempo.columns = ['Ticket', 'Título', 'Lead Time (dias)', 'SP', 'Bugs']
+                    df_tempo['Título'] = df_tempo['Título'].str[:40] + '...'
+                    df_tempo = df_tempo.sort_values('Lead Time (dias)', ascending=False)
+                    
+                    st.dataframe(df_tempo, hide_index=True, use_container_width=True)
+                    
+                    media_lead = df_done_semana['lead_time'].mean()
+                    cor_media = 'green' if media_lead <= 5 else 'yellow' if media_lead <= 10 else 'red'
+                    st.markdown(f"""
+                    <p style="text-align: center; margin-top: 10px;">
+                        <span style="background: {cor_media}20; color: {cor_media}; padding: 5px 15px; border-radius: 20px; font-weight: bold;">
+                            ⏱️ Média de Lead Time: {media_lead:.1f} dias
+                        </span>
+                    </p>
+                    """, unsafe_allow_html=True)
             
             # Cards do dev
             with st.expander(f"📋 Cards de {dev_sel}", expanded=True):
@@ -6917,7 +7231,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.44 • Dashboard de Inteligência QA
+                    v8.45 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -6933,6 +7247,14 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.45** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 📅 **Novo:** "Resumo da Semana" na visão individual QA
+                - 📅 **Novo:** "Resumo da Semana" na visão individual DEV
+                - 📈 Timeline estilo GitHub (atividade diária)
+                - ⏱️ Tempo de ciclo por card da semana
+                - 📝 Resumo copiável para compartilhar no time
+                - ✅ Cards validados/concluídos com detalhes
+                
                 **v8.44** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🤝 **Novo:** Seção "Interação QA x DEV" na aba QA
                 - 💪 **Novo:** Seção "Esforço do Time" na aba Liderança
