@@ -3426,7 +3426,7 @@ def aplicar_estilos():
         border: 2px solid;
         margin-bottom: 10px;
         transition: transform 0.2s;
-        min-height: 120px;
+        min-height: 130px;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -3442,7 +3442,7 @@ def aplicar_estilos():
     
     .big-number { font-size: 36px; font-weight: bold; margin: 0; }
     .card-label { font-size: 14px; opacity: 0.8; margin-top: 5px; }
-    .card-sublabel { font-size: 12px; opacity: 0.6; margin-top: 3px; }
+    .card-sublabel { font-size: 12px; opacity: 0.6; margin-top: 3px; min-height: 16px; }
     
     /* Alertas */
     .alert-critical {
@@ -3587,11 +3587,13 @@ def mostrar_indicador_atualizacao(ultima_atualizacao: datetime):
 
 def criar_card_metrica(valor: str, titulo: str, cor: str = "blue", subtitulo: str = "", tooltip_key: str = ""):
     """Cria card de métrica visual. tooltip_key é ignorado (usar st.metric com help para tooltips)."""
+    # Sempre mostra sublabel para manter altura uniforme
+    sublabel_content = subtitulo if subtitulo else "&nbsp;"
     st.markdown(f"""
     <div class="status-card status-{cor}">
         <p class="big-number">{valor}</p>
         <p class="card-label">{titulo}</p>
-        {f'<p class="card-sublabel">{subtitulo}</p>' if subtitulo else ''}
+        <p class="card-sublabel">{sublabel_content}</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -6685,7 +6687,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.42 • Dashboard de Inteligência QA
+                    v8.43 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -6693,14 +6695,18 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                <div style="margin-bottom: 10px;">
-                    <span style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-right: 5px;">🔥 HOTFIX</span>
-                    <span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-right: 5px;">✨ MELHORIA</span>
-                    <span style="background: #f97316; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">🐛 BUG FIX</span>
+                <div style="margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 5px;">
+                    <span style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap;">🔥 HOTFIX</span>
+                    <span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap;">✨ MELHORIA</span>
+                    <span style="background: #f97316; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap;">🐛 BUG&nbsp;FIX</span>
                 </div>
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.43** *(15/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
+                - 📏 **Fix:** Cards de métricas agora com altura uniforme
+                - 📏 **Fix:** Legenda de tags não quebra mais linha
+                
                 **v8.42** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🎨 **UX:** Barra de release com cor sólida (remov. gradiente)
                 - 📏 **UX:** Cards de métricas com tamanho uniforme
