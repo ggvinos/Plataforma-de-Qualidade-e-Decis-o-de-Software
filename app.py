@@ -4511,7 +4511,6 @@ def aba_qa(df: pd.DataFrame):
                     st.markdown("### 🚨 Cards FORA da Janela")
                     df_fora = fora_janela[['ticket_id', 'titulo', 'complexidade', 'dias_ate_release', 'desenvolvedor', 'sp']].copy()
                     df_fora.columns = ['Ticket', 'Título', 'Complexidade', 'Dias Disponíveis', 'Dev', 'SP']
-                    df_fora['Título'] = df_fora['Título'].str[:40] + '...'
                     st.dataframe(df_fora, hide_index=True, use_container_width=True)
             else:
                 st.success("✅ Nenhum card aguardando validação!")
@@ -4716,101 +4715,99 @@ def aba_qa(df: pd.DataFrame):
             
             st.markdown("---")
             
-            # Validações por Dia (usando resolutiondate - mais preciso)
-            st.markdown("**📈 Validações por Dia**")
-            st.caption("💡 Baseado na data de conclusão dos cards (resolutiondate)")
+            # Evolução da Semana (gráfico de linhas - fila diminuindo, concluídos aumentando)
+            st.markdown("**📈 Evolução da Semana**")
+            st.caption("💡 Mostra a fila diminuindo e os concluídos aumentando ao longo da semana")
             
-            # Cria dados para seg-sex da semana selecionada
-            dias_semana_dados = []
+            # Calcula a evolução dia a dia
+            # Total de cards que entraram em fila durante a semana (waiting_qa ou testing)
+            cards_fila_semana = df_qa[
+                (df_qa['status_cat'].isin(['waiting_qa', 'testing', 'done'])) &
+                (df_qa['atualizado'] >= inicio_semana) & 
+                (df_qa['atualizado'] <= fim_sexta)
+            ].copy()
+            
+            total_fila_inicial = len(cards_fila_semana)
+            
+            dias_evolucao = []
+            concluidos_acumulado = 0
+            
             for i in range(5):  # 0=seg, 4=sex
                 dia = segunda_semana + timedelta(days=i)
                 dia_str = dia.strftime("%d/%m")
                 dia_nome = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'][i]
                 
-                # Cards concluídos nesse dia (usando resolutiondate)
+                # Cards concluídos até este dia (acumulado)
                 if 'resolutiondate' in df_qa.columns:
-                    concluidos_dia = len(df_qa[
+                    concluidos_ate_dia = len(df_qa[
                         (df_qa['status_cat'] == 'done') &
                         (df_qa['resolutiondate'].notna()) &
-                        (df_qa['resolutiondate'].dt.date == dia.date())
+                        (df_qa['resolutiondate'] >= inicio_semana) &
+                        (df_qa['resolutiondate'].dt.date <= dia.date())
                     ])
                     
-                    # Fallback para atualizado se não houver resolutiondate
-                    if concluidos_dia == 0:
-                        concluidos_dia = len(df_qa[
+                    # Fallback
+                    if concluidos_ate_dia == 0:
+                        concluidos_ate_dia = len(df_qa[
                             (df_qa['status_cat'] == 'done') &
-                            (df_qa['atualizado'].dt.date == dia.date())
+                            (df_qa['atualizado'] >= inicio_semana) &
+                            (df_qa['atualizado'].dt.date <= dia.date())
                         ])
                 else:
-                    concluidos_dia = 0
+                    concluidos_ate_dia = 0
                 
-                dias_semana_dados.append({
-                    'dia': f"{dia_nome}\n{dia_str}",
-                    'Validações': concluidos_dia
+                # Fila = total inicial - concluídos até o dia
+                fila_dia = max(0, total_fila_inicial - concluidos_ate_dia)
+                
+                dias_evolucao.append({
+                    'Dia': f"{dia_nome}\n{dia_str}",
+                    'Em Fila': fila_dia,
+                    'Concluídos': concluidos_ate_dia
                 })
             
-            df_timeline = pd.DataFrame(dias_semana_dados)
-            total_validacoes = df_timeline['Validações'].sum()
+            df_evolucao = pd.DataFrame(dias_evolucao)
             
-            if total_validacoes > 0:
-                fig = px.bar(
-                    df_timeline, 
-                    x='dia', 
-                    y='Validações',
-                    title='',
-                    color_discrete_sequence=['#22c55e']
-                )
+            # Gráfico de linhas com duas séries
+            if total_fila_inicial > 0:
+                fig = go.Figure()
+                
+                # Linha de Fila (laranja, diminuindo)
+                fig.add_trace(go.Scatter(
+                    x=df_evolucao['Dia'],
+                    y=df_evolucao['Em Fila'],
+                    mode='lines+markers+text',
+                    name='Em Fila',
+                    line=dict(color='#f59e0b', width=3),
+                    marker=dict(size=10),
+                    text=df_evolucao['Em Fila'],
+                    textposition='top center',
+                    textfont=dict(size=12, color='#f59e0b')
+                ))
+                
+                # Linha de Concluídos (verde, aumentando)
+                fig.add_trace(go.Scatter(
+                    x=df_evolucao['Dia'],
+                    y=df_evolucao['Concluídos'],
+                    mode='lines+markers+text',
+                    name='Concluídos',
+                    line=dict(color='#22c55e', width=3),
+                    marker=dict(size=10),
+                    text=df_evolucao['Concluídos'],
+                    textposition='bottom center',
+                    textfont=dict(size=12, color='#22c55e')
+                ))
+                
                 fig.update_layout(
-                    height=220,
-                    margin=dict(l=20, r=20, t=10, b=20),
+                    height=280,
+                    margin=dict(l=20, r=20, t=30, b=20),
                     xaxis_title="",
-                    yaxis_title="Cards Concluídos"
+                    yaxis_title="Cards",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+                    hovermode='x unified'
                 )
                 st.plotly_chart(fig, use_container_width=True)
             else:
-                st.markdown("""
-                <div style="display: flex; justify-content: space-around; margin: 10px 0;">
-                """ + "".join([
-                    f'<div style="text-align: center;"><div style="background: #e5e7eb; width: 50px; height: 50px; border-radius: 6px; margin: 0 auto; display: flex; align-items: center; justify-content: center; color: #9ca3af;">0</div><small style="color: #9ca3af;">{d["dia"].split(chr(10))[0]}</small></div>'
-                    for d in dias_semana_dados
-                ]) + """
-                </div>
-                <p style="text-align: center; color: #9ca3af; font-size: 12px;">Nenhuma validação concluída nesta semana</p>
-                """, unsafe_allow_html=True)
-            
-            st.markdown("---")
-            
-            # Distribuição por Status (cards trabalhados na semana)
-            if not df_semana.empty:
-                st.markdown("**📊 Distribuição dos Cards Trabalhados**")
-                
-                status_dist = df_semana.groupby('status_cat').size().reset_index(name='Cards')
-                status_dist['Status'] = status_dist['status_cat'].map(lambda x: STATUS_NOMES.get(x, x))
-                
-                cores_status_map = {
-                    'waiting_qa': '#f59e0b',
-                    'testing': '#3b82f6', 
-                    'done': '#22c55e',
-                    'development': '#8b5cf6',
-                    'code_review': '#06b6d4'
-                }
-                status_dist['Cor'] = status_dist['status_cat'].map(lambda x: cores_status_map.get(x, '#64748b'))
-                
-                col1, col2 = st.columns([2, 1])
-                
-                with col1:
-                    fig = px.pie(status_dist, values='Cards', names='Status', hole=0.4,
-                                 color_discrete_sequence=status_dist['Cor'].tolist())
-                    fig.update_layout(height=250, margin=dict(l=20, r=20, t=20, b=20))
-                    st.plotly_chart(fig, use_container_width=True)
-                
-                with col2:
-                    for _, row in status_dist.iterrows():
-                        st.markdown(f"""
-                        <div style="padding: 8px; margin: 4px 0; border-left: 4px solid {row['Cor']}; background: {row['Cor']}15; border-radius: 4px;">
-                            <span style="font-weight: bold;">{row['Cards']}</span> {row['Status']}
-                        </div>
-                        """, unsafe_allow_html=True)
+                st.info("💡 Nenhum card na fila de validação esta semana.")
             
             st.markdown("---")
             
@@ -4832,9 +4829,9 @@ def aba_qa(df: pd.DataFrame):
                     st.markdown(f"""
                     <div style="padding: 12px; margin: 8px 0; border-left: 4px solid #22c55e; background: rgba(34, 197, 94, 0.05); border-radius: 6px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-                            <div>
+                            <div style="flex: 1; min-width: 200px;">
                                 <strong><a href="{row['link']}" target="_blank" style="color: #60a5fa; text-decoration: none;">{row['ticket_id']}</a></strong>
-                                <span style="color: #64748b;"> - {row['titulo'][:45]}...</span>
+                                <span style="color: #64748b;"> - {row['titulo']}</span>
                             </div>
                             <div style="display: flex; gap: 8px; align-items: center;">
                                 {badge_bugs}
@@ -4878,7 +4875,6 @@ Cards validados:
                 
                 df_tempo = df_validados_semana[['ticket_id', 'titulo', 'lead_time', 'sp']].copy()
                 df_tempo.columns = ['Ticket', 'Título', 'Lead Time (dias)', 'SP']
-                df_tempo['Título'] = df_tempo['Título'].str[:40] + '...'
                 df_tempo = df_tempo.sort_values('Lead Time (dias)', ascending=False)
                 
                 st.dataframe(df_tempo, hide_index=True, use_container_width=True)
@@ -5132,7 +5128,7 @@ def aba_dev(df: pd.DataFrame):
                         if not cards_problematicos.empty:
                             st.markdown("**Cards com mais bugs:**")
                             for _, row in cards_problematicos.iterrows():
-                                st.markdown(f"- [{row['ticket_id']}]({row['link']}) - {row['bugs']} bugs - {row['titulo'][:40]}...")
+                                st.markdown(f"- [{row['ticket_id']}]({row['link']}) - {row['bugs']} bugs - {row['titulo']}")
             else:
                 st.success("✅ Todos os desenvolvedores estão com FK adequado!")
         
@@ -5261,7 +5257,7 @@ def aba_dev(df: pd.DataFrame):
                         cor = '#ef4444' if dias > 3 else '#eab308' if dias > 1 else '#22c55e'
                         st.markdown(f"""
                         <div style="padding: 8px; margin: 4px 0; border-left: 3px solid {cor}; background: rgba(99, 102, 241, 0.1); border-radius: 4px;">
-                            <strong><a href="{row['link']}" style="color: #60a5fa;">{row['ticket_id']}</a></strong> - {row['titulo'][:35]}...<br>
+                            <strong><a href="{row['link']}" style="color: #60a5fa;">{row['ticket_id']}</a></strong> - {row['titulo']}<br>
                             <small style="color: #94a3b8;">📅 {dias} dia(s) em CR | 👤 {row['desenvolvedor']}</small>
                         </div>
                         """, unsafe_allow_html=True)
@@ -5308,7 +5304,7 @@ def aba_dev(df: pd.DataFrame):
                     for _, row in criticos_dev.head(5).iterrows():
                         st.markdown(f"""
                         <div style="padding: 8px; margin: 4px 0; border-left: 3px solid #ef4444; background: rgba(239, 68, 68, 0.1); border-radius: 4px;">
-                            <strong><a href="{row['link']}" style="color: #f87171;">{row['ticket_id']}</a></strong> - {row['titulo'][:35]}...<br>
+                            <strong><a href="{row['link']}" style="color: #f87171;">{row['ticket_id']}</a></strong> - {row['titulo']}<br>
                             <small style="color: #fca5a5;">⚠️ {row['prioridade']} | 👤 {row['desenvolvedor']} | {row['sp']} SP</small>
                         </div>
                         """, unsafe_allow_html=True)
@@ -5482,101 +5478,96 @@ def aba_dev(df: pd.DataFrame):
                 
                 st.markdown("---")
                 
-                # Entregas por Dia (usando resolutiondate - mais preciso)
-                st.markdown("**📈 Entregas por Dia**")
-                st.caption("💡 Baseado na data de conclusão dos cards (resolutiondate)")
+                # Evolução da Semana (gráfico de linhas - fila diminuindo, concluídos aumentando)
+                st.markdown("**📈 Evolução da Semana**")
+                st.caption("💡 Mostra trabalho em progresso diminuindo e entregas aumentando")
                 
-                # Cria dados para seg-sex da semana selecionada
-                dias_semana_dados = []
+                # Calcula a evolução dia a dia
+                cards_trabalho_semana = df_dev[
+                    (df_dev['status_cat'].isin(['development', 'code_review', 'done'])) &
+                    (df_dev['atualizado'] >= inicio_semana) & 
+                    (df_dev['atualizado'] <= fim_sexta)
+                ].copy()
+                
+                total_trabalho_inicial = len(cards_trabalho_semana)
+                
+                dias_evolucao = []
+                
                 for i in range(5):  # 0=seg, 4=sex
                     dia = segunda_semana + timedelta(days=i)
                     dia_str = dia.strftime("%d/%m")
                     dia_nome = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'][i]
                     
-                    # Cards concluídos nesse dia (usando resolutiondate)
+                    # Cards concluídos até este dia (acumulado)
                     if 'resolutiondate' in df_dev.columns:
-                        concluidos_dia = len(df_dev[
+                        concluidos_ate_dia = len(df_dev[
                             (df_dev['status_cat'] == 'done') &
                             (df_dev['resolutiondate'].notna()) &
-                            (df_dev['resolutiondate'].dt.date == dia.date())
+                            (df_dev['resolutiondate'] >= inicio_semana) &
+                            (df_dev['resolutiondate'].dt.date <= dia.date())
                         ])
                         
-                        # Fallback para atualizado
-                        if concluidos_dia == 0:
-                            concluidos_dia = len(df_dev[
+                        if concluidos_ate_dia == 0:
+                            concluidos_ate_dia = len(df_dev[
                                 (df_dev['status_cat'] == 'done') &
-                                (df_dev['atualizado'].dt.date == dia.date())
+                                (df_dev['atualizado'] >= inicio_semana) &
+                                (df_dev['atualizado'].dt.date <= dia.date())
                             ])
                     else:
-                        concluidos_dia = 0
+                        concluidos_ate_dia = 0
                     
-                    dias_semana_dados.append({
-                        'dia': f"{dia_nome}\n{dia_str}",
-                        'Entregas': concluidos_dia
+                    # Em trabalho = total inicial - concluídos até o dia
+                    em_trabalho_dia = max(0, total_trabalho_inicial - concluidos_ate_dia)
+                    
+                    dias_evolucao.append({
+                        'Dia': f"{dia_nome}\n{dia_str}",
+                        'Em Trabalho': em_trabalho_dia,
+                        'Entregues': concluidos_ate_dia
                     })
                 
-                df_timeline = pd.DataFrame(dias_semana_dados)
-                total_entregas = df_timeline['Entregas'].sum()
+                df_evolucao = pd.DataFrame(dias_evolucao)
                 
-                if total_entregas > 0:
-                    fig = px.bar(
-                        df_timeline, 
-                        x='dia', 
-                        y='Entregas',
-                        title='',
-                        color_discrete_sequence=['#8b5cf6']
-                    )
+                # Gráfico de linhas com duas séries
+                if total_trabalho_inicial > 0:
+                    fig = go.Figure()
+                    
+                    # Linha de Em Trabalho (roxo, diminuindo)
+                    fig.add_trace(go.Scatter(
+                        x=df_evolucao['Dia'],
+                        y=df_evolucao['Em Trabalho'],
+                        mode='lines+markers+text',
+                        name='Em Trabalho',
+                        line=dict(color='#8b5cf6', width=3),
+                        marker=dict(size=10),
+                        text=df_evolucao['Em Trabalho'],
+                        textposition='top center',
+                        textfont=dict(size=12, color='#8b5cf6')
+                    ))
+                    
+                    # Linha de Entregues (verde, aumentando)
+                    fig.add_trace(go.Scatter(
+                        x=df_evolucao['Dia'],
+                        y=df_evolucao['Entregues'],
+                        mode='lines+markers+text',
+                        name='Entregues',
+                        line=dict(color='#22c55e', width=3),
+                        marker=dict(size=10),
+                        text=df_evolucao['Entregues'],
+                        textposition='bottom center',
+                        textfont=dict(size=12, color='#22c55e')
+                    ))
+                    
                     fig.update_layout(
-                        height=220,
-                        margin=dict(l=20, r=20, t=10, b=20),
+                        height=280,
+                        margin=dict(l=20, r=20, t=30, b=20),
                         xaxis_title="",
-                        yaxis_title="Cards Concluídos"
+                        yaxis_title="Cards",
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+                        hovermode='x unified'
                     )
                     st.plotly_chart(fig, use_container_width=True)
                 else:
-                    st.markdown("""
-                    <div style="display: flex; justify-content: space-around; margin: 10px 0;">
-                    """ + "".join([
-                        f'<div style="text-align: center;"><div style="background: #e5e7eb; width: 50px; height: 50px; border-radius: 6px; margin: 0 auto; display: flex; align-items: center; justify-content: center; color: #9ca3af;">0</div><small style="color: #9ca3af;">{d["dia"].split(chr(10))[0]}</small></div>'
-                        for d in dias_semana_dados
-                    ]) + """
-                    </div>
-                    <p style="text-align: center; color: #9ca3af; font-size: 12px;">Nenhuma entrega concluída nesta semana</p>
-                    """, unsafe_allow_html=True)
-                
-                st.markdown("---")
-                
-                # Distribuição por Status (cards trabalhados na semana)
-                if not df_semana.empty:
-                    st.markdown("**📊 Distribuição dos Cards Trabalhados**")
-                    
-                    status_dist = df_semana.groupby('status_cat').size().reset_index(name='Cards')
-                    status_dist['Status'] = status_dist['status_cat'].map(lambda x: STATUS_NOMES.get(x, x))
-                    
-                    cores_status_map = {
-                        'waiting_qa': '#f59e0b',
-                        'testing': '#3b82f6', 
-                        'done': '#22c55e',
-                        'development': '#8b5cf6',
-                        'code_review': '#06b6d4'
-                    }
-                    status_dist['Cor'] = status_dist['status_cat'].map(lambda x: cores_status_map.get(x, '#64748b'))
-                    
-                    col1, col2 = st.columns([2, 1])
-                    
-                    with col1:
-                        fig = px.pie(status_dist, values='Cards', names='Status', hole=0.4,
-                                     color_discrete_sequence=status_dist['Cor'].tolist())
-                        fig.update_layout(height=250, margin=dict(l=20, r=20, t=20, b=20))
-                        st.plotly_chart(fig, use_container_width=True)
-                    
-                    with col2:
-                        for _, row in status_dist.iterrows():
-                            st.markdown(f"""
-                            <div style="padding: 8px; margin: 4px 0; border-left: 4px solid {row['Cor']}; background: {row['Cor']}15; border-radius: 4px;">
-                                <span style="font-weight: bold;">{row['Cards']}</span> {row['Status']}
-                            </div>
-                            """, unsafe_allow_html=True)
+                    st.info("💡 Nenhum card em trabalho esta semana.")
                 
                 st.markdown("---")
                 
@@ -6345,7 +6336,6 @@ def aba_backlog(df: pd.DataFrame):
                 st.markdown("Cards sem movimentação há mais de 30 dias:")
                 df_estag = metricas['cards_estagnados'][['ticket_id', 'titulo', 'dias_sem_update', 'prioridade', 'desenvolvedor']].copy()
                 df_estag.columns = ['Ticket', 'Título', 'Dias sem Update', 'Prioridade', 'Responsável']
-                df_estag['Título'] = df_estag['Título'].str[:40] + '...'
                 st.dataframe(df_estag.head(15), hide_index=True, use_container_width=True)
             else:
                 st.success("✅ Nenhum card estagnado!")
@@ -6405,7 +6395,6 @@ def aba_backlog(df: pd.DataFrame):
             # Tabela
             df_display = df_sem_atuacao[['ticket_id', 'titulo', 'dias_sem_atuacao', 'status', 'prioridade', 'produto']].head(15).copy()
             df_display.columns = ['Ticket', 'Título', 'Dias Parado', 'Status', 'Prioridade', 'Produto']
-            df_display['Título'] = df_display['Título'].str[:40] + '...'
             st.dataframe(df_display, hide_index=True, use_container_width=True)
     
     # 3. Total de cards por Temas e por Produto
@@ -7427,7 +7416,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.47 • Dashboard de Inteligência QA
+                    v8.48 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -7443,23 +7432,23 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.48** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 📈 **Novo:** Gráfico "Evolução da Semana" com 2 linhas (Fila ↓ + Concluídos ↑)
+                - 📊 Visualização clara: fila diminuindo e entregas aumentando
+                - 📝 **UX:** Títulos completos em TODA a ferramenta (sem truncar)
+                - ✨ Cards, tabelas e listas agora mostram título inteiro
+                
                 **v8.47** *(15/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
-                - 🐛 **Fix:** Dados históricos agora usam `resolutiondate` (data real de conclusão)
-                - 📅 **Gráfico:** "Validações por Dia" / "Entregas por Dia" baseado em conclusão
-                - 📊 **Novo:** Gráfico de distribuição por status (pizza)
-                - 💡 **UX:** Tooltip explicando origem dos dados
-                - ✅ **Precisão:** Cards concluídos filtrados pela data de resolução, não atualização
+                - 🐛 Dados históricos usam `resolutiondate` (conclusão real)
+                - ✅ Cards concluídos filtrados pela data de resolução
                 
                 **v8.46** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 📆 Seletor de semanas (atual, passada, 2-4 semanas atrás)
                 - 📅 Apenas dias úteis (seg-sex) no resumo
-                - 📊 Barras empilhadas por status
-                - 📝 Nome completo dos cards
                 
                 **v8.45** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 📅 "Resumo da Semana" na visão individual QA/DEV
                 - 📈 Timeline estilo GitHub (atividade diária)
-                - ⏱️ Tempo de ciclo por card da semana
                 - 📝 Resumo copiável para compartilhar no time
                 
                 **v8.44** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
