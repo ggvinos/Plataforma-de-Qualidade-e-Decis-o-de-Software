@@ -3426,6 +3426,10 @@ def aplicar_estilos():
         border: 2px solid;
         margin-bottom: 10px;
         transition: transform 0.2s;
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
     .status-card:hover { transform: translateY(-3px); }
     .status-green { background: rgba(34, 197, 94, 0.1); border-color: #22c55e; }
@@ -3979,7 +3983,7 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
         cor_barra = "#64748b"  # Cinza
     
     st.markdown(f"""
-    <div style="background: linear-gradient(90deg, {cor_barra}, {cor_barra}99); color: white; padding: 15px 20px; border-radius: 10px; margin-bottom: 20px;">
+    <div style="background: {cor_barra}; color: white; padding: 15px 20px; border-radius: 10px; margin-bottom: 20px;">
         <span style="font-size: 18px; font-weight: bold;">🚀 {sprint_atual}</span>
         <span style="float: right; font-weight: {release_bold};">{release_info}</span>
     </div>
@@ -4073,7 +4077,7 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
                 cor = STATUS_CORES.get(status, '#6b7280')
                 
                 st.markdown(f"""
-                <div style="background: {cor}20; border-left: 4px solid {cor}; padding: 15px; border-radius: 8px;">
+                <div style="background: {cor}20; border-left: 4px solid {cor}; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                     <p style="font-size: 28px; font-weight: bold; margin: 0;">{count}</p>
                     <p style="font-size: 13px; margin: 5px 0 0 0;">{nome}</p>
                 </div>
@@ -6681,7 +6685,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.41 • Dashboard de Inteligência QA
+                    v8.42 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -6689,14 +6693,28 @@ def main():
             # Changelog em expander
             with st.expander("📋 Histórico de Versões", expanded=False):
                 st.markdown("""
-                **v8.41** *(Atual)*
+                <div style="margin-bottom: 10px;">
+                    <span style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-right: 5px;">🔥 HOTFIX</span>
+                    <span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-right: 5px;">✨ MELHORIA</span>
+                    <span style="background: #f97316; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">🐛 BUG FIX</span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown("""
+                **v8.42** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 🎨 **UX:** Barra de release com cor sólida (remov. gradiente)
+                - 📏 **UX:** Cards de métricas com tamanho uniforme
+                - 📏 **UX:** Espaçamento corrigido em "Cards por Status"
+                - 🏷️ **UX:** Tags visuais no histórico de versões
+                
+                **v8.41** <span style="background: #ef4444; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🔥</span>
                 - 🔧 **Fix crítico:** Sprint agora pega a ATIVA, não a mais frequente
                 - 📊 Filtra por `sprint_state == 'active'` antes de exibir
                 - 🚨 **Release atrasada:** Barra vermelha + alerta visual
                 - ⚡ **Release hoje:** Barra amarela com destaque
                 - 📅 Cálculo correto de dias até release
                 
-                **v8.40**
+                **v8.40** <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🎯 **Análise de Sprint (SD)** - Planejado vs Entregue!
                 - 📊 Taxa de entrega da sprint com métricas visuais
                 - 🚨 Cards fora do planejamento (Hotfix, PB, Criação direta)
@@ -6708,7 +6726,7 @@ def main():
                 - 🔎 **Filtros de comentários**: busca por texto + filtro por autor
                 - 📦 Novos campos: Temas, Importância, SLA, Issue Links
                 
-                **v8.39**
+                **v8.39** <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 📦 **Tags específicas por projeto** - PB tem tags de Produto!
                 - ✅ PB: Decisão (verde) - aprovações e definições
                 - ❓ PB: Dúvida (amarelo) - perguntas e questionamentos
@@ -6716,14 +6734,14 @@ def main():
                 - 🤝 PB: Alinhamento (roxo) - reuniões e conversas
                 - 🎨 SD/QA mantém tags de QA (Bug, Reprovação, etc.)
                 
-                **v8.38** *(14/04/2026)*
+                **v8.38** <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🐛 Detecção de #bug (hashtag) - padrão do QA
                 - 🔍 +50 novos padrões de bugs adicionados
                 - 🌐 Detecta problemas de tradução, UX, interface
                 - ⚠️ Detecta "sistema retornou", "api retornou", "devTools"
                 - 📝 Detecta "ao tentar", "ao clicar", "ao criar", etc.
                 
-                **v8.37** *(14/04/2026)*
+                **v8.37** <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🔍 Filtros interativos para tipos de comentários
                 - 🐛 Detecção de bugs ampliada (80+ padrões)
                 - 🔄 Nova categoria: Retorno DEV (ciano)
@@ -6731,7 +6749,7 @@ def main():
                 - 🎨 Visual ainda mais distinto por categoria
                 - 📈 Contador de comentários exibidos vs total
                 
-                **v8.36** *(14/04/2026)*
+                **v8.36** <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🎨 Visual de comentários completamente reformulado
                 - 🐛 Bug: fundo vermelho claro + borda vermelha + badge numerado
                 - ❌ Reprovação: fundo laranja claro + borda laranja + badge numerado  
@@ -6739,63 +6757,63 @@ def main():
                 - 📍 Contexto temporal: "Antes Reprovação #1", "Após Bug #2"
                 - 📊 Legenda visual no topo dos comentários
                 
-                **v8.35** *(14/04/2026)*
+                **v8.35** <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🧠 Comentários inteligentes: filtra automações do GitHub
                 - 🐛 Destaca comentários de bugs (borda vermelha)
                 - ❌ Destaca comentários de reprovação (borda laranja)
                 - 📊 Mostra contagem de bugs/reprovações no título
                 - ℹ️ Informa quantos comentários de automação foram ocultados
                 
-                **v8.34** *(14/04/2026)*
+                **v8.34** <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 📦 Refatoração da aba Produto (PB) a pedido da Ellen
                 - 🚫 PB: Hotfix removido (não passa por produto)
                 - 📅 Filtro: "Todo o período" agora é padrão
                 - 📝 PB: Descrição, Labels, Componentes e Epic nos cards
                 - 👤 PB: Mostra Responsável no card pesquisado
                 
-                **v8.33** *(14/04/2026)*
+                **v8.33** <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
                 - 🔧 Fix: Login persistente restaurado corretamente
                 - 🍪 Usa get_all() para aguardar cookies carregarem
                 - ⚡ Corrigido timing assíncrono do CookieManager
                 
-                **v8.32** *(14/04/2026)*
+                **v8.32** <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
                 - 🔧 Fix: CachedWidgetWarning no CookieManager
                 - 🍪 Removido @st.cache_resource (widgets não podem ser cacheados)
                 - 🛡️ Tratamento de erros em todas operações com cookies
                 
-                **v8.31** *(14/04/2026)*
+                **v8.31** <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🔒 Login persistente agora usa cookies (mais confiável)
                 - 🍪 Biblioteca extra-streamlit-components para gerenciar cookies
                 - ⏰ Cookie expira em 30 dias
                 
-                **v8.30** *(14/04/2026)*
+                **v8.30** <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
                 - 🔧 Fix: Login persistente agora funciona corretamente
                 - 🔒 Mantém sessão entre atualizações e novas abas
                 
-                **v8.29** *(14/04/2026)*
+                **v8.29** <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🔒 "Lembrar de mim" - login persistente no navegador
                 - 🔓 Não precisa mais fazer login toda vez que atualiza
                 - 🧹 Logout limpa o login salvo
                 
-                **v8.28** *(14/04/2026)*
+                **v8.28** <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 📋 PB: Mostra "Relator" em vez de "Criado por"
                 - 📋 PB: Adiciona campo "Resolução/Roteiro" em destaque
                 - 🔍 Melhoria na visão de produto para itens de backlog
                 
-                **v8.27** *(14/04/2026)*
+                **v8.27** <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
                 - 🔧 Fix: Removido tooltips customizados que quebravam layout
                 - ℹ️ Mantido help nativo do Streamlit (ícone ?) nos st.metric
                 
-                **v8.26** *(14/04/2026)*
+                **v8.26** <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 💡 Tooltips em todas as métricas (hover para explicação)
                 - ℹ️ FPY, DDP, Fator K, Lead Time, Health Score explicados
                 - 📊 Captions explicativos em Throughput e Produtividade
                 
-                **v8.25** *(14/04/2026)*
+                **v8.25** <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
                 - 🧹 Fix: URL limpa - remove params cruzados QA/Dev
                 - 🧹 Clear total ao voltar para visão geral
                 
-                **v8.24** *(14/04/2026)*
+                **v8.24** <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
                 - 🧹 Fix: Limpa parâmetros da URL ao voltar para visão geral
                 
                 **v8.23** *(14/04/2026)*
