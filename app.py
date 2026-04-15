@@ -4218,7 +4218,7 @@ def aba_qa(df: pd.DataFrame):
     # SELETOR DE QA
     qa_sel = st.selectbox("🔍 Selecione o QA", opcoes_qa, index=indice_inicial, key="select_qa")
     
-    # Atualizar URL quando selecionar um QA
+    # Atualizar URL quando selecionar um QA (sem limpar aba!)
     if qa_sel != "👀 Visão Geral do Time":
         # Limpa params de Dev antes de definir QA
         if "dev" in st.query_params:
@@ -4226,8 +4226,11 @@ def aba_qa(df: pd.DataFrame):
         st.query_params["qa"] = qa_sel
         st.query_params["aba"] = "qa"
     else:
-        # Limpa TODOS os params ao voltar para visão geral
-        st.query_params.clear()
+        # Remove apenas o param de QA, mantém a aba
+        if "qa" in st.query_params:
+            del st.query_params["qa"]
+        # Mantém na aba QA!
+        st.query_params["aba"] = "qa"
     
     st.markdown("---")
     
@@ -4262,6 +4265,69 @@ def aba_qa(df: pd.DataFrame):
                 ddp = calcular_ddp(df)
                 cor = 'green' if ddp['valor'] >= 85 else 'yellow' if ddp['valor'] >= 70 else 'red'
                 criar_card_metrica(f"{ddp['valor']:.0f}%", "DDP", cor, "Detecção de Defeitos", "ddp")
+            
+            # Linha adicional para Impedidos e Reprovados
+            st.markdown("---")
+            col1, col2, col3, col4 = st.columns(4)
+            
+            # Cards impedidos
+            cards_impedidos = df[df['status_cat'] == 'blocked']
+            with col1:
+                cor = 'green' if len(cards_impedidos) == 0 else 'yellow' if len(cards_impedidos) < 3 else 'red'
+                criar_card_metrica(str(len(cards_impedidos)), "🚫 Impedidos", cor, "Bloqueados")
+            
+            # Cards reprovados
+            cards_reprovados = df[df['status_cat'] == 'rejected']
+            with col2:
+                cor = 'green' if len(cards_reprovados) == 0 else 'yellow' if len(cards_reprovados) < 3 else 'red'
+                criar_card_metrica(str(len(cards_reprovados)), "❌ Reprovados", cor, "Falha na validação")
+            
+            # Bug rate geral
+            with col3:
+                total_validados = len(df[df['status_cat'] == 'done'])
+                total_com_bugs = len(df[(df['status_cat'] == 'done') & (df['bugs'] > 0)])
+                bug_rate = total_com_bugs / total_validados * 100 if total_validados > 0 else 0
+                cor = 'green' if bug_rate < 20 else 'yellow' if bug_rate < 40 else 'red'
+                criar_card_metrica(f"{bug_rate:.0f}%", "Bug Rate", cor, f"{total_com_bugs} com bugs")
+            
+            # SP impedidos/reprovados
+            with col4:
+                sp_bloqueado = int(cards_impedidos['sp'].sum()) + int(cards_reprovados['sp'].sum())
+                cor = 'green' if sp_bloqueado == 0 else 'yellow' if sp_bloqueado < 10 else 'red'
+                criar_card_metrica(str(sp_bloqueado), "SP Travados", cor, "Impedidos + Reprovados")
+        
+        # Cards Impedidos/Reprovados detalhados
+        if len(cards_impedidos) > 0 or len(cards_reprovados) > 0:
+            with st.expander("🚨 Cards Impedidos e Reprovados", expanded=True):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("#### 🚫 Impedidos")
+                    if not cards_impedidos.empty:
+                        for _, row in cards_impedidos.iterrows():
+                            st.markdown(f"""
+                            <div style="padding: 10px; margin: 5px 0; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.1); border-radius: 6px;">
+                                <strong><a href="{row['link']}" target="_blank" style="color: #f87171;">{row['ticket_id']}</a></strong>
+                                <span style="color: #64748b;"> - {row['titulo']}</span><br>
+                                <small style="color: #94a3b8;">👤 DEV: {row['desenvolvedor']} | 🧑‍🔬 QA: {row['qa']} | {int(row['sp'])} SP</small>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    else:
+                        st.success("✅ Nenhum card impedido")
+                
+                with col2:
+                    st.markdown("#### ❌ Reprovados")
+                    if not cards_reprovados.empty:
+                        for _, row in cards_reprovados.iterrows():
+                            st.markdown(f"""
+                            <div style="padding: 10px; margin: 5px 0; border-left: 4px solid #dc2626; background: rgba(220, 38, 38, 0.1); border-radius: 6px;">
+                                <strong><a href="{row['link']}" target="_blank" style="color: #f87171;">{row['ticket_id']}</a></strong>
+                                <span style="color: #64748b;"> - {row['titulo']}</span><br>
+                                <small style="color: #94a3b8;">👤 DEV: {row['desenvolvedor']} | 🧑‍🔬 QA: {row['qa']} | {int(row['sp'])} SP | 🐛 {int(row['bugs'])} bugs</small>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    else:
+                        st.success("✅ Nenhum card reprovado")
         
         # Funil e Carga
         with st.expander("📈 Funil de Validação e Carga por QA", expanded=True):
@@ -4635,6 +4701,41 @@ def aba_qa(df: pd.DataFrame):
             with col3:
                 aging_qa = len(df_qa[df_qa['dias_em_status'] > REGRAS['dias_aging_alerta']])
                 st.metric("Cards Aging", aging_qa, help="Cards parados há mais de 3 dias no mesmo status - requer atenção")
+            
+            # Linha de impedidos/reprovados do QA
+            st.markdown("---")
+            cards_impedidos_qa = df_qa[df_qa['status_cat'] == 'blocked']
+            cards_reprovados_qa = df_qa[df_qa['status_cat'] == 'rejected']
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                cor = 'green' if len(cards_impedidos_qa) == 0 else 'yellow' if len(cards_impedidos_qa) < 2 else 'red'
+                criar_card_metrica(str(len(cards_impedidos_qa)), "🚫 Impedidos", cor)
+            with col2:
+                cor = 'green' if len(cards_reprovados_qa) == 0 else 'yellow' if len(cards_reprovados_qa) < 2 else 'red'
+                criar_card_metrica(str(len(cards_reprovados_qa)), "❌ Reprovados", cor)
+            with col3:
+                sp_travado = int(cards_impedidos_qa['sp'].sum()) + int(cards_reprovados_qa['sp'].sum())
+                cor = 'green' if sp_travado == 0 else 'yellow' if sp_travado < 5 else 'red'
+                criar_card_metrica(str(sp_travado), "SP Travados", cor)
+            with col4:
+                em_validacao = len(df_qa[df_qa['status_cat'] == 'testing'])
+                criar_card_metrica(str(em_validacao), "🧪 Validando", "blue")
+            
+            # Lista cards impedidos/reprovados se existirem
+            if len(cards_impedidos_qa) > 0 or len(cards_reprovados_qa) > 0:
+                st.markdown("---")
+                st.markdown("**🚨 Seus cards com problemas:**")
+                all_problemas = pd.concat([cards_impedidos_qa, cards_reprovados_qa]) if not cards_reprovados_qa.empty else cards_impedidos_qa
+                for _, row in all_problemas.iterrows():
+                    status_icon = "🚫" if row['status_cat'] == 'blocked' else "❌"
+                    status_name = "Impedido" if row['status_cat'] == 'blocked' else "Reprovado"
+                    st.markdown(f"""
+                    <div style="padding: 8px; margin: 4px 0; border-left: 3px solid #ef4444; background: rgba(239, 68, 68, 0.1); border-radius: 4px;">
+                        <strong>{status_icon}</strong> <a href="{row['link']}" target="_blank" style="color: #f87171;">{row['ticket_id']}</a> - {row['titulo']}<br>
+                        <small style="color: #94a3b8;">👤 DEV: {row['desenvolvedor']} | {status_name} | {int(row['sp'])} SP</small>
+                    </div>
+                    """, unsafe_allow_html=True)
         
         # ===== NOVA SEÇÃO: RESUMO DA SEMANA =====
         with st.expander("📅 Resumo da Semana", expanded=True):
@@ -5046,7 +5147,7 @@ def aba_dev(df: pd.DataFrame):
     
     dev_sel = st.selectbox("👤 Selecione o Desenvolvedor", opcoes_dev, index=indice_inicial, key="select_dev")
     
-    # Atualiza query params para link compartilhável
+    # Atualiza query params para link compartilhável (sem limpar aba!)
     if dev_sel != "🏆 Ranking Geral":
         # Limpa params de QA antes de definir Dev
         if "qa" in st.query_params:
@@ -5054,8 +5155,11 @@ def aba_dev(df: pd.DataFrame):
         st.query_params["dev"] = dev_sel
         st.query_params["aba"] = "dev"
     else:
-        # Limpa TODOS os params ao voltar para ranking geral
-        st.query_params.clear()
+        # Remove apenas o param de DEV, mantém a aba
+        if "dev" in st.query_params:
+            del st.query_params["dev"]
+        # Mantém na aba DEV!
+        st.query_params["aba"] = "dev"
     
     st.markdown("---")
     
@@ -5313,6 +5417,63 @@ def aba_dev(df: pd.DataFrame):
                         st.warning(f"⚠️ {len(criticos_dev)} cards de alta prioridade ainda em desenvolvimento!")
                 else:
                     st.success("✅ Nenhum card crítico pendente")
+        
+        # Cards Impedidos e Reprovados
+        cards_impedidos_dev = df[df['status_cat'] == 'blocked']
+        cards_reprovados_dev = df[df['status_cat'] == 'rejected']
+        
+        if len(cards_impedidos_dev) > 0 or len(cards_reprovados_dev) > 0:
+            with st.expander("🚨 Cards Impedidos e Reprovados", expanded=True):
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    cor = 'green' if len(cards_impedidos_dev) == 0 else 'yellow' if len(cards_impedidos_dev) < 3 else 'red'
+                    criar_card_metrica(str(len(cards_impedidos_dev)), "🚫 Impedidos", cor, "Bloqueados")
+                
+                with col2:
+                    cor = 'green' if len(cards_reprovados_dev) == 0 else 'yellow' if len(cards_reprovados_dev) < 3 else 'red'
+                    criar_card_metrica(str(len(cards_reprovados_dev)), "❌ Reprovados", cor, "Falha validação")
+                
+                with col3:
+                    sp_impedido = int(cards_impedidos_dev['sp'].sum())
+                    cor = 'green' if sp_impedido == 0 else 'yellow' if sp_impedido < 10 else 'red'
+                    criar_card_metrica(str(sp_impedido), "SP Impedidos", cor)
+                
+                with col4:
+                    sp_reprovado = int(cards_reprovados_dev['sp'].sum())
+                    cor = 'green' if sp_reprovado == 0 else 'yellow' if sp_reprovado < 10 else 'red'
+                    criar_card_metrica(str(sp_reprovado), "SP Reprovados", cor)
+                
+                st.markdown("---")
+                col_imp, col_rep = st.columns(2)
+                
+                with col_imp:
+                    st.markdown("#### 🚫 Impedidos")
+                    if not cards_impedidos_dev.empty:
+                        for _, row in cards_impedidos_dev.iterrows():
+                            st.markdown(f"""
+                            <div style="padding: 10px; margin: 5px 0; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.1); border-radius: 6px;">
+                                <strong><a href="{row['link']}" target="_blank" style="color: #f87171;">{row['ticket_id']}</a></strong>
+                                <span style="color: #64748b;"> - {row['titulo']}</span><br>
+                                <small style="color: #94a3b8;">👤 {row['desenvolvedor']} | 🧑‍🔬 {row['qa']} | {int(row['sp'])} SP</small>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    else:
+                        st.success("✅ Nenhum card impedido")
+                
+                with col_rep:
+                    st.markdown("#### ❌ Reprovados")
+                    if not cards_reprovados_dev.empty:
+                        for _, row in cards_reprovados_dev.iterrows():
+                            st.markdown(f"""
+                            <div style="padding: 10px; margin: 5px 0; border-left: 4px solid #dc2626; background: rgba(220, 38, 38, 0.1); border-radius: 6px;">
+                                <strong><a href="{row['link']}" target="_blank" style="color: #f87171;">{row['ticket_id']}</a></strong>
+                                <span style="color: #64748b;"> - {row['titulo']}</span><br>
+                                <small style="color: #94a3b8;">👤 {row['desenvolvedor']} | 🧑‍🔬 {row['qa']} | {int(row['sp'])} SP | 🐛 {int(row['bugs'])} bugs</small>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    else:
+                        st.success("✅ Nenhum card reprovado")
     
     else:
         # ====== Métricas Individuais ======
@@ -5397,6 +5558,41 @@ def aba_dev(df: pd.DataFrame):
                         st.metric("Bugs Encontrados", analise['bugs_total'], help="Total de bugs encontrados pelo QA nos cards deste desenvolvedor")
                     with c4:
                         st.metric("Taxa Zero Bugs", f"{analise['zero_bugs']}%", help=get_tooltip_help("fpy"))
+                    
+                    # Cards impedidos/reprovados do DEV
+                    df_dev_individual = analise['df']
+                    cards_impedidos_dev_ind = df_dev_individual[df_dev_individual['status_cat'] == 'blocked']
+                    cards_reprovados_dev_ind = df_dev_individual[df_dev_individual['status_cat'] == 'rejected']
+                    
+                    st.markdown("---")
+                    ci1, ci2, ci3, ci4 = st.columns(4)
+                    with ci1:
+                        cor = 'green' if len(cards_impedidos_dev_ind) == 0 else 'yellow' if len(cards_impedidos_dev_ind) < 2 else 'red'
+                        criar_card_metrica(str(len(cards_impedidos_dev_ind)), "🚫 Impedidos", cor)
+                    with ci2:
+                        cor = 'green' if len(cards_reprovados_dev_ind) == 0 else 'yellow' if len(cards_reprovados_dev_ind) < 2 else 'red'
+                        criar_card_metrica(str(len(cards_reprovados_dev_ind)), "❌ Reprovados", cor)
+                    with ci3:
+                        em_dev = len(df_dev_individual[df_dev_individual['status_cat'] == 'development'])
+                        criar_card_metrica(str(em_dev), "🔧 Em Dev", "blue")
+                    with ci4:
+                        em_cr = len(df_dev_individual[df_dev_individual['status_cat'] == 'code_review'])
+                        criar_card_metrica(str(em_cr), "👀 Code Review", "purple")
+                    
+                    # Lista cards impedidos/reprovados se existirem
+                    if len(cards_impedidos_dev_ind) > 0 or len(cards_reprovados_dev_ind) > 0:
+                        st.markdown("---")
+                        st.markdown("**🚨 Seus cards com problemas:**")
+                        all_problemas_dev = pd.concat([cards_impedidos_dev_ind, cards_reprovados_dev_ind]) if not cards_reprovados_dev_ind.empty and not cards_impedidos_dev_ind.empty else (cards_impedidos_dev_ind if not cards_impedidos_dev_ind.empty else cards_reprovados_dev_ind)
+                        for _, row in all_problemas_dev.iterrows():
+                            status_icon = "🚫" if row['status_cat'] == 'blocked' else "❌"
+                            status_name = "Impedido" if row['status_cat'] == 'blocked' else "Reprovado"
+                            st.markdown(f"""
+                            <div style="padding: 8px; margin: 4px 0; border-left: 3px solid #ef4444; background: rgba(239, 68, 68, 0.1); border-radius: 4px;">
+                                <strong>{status_icon}</strong> <a href="{row['link']}" target="_blank" style="color: #f87171;">{row['ticket_id']}</a> - {row['titulo']}<br>
+                                <small style="color: #94a3b8;">🧑‍🔬 QA: {row['qa']} | {status_name} | {int(row['sp'])} SP</small>
+                            </div>
+                            """, unsafe_allow_html=True)
             
             # ===== NOVA SEÇÃO: RESUMO DA SEMANA - DEV =====
             with st.expander("📅 Resumo da Semana", expanded=True):
@@ -7416,7 +7612,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.48 • Dashboard de Inteligência QA
+                    v8.49 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -7432,24 +7628,26 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.49** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 🚫 **Novo:** Cards Impedidos e Reprovados em QA e DEV
+                - 📊 KPIs de bloqueio: SP travados, bug rate
+                - 🐛 **Fix:** Navegação entre QA/DEV não sai mais da aba
+                - 👤 Visão individual mostra cards com problemas
+                
                 **v8.48** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
-                - 📈 **Novo:** Gráfico "Evolução da Semana" com 2 linhas (Fila ↓ + Concluídos ↑)
-                - 📊 Visualização clara: fila diminuindo e entregas aumentando
-                - 📝 **UX:** Títulos completos em TODA a ferramenta (sem truncar)
-                - ✨ Cards, tabelas e listas agora mostram título inteiro
+                - 📈 Gráfico "Evolução da Semana" (Fila ↓ + Concluídos ↑)
+                - 📝 Títulos completos em TODA a ferramenta
                 
                 **v8.47** *(15/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
-                - 🐛 Dados históricos usam `resolutiondate` (conclusão real)
-                - ✅ Cards concluídos filtrados pela data de resolução
+                - 🐛 Dados históricos usam `resolutiondate`
                 
                 **v8.46** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
-                - 📆 Seletor de semanas (atual, passada, 2-4 semanas atrás)
-                - 📅 Apenas dias úteis (seg-sex) no resumo
+                - 📆 Seletor de semanas (2-4 semanas atrás)
+                - 📅 Apenas dias úteis (seg-sex)
                 
                 **v8.45** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
-                - 📅 "Resumo da Semana" na visão individual QA/DEV
-                - 📈 Timeline estilo GitHub (atividade diária)
-                - 📝 Resumo copiável para compartilhar no time
+                - 📅 "Resumo da Semana" QA/DEV
+                - 📈 Timeline + resumo copiável
                 
                 **v8.44** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🤝 **Novo:** Seção "Interação QA x DEV" na aba QA
