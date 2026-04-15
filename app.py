@@ -4340,6 +4340,89 @@ def aba_qa(df: pd.DataFrame):
             else:
                 st.info("Nenhum QA atribuído aos cards.")
         
+        # ===== NOVA SEÇÃO: INTERAÇÃO QA x DEV =====
+        with st.expander("🤝 Interação QA x DEV", expanded=True):
+            st.caption("Visualize a relação de trabalho entre QAs e Desenvolvedores")
+            
+            # Filtra apenas cards com QA e DEV atribuídos
+            df_interacao = df[(df['qa'] != 'Não atribuído') & (df['desenvolvedor'] != 'Não atribuído')].copy()
+            
+            if not df_interacao.empty:
+                # Matriz de interação QA x DEV
+                matriz_interacao = df_interacao.groupby(['qa', 'desenvolvedor']).agg({
+                    'ticket_id': 'count',
+                    'bugs': 'sum',
+                    'sp': 'sum'
+                }).reset_index()
+                matriz_interacao.columns = ['QA', 'DEV', 'Cards', 'Bugs', 'SP']
+                
+                # Calcula FPY por dupla QA-DEV
+                for idx, row in matriz_interacao.iterrows():
+                    cards_dupla = df_interacao[(df_interacao['qa'] == row['QA']) & (df_interacao['desenvolvedor'] == row['DEV'])]
+                    cards_sem_bugs = len(cards_dupla[cards_dupla['bugs'] == 0])
+                    matriz_interacao.loc[idx, 'FPY'] = round(cards_sem_bugs / row['Cards'] * 100, 0) if row['Cards'] > 0 else 0
+                
+                matriz_interacao['FPY'] = matriz_interacao['FPY'].astype(int).astype(str) + '%'
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("**📊 Ranking de Duplas QA-DEV (Mais Cards)**")
+                    top_duplas = matriz_interacao.sort_values('Cards', ascending=False).head(10)
+                    st.dataframe(top_duplas, hide_index=True, use_container_width=True)
+                
+                with col2:
+                    st.markdown("**🌟 Heatmap de Interações**")
+                    # Criar pivot para heatmap
+                    pivot_cards = df_interacao.groupby(['qa', 'desenvolvedor'])['ticket_id'].count().unstack(fill_value=0)
+                    
+                    if not pivot_cards.empty:
+                        fig = px.imshow(
+                            pivot_cards,
+                            labels=dict(x="Desenvolvedor", y="QA", color="Cards"),
+                            color_continuous_scale='Blues',
+                            aspect='auto'
+                        )
+                        fig.update_layout(height=350)
+                        st.plotly_chart(fig, use_container_width=True)
+                
+                # Métricas resumidas
+                st.markdown("---")
+                st.markdown("**📈 Métricas de Colaboração**")
+                
+                col1, col2, col3, col4 = st.columns(4)
+                
+                # Total de duplas únicas
+                with col1:
+                    total_duplas = len(matriz_interacao)
+                    criar_card_metrica(str(total_duplas), "Duplas QA-DEV", "blue", "Combinações ativas")
+                
+                # Dupla mais produtiva
+                with col2:
+                    melhor_dupla = matriz_interacao.loc[matriz_interacao['Cards'].idxmax()]
+                    criar_card_metrica(str(int(melhor_dupla['Cards'])), "Maior Parceria", "green", f"{melhor_dupla['QA'][:10]} + {melhor_dupla['DEV'][:10]}")
+                
+                # Melhor FPY
+                with col3:
+                    matriz_interacao['FPY_num'] = matriz_interacao['FPY'].str.replace('%', '').astype(float)
+                    matriz_filtrada = matriz_interacao[matriz_interacao['Cards'] >= 3]  # Pelo menos 3 cards para ser significativo
+                    if not matriz_filtrada.empty:
+                        melhor_fpy = matriz_filtrada.loc[matriz_filtrada['FPY_num'].idxmax()]
+                        criar_card_metrica(melhor_fpy['FPY'], "Melhor FPY", "green", f"{melhor_fpy['QA'][:10]} + {melhor_fpy['DEV'][:10]}")
+                    else:
+                        criar_card_metrica("N/A", "Melhor FPY", "gray", "Min. 3 cards")
+                
+                # Pior FPY (atenção)
+                with col4:
+                    if not matriz_filtrada.empty:
+                        pior_fpy = matriz_filtrada.loc[matriz_filtrada['FPY_num'].idxmin()]
+                        cor = 'red' if pior_fpy['FPY_num'] < 50 else 'yellow' if pior_fpy['FPY_num'] < 70 else 'green'
+                        criar_card_metrica(pior_fpy['FPY'], "Menor FPY", cor, f"{pior_fpy['QA'][:10]} + {pior_fpy['DEV'][:10]}")
+                    else:
+                        criar_card_metrica("N/A", "Menor FPY", "gray", "Min. 3 cards")
+            else:
+                st.info("💡 Sem dados de interação QA-DEV disponíveis. Verifique se os cards têm QA e Desenvolvedor atribuídos.")
+        
         # Análise de Bugs
         with st.expander("🐛 Análise de Bugs e Retrabalho", expanded=False):
             col1, col2 = st.columns(2)
@@ -6160,6 +6243,149 @@ def aba_lideranca(df: pd.DataFrame):
         if bloqueados_df.empty and alta_prio.empty and fora_janela.empty and em_risco.empty:
             st.success("✅ Nenhum ponto crítico identificado!")
     
+    # ===== NOVA SEÇÃO: ESFORÇO DO TIME =====
+    with st.expander("💪 Esforço do Time (DEV + QA)", expanded=True):
+        st.caption("Visualize a carga de trabalho e produtividade geral do time")
+        
+        # Métricas gerais do time
+        col1, col2, col3, col4 = st.columns(4)
+        
+        # Total de devs ativos
+        devs_ativos = df[df['desenvolvedor'] != 'Não atribuído']['desenvolvedor'].nunique()
+        qas_ativos = df[df['qa'] != 'Não atribuído']['qa'].nunique()
+        
+        with col1:
+            criar_card_metrica(str(devs_ativos), "DEVs Ativos", "blue", "Desenvolvendo")
+        
+        with col2:
+            criar_card_metrica(str(qas_ativos), "QAs Ativos", "purple", "Validando")
+        
+        with col3:
+            media_cards_dev = len(df) / devs_ativos if devs_ativos > 0 else 0
+            criar_card_metrica(f"{media_cards_dev:.1f}", "Cards/DEV", "blue", "Média por dev")
+        
+        with col4:
+            media_cards_qa = len(df) / qas_ativos if qas_ativos > 0 else 0
+            criar_card_metrica(f"{media_cards_qa:.1f}", "Cards/QA", "purple", "Média por QA")
+        
+        st.markdown("---")
+        
+        # Distribuição de esforço DEV vs QA
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**📊 Carga por Desenvolvedor**")
+            dev_carga = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor').agg({
+                'ticket_id': 'count',
+                'sp': 'sum',
+                'bugs': 'sum'
+            }).reset_index()
+            dev_carga.columns = ['DEV', 'Cards', 'SP', 'Bugs']
+            dev_carga = dev_carga.sort_values('Cards', ascending=True)
+            
+            if not dev_carga.empty:
+                fig = px.bar(dev_carga, x='Cards', y='DEV', orientation='h', color='SP',
+                             color_continuous_scale='Blues', title='')
+                fig.update_layout(height=300, showlegend=False)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Sem dados de desenvolvedores")
+        
+        with col2:
+            st.markdown("**📊 Carga por QA**")
+            qa_carga = df[df['qa'] != 'Não atribuído'].groupby('qa').agg({
+                'ticket_id': 'count',
+                'sp': 'sum',
+                'bugs': 'sum'
+            }).reset_index()
+            qa_carga.columns = ['QA', 'Cards', 'SP', 'Bugs']
+            qa_carga = qa_carga.sort_values('Cards', ascending=True)
+            
+            if not qa_carga.empty:
+                fig = px.bar(qa_carga, x='Cards', y='QA', orientation='h', color='Bugs',
+                             color_continuous_scale='Reds', title='')
+                fig.update_layout(height=300, showlegend=False)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Sem dados de QAs")
+        
+        # Produtividade e Throughput
+        st.markdown("---")
+        st.markdown("**📈 Produtividade do Time**")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        # Throughput (cards concluídos)
+        with col1:
+            throughput = len(df[df['status_cat'] == 'done'])
+            criar_card_metrica(str(throughput), "Throughput", "green", "Cards concluídos")
+        
+        # Story Points entregues
+        with col2:
+            sp_entregues = int(df[df['status_cat'] == 'done']['sp'].sum())
+            criar_card_metrica(str(sp_entregues), "SP Entregues", "green", "Story Points done")
+        
+        # Velocidade (SP/Dev)
+        with col3:
+            velocidade = sp_entregues / devs_ativos if devs_ativos > 0 else 0
+            criar_card_metrica(f"{velocidade:.1f}", "Velocidade", "blue", "SP/DEV entregue")
+    
+    # ===== NOVA SEÇÃO: INTERAÇÃO QA x DEV (LIDERANÇA) =====
+    with st.expander("🤝 Interação QA x DEV (Visão Liderança)", expanded=True):
+        st.caption("Acompanhe a colaboração entre QAs e Desenvolvedores")
+        
+        # Filtra apenas cards com QA e DEV atribuídos
+        df_interacao = df[(df['qa'] != 'Não atribuído') & (df['desenvolvedor'] != 'Não atribuído')].copy()
+        
+        if not df_interacao.empty:
+            # Matriz de interação
+            matriz = df_interacao.groupby(['qa', 'desenvolvedor']).agg({
+                'ticket_id': 'count',
+                'bugs': 'sum',
+                'sp': 'sum'
+            }).reset_index()
+            matriz.columns = ['QA', 'DEV', 'Cards', 'Bugs', 'SP']
+            matriz['FK'] = matriz.apply(lambda x: round(x['SP'] / (x['Bugs'] + 1), 2), axis=1)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**📋 Top 10 Parcerias QA-DEV**")
+                st.dataframe(matriz.sort_values('Cards', ascending=False).head(10), hide_index=True, use_container_width=True)
+            
+            with col2:
+                st.markdown("**⚠️ Parcerias com Maior Retrabalho**")
+                # Ordena por bugs (mais bugs = mais retrabalho)
+                matriz_bugs = matriz[matriz['Bugs'] > 0].sort_values('Bugs', ascending=False).head(10)
+                if not matriz_bugs.empty:
+                    st.dataframe(matriz_bugs, hide_index=True, use_container_width=True)
+                else:
+                    st.success("✅ Nenhuma parceria com bugs significativos!")
+            
+            # Resumo de colaboração
+            st.markdown("---")
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                total_parcerias = len(matriz)
+                criar_card_metrica(str(total_parcerias), "Total Parcerias", "blue", "Combinações QA-DEV")
+            
+            with col2:
+                media_cards_parceria = matriz['Cards'].mean()
+                criar_card_metrica(f"{media_cards_parceria:.1f}", "Média Cards/Parceria", "green")
+            
+            with col3:
+                parcerias_sem_bugs = len(matriz[matriz['Bugs'] == 0])
+                pct_sem_bugs = parcerias_sem_bugs / total_parcerias * 100 if total_parcerias > 0 else 0
+                criar_card_metrica(f"{pct_sem_bugs:.0f}%", "Parcerias Sem Bugs", "green")
+            
+            with col4:
+                fk_medio = matriz['FK'].mean()
+                cor = 'green' if fk_medio >= 3 else 'yellow' if fk_medio >= 2 else 'red'
+                criar_card_metrica(f"{fk_medio:.1f}", "FK Médio Parcerias", cor)
+        else:
+            st.info("💡 Sem dados de interação QA-DEV. Verifique se os cards têm QA e Desenvolvedor atribuídos.")
+    
     # Performance por Desenvolvedor
     with st.expander("👨‍💻 Performance por Desenvolvedor", expanded=False):
         dev_metricas = calcular_metricas_dev(df)
@@ -6614,10 +6840,14 @@ def main():
             
             projeto = st.selectbox("📁 Projeto", projetos_lista, index=0, key="projeto_dash")
             
+            # Índice padrão do filtro baseado no projeto
+            # PB usa "Todo o período" (index=0), SD/QA usam "Sprint Ativa" (index=1)
+            indice_filtro_padrao = 0 if projeto == "PB" else 1
+            
             filtro_sprint = st.selectbox(
                 "🗓️ Período",
                 ["Todo o período", "Sprint Ativa", "Últimos 30 dias", "Últimos 90 dias"],
-                index=0
+                index=indice_filtro_padrao
             )
         else:
             # Quando pesquisando, usa o projeto da busca
@@ -6687,7 +6917,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.43 • Dashboard de Inteligência QA
+                    v8.44 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -6703,6 +6933,14 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.44** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 🤝 **Novo:** Seção "Interação QA x DEV" na aba QA
+                - 💪 **Novo:** Seção "Esforço do Time" na aba Liderança
+                - 🤝 **Novo:** "Interação QA x DEV" visão Liderança
+                - 🗓️ **UX:** Filtro padrão: PB=Todo período, SD/QA=Sprint Ativa
+                - 🌟 Heatmap de interações, ranking de duplas, FPY por parceria
+                - 📊 Carga por DEV e QA, throughput, velocidade do time
+                
                 **v8.43** *(15/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
                 - 📏 **Fix:** Cards de métricas agora com altura uniforme
                 - 📏 **Fix:** Legenda de tags não quebra mais linha
