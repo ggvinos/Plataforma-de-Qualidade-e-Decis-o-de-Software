@@ -7169,9 +7169,9 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
     
     # ========== VISÃO GERAL (quando seleciona "Ver Todos") ==========
     if pessoa_selecionada == "👥 Ver Todos":
+        # Não mostra botão copiar link na visão geral
         with col_link:
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.info("📊 Visão do Time")
+            pass  # Coluna vazia para manter layout
         
         st.markdown("---")
         
@@ -7252,19 +7252,28 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                     st.plotly_chart(fig_stacked, use_container_width=True)
         
         with col_graf4:
-            # Top Relatores
+            # Top Relatores (filtra bots e automações)
             st.markdown("##### 👥 Top 15 Pessoas com Mais Cards")
             if 'relator' in df_todos.columns:
-                top_relatores = df_todos['relator'].value_counts().head(15)
+                # Lista de nomes a filtrar (bots, automações, etc)
+                bots_filter = ['automation for jira', 'jira automation', 'system', 'admin', 
+                               'automação', 'bot', 'script', 'integration', 'webhook']
                 
-                for i, (relator, count) in enumerate(top_relatores.items()):
-                    if relator and relator != 'Não informado':
+                # Filtra e conta
+                relatores_filtrados = df_todos[~df_todos['relator'].str.lower().str.contains(
+                    '|'.join(bots_filter), na=True)]['relator']
+                top_relatores = relatores_filtrados.value_counts().head(15)
+                
+                contador = 0
+                for relator, count in top_relatores.items():
+                    if relator and relator != 'Não informado' and contador < 15:
                         # Calcula proporção para barra visual
                         pct = count / top_relatores.max() * 100
+                        contador += 1
                         st.markdown(f"""
                         <div style="margin: 4px 0;">
                             <div style="display: flex; align-items: center; gap: 8px;">
-                                <span style="min-width: 25px; font-weight: bold; color: #64748b;">{i+1}.</span>
+                                <span style="min-width: 25px; font-weight: bold; color: #64748b;">{contador}.</span>
                                 <span style="flex: 1; font-size: 0.9em;">{relator}</span>
                                 <span style="font-weight: bold; color: #AF0C37;">{count}</span>
                             </div>
@@ -7285,7 +7294,11 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
             df_aguard_resp = df_todos[df_todos['status'].str.lower().str.contains('aguardando', na=False)]
             st.markdown(f"##### 💬 Aguardando Resposta ({len(df_aguard_resp)})")
             
-            for _, card in df_aguard_resp.head(5).iterrows():
+            # Checkbox para expandir
+            ver_todos_aguard = st.checkbox("Ver todos", key="ver_todos_aguardando") if len(df_aguard_resp) > 5 else False
+            limite_aguard = len(df_aguard_resp) if ver_todos_aguard else 5
+            
+            for _, card in df_aguard_resp.head(limite_aguard).iterrows():
                 projeto = card.get('projeto', 'SD')
                 tipo = card.get('tipo', 'TAREFA')
                 tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#64748b"
@@ -7294,32 +7307,32 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                 <div style="background: #fef3c7; padding: 8px; margin: 4px 0; border-radius: 4px; font-size: 0.85em;">
                     <span style="background: #64748b; color: white; padding: 1px 4px; border-radius: 2px; font-size: 10px;">{projeto}</span>
                     <span style="background: {tipo_cor}; color: white; padding: 1px 4px; border-radius: 2px; font-size: 10px;">{tipo}</span>
-                    <strong>{card['ticket_id']}</strong>
+                    {card_link_com_popup(card['ticket_id'], projeto)}
                     <br><span style="color: #92400e; font-size: 0.8em;">{card.get('relator', 'N/A')}</span>
                 </div>
                 """, unsafe_allow_html=True)
-            if len(df_aguard_resp) > 5:
-                st.caption(f"... e mais {len(df_aguard_resp) - 5} cards")
         
         with col_aguard2:
             # Cards pendentes em VALPROD
             df_valprod_pend = df_todos[(df_todos['projeto'] == 'VALPROD') & 
                                        (~df_todos['status'].str.lower().str.contains('aprovado|validado|concluído', na=False))]
-            st.markdown(f"##### ✅ Validação Produção ({len(df_valprod_pend)})")
+            st.markdown(f"##### 🔍 Validação Produção ({len(df_valprod_pend)})")
             
-            for _, card in df_valprod_pend.head(5).iterrows():
+            # Checkbox para expandir
+            ver_todos_valprod = st.checkbox("Ver todos", key="ver_todos_valprod") if len(df_valprod_pend) > 5 else False
+            limite_valprod = len(df_valprod_pend) if ver_todos_valprod else 5
+            
+            for _, card in df_valprod_pend.head(limite_valprod).iterrows():
                 tipo = card.get('tipo', 'TAREFA')
                 tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#64748b"
                 
                 st.markdown(f"""
                 <div style="background: #fef9c3; padding: 8px; margin: 4px 0; border-radius: 4px; font-size: 0.85em;">
                     <span style="background: {tipo_cor}; color: white; padding: 1px 4px; border-radius: 2px; font-size: 10px;">{tipo}</span>
-                    <strong>{card['ticket_id']}</strong>
+                    {card_link_com_popup(card['ticket_id'], 'VALPROD')}
                     <br><span style="color: #854d0e; font-size: 0.8em;">{card.get('relator', 'N/A')}</span>
                 </div>
                 """, unsafe_allow_html=True)
-            if len(df_valprod_pend) > 5:
-                st.caption(f"... e mais {len(df_valprod_pend) - 5} cards")
         
         with col_aguard3:
             # Cards no PB aguardando
@@ -7327,19 +7340,21 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                                     (df_todos['status'].str.lower().str.contains('aguardando|roteiro|ux', na=False))]
             st.markdown(f"##### 📦 Backlog ({len(df_pb_aguard)})")
             
-            for _, card in df_pb_aguard.head(5).iterrows():
+            # Checkbox para expandir
+            ver_todos_pb = st.checkbox("Ver todos", key="ver_todos_backlog") if len(df_pb_aguard) > 5 else False
+            limite_pb = len(df_pb_aguard) if ver_todos_pb else 5
+            
+            for _, card in df_pb_aguard.head(limite_pb).iterrows():
                 tipo = card.get('tipo', 'TAREFA')
                 tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#64748b"
                 
                 st.markdown(f"""
                 <div style="background: #e0f2fe; padding: 8px; margin: 4px 0; border-radius: 4px; font-size: 0.85em;">
                     <span style="background: {tipo_cor}; color: white; padding: 1px 4px; border-radius: 2px; font-size: 10px;">{tipo}</span>
-                    <strong>{card['ticket_id']}</strong>
+                    {card_link_com_popup(card['ticket_id'], 'PB')}
                     <br><span style="color: #0369a1; font-size: 0.8em;">{card.get('relator', 'N/A')}</span>
                 </div>
                 """, unsafe_allow_html=True)
-            if len(df_pb_aguard) > 5:
-                st.caption(f"... e mais {len(df_pb_aguard) - 5} cards")
         
         # ===== GRÁFICO: TIPOS DE CARDS =====
         st.markdown("---")
@@ -7428,7 +7443,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                 }});
             }});
         </script>
-        """, height=50)
+        """, height=60)
     
     st.markdown("---")
     
@@ -7443,12 +7458,17 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
     st.markdown(f"#### 📊 Resumo de {pessoa_selecionada}")
     
     # Métricas por projeto
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     df_sd = df_pessoa[df_pessoa['projeto'] == 'SD'] if 'projeto' in df_pessoa.columns else pd.DataFrame()
     df_qa = df_pessoa[df_pessoa['projeto'] == 'QA'] if 'projeto' in df_pessoa.columns else pd.DataFrame()
     df_pb = df_pessoa[df_pessoa['projeto'] == 'PB'] if 'projeto' in df_pessoa.columns else pd.DataFrame()
     df_valprod = df_pessoa[df_pessoa['projeto'] == 'VALPROD'] if 'projeto' in df_pessoa.columns else pd.DataFrame()
+    
+    # Calcula total de concluídos em todos os projetos
+    df_concluidos = df_pessoa[df_pessoa['status'].str.lower().str.contains(
+        'concluído|finalizado|done|aprovado|validado|resolvido|closed|encerrado', na=False)]
+    total_concluidos = len(df_concluidos)
     
     with col1:
         total_sd = len(df_sd)
@@ -7465,9 +7485,12 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
         st.metric("📦 PB", total_pb, delta=f"{aguardando_pb} aguardando" if aguardando_pb > 0 else None)
     
     with col4:
-        total_valprod = len(df_valprod)
-        pendentes = len(df_valprod[~df_valprod['status'].str.lower().str.contains('aprovado|validado|concluído', na=False)]) if not df_valprod.empty else 0
-        st.metric("✅ VALPROD", total_valprod, delta=f"{pendentes} pendentes" if pendentes > 0 else None)
+        # Pendentes de validação (não concluídos) no VALPROD
+        pendentes_valprod = len(df_valprod[~df_valprod['status'].str.lower().str.contains('aprovado|validado|concluído', na=False)]) if not df_valprod.empty else 0
+        st.metric("🔍 Val. Prod", pendentes_valprod, delta="pendentes" if pendentes_valprod > 0 else None, delta_color="off")
+    
+    with col5:
+        st.metric("✅ Concluídos", total_concluidos)
     
     # ========== GRÁFICO: CARDS POR PROJETO E STATUS ==========
     with st.expander("📊 Onde estão meus cards?", expanded=True):
@@ -7503,7 +7526,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                         st.markdown("")
     
     # ========== CARDS PARA VALIDAR EM PRODUÇÃO ==========
-    with st.expander("✅ Cards para Validar em Produção", expanded=True):
+    with st.expander("🔍 Cards para Validar em Produção", expanded=True):
         if not df_valprod.empty:
             df_pendentes = df_valprod[~df_valprod['status'].str.lower().str.contains('aprovado|validado|concluído', na=False)]
             
@@ -7644,38 +7667,19 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
         else:
             st.info("ℹ️ Nenhum card em SD/QA.")
     
-    # ========== CARDS ENTREGUES / CONCLUÍDOS ==========
-    with st.expander("🏆 Cards Entregues / Concluídos", expanded=True):
+    # ========== CARDS CONCLUÍDOS ==========
+    with st.expander("✅ Cards Concluídos", expanded=True):
         # Filtra cards concluídos/aprovados/validados em todos os projetos
-        df_entregues = df_pessoa[df_pessoa['status'].str.lower().str.contains(
+        df_concluidos_lista = df_pessoa[df_pessoa['status'].str.lower().str.contains(
             'concluído|finalizado|done|aprovado|validado|resolvido|closed|encerrado', na=False)]
         
-        if not df_entregues.empty:
-            # Métricas de entregas
-            col_met1, col_met2, col_met3, col_met4 = st.columns(4)
-            
-            with col_met1:
-                st.metric("🏆 Total Entregues", len(df_entregues))
-            
-            with col_met2:
-                entregues_sd = len(df_entregues[df_entregues['projeto'] == 'SD'])
-                st.metric("📋 SD", entregues_sd)
-            
-            with col_met3:
-                entregues_qa = len(df_entregues[df_entregues['projeto'] == 'QA'])
-                st.metric("🔬 QA", entregues_qa)
-            
-            with col_met4:
-                entregues_valprod = len(df_entregues[df_entregues['projeto'] == 'VALPROD'])
-                st.metric("✅ VALPROD", entregues_valprod)
-            
-            st.markdown("---")
-            st.markdown(f"##### 📋 {len(df_entregues)} cards entregues")
+        if not df_concluidos_lista.empty:
+            st.markdown(f"##### ✅ {len(df_concluidos_lista)} cards concluídos")
             
             # Ordena por data de criação (mais recente primeiro)
-            df_entregues_sorted = df_entregues.sort_values('criado', ascending=False) if 'criado' in df_entregues.columns else df_entregues
+            df_concluidos_sorted = df_concluidos_lista.sort_values('criado', ascending=False) if 'criado' in df_concluidos_lista.columns else df_concluidos_lista
             
-            for _, card in df_entregues_sorted.head(15).iterrows():
+            for _, card in df_concluidos_sorted.head(15).iterrows():
                 projeto = card.get('projeto', 'SD')
                 tipo = card.get('tipo', 'TAREFA')
                 tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#6366f1" if tipo == "SUGESTÃO" else "#64748b"
@@ -7691,17 +7695,17 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                         <span style="background: {projeto_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
                         <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
                         {card_link_com_popup(card['ticket_id'], projeto)}
-                        <span style="background: #22c55e; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: auto;">✓ Entregue</span>
+                        <span style="background: #22c55e; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: auto;">✓ Concluído</span>
                     </div>
                     <div style="color: #166534; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 70 else ''}</div>
                     <div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: {status}</div>
                 </div>
                 """, unsafe_allow_html=True)
             
-            if len(df_entregues) > 15:
-                st.caption(f"... e mais {len(df_entregues) - 15} cards entregues")
+            if len(df_concluidos_lista) > 15:
+                st.caption(f"... e mais {len(df_concluidos_lista) - 15} cards concluídos")
         else:
-            st.info("ℹ️ Nenhum card entregue/concluído encontrado no período selecionado.")
+            st.info("ℹ️ Nenhum card concluído encontrado no período selecionado.")
     
     # ========== TOOLTIP EXPLICATIVO ==========
     with st.expander("ℹ️ Sobre esta Aba", expanded=False):
@@ -7713,10 +7717,11 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
         | Seção | O que mostra |
         |-------|--------------|
         | **📊 Onde estão meus cards?** | Visão geral por projeto e status |
-        | **✅ Validação em Produção** | Cards do VALPROD pendentes |
+        | **🔍 Validação em Produção** | Cards do VALPROD pendentes |
         | **💬 Aguardando Resposta** | Cards que precisam de retorno |
         | **📋 PB** | Seus cards no Product Backlog |
         | **💻 SD/QA** | Seus cards em desenvolvimento |
+        | **✅ Concluídos** | Cards finalizados |
         
         ### 🎯 Dicas:
         - Selecione sua pessoa para filtrar seus cards
@@ -8740,7 +8745,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.61 • Dashboard de Inteligência QA
+                    v8.62 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -8756,6 +8761,16 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.62** *(16/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
+                - 🔧 **Fix UI Visão Geral**: Removido card desalinhado
+                - 🤖 **Filtro Bots**: Automation for Jira removido do Top 15
+                - 🔗 **Popup Links**: Cards Aguardando agora têm popup
+                - ☑️ **Ver Todos**: Checkbox para expandir listas de cards
+                - 📏 **Fix Botão Copiar**: Aumentado height do botão
+                - ✅ **Métrica Concluídos**: Adicionada no resumo por pessoa
+                - 📝 **Renomeado**: "Entregues" → "Concluídos"
+                - 🔍 **Emoji Fix**: Validação Produção usa 🔍 (pendente)
+                
                 **v8.61** *(16/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 👥 **Ver Todos**: Opção no seletor para visão geral do time
                 - 📊 **Gráficos na Visão Geral**: Pizza por projeto, barras por status, tipos
