@@ -271,6 +271,128 @@ def link_jira(ticket_id: str) -> str:
     return f"{JIRA_BASE_URL}/browse/{ticket_id}"
 
 
+def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True) -> str:
+    """
+    Gera HTML de um card com popup para escolher: Ver no NinaDash ou Abrir no Jira.
+    
+    Args:
+        ticket_id: ID do card (ex: PB-797, SD-1234)
+        projeto: Projeto do card (PB, SD, QA). Se None, detecta automaticamente.
+        inline: Se True, renderiza inline. Se False, bloco.
+    
+    Returns:
+        HTML string com popup de navegação.
+    """
+    # Detecta projeto automaticamente se não informado
+    if not projeto:
+        if ticket_id.startswith("PB-"):
+            projeto = "PB"
+        elif ticket_id.startswith("QA-"):
+            projeto = "QA"
+        else:
+            projeto = "SD"
+    
+    # URLs
+    url_jira = f"{JIRA_BASE_URL}/browse/{ticket_id}"
+    url_dashboard = f"?card={ticket_id}&projeto={projeto}"
+    
+    # Cor por projeto
+    cores = {"PB": "#8b5cf6", "SD": "#3b82f6", "QA": "#22c55e"}
+    cor = cores.get(projeto, "#6b7280")
+    
+    # HTML com popup CSS puro
+    html = f'''<span class="card-popup-container" tabindex="0" style="position: relative; display: {'inline-block' if inline else 'block'};">
+        <span class="card-popup-trigger" style="
+            color: {cor}; 
+            font-weight: 600; 
+            cursor: pointer; 
+            border-bottom: 1px dashed {cor}40;
+            padding: 1px 3px;
+            border-radius: 3px;
+            transition: all 0.2s ease;
+        ">{ticket_id}</span>
+        <span class="card-popup-menu" style="
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 6px;
+            z-index: 9999;
+            min-width: 160px;
+            margin-bottom: 5px;
+        ">
+            <a href="{url_dashboard}" target="_blank" class="card-popup-option" style="
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 12px;
+                color: #374151;
+                text-decoration: none;
+                border-radius: 6px;
+                font-size: 13px;
+                transition: background 0.15s;
+                white-space: nowrap;
+            " onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 16px;">📊</span> Ver no NinaDash
+            </a>
+            <a href="{url_jira}" target="_blank" class="card-popup-option" style="
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 12px;
+                color: #374151;
+                text-decoration: none;
+                border-radius: 6px;
+                font-size: 13px;
+                transition: background 0.15s;
+                white-space: nowrap;
+            " onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 16px;">🔗</span> Abrir no Jira
+            </a>
+        </span>
+    </span>'''
+    
+    return html
+
+
+# CSS global para o popup (deve ser inserido uma vez na página)
+CARD_POPUP_CSS = """
+<style>
+    .card-popup-container:focus .card-popup-menu,
+    .card-popup-container:focus-within .card-popup-menu,
+    .card-popup-container:hover .card-popup-menu {
+        display: block !important;
+    }
+    .card-popup-trigger:hover {
+        background: rgba(59, 130, 246, 0.1) !important;
+    }
+    .card-popup-menu::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 6px solid transparent;
+        border-top-color: white;
+    }
+    .card-popup-menu::before {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 7px solid transparent;
+        border-top-color: #e5e7eb;
+    }
+</style>
+"""
+
+
 def calcular_dias_necessarios_validacao(complexidade: str) -> int:
     """
     Calcula quantos dias úteis são necessários para validação baseado na complexidade de teste.
@@ -2283,12 +2405,14 @@ def exibir_detalhes_pb(card: Dict, links: List[Dict], comentarios: List[Dict]):
 
 
 def exibir_cards_vinculados(links: List[Dict]):
-    """Exibe seção de cards vinculados."""
+    """Exibe seção de cards vinculados com popup para navegar."""
     if links and len(links) > 0:
         st.markdown("<br>", unsafe_allow_html=True)
         with st.expander(f"🔗 **Cards Vinculados ({len(links)})**", expanded=True):
             for link in links:
                 tipo_cor = "#6366f1" if link['tipo'] == 'Parent' else "#22c55e" if link['tipo'] == 'Subtask' else "#f59e0b"
+                # Usa popup para navegação
+                card_popup_html = card_link_com_popup(link['ticket_id'])
                 st.markdown(f"""
 <div style='background: {tipo_cor}10; padding: 10px 15px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid {tipo_cor};'>
     <div style='display: flex; justify-content: space-between; align-items: center;'>
@@ -2296,9 +2420,7 @@ def exibir_cards_vinculados(links: List[Dict]):
             <span style='color: {tipo_cor}; font-weight: bold; font-size: 0.85em;'>{link['tipo']}</span>
             <span style='color: #666; font-size: 0.8em;'> • {link['direcao']}</span>
             <br>
-            <a href="{link['link']}" target="_blank" style='color: #333; font-weight: bold; text-decoration: none;'>
-                {link['ticket_id']}
-            </a>
+            {card_popup_html}
             <span style='color: #666; font-size: 0.85em;'> - {link['titulo'][:60]}{'...' if len(link['titulo']) > 60 else ''}</span>
         </div>
         <div style='text-align: right;'>
@@ -4168,10 +4290,11 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
                             categoria = "➕ Criação Direta"
                             cor_tag = "#8b5cf6"
                         
+                        card_popup = card_link_com_popup(card['ticket_id'])
                         st.markdown(f"""
                         <div style="background: #f8fafc; border-left: 4px solid {cor_tag}; padding: 10px 15px; margin: 5px 0; border-radius: 4px;">
                             <span style="background: {cor_tag}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{categoria}</span>
-                            <a href="{card['link']}" target="_blank" style="margin-left: 10px; font-weight: bold;">{card['ticket_id']}</a>
+                            <span style="margin-left: 10px;">{card_popup}</span>
                             <span style="color: #64748b;"> - {card['titulo'][:60]}...</span>
                             <span style="float: right; color: #94a3b8; font-size: 12px;">{card['status']}</span>
                         </div>
@@ -6706,10 +6829,11 @@ def aba_backlog(df: pd.DataFrame):
                 st.markdown("##### 🚨 Cards com SLA Atrasado")
                 for _, card in df_atrasados.iterrows():
                     dias_esperando = (datetime.now() - card['atualizado']).days if pd.notna(card['atualizado']) else 0
+                    card_popup = card_link_com_popup(card['ticket_id'])
                     st.markdown(f"""
                     <div style="background: #fee2e2; border-left: 4px solid #ef4444; padding: 10px 15px; margin: 5px 0; border-radius: 4px;">
                         <span style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">🚨 ATRASADO</span>
-                        <a href="{link_jira(card['ticket_id'])}" target="_blank" style="margin-left: 10px; font-weight: bold;">{card['ticket_id']}</a>
+                        <span style="margin-left: 10px;">{card_popup}</span>
                         <span style="color: #64748b;"> - {card['titulo'][:50]}...</span>
                         <span style="float: right; color: #dc2626; font-size: 12px;">{dias_esperando}d sem atualização</span>
                     </div>
@@ -7529,6 +7653,9 @@ def main():
     # ========== USUÁRIO LOGADO - DASHBOARD ==========
     aplicar_estilos()
     
+    # CSS global para popup de cards (permite escolher NinaDash ou Jira)
+    st.markdown(CARD_POPUP_CSS, unsafe_allow_html=True)
+    
     # Header principal com logo Nina
     mostrar_header_nina()
     
@@ -7756,7 +7883,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.51 • Dashboard de Inteligência QA
+                    v8.52 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -7772,6 +7899,12 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.52** *(16/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 🆕 **Popup de Navegação**: Clique em qualquer card exibe menu
+                - 📊 Opção "Ver no NinaDash" (abre em nova aba)
+                - 🔗 Opção "Abrir no Jira" (abre em nova aba)
+                - 🎯 Aplicado em Cards Vinculados, Listagens e Resumos
+                
                 **v8.51** *(16/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
                 - 🔧 **Fix:** Botão "Copiar Link" alinhamento corrigido
                 - 📝 **Novo:** Seção Descrição adicionada nos cards SD
