@@ -7133,8 +7133,13 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
     st.markdown("### 🎯 Suporte e Implantação")
     st.caption("Acompanhe seus cards em todos os projetos: SD, QA, PB e VALPROD")
     
-    if df_todos.empty:
+    if df_todos is None or df_todos.empty:
         st.warning("⚠️ Nenhum card encontrado nos projetos.")
+        return
+    
+    # Verifica se a coluna 'relator' existe
+    if 'relator' not in df_todos.columns:
+        st.warning("⚠️ Coluna 'relator' não encontrada nos dados.")
         return
     
     # ========== SELETOR DE PESSOA (igual QA/Dev) ==========
@@ -7186,10 +7191,13 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
             
             # Top relatores
             st.markdown("##### 👥 Pessoas com mais cards abertos")
-            top_relatores = df_todos['relator'].value_counts().head(10)
-            for relator, count in top_relatores.items():
-                if relator and relator != 'Não informado':
-                    st.markdown(f"- **{relator}**: {count} cards")
+            if 'relator' in df_todos.columns:
+                top_relatores = df_todos['relator'].value_counts().head(10)
+                for relator, count in top_relatores.items():
+                    if relator and relator != 'Não informado':
+                        st.markdown(f"- **{relator}**: {count} cards")
+            else:
+                st.info("Informação de relator não disponível.")
         
         return
     
@@ -8412,7 +8420,11 @@ def main():
                 pass
         
         # Combina todos os DataFrames
-        df_todos = pd.concat(todos_dfs, ignore_index=True) if todos_dfs else df
+        df_todos = pd.concat(todos_dfs, ignore_index=True) if len(todos_dfs) > 0 else df.copy()
+        
+        # Garante que df_todos tenha a coluna 'projeto'
+        if 'projeto' not in df_todos.columns:
+            df_todos['projeto'] = projeto
         
         # Filtro por produto (dentro da sidebar)
         with st.sidebar:
