@@ -7310,12 +7310,19 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                 for _, card in df_pendentes.iterrows():
                     dias = (datetime.now() - pd.to_datetime(card['criado'])).days if pd.notna(card.get('criado')) else 0
                     cor = "#ef4444" if dias > 7 else "#f59e0b" if dias > 3 else "#22c55e"
+                    tipo = card.get('tipo', 'TAREFA')
+                    tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#6366f1" if tipo == "SUGESTÃO" else "#64748b"
+                    titulo = card.get('titulo', card.get('resumo', ''))[:80]
                     
                     st.markdown(f"""
-                    <div style="background: #f8fafc; border-left: 4px solid {cor}; padding: 10px; margin: 6px 0; border-radius: 0 6px 6px 0;">
-                        {card_link_com_popup(card['ticket_id'], 'VALPROD')}
-                        <span style="color: #64748b; margin-left: 8px;">{card.get('resumo', '')[:50]}...</span>
-                        <span style="float: right; background: {cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{dias}d</span>
+                    <div style="background: #f8fafc; border-left: 4px solid {cor}; padding: 12px; margin: 8px 0; border-radius: 0 8px 8px 0;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                            <span style="background: {tipo_cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">{tipo}</span>
+                            {card_link_com_popup(card['ticket_id'], 'VALPROD')}
+                            <span style="background: {cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: auto;">{dias}d</span>
+                        </div>
+                        <div style="color: #374151; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 80 else ''}</div>
+                        <div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: {card.get('status', 'N/A')}</div>
                     </div>
                     """, unsafe_allow_html=True)
             else:
@@ -7334,13 +7341,20 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
             for _, card in df_aguardando.iterrows():
                 dias = (datetime.now() - pd.to_datetime(card['criado'])).days if pd.notna(card.get('criado')) else 0
                 projeto = card.get('projeto', 'SD')
+                tipo = card.get('tipo', 'TAREFA')
+                tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#6366f1" if tipo == "SUGESTÃO" else "#64748b"
+                titulo = card.get('titulo', card.get('resumo', ''))[:80]
                 
                 st.markdown(f"""
-                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px; margin: 6px 0; border-radius: 0 6px 6px 0;">
-                    <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
-                    {card_link_com_popup(card['ticket_id'], projeto)}
-                    <span style="color: #92400e; margin-left: 8px;">{card.get('resumo', '')[:45]}...</span>
-                    <span style="float: right; color: #64748b; font-size: 0.85em;">{dias}d | {card.get('status', '')}</span>
+                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 8px 0; border-radius: 0 8px 8px 0;">
+                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                        <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
+                        <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
+                        {card_link_com_popup(card['ticket_id'], projeto)}
+                        <span style="color: #64748b; font-size: 0.8em; margin-left: auto;">{dias}d</span>
+                    </div>
+                    <div style="color: #92400e; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 80 else ''}</div>
+                    <div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: {card.get('status', '')}</div>
                 </div>
                 """, unsafe_allow_html=True)
         else:
@@ -7365,10 +7379,18 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                 st.markdown("**Cards:**")
                 for _, card in df_pb.head(10).iterrows():
                     dias = (datetime.now() - pd.to_datetime(card['criado'])).days if pd.notna(card.get('criado')) else 0
+                    tipo = card.get('tipo', 'TAREFA')
+                    tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#6366f1" if tipo == "SUGESTÃO" else "#64748b"
+                    titulo = card.get('titulo', '')[:60]
+                    
                     st.markdown(f"""
-                    <div style="background: #f1f5f9; padding: 6px 10px; margin: 3px 0; border-radius: 4px; font-size: 0.9em;">
-                        {card_link_com_popup(card['ticket_id'], 'PB')} — {card.get('resumo', '')[:40]}...
-                        <span style="float: right; background: #cbd5e1; padding: 1px 6px; border-radius: 3px; font-size: 0.8em;">{card.get('status', '')}</span>
+                    <div style="background: #f1f5f9; padding: 10px; margin: 6px 0; border-radius: 6px;">
+                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                            <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
+                            {card_link_com_popup(card['ticket_id'], 'PB')}
+                            <span style="background: #cbd5e1; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; margin-left: auto;">{card.get('status', '')}</span>
+                        </div>
+                        <div style="color: #374151; font-size: 0.85em;">{titulo}{'...' if len(card.get('titulo', '')) > 60 else ''}</div>
                     </div>
                     """, unsafe_allow_html=True)
                 
@@ -7398,11 +7420,19 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                 st.markdown("**Cards:**")
                 for _, card in df_dev.head(10).iterrows():
                     projeto = card.get('projeto', 'SD')
+                    tipo = card.get('tipo', 'TAREFA')
+                    tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#6366f1" if tipo == "SUGESTÃO" else "#64748b"
+                    titulo = card.get('titulo', '')[:55]
+                    
                     st.markdown(f"""
-                    <div style="background: #f1f5f9; padding: 6px 10px; margin: 3px 0; border-radius: 4px; font-size: 0.9em;">
-                        <span style="background: #64748b; color: white; padding: 1px 4px; border-radius: 2px; font-size: 0.75em;">{projeto}</span>
-                        {card_link_com_popup(card['ticket_id'], projeto)} — {card.get('resumo', '')[:35]}...
-                        <span style="float: right; background: #cbd5e1; padding: 1px 6px; border-radius: 3px; font-size: 0.8em;">{card.get('status', '')}</span>
+                    <div style="background: #f1f5f9; padding: 10px; margin: 6px 0; border-radius: 6px;">
+                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                            <span style="background: #374151; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
+                            <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
+                            {card_link_com_popup(card['ticket_id'], projeto)}
+                            <span style="background: #cbd5e1; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; margin-left: auto;">{card.get('status', '')}</span>
+                        </div>
+                        <div style="color: #374151; font-size: 0.85em;">{titulo}{'...' if len(card.get('titulo', '')) > 55 else ''}</div>
                     </div>
                     """, unsafe_allow_html=True)
                 
@@ -8446,7 +8476,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.58 • Dashboard de Inteligência QA
+                    v8.59 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -8462,14 +8492,18 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.59** *(16/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 🏷️ **Cards com Título Completo**: Mostra nome do card
+                - 🔖 **Tipo do Card**: Badge colorido (HOTFIX/BUG/TAREFA)
+                - 🎨 Layout melhorado nas listagens
+                - 📋 Mais informações visíveis em cada card
+                
                 **v8.58** *(16/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🎯 **Aba Suporte Refatorada**: Igual QA/Dev
                 - 👤 Seletor de pessoa (qualquer um pode ver qualquer pessoa)
                 - 🔄 Busca TODOS os projetos (SD, QA, PB, VALPROD)
                 - 📊 Gráfico "Onde estão meus cards?" por projeto/status
                 - 🔗 Link compartilhável: ?aba=suporte&pessoa=Nome
-                - ❌ Removido filtro cliente/tema (não fazia sentido)
-                - 📋 Usa o mesmo filtro de período da sidebar
                 
                 **v8.57** *(16/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🎯 Nova ABA: Suporte/Implantação (v1)
