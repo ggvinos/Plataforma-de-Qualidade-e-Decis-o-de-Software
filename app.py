@@ -4540,6 +4540,7 @@ def aba_qa(df: pd.DataFrame):
     
     # Verificar se há QA na URL para compartilhamento
     qa_url = st.query_params.get("qa", None)
+    aba_atual = st.query_params.get("aba", None)
     opcoes_qa = ["👀 Visão Geral do Time"] + sorted(qas)
     
     # Determinar índice inicial baseado na URL
@@ -4550,19 +4551,23 @@ def aba_qa(df: pd.DataFrame):
     # SELETOR DE QA
     qa_sel = st.selectbox("🔍 Selecione o QA", opcoes_qa, index=indice_inicial, key="select_qa")
     
-    # Atualizar URL quando selecionar um QA (sem limpar aba!)
-    if qa_sel != "👀 Visão Geral do Time":
-        # Limpa params de Dev antes de definir QA
-        if "dev" in st.query_params:
-            del st.query_params["dev"]
-        st.query_params["qa"] = qa_sel
-        st.query_params["aba"] = "qa"
-    else:
-        # Remove apenas o param de QA, mantém a aba
-        if "qa" in st.query_params:
-            del st.query_params["qa"]
-        # Mantém na aba QA!
-        st.query_params["aba"] = "qa"
+    # Atualizar URL quando selecionar um QA (APENAS se a aba QA está ativa ou não há aba definida)
+    # Evita sobrescrever params quando outra aba está ativa (ex: Suporte)
+    if aba_atual in [None, "qa"]:
+        if qa_sel != "👀 Visão Geral do Time":
+            # Limpa params de Dev antes de definir QA
+            if "dev" in st.query_params:
+                del st.query_params["dev"]
+            if "pessoa" in st.query_params:
+                del st.query_params["pessoa"]
+            st.query_params["qa"] = qa_sel
+            st.query_params["aba"] = "qa"
+        else:
+            # Remove apenas o param de QA, mantém a aba
+            if "qa" in st.query_params:
+                del st.query_params["qa"]
+            # Mantém na aba QA!
+            st.query_params["aba"] = "qa"
     
     st.markdown("---")
     
@@ -5605,6 +5610,7 @@ def aba_dev(df: pd.DataFrame):
     
     # Suporte a query params para compartilhamento
     dev_url = st.query_params.get("dev", None)
+    aba_atual = st.query_params.get("aba", None)
     opcoes_dev = ["🏆 Ranking Geral"] + sorted(devs)
     indice_inicial = 0
     if dev_url and dev_url in devs:
@@ -5612,19 +5618,23 @@ def aba_dev(df: pd.DataFrame):
     
     dev_sel = st.selectbox("👤 Selecione o Desenvolvedor", opcoes_dev, index=indice_inicial, key="select_dev")
     
-    # Atualiza query params para link compartilhável (sem limpar aba!)
-    if dev_sel != "🏆 Ranking Geral":
-        # Limpa params de QA antes de definir Dev
-        if "qa" in st.query_params:
-            del st.query_params["qa"]
-        st.query_params["dev"] = dev_sel
-        st.query_params["aba"] = "dev"
-    else:
-        # Remove apenas o param de DEV, mantém a aba
-        if "dev" in st.query_params:
-            del st.query_params["dev"]
-        # Mantém na aba DEV!
-        st.query_params["aba"] = "dev"
+    # Atualiza query params para link compartilhável (APENAS se a aba Dev está ativa ou não há aba definida)
+    # Evita sobrescrever params quando outra aba está ativa (ex: Suporte)
+    if aba_atual in [None, "dev"]:
+        if dev_sel != "🏆 Ranking Geral":
+            # Limpa params de QA antes de definir Dev
+            if "qa" in st.query_params:
+                del st.query_params["qa"]
+            if "pessoa" in st.query_params:
+                del st.query_params["pessoa"]
+            st.query_params["dev"] = dev_sel
+            st.query_params["aba"] = "dev"
+        else:
+            # Remove apenas o param de DEV, mantém a aba
+            if "dev" in st.query_params:
+                del st.query_params["dev"]
+            # Mantém na aba DEV!
+            st.query_params["aba"] = "dev"
     
     st.markdown("---")
     
@@ -7204,6 +7214,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
     
     # Verifica se tem pessoa na URL (link compartilhado)
     pessoa_url = st.query_params.get("pessoa", None)
+    aba_atual = st.query_params.get("aba", None)
     pessoa_index = 0  # "👥 Ver Todos" é sempre index 0
     if pessoa_url and pessoa_url in relatores:
         pessoa_index = relatores.index(pessoa_url) + 1  # +1 porque "👥 Ver Todos" é index 0
@@ -7214,6 +7225,21 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
         index=pessoa_index,
         key="pessoa_suporte"
     )
+    
+    # Atualiza query params (APENAS se a aba Suporte está ativa ou não há aba definida)
+    if aba_atual in [None, "suporte"]:
+        if pessoa_selecionada != "👥 Ver Todos":
+            # Limpa params de QA/Dev antes de definir
+            if "qa" in st.query_params:
+                del st.query_params["qa"]
+            if "dev" in st.query_params:
+                del st.query_params["dev"]
+            st.query_params["pessoa"] = pessoa_selecionada
+            st.query_params["aba"] = "suporte"
+        else:
+            # Remove apenas o param de pessoa
+            if "pessoa" in st.query_params:
+                del st.query_params["pessoa"]
     
     # ========== VISÃO GERAL (quando seleciona "Ver Todos") ==========
     if pessoa_selecionada == "👥 Ver Todos":
@@ -8920,7 +8946,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.67 • Dashboard de Inteligência QA
+                    v8.68 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -8936,6 +8962,12 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.68** *(16/04/2026)* <span style="background: #ef4444; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🔥</span>
+                - 🔧 **Fix Redirecionamento**: Corrigido bug que redirecionava para aba Dev
+                - 📌 **Isolamento de Abas**: QA/Dev/Suporte não interferem mais entre si
+                - 🔗 **Query Params**: Só atualiza URL quando a própria aba está ativa
+                - ✅ Checkbox "Ver todos" não muda mais a aba ativa
+                
                 **v8.67** *(16/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 📋 **Botão Copiar Link**: Movido para linha do título (não corta mais)
                 - 📝 **Título nos Cards**: Cards Aguardando Ação agora mostram título
