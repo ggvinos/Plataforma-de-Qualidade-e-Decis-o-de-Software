@@ -7470,15 +7470,17 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
             background: linear-gradient(135deg, #AF0C37 0%, #8B0A2C 100%);
             color: white;
             border: none;
-            padding: 10px 16px;
+            padding: 9px 16px;
             border-radius: 6px;
             cursor: pointer;
             width: 100%;
+            height: 38px;
             font-size: 14px;
             font-weight: 500;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             transition: all 0.2s ease;
-            margin-top: 28px;
+            margin-top: 27px;
+            box-sizing: border-box;
         ">📋 Copiar Link</button>
         <script>
             document.getElementById('copyBtnSuporteIndividual').addEventListener('click', function() {{
@@ -7507,7 +7509,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                 }});
             }});
         </script>
-        """, height=70)
+        """, height=68)
     
     st.markdown("---")
     
