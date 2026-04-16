@@ -221,6 +221,18 @@ STATUS_FLOW = {
     "blocked": ["IMPEDIDO"],
     "rejected": ["REPROVADO"],
     "deferred": ["Validado - Adiado", "DESCARTADO"],
+    # Status específicos do PB (Product Backlog)
+    "pb_revisao_produto": ["Aguardando Revisão de Produto", "Revisão de Produto", "Análise de Produto"],
+    "pb_roteiro": ["Em Roteiro", "Roteiro", "Definição de Roteiro"],
+    "pb_ux": ["UX/Design", "UX Design", "Análise UX", "UX/UI"],
+    "pb_esforco": ["Aguardando Esforço", "Estimativa de Esforço", "Aguarda Esforço"],
+    "pb_aguarda_dev": ["Aguardando Desenvolvimento", "Aguarda Desenvolvimento", "Fila de Desenvolvimento"],
+    "pb_aguardando_resposta": ["Aguardando Resposta", "Aguardando Cliente", "Aguarda Retorno"],
+    # Status específicos do VALPROD (Validação em Produção)
+    "valprod_pendente": ["Pendente", "Aguardando Validação", "Para Validar"],
+    "valprod_validando": ["Em Validação", "Validando"],
+    "valprod_aprovado": ["Aprovado", "Validado", "Concluído"],
+    "valprod_rejeitado": ["Rejeitado", "Reprovado", "Com Problemas"],
 }
 
 STATUS_NOMES = {
@@ -233,7 +245,19 @@ STATUS_NOMES = {
     "blocked": "🚫 Bloqueado",
     "rejected": "❌ Reprovado",
     "deferred": "📅 Adiado",
-    "unknown": "❓ Desconhecido"
+    "unknown": "❓ Desconhecido",
+    # PB
+    "pb_revisao_produto": "📝 Revisão Produto",
+    "pb_roteiro": "📋 Em Roteiro",
+    "pb_ux": "🎨 UX/Design",
+    "pb_esforco": "⏱️ Aguarda Esforço",
+    "pb_aguarda_dev": "💻 Aguarda Dev",
+    "pb_aguardando_resposta": "💬 Aguardando Resposta",
+    # VALPROD
+    "valprod_pendente": "⏳ Pendente Val Prod",
+    "valprod_validando": "🔍 Validando",
+    "valprod_aprovado": "✅ Aprovado",
+    "valprod_rejeitado": "❌ Rejeitado",
 }
 
 STATUS_CORES = {
@@ -246,8 +270,29 @@ STATUS_CORES = {
     "blocked": "#ef4444",
     "rejected": "#dc2626",
     "deferred": "#6b7280",
-    "unknown": "#9ca3af"
+    "unknown": "#9ca3af",
+    # PB
+    "pb_revisao_produto": "#6366f1",
+    "pb_roteiro": "#8b5cf6",
+    "pb_ux": "#ec4899",
+    "pb_esforco": "#f97316",
+    "pb_aguarda_dev": "#14b8a6",
+    "pb_aguardando_resposta": "#f59e0b",
+    # VALPROD
+    "valprod_pendente": "#f59e0b",
+    "valprod_validando": "#3b82f6",
+    "valprod_aprovado": "#22c55e",
+    "valprod_rejeitado": "#ef4444",
 }
+
+# Etapas do funil PB (ordem do processo)
+PB_FUNIL_ETAPAS = [
+    ("pb_revisao_produto", "📝 Revisão Produto"),
+    ("pb_roteiro", "📋 Em Roteiro"),
+    ("pb_ux", "🎨 UX/Design"),
+    ("pb_esforco", "⏱️ Aguarda Esforço"),
+    ("pb_aguarda_dev", "💻 Aguarda Dev"),
+]
 
 REGRAS = {
     "hotfix_sp_default": 2,
@@ -7069,6 +7114,297 @@ def aba_backlog(df: pd.DataFrame):
         """)
 
 
+# ==============================================================================
+# ABA SUPORTE/IMPLANTAÇÃO
+# ==============================================================================
+
+def aba_suporte_implantacao(df: pd.DataFrame, df_pb: pd.DataFrame = None, df_valprod: pd.DataFrame = None):
+    """
+    Aba de Suporte e Implantação - Visão consolidada para times de suporte/implantação.
+    
+    Features:
+    - Meus Cards (filtro por relator/responsável)
+    - Cards aguardando validação em produção (VALPROD)
+    - Cards aguardando resposta no SD
+    - Funil do PB por etapas
+    - Filtros por relator e cliente/tema
+    """
+    st.markdown("### 🎯 Suporte e Implantação")
+    st.caption("Visão consolidada para acompanhar seus cards, validações e backlog de produto.")
+    
+    # Seletor de pessoa (relator)
+    relatores = set()
+    if not df.empty and 'relator' in df.columns:
+        relatores.update(df['relator'].dropna().unique())
+    if df_pb is not None and not df_pb.empty and 'relator' in df_pb.columns:
+        relatores.update(df_pb['relator'].dropna().unique())
+    if df_valprod is not None and not df_valprod.empty and 'relator' in df_valprod.columns:
+        relatores.update(df_valprod['relator'].dropna().unique())
+    
+    relatores = sorted([r for r in relatores if r and r != 'Não informado'])
+    
+    col_filtro1, col_filtro2 = st.columns(2)
+    with col_filtro1:
+        pessoa_selecionada = st.selectbox(
+            "👤 Selecione sua pessoa",
+            options=["Todos"] + relatores,
+            index=0,
+            help="Filtre para ver apenas seus cards"
+        )
+    
+    # Filtro de cliente/tema (se disponível no PB)
+    with col_filtro2:
+        temas_disponiveis = []
+        if df_pb is not None and not df_pb.empty and 'tema_principal' in df_pb.columns:
+            temas_disponiveis = sorted(df_pb['tema_principal'].dropna().unique().tolist())
+            temas_disponiveis = [t for t in temas_disponiveis if t and t != 'Sem tema']
+        
+        cliente_selecionado = st.selectbox(
+            "🏢 Filtrar por Cliente/Tema",
+            options=["Todos"] + temas_disponiveis,
+            index=0,
+            help="Filtre cards do PB por cliente"
+        ) if temas_disponiveis else None
+    
+    st.markdown("---")
+    
+    # Aplicar filtros
+    df_filtrado = df.copy() if not df.empty else pd.DataFrame()
+    df_pb_filtrado = df_pb.copy() if df_pb is not None and not df_pb.empty else pd.DataFrame()
+    df_valprod_filtrado = df_valprod.copy() if df_valprod is not None and not df_valprod.empty else pd.DataFrame()
+    
+    if pessoa_selecionada != "Todos":
+        if not df_filtrado.empty:
+            df_filtrado = df_filtrado[df_filtrado['relator'] == pessoa_selecionada]
+        if not df_pb_filtrado.empty:
+            df_pb_filtrado = df_pb_filtrado[df_pb_filtrado['relator'] == pessoa_selecionada]
+        if not df_valprod_filtrado.empty:
+            df_valprod_filtrado = df_valprod_filtrado[df_valprod_filtrado['relator'] == pessoa_selecionada]
+    
+    if cliente_selecionado and cliente_selecionado != "Todos" and not df_pb_filtrado.empty:
+        df_pb_filtrado = df_pb_filtrado[df_pb_filtrado['tema_principal'] == cliente_selecionado]
+    
+    # ========== SEÇÃO 1: RESUMO RÁPIDO ==========
+    st.markdown("#### 📊 Resumo Rápido")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    # Cards SD (Service Desk)
+    total_sd = len(df_filtrado) if not df_filtrado.empty else 0
+    em_andamento_sd = len(df_filtrado[df_filtrado['status'].str.lower().str.contains('andamento|desenvolvimento', na=False)]) if not df_filtrado.empty else 0
+    
+    with col1:
+        st.metric("📋 Meus Cards SD", total_sd, delta=f"{em_andamento_sd} em andamento")
+    
+    # Cards PB
+    total_pb = len(df_pb_filtrado) if not df_pb_filtrado.empty else 0
+    with col2:
+        st.metric("📦 Meus Cards PB", total_pb)
+    
+    # Cards VALPROD
+    total_valprod = len(df_valprod_filtrado) if not df_valprod_filtrado.empty else 0
+    pendentes_valprod = 0
+    if not df_valprod_filtrado.empty:
+        pendentes_valprod = len(df_valprod_filtrado[
+            ~df_valprod_filtrado['status'].str.lower().str.contains('aprovado|validado|concluído', na=False)
+        ])
+    
+    with col3:
+        st.metric("✅ Validação Produção", total_valprod, delta=f"{pendentes_valprod} pendentes" if pendentes_valprod > 0 else None)
+    
+    # Cards aguardando resposta
+    aguardando_resp = 0
+    if not df_filtrado.empty:
+        aguardando_resp = len(df_filtrado[df_filtrado['status'].str.lower().str.contains('aguardando', na=False)])
+    if not df_pb_filtrado.empty:
+        aguardando_resp += len(df_pb_filtrado[df_pb_filtrado['status'].str.lower().str.contains('aguardando resposta|aguardando cliente', na=False)])
+    
+    with col4:
+        st.metric("💬 Aguardando Resposta", aguardando_resp)
+    
+    st.markdown("---")
+    
+    # ========== SEÇÃO 2: VALIDAÇÃO EM PRODUÇÃO ==========
+    with st.expander("✅ Cards para Validar em Produção (VALPROD)", expanded=True):
+        if df_valprod_filtrado is not None and not df_valprod_filtrado.empty:
+            # Filtrar apenas pendentes
+            df_pendentes = df_valprod_filtrado[
+                ~df_valprod_filtrado['status'].str.lower().str.contains('aprovado|validado|concluído', na=False)
+            ]
+            
+            if not df_pendentes.empty:
+                st.markdown(f"##### 🔍 {len(df_pendentes)} cards pendentes de validação em produção")
+                
+                for _, card in df_pendentes.iterrows():
+                    dias_criado = (datetime.now() - pd.to_datetime(card['criado'])).days if pd.notna(card.get('criado')) else 0
+                    cor_urgencia = "#ef4444" if dias_criado > 7 else "#f59e0b" if dias_criado > 3 else "#22c55e"
+                    
+                    st.markdown(f"""
+                    <div style="background: #f8fafc; border-left: 4px solid {cor_urgencia}; padding: 12px; margin: 8px 0; border-radius: 0 8px 8px 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                {card_link_com_popup(card['ticket_id'], 'VALPROD')}
+                                <span style="color: #64748b; margin-left: 8px;">{card.get('resumo', '')[:60]}...</span>
+                            </div>
+                            <div style="text-align: right;">
+                                <span style="background: {cor_urgencia}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">
+                                    {dias_criado}d
+                                </span>
+                                <br>
+                                <small style="color: #64748b;">{card.get('status', 'N/A')}</small>
+                            </div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.success("✅ Nenhum card pendente de validação em produção!")
+        else:
+            st.info("ℹ️ Nenhum card encontrado no projeto VALPROD. Verifique se o projeto está configurado corretamente.")
+    
+    # ========== SEÇÃO 3: FUNIL DO PB ==========
+    with st.expander("📋 Funil do Product Backlog", expanded=True):
+        if df_pb_filtrado is not None and not df_pb_filtrado.empty:
+            st.markdown("##### 📊 Cards por Etapa do Processo")
+            
+            # Função para classificar status do PB
+            def classificar_etapa_pb(status):
+                status_lower = status.lower() if status else ""
+                for key, nomes in STATUS_FLOW.items():
+                    if key.startswith('pb_'):
+                        for nome in nomes:
+                            if nome.lower() in status_lower or status_lower in nome.lower():
+                                return key
+                return "outros"
+            
+            df_pb_filtrado['etapa'] = df_pb_filtrado['status'].apply(classificar_etapa_pb)
+            
+            # Contar por etapa
+            contagem_etapas = {}
+            for etapa_key, etapa_nome in PB_FUNIL_ETAPAS:
+                contagem = len(df_pb_filtrado[df_pb_filtrado['etapa'] == etapa_key])
+                contagem_etapas[etapa_nome] = contagem
+            
+            # Também contar status diretos do PB
+            status_counts = df_pb_filtrado['status'].value_counts()
+            
+            # Criar visualização do funil
+            col_funil1, col_funil2 = st.columns([2, 1])
+            
+            with col_funil1:
+                # Gráfico de barras horizontal (funil)
+                etapas_df = pd.DataFrame([
+                    {"Etapa": etapa, "Cards": count} 
+                    for etapa, count in contagem_etapas.items()
+                ])
+                
+                if not etapas_df.empty and etapas_df['Cards'].sum() > 0:
+                    fig = px.bar(etapas_df, x='Cards', y='Etapa', orientation='h',
+                                 title='📊 Funil do Backlog',
+                                 color='Cards', color_continuous_scale='Blues')
+                    fig.update_layout(height=300, showlegend=False, yaxis={'categoryorder': 'array', 'categoryarray': list(reversed([e[1] for e in PB_FUNIL_ETAPAS]))})
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("Nenhum card mapeado nas etapas do funil. Os status podem estar diferentes do esperado.")
+            
+            with col_funil2:
+                st.markdown("##### Status Atuais (Jira)")
+                for status, count in status_counts.items():
+                    st.markdown(f"- **{status}**: {count}")
+            
+            # Lista de cards aguardando resposta no PB
+            df_aguardando = df_pb_filtrado[df_pb_filtrado['status'].str.lower().str.contains('aguardando', na=False)]
+            if not df_aguardando.empty:
+                st.markdown("---")
+                st.markdown(f"##### 💬 {len(df_aguardando)} Cards Aguardando Resposta/Retorno")
+                
+                for _, card in df_aguardando.iterrows():
+                    dias = (datetime.now() - pd.to_datetime(card['criado'])).days if pd.notna(card.get('criado')) else 0
+                    st.markdown(f"""
+                    <div style="background: #fef3c7; padding: 8px 12px; margin: 4px 0; border-radius: 6px;">
+                        {card_link_com_popup(card['ticket_id'], 'PB')} — 
+                        <span style="color: #92400e;">{card.get('resumo', '')[:50]}...</span>
+                        <span style="float: right; color: #64748b;">{dias}d | {card.get('status', '')}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+        else:
+            st.info("ℹ️ Nenhum card encontrado no projeto PB para os filtros selecionados.")
+    
+    # ========== SEÇÃO 4: MEUS CARDS SD ==========
+    with st.expander("📋 Meus Cards no Service Desk (SD)", expanded=False):
+        if not df_filtrado.empty:
+            st.markdown(f"##### 📊 {len(df_filtrado)} cards encontrados")
+            
+            # Agrupar por status
+            status_counts = df_filtrado['status'].value_counts()
+            
+            col1, col2 = st.columns([1, 2])
+            
+            with col1:
+                st.markdown("**Por Status:**")
+                for status, count in status_counts.items():
+                    st.markdown(f"- {status}: **{count}**")
+            
+            with col2:
+                # Lista simplificada
+                st.markdown("**Últimos Cards:**")
+                for _, card in df_filtrado.head(10).iterrows():
+                    st.markdown(f"""
+                    <div style="background: #f1f5f9; padding: 6px 10px; margin: 3px 0; border-radius: 4px; font-size: 0.9em;">
+                        {card_link_com_popup(card['ticket_id'], 'SD')} — {card.get('resumo', '')[:40]}...
+                        <span style="float: right; background: #cbd5e1; padding: 1px 6px; border-radius: 3px; font-size: 0.8em;">{card.get('status', '')}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                if len(df_filtrado) > 10:
+                    st.caption(f"... e mais {len(df_filtrado) - 10} cards")
+        else:
+            st.info("ℹ️ Nenhum card encontrado no SD para os filtros selecionados.")
+    
+    # ========== SEÇÃO 5: CARDS COM COMENTÁRIOS AGUARDANDO ==========
+    with st.expander("💬 Cards Aguardando Resposta (Comentários)", expanded=False):
+        st.markdown("""
+        <div style="background: #fef3c7; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+            <p style="margin: 0; color: #92400e;">
+                ⚠️ <b>Em desenvolvimento:</b> Esta seção mostrará cards onde um dev/QA comentou e aguarda sua resposta.
+                <br><small>Requer análise dos comentários de cada card.</small>
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Cards com status "aguardando" já são mostrados acima
+        aguardando = []
+        if not df_filtrado.empty:
+            aguardando.extend(df_filtrado[df_filtrado['status'].str.lower().str.contains('aguardando', na=False)].to_dict('records'))
+        
+        if aguardando:
+            st.markdown(f"##### Cards com status 'Aguardando':")
+            for card in aguardando[:10]:
+                st.markdown(f"- {card_link_com_popup(card['ticket_id'], 'SD')} — {card.get('resumo', '')[:40]}... ({card.get('status', '')})")
+        else:
+            st.success("✅ Nenhum card identificado como aguardando sua resposta.")
+    
+    # ========== TOOLTIP EXPLICATIVO ==========
+    with st.expander("ℹ️ Sobre esta Aba", expanded=False):
+        st.markdown("""
+        ### 🎯 Suporte e Implantação — O que analisamos?
+        
+        Esta aba foi criada especialmente para os times de **Suporte** e **Implantação** acompanharem:
+        
+        | Seção | O que mostra |
+        |-------|--------------|
+        | **📊 Resumo Rápido** | Visão geral dos seus cards em todos os projetos |
+        | **✅ Validação em Produção** | Cards do VALPROD pendentes de sua validação |
+        | **📋 Funil do PB** | Onde seus cards estão no fluxo do Product Backlog |
+        | **📋 Meus Cards SD** | Seus cards no Service Desk |
+        | **💬 Aguardando Resposta** | Cards que precisam de algum retorno |
+        
+        ### 🎯 Dicas:
+        - Use o filtro **"Selecione sua pessoa"** para ver apenas seus cards
+        - Use o filtro **"Cliente/Tema"** para focar em um cliente específico
+        - Cards com mais de 7 dias pendentes aparecem em **vermelho**
+        """)
+
+
 def aba_historico(df: pd.DataFrame):
     """Aba de Histórico/Tendências - ENRIQUECIDA."""
     st.markdown("### 📈 Histórico e Tendências")
@@ -7852,7 +8188,7 @@ def main():
         st.markdown("##### 🔍 Busca Rápida de Card")
         
         # Projeto para busca
-        projetos_lista = ["SD", "QA", "PB"]
+        projetos_lista = ["SD", "QA", "PB", "VALPROD"]
         projeto_busca_index = 0
         if st.session_state.busca_ativa and st.session_state.projeto_buscado in projetos_lista:
             projeto_busca_index = projetos_lista.index(st.session_state.projeto_buscado)
@@ -7861,7 +8197,7 @@ def main():
         numero_inicial = ""
         if st.session_state.busca_ativa and st.session_state.card_buscado:
             numero_inicial = st.session_state.card_buscado.upper()
-            for prefix in ["SD-", "QA-", "PB-"]:
+            for prefix in ["SD-", "QA-", "PB-", "VALPROD-"]:
                 if numero_inicial.startswith(prefix):
                     numero_inicial = numero_inicial[len(prefix):]
                     break
@@ -7875,7 +8211,7 @@ def main():
                     projetos_lista,
                     index=projeto_busca_index,
                     label_visibility="collapsed",
-                    help="SD, QA ou PB"
+                    help="SD, QA, PB ou VALPROD"
                 )
             
             with col_num:
@@ -7987,6 +8323,34 @@ def main():
         
         df = processar_issues(issues)
         
+        # ===== BUSCA ADICIONAL PARA ABA SUPORTE/IMPLANTAÇÃO =====
+        # Busca dados de PB e VALPROD se necessário (para a aba Suporte/Implantação)
+        df_pb = None
+        df_valprod = None
+        
+        # Só busca projetos adicionais se não for o próprio projeto selecionado
+        if projeto not in ["PB"]:
+            try:
+                jql_pb = 'project = PB ORDER BY created DESC'
+                issues_pb, _ = buscar_dados_jira_cached("PB", jql_pb)
+                if issues_pb:
+                    df_pb = processar_issues(issues_pb)
+            except:
+                df_pb = None
+        else:
+            df_pb = df  # Usa o df já carregado se projeto for PB
+        
+        if projeto not in ["VALPROD"]:
+            try:
+                jql_valprod = 'project = VALPROD ORDER BY created DESC'
+                issues_valprod, _ = buscar_dados_jira_cached("VALPROD", jql_valprod)
+                if issues_valprod:
+                    df_valprod = processar_issues(issues_valprod)
+            except:
+                df_valprod = None
+        else:
+            df_valprod = df  # Usa o df já carregado se projeto for VALPROD
+        
         # Filtro por produto (dentro da sidebar)
         with st.sidebar:
             produtos_disponiveis = ['Todos'] + sorted(df['produto'].unique().tolist())
@@ -8003,7 +8367,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.56 • Dashboard de Inteligência QA
+                    v8.57 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -8019,6 +8383,16 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.57** *(16/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 🎯 **NOVA ABA: Suporte/Implantação**
+                - 👤 Filtro por pessoa (relator) - "Meus Cards"
+                - ✅ Cards VALPROD pendentes de validação em produção
+                - 📋 Funil do PB por etapas (Revisão → UX → Esforço → Dev)
+                - 🏢 Filtro por cliente/tema no PB
+                - 💬 Cards aguardando resposta
+                - 🆕 Projeto VALPROD adicionado ao sistema
+                - 📊 Status específicos do PB mapeados
+                
                 **v8.56** *(16/04/2026)* <span style="background: #ef4444; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🔥</span>
                 - 📊 **Sem Limite de Cards**: Removido limite de 500 cards
                 - 🔄 Busca TODOS os cards do período selecionado
@@ -8329,12 +8703,38 @@ def main():
             with tab5:
                 aba_sobre()
         
+        elif projeto == "VALPROD":
+            # Projeto VALPROD: Foco em Validação em Produção + Suporte
+            tab1, tab2, tab3, tab4, tab5 = st.tabs([
+                "🎯 Suporte/Implantação",
+                "📊 Visão Geral",
+                "📋 Governança",
+                "📈 Histórico",
+                "ℹ️ Sobre"
+            ])
+            
+            with tab1:
+                aba_suporte_implantacao(df, df_pb, df_valprod)
+            
+            with tab2:
+                aba_visao_geral(df, ultima_atualizacao)
+            
+            with tab3:
+                aba_governanca(df)
+            
+            with tab4:
+                aba_historico(df)
+            
+            with tab5:
+                aba_sobre()
+        
         else:
-            # Projetos SD e QA: Abas completas com QA/Dev
-            tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+            # Projetos SD e QA: Abas completas com QA/Dev + nova aba Suporte
+            tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
                 "📊 Visão Geral",
                 "🔬 QA",
                 "👨‍💻 Dev",
+                "🎯 Suporte/Implantação",
                 "📋 Governança",
                 "📦 Produto",
                 "📈 Histórico",
@@ -8352,18 +8752,21 @@ def main():
                 aba_dev(df)
             
             with tab4:
-                aba_governanca(df)
+                aba_suporte_implantacao(df, df_pb, df_valprod)
             
             with tab5:
-                aba_produto(df)
+                aba_governanca(df)
             
             with tab6:
-                aba_historico(df)
+                aba_produto(df)
             
             with tab7:
-                aba_lideranca(df)
+                aba_historico(df)
             
             with tab8:
+                aba_lideranca(df)
+            
+            with tab9:
                 aba_sobre()
 
 
