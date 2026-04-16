@@ -1615,14 +1615,17 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Di
             background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             color: white;
             border: none;
-            padding: 10px 16px;
+            padding: 8px 16px;
             border-radius: 6px;
             cursor: pointer;
             width: 100%;
+            height: 38px;
             font-size: 14px;
             font-weight: 500;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             transition: all 0.2s ease;
+            margin: 0;
+            box-sizing: border-box;
         ">📋 Copiar Link</button>
         <script>
             document.getElementById('copyBtn').addEventListener('click', function() {{
@@ -1652,7 +1655,7 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Di
                 }});
             }});
         </script>
-        """, height=45)
+        """, height=38)
     
     with col3:
         st.caption(f"Sprint: **{card['sprint']}** | Produto: **{card['produto']}**")
