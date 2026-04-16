@@ -1363,6 +1363,9 @@ def processar_issues(issues: List[Dict]) -> pd.DataFrame:
         # Desenvolvedor
         dev = f.get('assignee', {}).get('displayName', 'Não atribuído') if f.get('assignee') else 'Não atribuído'
         
+        # Relator (reporter) - quem criou o card
+        relator = f.get('reporter', {}).get('displayName', 'Não informado') if f.get('reporter') else 'Não informado'
+        
         # Story Points - com regra de Hotfix
         sp = f.get(CUSTOM_FIELDS['story_points']) or f.get(CUSTOM_FIELDS['story_points_alt']) or 0
         sp_original = bool(f.get(CUSTOM_FIELDS['story_points']) or f.get(CUSTOM_FIELDS['story_points_alt']))
@@ -1529,6 +1532,7 @@ def processar_issues(issues: List[Dict]) -> pd.DataFrame:
             'status_cat': status_cat,
             'projeto': projeto,
             'desenvolvedor': dev,
+            'relator': relator,
             'qa': qa,
             'sp': int(sp) if sp else 0,
             'sp_original': sp_original,
