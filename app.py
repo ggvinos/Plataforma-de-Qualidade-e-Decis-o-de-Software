@@ -7464,39 +7464,50 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
         base_url = "https://plataforma-de-qualidade-e-decis-o-de-software-8ze3ycurhvmdahdv.streamlit.app/"
         share_url = f"{base_url}?aba=suporte&pessoa={urllib.parse.quote(pessoa_selecionada)}"
         
-        # Espaço para alinhar com o selectbox (que tem label)
-        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-        
-        # Botão Copiar Link usando st.button estilizado
-        if st.button("📋 Copiar Link", key="btn_copiar_suporte", use_container_width=True):
-            # Usa JavaScript para copiar (fallback via session_state)
-            st.session_state['link_copiado_suporte'] = share_url
-        
-        # Componente de cópia invisível
+        # Botão Copiar Link usando components.html (mesmo padrão do QA e Dev)
         components.html(f"""
+        <button id="copyBtnSuporteIndividual" style="
+            background: linear-gradient(135deg, #AF0C37 0%, #8B0A2C 100%);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 14px;
+            font-weight: 500;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            transition: all 0.2s ease;
+            margin-top: 28px;
+        ">📋 Copiar Link</button>
         <script>
-            // Copia automaticamente ao carregar se houver pedido
-            const linkToCopy = '{share_url}';
-            if (window.parent.document.querySelector('[data-testid="stButton"] button')) {{
-                // Listener para quando o botão for clicado
-                const btns = window.parent.document.querySelectorAll('button');
-                btns.forEach(btn => {{
-                    if (btn.innerText.includes('Copiar Link')) {{
-                        btn.addEventListener('click', function() {{
-                            navigator.clipboard.writeText(linkToCopy).then(() => {{
-                                btn.innerText = '✅ Copiado!';
-                                btn.style.background = '#22c55e';
-                                setTimeout(() => {{
-                                    btn.innerText = '📋 Copiar Link';
-                                    btn.style.background = '';
-                                }}, 2000);
-                            }});
-                        }});
-                    }}
+            document.getElementById('copyBtnSuporteIndividual').addEventListener('click', function() {{
+                var url = '{share_url}';
+                var btn = this;
+                navigator.clipboard.writeText(url).then(function() {{
+                    btn.innerHTML = '✅ Copiado!';
+                    btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+                    setTimeout(function() {{
+                        btn.innerHTML = '📋 Copiar Link';
+                        btn.style.background = 'linear-gradient(135deg, #AF0C37 0%, #8B0A2C 100%)';
+                    }}, 2000);
+                }}).catch(function() {{
+                    var temp = document.createElement('textarea');
+                    temp.value = url;
+                    document.body.appendChild(temp);
+                    temp.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(temp);
+                    btn.innerHTML = '✅ Copiado!';
+                    btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+                    setTimeout(function() {{
+                        btn.innerHTML = '📋 Copiar Link';
+                        btn.style.background = 'linear-gradient(135deg, #AF0C37 0%, #8B0A2C 100%)';
+                    }}, 2000);
                 }});
-            }}
+            }});
         </script>
-        """, height=0)
+        """, height=70)
     
     st.markdown("---")
     
@@ -8836,7 +8847,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.64 • Dashboard de Inteligência QA
+                    v8.65 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -8852,6 +8863,11 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.65** *(16/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
+                - 🔗 **Fix Copiar Link Suporte**: Botão funciona igual QA/Dev
+                - ✅ Feedback visual: muda cor e mostra "Copiado!"
+                - 📋 Usa mesmo padrão components.html
+                
                 **v8.64** *(16/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
                 - 👤 **Responsável nos Cards**: Mostra quem precisa agir
                 - 📏 **Fix Copiar Link**: Botão alinhado com selectbox
