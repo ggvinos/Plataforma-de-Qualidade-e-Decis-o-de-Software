@@ -300,7 +300,7 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
     cores = {"PB": "#8b5cf6", "SD": "#3b82f6", "QA": "#22c55e"}
     cor = cores.get(projeto, "#6b7280")
     
-    # HTML com popup CSS puro - NinaDash com hover vermelho, Jira com hover cinza
+    # HTML com popup CSS puro - usa classes para hover (CSS define os estilos)
     html = f'''<span class="card-popup-container" tabindex="0" style="position: relative; display: {'inline-block' if inline else 'block'};">
         <span class="card-popup-trigger" style="
             color: {cor}; 
@@ -326,32 +326,10 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
             min-width: 160px;
             margin-bottom: 5px;
         ">
-            <a href="{url_dashboard}" target="_blank" class="card-popup-option card-popup-ninadash" style="
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                padding: 8px 12px;
-                color: #374151;
-                text-decoration: none;
-                border-radius: 6px;
-                font-size: 13px;
-                transition: all 0.15s ease;
-                white-space: nowrap;
-            " onmouseover="this.style.background='#AF0C37'; this.style.color='white';" onmouseout="this.style.background='transparent'; this.style.color='#374151';">
+            <a href="{url_dashboard}" target="_blank" class="card-popup-ninadash">
                 <span style="font-size: 16px;">📊</span> Ver no NinaDash
             </a>
-            <a href="{url_jira}" target="_blank" class="card-popup-option card-popup-jira" style="
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                padding: 8px 12px;
-                color: #374151;
-                text-decoration: none;
-                border-radius: 6px;
-                font-size: 13px;
-                transition: all 0.15s ease;
-                white-space: nowrap;
-            " onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
+            <a href="{url_jira}" target="_blank" class="card-popup-jira">
                 <span style="font-size: 16px;">🔗</span> Abrir no Jira
             </a>
         </span>
@@ -371,6 +349,35 @@ CARD_POPUP_CSS = """
     .card-popup-trigger:hover {
         background: rgba(59, 130, 246, 0.1) !important;
     }
+    
+    /* Estilo base dos links do popup */
+    .card-popup-ninadash,
+    .card-popup-jira {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        padding: 8px 12px !important;
+        color: #374151 !important;
+        text-decoration: none !important;
+        border-radius: 6px !important;
+        font-size: 13px !important;
+        transition: all 0.15s ease !important;
+        white-space: nowrap !important;
+        background: transparent !important;
+    }
+    
+    /* Hover NinaDash - fundo vermelho, texto branco */
+    .card-popup-ninadash:hover {
+        background: #AF0C37 !important;
+        color: white !important;
+    }
+    
+    /* Hover Jira - fundo cinza claro */
+    .card-popup-jira:hover {
+        background: #3b82f6 !important;
+        color: white !important;
+    }
+    
     .card-popup-menu::after {
         content: '';
         position: absolute;
@@ -572,7 +579,7 @@ def mostrar_tela_loading():
     st.markdown("""
     <style>
     .stApp {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%) !important;
+        background: #ffffff !important;
     }
     
     header[data-testid="stHeader"],
@@ -603,6 +610,7 @@ def mostrar_tela_loading():
         justify-content: center;
         min-height: 100vh;
         padding: 20px;
+        background: #ffffff;
     }
     
     .loading-logo {
@@ -621,10 +629,9 @@ def mostrar_tela_loading():
     }
     
     .loading-text {
-        color: white;
+        color: #AF0C37;
         font-size: 1.1em;
         font-weight: 500;
-        opacity: 0.9;
     }
     </style>
     
@@ -643,7 +650,7 @@ def mostrar_tela_loading():
     
     # Força um rerun após um momento para tentar verificar login novamente
     import time
-    time.sleep(0.5)
+    time.sleep(0.3)
     st.rerun()
 
 
@@ -7995,7 +8002,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.54 • Dashboard de Inteligência QA
+                    v8.55 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -8011,6 +8018,12 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.55** *(16/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
+                - 🎨 **Fix Hover Popup**: CSS puro (funciona em todos locais)
+                - 🔴 NinaDash: hover vermelho (#AF0C37) + texto branco
+                - 🔵 Jira: hover azul (#3b82f6) + texto branco
+                - ⬜ **Tela Loading**: Fundo branco + texto vermelho
+                
                 **v8.54** *(16/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🎨 **Popup UX**: Hover vermelho no "Ver no NinaDash"
                 - ⏳ **Tela de Loading**: Substituiu flash de login ao abrir
