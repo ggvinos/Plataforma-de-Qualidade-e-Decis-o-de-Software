@@ -7118,224 +7118,229 @@ def aba_backlog(df: pd.DataFrame):
 # ABA SUPORTE/IMPLANTAÇÃO
 # ==============================================================================
 
-def aba_suporte_implantacao(df: pd.DataFrame, df_pb: pd.DataFrame = None, df_valprod: pd.DataFrame = None):
+def aba_suporte_implantacao(df_todos: pd.DataFrame):
     """
     Aba de Suporte e Implantação - Visão consolidada para times de suporte/implantação.
     
-    Features:
-    - Meus Cards (filtro por relator/responsável)
-    - Cards aguardando validação em produção (VALPROD)
-    - Cards aguardando resposta no SD
-    - Funil do PB por etapas
-    - Filtros por relator e cliente/tema
+    Similar às abas QA e Dev:
+    - Seletor de pessoa (relator)
+    - Visão de cards em TODOS os projetos
+    - Foco: "Onde estão meus cards?" + "O que precisa de validação/resposta?"
+    
+    Args:
+        df_todos: DataFrame com cards de TODOS os projetos (SD, QA, PB, VALPROD)
     """
     st.markdown("### 🎯 Suporte e Implantação")
-    st.caption("Visão consolidada para acompanhar seus cards, validações e backlog de produto.")
+    st.caption("Acompanhe seus cards em todos os projetos: SD, QA, PB e VALPROD")
     
-    # Seletor de pessoa (relator)
-    relatores = set()
-    if not df.empty and 'relator' in df.columns:
-        relatores.update(df['relator'].dropna().unique())
-    if df_pb is not None and not df_pb.empty and 'relator' in df_pb.columns:
-        relatores.update(df_pb['relator'].dropna().unique())
-    if df_valprod is not None and not df_valprod.empty and 'relator' in df_valprod.columns:
-        relatores.update(df_valprod['relator'].dropna().unique())
+    if df_todos.empty:
+        st.warning("⚠️ Nenhum card encontrado nos projetos.")
+        return
     
-    relatores = sorted([r for r in relatores if r and r != 'Não informado'])
+    # ========== SELETOR DE PESSOA (igual QA/Dev) ==========
+    # Coleta relatores de todos os projetos
+    relatores = sorted([r for r in df_todos['relator'].dropna().unique() 
+                       if r and r != 'Não informado'])
     
-    col_filtro1, col_filtro2 = st.columns(2)
-    with col_filtro1:
+    # Verifica se tem pessoa na URL (link compartilhado)
+    pessoa_url = st.query_params.get("pessoa", None)
+    pessoa_index = 0
+    if pessoa_url and pessoa_url in relatores:
+        pessoa_index = relatores.index(pessoa_url) + 1  # +1 porque "Selecione..." é index 0
+    
+    col_pessoa, col_link = st.columns([3, 1])
+    
+    with col_pessoa:
         pessoa_selecionada = st.selectbox(
-            "👤 Selecione sua pessoa",
-            options=["Todos"] + relatores,
-            index=0,
-            help="Filtre para ver apenas seus cards"
+            "👤 Selecione a pessoa",
+            options=["Selecione uma pessoa..."] + relatores,
+            index=pessoa_index,
+            key="pessoa_suporte"
         )
     
-    # Filtro de cliente/tema (se disponível no PB)
-    with col_filtro2:
-        temas_disponiveis = []
-        if df_pb is not None and not df_pb.empty and 'tema_principal' in df_pb.columns:
-            temas_disponiveis = sorted(df_pb['tema_principal'].dropna().unique().tolist())
-            temas_disponiveis = [t for t in temas_disponiveis if t and t != 'Sem tema']
+    # Se não selecionou ninguém, mostra instruções
+    if pessoa_selecionada == "Selecione uma pessoa...":
+        st.info("👆 Selecione uma pessoa para ver os cards dela em todos os projetos.")
         
-        cliente_selecionado = st.selectbox(
-            "🏢 Filtrar por Cliente/Tema",
-            options=["Todos"] + temas_disponiveis,
-            index=0,
-            help="Filtre cards do PB por cliente"
-        ) if temas_disponiveis else None
+        # Mostra resumo geral do time
+        with st.expander("📊 Visão Geral (Todos)", expanded=True):
+            col1, col2, col3, col4 = st.columns(4)
+            
+            projetos = df_todos['projeto'].unique() if 'projeto' in df_todos.columns else []
+            
+            with col1:
+                total_sd = len(df_todos[df_todos['projeto'] == 'SD']) if 'projeto' in df_todos.columns else 0
+                st.metric("📋 Cards SD", total_sd)
+            
+            with col2:
+                total_qa = len(df_todos[df_todos['projeto'] == 'QA']) if 'projeto' in df_todos.columns else 0
+                st.metric("🔬 Cards QA", total_qa)
+            
+            with col3:
+                total_pb = len(df_todos[df_todos['projeto'] == 'PB']) if 'projeto' in df_todos.columns else 0
+                st.metric("📦 Cards PB", total_pb)
+            
+            with col4:
+                total_valprod = len(df_todos[df_todos['projeto'] == 'VALPROD']) if 'projeto' in df_todos.columns else 0
+                st.metric("✅ Cards VALPROD", total_valprod)
+            
+            # Top relatores
+            st.markdown("##### 👥 Pessoas com mais cards abertos")
+            top_relatores = df_todos['relator'].value_counts().head(10)
+            for relator, count in top_relatores.items():
+                if relator and relator != 'Não informado':
+                    st.markdown(f"- **{relator}**: {count} cards")
+        
+        return
+    
+    # ========== BOTÃO COPIAR LINK ==========
+    with col_link:
+        st.markdown("<br>", unsafe_allow_html=True)
+        link_compartilhavel = f"?aba=suporte&pessoa={pessoa_selecionada}"
+        
+        # Monta URL completa
+        base_url = "https://ninadash.streamlit.app/"
+        link_completo = f"{base_url}{link_compartilhavel}"
+        
+        st.markdown(f"""
+        <a href="{link_compartilhavel}" target="_blank" style="
+            display: inline-block; 
+            background: #AF0C37; 
+            color: white; 
+            padding: 8px 16px; 
+            border-radius: 6px; 
+            text-decoration: none;
+            font-size: 0.85em;
+            margin-top: 4px;
+        ">🔗 Copiar Link</a>
+        """, unsafe_allow_html=True)
     
     st.markdown("---")
     
-    # Aplicar filtros
-    df_filtrado = df.copy() if not df.empty else pd.DataFrame()
-    df_pb_filtrado = df_pb.copy() if df_pb is not None and not df_pb.empty else pd.DataFrame()
-    df_valprod_filtrado = df_valprod.copy() if df_valprod is not None and not df_valprod.empty else pd.DataFrame()
+    # ========== FILTRAR CARDS DA PESSOA ==========
+    df_pessoa = df_todos[df_todos['relator'] == pessoa_selecionada].copy()
     
-    if pessoa_selecionada != "Todos":
-        if not df_filtrado.empty:
-            df_filtrado = df_filtrado[df_filtrado['relator'] == pessoa_selecionada]
-        if not df_pb_filtrado.empty:
-            df_pb_filtrado = df_pb_filtrado[df_pb_filtrado['relator'] == pessoa_selecionada]
-        if not df_valprod_filtrado.empty:
-            df_valprod_filtrado = df_valprod_filtrado[df_valprod_filtrado['relator'] == pessoa_selecionada]
+    if df_pessoa.empty:
+        st.warning(f"⚠️ Nenhum card encontrado para **{pessoa_selecionada}** no período selecionado.")
+        return
     
-    if cliente_selecionado and cliente_selecionado != "Todos" and not df_pb_filtrado.empty:
-        df_pb_filtrado = df_pb_filtrado[df_pb_filtrado['tema_principal'] == cliente_selecionado]
+    # ========== RESUMO: ONDE ESTÃO MEUS CARDS ==========
+    st.markdown(f"#### 📊 Resumo de {pessoa_selecionada}")
     
-    # ========== SEÇÃO 1: RESUMO RÁPIDO ==========
-    st.markdown("#### 📊 Resumo Rápido")
-    
+    # Métricas por projeto
     col1, col2, col3, col4 = st.columns(4)
     
-    # Cards SD (Service Desk)
-    total_sd = len(df_filtrado) if not df_filtrado.empty else 0
-    em_andamento_sd = len(df_filtrado[df_filtrado['status'].str.lower().str.contains('andamento|desenvolvimento', na=False)]) if not df_filtrado.empty else 0
+    df_sd = df_pessoa[df_pessoa['projeto'] == 'SD'] if 'projeto' in df_pessoa.columns else pd.DataFrame()
+    df_qa = df_pessoa[df_pessoa['projeto'] == 'QA'] if 'projeto' in df_pessoa.columns else pd.DataFrame()
+    df_pb = df_pessoa[df_pessoa['projeto'] == 'PB'] if 'projeto' in df_pessoa.columns else pd.DataFrame()
+    df_valprod = df_pessoa[df_pessoa['projeto'] == 'VALPROD'] if 'projeto' in df_pessoa.columns else pd.DataFrame()
     
     with col1:
-        st.metric("📋 Meus Cards SD", total_sd, delta=f"{em_andamento_sd} em andamento")
+        total_sd = len(df_sd)
+        em_andamento_sd = len(df_sd[df_sd['status'].str.lower().str.contains('andamento|desenvolvimento|revisão|validação', na=False)]) if not df_sd.empty else 0
+        st.metric("📋 SD", total_sd, delta=f"{em_andamento_sd} em andamento" if em_andamento_sd > 0 else None)
     
-    # Cards PB
-    total_pb = len(df_pb_filtrado) if not df_pb_filtrado.empty else 0
     with col2:
-        st.metric("📦 Meus Cards PB", total_pb)
-    
-    # Cards VALPROD
-    total_valprod = len(df_valprod_filtrado) if not df_valprod_filtrado.empty else 0
-    pendentes_valprod = 0
-    if not df_valprod_filtrado.empty:
-        pendentes_valprod = len(df_valprod_filtrado[
-            ~df_valprod_filtrado['status'].str.lower().str.contains('aprovado|validado|concluído', na=False)
-        ])
+        total_qa = len(df_qa)
+        st.metric("🔬 QA", total_qa)
     
     with col3:
-        st.metric("✅ Validação Produção", total_valprod, delta=f"{pendentes_valprod} pendentes" if pendentes_valprod > 0 else None)
-    
-    # Cards aguardando resposta
-    aguardando_resp = 0
-    if not df_filtrado.empty:
-        aguardando_resp = len(df_filtrado[df_filtrado['status'].str.lower().str.contains('aguardando', na=False)])
-    if not df_pb_filtrado.empty:
-        aguardando_resp += len(df_pb_filtrado[df_pb_filtrado['status'].str.lower().str.contains('aguardando resposta|aguardando cliente', na=False)])
+        total_pb = len(df_pb)
+        aguardando_pb = len(df_pb[df_pb['status'].str.lower().str.contains('aguardando', na=False)]) if not df_pb.empty else 0
+        st.metric("📦 PB", total_pb, delta=f"{aguardando_pb} aguardando" if aguardando_pb > 0 else None)
     
     with col4:
-        st.metric("💬 Aguardando Resposta", aguardando_resp)
+        total_valprod = len(df_valprod)
+        pendentes = len(df_valprod[~df_valprod['status'].str.lower().str.contains('aprovado|validado|concluído', na=False)]) if not df_valprod.empty else 0
+        st.metric("✅ VALPROD", total_valprod, delta=f"{pendentes} pendentes" if pendentes > 0 else None)
     
-    st.markdown("---")
+    # ========== GRÁFICO: CARDS POR PROJETO E STATUS ==========
+    with st.expander("📊 Onde estão meus cards?", expanded=True):
+        if 'projeto' in df_pessoa.columns:
+            col_graf, col_lista = st.columns([1, 1])
+            
+            with col_graf:
+                # Gráfico de barras empilhadas por projeto e status
+                status_por_projeto = df_pessoa.groupby(['projeto', 'status']).size().reset_index(name='count')
+                
+                if not status_por_projeto.empty:
+                    fig = px.bar(status_por_projeto, x='projeto', y='count', color='status',
+                                 title='📊 Cards por Projeto e Status',
+                                 labels={'projeto': 'Projeto', 'count': 'Cards', 'status': 'Status'})
+                    fig.update_layout(height=350, showlegend=True)
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            with col_lista:
+                st.markdown("##### 📋 Detalhamento por Status")
+                
+                for projeto in ['SD', 'QA', 'PB', 'VALPROD']:
+                    df_proj = df_pessoa[df_pessoa['projeto'] == projeto]
+                    if not df_proj.empty:
+                        st.markdown(f"**{projeto}** ({len(df_proj)} cards):")
+                        status_counts = df_proj['status'].value_counts()
+                        for status, count in status_counts.items():
+                            # Cor baseada no status
+                            cor = "#22c55e" if 'concluído' in status.lower() or 'validado' in status.lower() or 'aprovado' in status.lower() else \
+                                  "#ef4444" if 'reprovado' in status.lower() or 'impedido' in status.lower() else \
+                                  "#f59e0b" if 'aguardando' in status.lower() else \
+                                  "#3b82f6"
+                            st.markdown(f"<span style='color: {cor};'>●</span> {status}: **{count}**", unsafe_allow_html=True)
+                        st.markdown("")
     
-    # ========== SEÇÃO 2: VALIDAÇÃO EM PRODUÇÃO ==========
-    with st.expander("✅ Cards para Validar em Produção (VALPROD)", expanded=True):
-        if df_valprod_filtrado is not None and not df_valprod_filtrado.empty:
-            # Filtrar apenas pendentes
-            df_pendentes = df_valprod_filtrado[
-                ~df_valprod_filtrado['status'].str.lower().str.contains('aprovado|validado|concluído', na=False)
-            ]
+    # ========== CARDS PARA VALIDAR EM PRODUÇÃO ==========
+    with st.expander("✅ Cards para Validar em Produção", expanded=True):
+        if not df_valprod.empty:
+            df_pendentes = df_valprod[~df_valprod['status'].str.lower().str.contains('aprovado|validado|concluído', na=False)]
             
             if not df_pendentes.empty:
-                st.markdown(f"##### 🔍 {len(df_pendentes)} cards pendentes de validação em produção")
+                st.markdown(f"##### 🔍 {len(df_pendentes)} cards pendentes de validação")
                 
                 for _, card in df_pendentes.iterrows():
-                    dias_criado = (datetime.now() - pd.to_datetime(card['criado'])).days if pd.notna(card.get('criado')) else 0
-                    cor_urgencia = "#ef4444" if dias_criado > 7 else "#f59e0b" if dias_criado > 3 else "#22c55e"
+                    dias = (datetime.now() - pd.to_datetime(card['criado'])).days if pd.notna(card.get('criado')) else 0
+                    cor = "#ef4444" if dias > 7 else "#f59e0b" if dias > 3 else "#22c55e"
                     
                     st.markdown(f"""
-                    <div style="background: #f8fafc; border-left: 4px solid {cor_urgencia}; padding: 12px; margin: 8px 0; border-radius: 0 8px 8px 0;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                {card_link_com_popup(card['ticket_id'], 'VALPROD')}
-                                <span style="color: #64748b; margin-left: 8px;">{card.get('resumo', '')[:60]}...</span>
-                            </div>
-                            <div style="text-align: right;">
-                                <span style="background: {cor_urgencia}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">
-                                    {dias_criado}d
-                                </span>
-                                <br>
-                                <small style="color: #64748b;">{card.get('status', 'N/A')}</small>
-                            </div>
-                        </div>
+                    <div style="background: #f8fafc; border-left: 4px solid {cor}; padding: 10px; margin: 6px 0; border-radius: 0 6px 6px 0;">
+                        {card_link_com_popup(card['ticket_id'], 'VALPROD')}
+                        <span style="color: #64748b; margin-left: 8px;">{card.get('resumo', '')[:50]}...</span>
+                        <span style="float: right; background: {cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{dias}d</span>
                     </div>
                     """, unsafe_allow_html=True)
             else:
                 st.success("✅ Nenhum card pendente de validação em produção!")
         else:
-            st.info("ℹ️ Nenhum card encontrado no projeto VALPROD. Verifique se o projeto está configurado corretamente.")
+            st.info("ℹ️ Nenhum card encontrado no projeto VALPROD.")
     
-    # ========== SEÇÃO 3: FUNIL DO PB ==========
-    with st.expander("📋 Funil do Product Backlog", expanded=True):
-        if df_pb_filtrado is not None and not df_pb_filtrado.empty:
-            st.markdown("##### 📊 Cards por Etapa do Processo")
+    # ========== CARDS AGUARDANDO RESPOSTA ==========
+    with st.expander("💬 Cards Aguardando Resposta", expanded=True):
+        # Cards com status "aguardando" em qualquer projeto
+        df_aguardando = df_pessoa[df_pessoa['status'].str.lower().str.contains('aguardando', na=False)]
+        
+        if not df_aguardando.empty:
+            st.markdown(f"##### 💬 {len(df_aguardando)} cards aguardando algum retorno")
             
-            # Função para classificar status do PB
-            def classificar_etapa_pb(status):
-                status_lower = status.lower() if status else ""
-                for key, nomes in STATUS_FLOW.items():
-                    if key.startswith('pb_'):
-                        for nome in nomes:
-                            if nome.lower() in status_lower or status_lower in nome.lower():
-                                return key
-                return "outros"
-            
-            df_pb_filtrado['etapa'] = df_pb_filtrado['status'].apply(classificar_etapa_pb)
-            
-            # Contar por etapa
-            contagem_etapas = {}
-            for etapa_key, etapa_nome in PB_FUNIL_ETAPAS:
-                contagem = len(df_pb_filtrado[df_pb_filtrado['etapa'] == etapa_key])
-                contagem_etapas[etapa_nome] = contagem
-            
-            # Também contar status diretos do PB
-            status_counts = df_pb_filtrado['status'].value_counts()
-            
-            # Criar visualização do funil
-            col_funil1, col_funil2 = st.columns([2, 1])
-            
-            with col_funil1:
-                # Gráfico de barras horizontal (funil)
-                etapas_df = pd.DataFrame([
-                    {"Etapa": etapa, "Cards": count} 
-                    for etapa, count in contagem_etapas.items()
-                ])
+            for _, card in df_aguardando.iterrows():
+                dias = (datetime.now() - pd.to_datetime(card['criado'])).days if pd.notna(card.get('criado')) else 0
+                projeto = card.get('projeto', 'SD')
                 
-                if not etapas_df.empty and etapas_df['Cards'].sum() > 0:
-                    fig = px.bar(etapas_df, x='Cards', y='Etapa', orientation='h',
-                                 title='📊 Funil do Backlog',
-                                 color='Cards', color_continuous_scale='Blues')
-                    fig.update_layout(height=300, showlegend=False, yaxis={'categoryorder': 'array', 'categoryarray': list(reversed([e[1] for e in PB_FUNIL_ETAPAS]))})
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.info("Nenhum card mapeado nas etapas do funil. Os status podem estar diferentes do esperado.")
-            
-            with col_funil2:
-                st.markdown("##### Status Atuais (Jira)")
-                for status, count in status_counts.items():
-                    st.markdown(f"- **{status}**: {count}")
-            
-            # Lista de cards aguardando resposta no PB
-            df_aguardando = df_pb_filtrado[df_pb_filtrado['status'].str.lower().str.contains('aguardando', na=False)]
-            if not df_aguardando.empty:
-                st.markdown("---")
-                st.markdown(f"##### 💬 {len(df_aguardando)} Cards Aguardando Resposta/Retorno")
-                
-                for _, card in df_aguardando.iterrows():
-                    dias = (datetime.now() - pd.to_datetime(card['criado'])).days if pd.notna(card.get('criado')) else 0
-                    st.markdown(f"""
-                    <div style="background: #fef3c7; padding: 8px 12px; margin: 4px 0; border-radius: 6px;">
-                        {card_link_com_popup(card['ticket_id'], 'PB')} — 
-                        <span style="color: #92400e;">{card.get('resumo', '')[:50]}...</span>
-                        <span style="float: right; color: #64748b;">{dias}d | {card.get('status', '')}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
+                st.markdown(f"""
+                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px; margin: 6px 0; border-radius: 0 6px 6px 0;">
+                    <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
+                    {card_link_com_popup(card['ticket_id'], projeto)}
+                    <span style="color: #92400e; margin-left: 8px;">{card.get('resumo', '')[:45]}...</span>
+                    <span style="float: right; color: #64748b; font-size: 0.85em;">{dias}d | {card.get('status', '')}</span>
+                </div>
+                """, unsafe_allow_html=True)
         else:
-            st.info("ℹ️ Nenhum card encontrado no projeto PB para os filtros selecionados.")
+            st.success("✅ Nenhum card aguardando resposta!")
     
-    # ========== SEÇÃO 4: MEUS CARDS SD ==========
-    with st.expander("📋 Meus Cards no Service Desk (SD)", expanded=False):
-        if not df_filtrado.empty:
-            st.markdown(f"##### 📊 {len(df_filtrado)} cards encontrados")
+    # ========== FUNIL DO PB ==========
+    with st.expander("📋 Meus Cards no Product Backlog", expanded=False):
+        if not df_pb.empty:
+            st.markdown(f"##### 📦 {len(df_pb)} cards no PB")
             
             # Agrupar por status
-            status_counts = df_filtrado['status'].value_counts()
+            status_counts = df_pb['status'].value_counts()
             
             col1, col2 = st.columns([1, 2])
             
@@ -7345,63 +7350,75 @@ def aba_suporte_implantacao(df: pd.DataFrame, df_pb: pd.DataFrame = None, df_val
                     st.markdown(f"- {status}: **{count}**")
             
             with col2:
-                # Lista simplificada
-                st.markdown("**Últimos Cards:**")
-                for _, card in df_filtrado.head(10).iterrows():
+                st.markdown("**Cards:**")
+                for _, card in df_pb.head(10).iterrows():
+                    dias = (datetime.now() - pd.to_datetime(card['criado'])).days if pd.notna(card.get('criado')) else 0
                     st.markdown(f"""
                     <div style="background: #f1f5f9; padding: 6px 10px; margin: 3px 0; border-radius: 4px; font-size: 0.9em;">
-                        {card_link_com_popup(card['ticket_id'], 'SD')} — {card.get('resumo', '')[:40]}...
+                        {card_link_com_popup(card['ticket_id'], 'PB')} — {card.get('resumo', '')[:40]}...
                         <span style="float: right; background: #cbd5e1; padding: 1px 6px; border-radius: 3px; font-size: 0.8em;">{card.get('status', '')}</span>
                     </div>
                     """, unsafe_allow_html=True)
                 
-                if len(df_filtrado) > 10:
-                    st.caption(f"... e mais {len(df_filtrado) - 10} cards")
+                if len(df_pb) > 10:
+                    st.caption(f"... e mais {len(df_pb) - 10} cards")
         else:
-            st.info("ℹ️ Nenhum card encontrado no SD para os filtros selecionados.")
+            st.info("ℹ️ Nenhum card no PB.")
     
-    # ========== SEÇÃO 5: CARDS COM COMENTÁRIOS AGUARDANDO ==========
-    with st.expander("💬 Cards Aguardando Resposta (Comentários)", expanded=False):
-        st.markdown("""
-        <div style="background: #fef3c7; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
-            <p style="margin: 0; color: #92400e;">
-                ⚠️ <b>Em desenvolvimento:</b> Esta seção mostrará cards onde um dev/QA comentou e aguarda sua resposta.
-                <br><small>Requer análise dos comentários de cada card.</small>
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+    # ========== TODOS OS CARDS SD/QA ==========
+    with st.expander("📋 Meus Cards em Desenvolvimento (SD/QA)", expanded=False):
+        df_dev = pd.concat([df_sd, df_qa]) if not df_sd.empty or not df_qa.empty else pd.DataFrame()
         
-        # Cards com status "aguardando" já são mostrados acima
-        aguardando = []
-        if not df_filtrado.empty:
-            aguardando.extend(df_filtrado[df_filtrado['status'].str.lower().str.contains('aguardando', na=False)].to_dict('records'))
-        
-        if aguardando:
-            st.markdown(f"##### Cards com status 'Aguardando':")
-            for card in aguardando[:10]:
-                st.markdown(f"- {card_link_com_popup(card['ticket_id'], 'SD')} — {card.get('resumo', '')[:40]}... ({card.get('status', '')})")
+        if not df_dev.empty:
+            st.markdown(f"##### 💻 {len(df_dev)} cards em SD/QA")
+            
+            # Agrupar por status
+            status_counts = df_dev['status'].value_counts()
+            
+            col1, col2 = st.columns([1, 2])
+            
+            with col1:
+                st.markdown("**Por Status:**")
+                for status, count in status_counts.items():
+                    st.markdown(f"- {status}: **{count}**")
+            
+            with col2:
+                st.markdown("**Cards:**")
+                for _, card in df_dev.head(10).iterrows():
+                    projeto = card.get('projeto', 'SD')
+                    st.markdown(f"""
+                    <div style="background: #f1f5f9; padding: 6px 10px; margin: 3px 0; border-radius: 4px; font-size: 0.9em;">
+                        <span style="background: #64748b; color: white; padding: 1px 4px; border-radius: 2px; font-size: 0.75em;">{projeto}</span>
+                        {card_link_com_popup(card['ticket_id'], projeto)} — {card.get('resumo', '')[:35]}...
+                        <span style="float: right; background: #cbd5e1; padding: 1px 6px; border-radius: 3px; font-size: 0.8em;">{card.get('status', '')}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                if len(df_dev) > 10:
+                    st.caption(f"... e mais {len(df_dev) - 10} cards")
         else:
-            st.success("✅ Nenhum card identificado como aguardando sua resposta.")
+            st.info("ℹ️ Nenhum card em SD/QA.")
     
     # ========== TOOLTIP EXPLICATIVO ==========
     with st.expander("ℹ️ Sobre esta Aba", expanded=False):
         st.markdown("""
         ### 🎯 Suporte e Implantação — O que analisamos?
         
-        Esta aba foi criada especialmente para os times de **Suporte** e **Implantação** acompanharem:
+        Esta aba foi criada para você acompanhar **seus cards em todos os projetos**:
         
         | Seção | O que mostra |
         |-------|--------------|
-        | **📊 Resumo Rápido** | Visão geral dos seus cards em todos os projetos |
-        | **✅ Validação em Produção** | Cards do VALPROD pendentes de sua validação |
-        | **📋 Funil do PB** | Onde seus cards estão no fluxo do Product Backlog |
-        | **📋 Meus Cards SD** | Seus cards no Service Desk |
-        | **💬 Aguardando Resposta** | Cards que precisam de algum retorno |
+        | **📊 Onde estão meus cards?** | Visão geral por projeto e status |
+        | **✅ Validação em Produção** | Cards do VALPROD pendentes |
+        | **💬 Aguardando Resposta** | Cards que precisam de retorno |
+        | **📋 PB** | Seus cards no Product Backlog |
+        | **💻 SD/QA** | Seus cards em desenvolvimento |
         
         ### 🎯 Dicas:
-        - Use o filtro **"Selecione sua pessoa"** para ver apenas seus cards
-        - Use o filtro **"Cliente/Tema"** para focar em um cliente específico
+        - Selecione sua pessoa para filtrar seus cards
+        - Use o filtro de período na sidebar (Sprint Ativa, Todo período, etc)
         - Cards com mais de 7 dias pendentes aparecem em **vermelho**
+        - Copie o link para compartilhar sua visão com outros
         """)
 
 
@@ -8323,33 +8340,79 @@ def main():
         
         df = processar_issues(issues)
         
-        # ===== BUSCA ADICIONAL PARA ABA SUPORTE/IMPLANTAÇÃO =====
-        # Busca dados de PB e VALPROD se necessário (para a aba Suporte/Implantação)
-        df_pb = None
-        df_valprod = None
+        # Adiciona coluna de projeto ao df principal
+        df['projeto'] = projeto
         
-        # Só busca projetos adicionais se não for o próprio projeto selecionado
-        if projeto not in ["PB"]:
+        # ===== BUSCA TODOS OS PROJETOS PARA ABA SUPORTE/IMPLANTAÇÃO =====
+        # Essa aba precisa de dados de todos os projetos para mostrar "onde estão meus cards"
+        todos_dfs = [df]  # Começa com o df do projeto selecionado
+        
+        # Busca SD (se não for o projeto atual)
+        if projeto != "SD":
+            try:
+                if filtro_sprint == "Todo o período":
+                    jql_sd = 'project = SD ORDER BY created DESC'
+                elif filtro_sprint == "Sprint Ativa":
+                    jql_sd = 'project = SD AND sprint in openSprints() ORDER BY created DESC'
+                elif filtro_sprint == "Últimos 30 dias":
+                    jql_sd = 'project = SD AND created >= -30d ORDER BY created DESC'
+                else:
+                    jql_sd = 'project = SD AND created >= -90d ORDER BY created DESC'
+                
+                issues_sd, _ = buscar_dados_jira_cached("SD", jql_sd)
+                if issues_sd:
+                    df_sd = processar_issues(issues_sd)
+                    df_sd['projeto'] = 'SD'
+                    todos_dfs.append(df_sd)
+            except:
+                pass
+        
+        # Busca QA (se não for o projeto atual)
+        if projeto != "QA":
+            try:
+                if filtro_sprint == "Todo o período":
+                    jql_qa = 'project = QA ORDER BY created DESC'
+                elif filtro_sprint == "Sprint Ativa":
+                    jql_qa = 'project = QA AND sprint in openSprints() ORDER BY created DESC'
+                elif filtro_sprint == "Últimos 30 dias":
+                    jql_qa = 'project = QA AND created >= -30d ORDER BY created DESC'
+                else:
+                    jql_qa = 'project = QA AND created >= -90d ORDER BY created DESC'
+                
+                issues_qa, _ = buscar_dados_jira_cached("QA", jql_qa)
+                if issues_qa:
+                    df_qa = processar_issues(issues_qa)
+                    df_qa['projeto'] = 'QA'
+                    todos_dfs.append(df_qa)
+            except:
+                pass
+        
+        # Busca PB (sempre todo período, não tem sprint)
+        if projeto != "PB":
             try:
                 jql_pb = 'project = PB ORDER BY created DESC'
                 issues_pb, _ = buscar_dados_jira_cached("PB", jql_pb)
                 if issues_pb:
                     df_pb = processar_issues(issues_pb)
+                    df_pb['projeto'] = 'PB'
+                    todos_dfs.append(df_pb)
             except:
-                df_pb = None
-        else:
-            df_pb = df  # Usa o df já carregado se projeto for PB
+                pass
         
-        if projeto not in ["VALPROD"]:
+        # Busca VALPROD (sempre todo período)
+        if projeto != "VALPROD":
             try:
                 jql_valprod = 'project = VALPROD ORDER BY created DESC'
                 issues_valprod, _ = buscar_dados_jira_cached("VALPROD", jql_valprod)
                 if issues_valprod:
                     df_valprod = processar_issues(issues_valprod)
+                    df_valprod['projeto'] = 'VALPROD'
+                    todos_dfs.append(df_valprod)
             except:
-                df_valprod = None
-        else:
-            df_valprod = df  # Usa o df já carregado se projeto for VALPROD
+                pass
+        
+        # Combina todos os DataFrames
+        df_todos = pd.concat(todos_dfs, ignore_index=True) if todos_dfs else df
         
         # Filtro por produto (dentro da sidebar)
         with st.sidebar:
@@ -8367,7 +8430,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.57 • Dashboard de Inteligência QA
+                    v8.58 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -8383,13 +8446,17 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.58** *(16/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 🎯 **Aba Suporte Refatorada**: Igual QA/Dev
+                - 👤 Seletor de pessoa (qualquer um pode ver qualquer pessoa)
+                - 🔄 Busca TODOS os projetos (SD, QA, PB, VALPROD)
+                - 📊 Gráfico "Onde estão meus cards?" por projeto/status
+                - 🔗 Link compartilhável: ?aba=suporte&pessoa=Nome
+                - ❌ Removido filtro cliente/tema (não fazia sentido)
+                - 📋 Usa o mesmo filtro de período da sidebar
+                
                 **v8.57** *(16/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
-                - 🎯 **NOVA ABA: Suporte/Implantação**
-                - 👤 Filtro por pessoa (relator) - "Meus Cards"
-                - ✅ Cards VALPROD pendentes de validação em produção
-                - 📋 Funil do PB por etapas (Revisão → UX → Esforço → Dev)
-                - 🏢 Filtro por cliente/tema no PB
-                - 💬 Cards aguardando resposta
+                - 🎯 Nova ABA: Suporte/Implantação (v1)
                 - 🆕 Projeto VALPROD adicionado ao sistema
                 - 📊 Status específicos do PB mapeados
                 
@@ -8645,12 +8712,26 @@ def main():
                 - 📊 Painel completo do card
                 """, unsafe_allow_html=True)
         
-        # Captura query params para navegação direta (QA/Dev individual)
+        # Captura query params para navegação direta (QA/Dev/Suporte individual)
         aba_param = st.query_params.get("aba", None)
         qa_param = st.query_params.get("qa", None)
         dev_param = st.query_params.get("dev", None)
+        pessoa_param = st.query_params.get("pessoa", None)
         
         # NAVEGAÇÃO DIRETA via link compartilhado
+        if aba_param == "suporte" and pessoa_param:
+            # Mostra diretamente a aba Suporte com a pessoa selecionada
+            col_header, col_voltar = st.columns([4, 1])
+            with col_header:
+                st.markdown(f"### 🔗 Link Compartilhado: Suporte/Implantação")
+            with col_voltar:
+                if st.button("⬅️ Ver Dashboard Completo", use_container_width=True, key="btn_voltar_suporte"):
+                    st.query_params.clear()
+                    st.rerun()
+            st.markdown("---")
+            aba_suporte_implantacao(df_todos)
+            return
+        
         if aba_param == "qa" and qa_param:
             # Mostra diretamente a aba QA com o colaborador selecionado
             col_header, col_voltar = st.columns([4, 1])
@@ -8714,7 +8795,7 @@ def main():
             ])
             
             with tab1:
-                aba_suporte_implantacao(df, df_pb, df_valprod)
+                aba_suporte_implantacao(df_todos)
             
             with tab2:
                 aba_visao_geral(df, ultima_atualizacao)
@@ -8752,7 +8833,7 @@ def main():
                 aba_dev(df)
             
             with tab4:
-                aba_suporte_implantacao(df, df_pb, df_valprod)
+                aba_suporte_implantacao(df_todos)
             
             with tab5:
                 aba_governanca(df)
