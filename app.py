@@ -908,7 +908,8 @@ def buscar_dados_jira_cached(projeto: str, jql: str) -> Tuple[Optional[List[Dict
             all_issues.extend(data.get("issues", []))
             
             next_page_token = data.get("nextPageToken")
-            if not next_page_token or len(all_issues) >= 500:
+            # Para quando não há mais páginas (sem limite artificial)
+            if not next_page_token:
                 break
         
         return all_issues, datetime.now()
@@ -8002,7 +8003,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.55 • Dashboard de Inteligência QA
+                    v8.56 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -8018,6 +8019,11 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.56** *(16/04/2026)* <span style="background: #ef4444; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🔥</span>
+                - 📊 **Sem Limite de Cards**: Removido limite de 500 cards
+                - 🔄 Busca TODOS os cards do período selecionado
+                - 🚀 Histórico completo disponível
+                
                 **v8.55** *(16/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
                 - 🎨 **Fix Hover Popup**: CSS puro (funciona em todos locais)
                 - 🔴 NinaDash: hover vermelho (#AF0C37) + texto branco
