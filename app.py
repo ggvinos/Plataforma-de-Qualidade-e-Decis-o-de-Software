@@ -7354,124 +7354,110 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                         </div>
                         """, unsafe_allow_html=True)
         
-        # ===== CARDS AGUARDANDO AÇÃO (VISÃO GERAL) =====
+        # ===== CARDS AGUARDANDO AÇÃO (VISÃO GERAL) - EM EXPANDER =====
         st.markdown("---")
-        st.markdown("#### ⏳ Cards Aguardando Ação")
-        st.caption("Mostra o **responsável** e **título** de cada card que precisa de ação")
         
-        col_aguard1, col_aguard2, col_aguard3 = st.columns(3)
+        # Conta totais para exibir no título do expander
+        df_aguard_resp = df_todos[df_todos['status'].str.lower().str.contains('aguardando', na=False)]
+        df_valprod_pend = df_todos[(df_todos['projeto'] == 'VALPROD') & 
+                                   (~df_todos['status'].str.lower().str.contains('aprovado|validado|concluído', na=False))]
+        df_pb_aguard = df_todos[(df_todos['projeto'] == 'PB') & 
+                                (df_todos['status'].str.lower().str.contains('aguardando|roteiro|ux', na=False))]
+        total_aguardando = len(df_aguard_resp) + len(df_valprod_pend) + len(df_pb_aguard)
         
-        with col_aguard1:
-            # Cards aguardando resposta
-            df_aguard_resp = df_todos[df_todos['status'].str.lower().str.contains('aguardando', na=False)]
-            st.markdown(f"##### 💬 Aguardando Resposta ({len(df_aguard_resp)})")
+        with st.expander(f"⏳ Cards Aguardando Ação ({total_aguardando})", expanded=False):
+            st.caption("Mostra o **responsável** e **título** de cada card que precisa de ação")
             
-            # Checkbox para expandir
-            ver_todos_aguard = st.checkbox("Ver todos", key="ver_todos_aguardando") if len(df_aguard_resp) > 5 else False
-            limite_aguard = len(df_aguard_resp) if ver_todos_aguard else 5
+            col_aguard1, col_aguard2, col_aguard3 = st.columns(3)
             
-            # Container com scroll se "Ver todos" ativado
-            scroll_style = "max-height: 400px; overflow-y: auto; padding-right: 5px;" if ver_todos_aguard else ""
-            st.markdown(f'<div style="{scroll_style}">', unsafe_allow_html=True)
-            
-            for _, card in df_aguard_resp.head(limite_aguard).iterrows():
-                projeto = card.get('projeto', 'SD')
-                tipo = card.get('tipo', 'TAREFA')
-                tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#64748b"
-                # Responsável: desenvolvedor ou QA (quem precisa agir)
-                responsavel = card.get('desenvolvedor', card.get('qa', card.get('relator', 'N/A')))
-                if not responsavel or responsavel == 'Não atribuído':
-                    responsavel = card.get('qa', card.get('relator', 'N/A'))
-                # Título do card (truncado)
-                titulo = card.get('titulo', card.get('resumo', ''))[:50]
+            with col_aguard1:
+                st.markdown(f"##### 💬 Aguardando Resposta ({len(df_aguard_resp)})")
                 
-                st.markdown(f"""
-                <div style="background: #fef3c7; padding: 8px; margin: 4px 0; border-radius: 4px; font-size: 0.85em;">
-                    <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                        <span style="background: #64748b; color: white; padding: 1px 4px; border-radius: 2px; font-size: 10px;">{projeto}</span>
-                        <span style="background: {tipo_cor}; color: white; padding: 1px 4px; border-radius: 2px; font-size: 10px;">{tipo}</span>
-                        {card_link_com_popup(card['ticket_id'], projeto)}
-                    </div>
-                    <div style="color: #78350f; font-size: 0.8em; margin-top: 4px; line-height: 1.3;">{titulo}{'...' if len(card.get('titulo', '')) > 50 else ''}</div>
-                    <div style="color: #92400e; font-size: 0.75em; margin-top: 2px;">👤 {responsavel}</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        with col_aguard2:
-            # Cards pendentes em VALPROD
-            df_valprod_pend = df_todos[(df_todos['projeto'] == 'VALPROD') & 
-                                       (~df_todos['status'].str.lower().str.contains('aprovado|validado|concluído', na=False))]
-            st.markdown(f"##### 🔍 Validação Produção ({len(df_valprod_pend)})")
-            
-            # Checkbox para expandir
-            ver_todos_valprod = st.checkbox("Ver todos", key="ver_todos_valprod") if len(df_valprod_pend) > 5 else False
-            limite_valprod = len(df_valprod_pend) if ver_todos_valprod else 5
-            
-            # Container com scroll se "Ver todos" ativado
-            scroll_style_vp = "max-height: 400px; overflow-y: auto; padding-right: 5px;" if ver_todos_valprod else ""
-            st.markdown(f'<div style="{scroll_style_vp}">', unsafe_allow_html=True)
-            
-            for _, card in df_valprod_pend.head(limite_valprod).iterrows():
-                tipo = card.get('tipo', 'TAREFA')
-                tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#64748b"
-                # Responsável: QA ou desenvolvedor
-                responsavel = card.get('qa', card.get('desenvolvedor', card.get('relator', 'N/A')))
-                if not responsavel or responsavel == 'Não atribuído':
-                    responsavel = card.get('desenvolvedor', card.get('relator', 'N/A'))
-                # Título do card (truncado)
-                titulo = card.get('titulo', card.get('resumo', ''))[:50]
+                # Gera HTML completo com scroll
+                cards_html = '<div style="max-height: 350px; overflow-y: auto; padding-right: 5px;">'
+                for _, card in df_aguard_resp.head(20).iterrows():
+                    projeto = card.get('projeto', 'SD')
+                    tipo = card.get('tipo', 'TAREFA')
+                    tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#64748b"
+                    responsavel = card.get('desenvolvedor', card.get('qa', card.get('relator', 'N/A')))
+                    if not responsavel or responsavel == 'Não atribuído':
+                        responsavel = card.get('qa', card.get('relator', 'N/A'))
+                    titulo = str(card.get('titulo', card.get('resumo', '')))[:50]
+                    ticket_id = card.get('ticket_id', '')
+                    
+                    cards_html += f'''
+                    <div style="background: #fef3c7; padding: 8px; margin: 4px 0; border-radius: 4px; font-size: 0.85em;">
+                        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                            <span style="background: #64748b; color: white; padding: 1px 4px; border-radius: 2px; font-size: 10px;">{projeto}</span>
+                            <span style="background: {tipo_cor}; color: white; padding: 1px 4px; border-radius: 2px; font-size: 10px;">{tipo}</span>
+                            <a href="https://ninatecnologia.atlassian.net/browse/{ticket_id}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 500;">{ticket_id}</a>
+                        </div>
+                        <div style="color: #78350f; font-size: 0.8em; margin-top: 4px; line-height: 1.3;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 50 else ""}</div>
+                        <div style="color: #92400e; font-size: 0.75em; margin-top: 2px;">👤 {responsavel}</div>
+                    </div>'''
+                cards_html += '</div>'
+                if len(df_aguard_resp) > 20:
+                    cards_html += f'<p style="color: #64748b; font-size: 0.8em; margin-top: 8px;">... e mais {len(df_aguard_resp) - 20} cards</p>'
                 
-                st.markdown(f"""
-                <div style="background: #fef9c3; padding: 8px; margin: 4px 0; border-radius: 4px; font-size: 0.85em;">
-                    <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                        <span style="background: {tipo_cor}; color: white; padding: 1px 4px; border-radius: 2px; font-size: 10px;">{tipo}</span>
-                        {card_link_com_popup(card['ticket_id'], 'VALPROD')}
-                    </div>
-                    <div style="color: #713f12; font-size: 0.8em; margin-top: 4px; line-height: 1.3;">{titulo}{'...' if len(card.get('titulo', '')) > 50 else ''}</div>
-                    <div style="color: #854d0e; font-size: 0.75em; margin-top: 2px;">👤 {responsavel}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                components.html(cards_html, height=400, scrolling=True)
             
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        with col_aguard3:
-            # Cards no PB aguardando
-            df_pb_aguard = df_todos[(df_todos['projeto'] == 'PB') & 
-                                    (df_todos['status'].str.lower().str.contains('aguardando|roteiro|ux', na=False))]
-            st.markdown(f"##### 📦 Backlog ({len(df_pb_aguard)})")
-            
-            # Checkbox para expandir
-            ver_todos_pb = st.checkbox("Ver todos", key="ver_todos_backlog") if len(df_pb_aguard) > 5 else False
-            limite_pb = len(df_pb_aguard) if ver_todos_pb else 5
-            
-            # Container com scroll se "Ver todos" ativado
-            scroll_style_pb = "max-height: 400px; overflow-y: auto; padding-right: 5px;" if ver_todos_pb else ""
-            st.markdown(f'<div style="{scroll_style_pb}">', unsafe_allow_html=True)
-            
-            for _, card in df_pb_aguard.head(limite_pb).iterrows():
-                tipo = card.get('tipo', 'TAREFA')
-                tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#64748b"
-                # Responsável: desenvolvedor ou QA
-                responsavel = card.get('desenvolvedor', card.get('qa', card.get('relator', 'N/A')))
-                if not responsavel or responsavel == 'Não atribuído':
-                    responsavel = card.get('relator', 'N/A')
-                # Título do card (truncado)
-                titulo = card.get('titulo', card.get('resumo', ''))[:50]
+            with col_aguard2:
+                st.markdown(f"##### 🔍 Validação Produção ({len(df_valprod_pend)})")
                 
-                st.markdown(f"""
-                <div style="background: #e0f2fe; padding: 8px; margin: 4px 0; border-radius: 4px; font-size: 0.85em;">
-                    <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                        <span style="background: {tipo_cor}; color: white; padding: 1px 4px; border-radius: 2px; font-size: 10px;">{tipo}</span>
-                        {card_link_com_popup(card['ticket_id'], 'PB')}
-                    </div>
-                    <div style="color: #075985; font-size: 0.8em; margin-top: 4px; line-height: 1.3;">{titulo}{'...' if len(card.get('titulo', '')) > 50 else ''}</div>
-                    <div style="color: #0369a1; font-size: 0.75em; margin-top: 2px;">👤 {responsavel}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                # Gera HTML completo com scroll
+                cards_html2 = '<div style="max-height: 350px; overflow-y: auto; padding-right: 5px;">'
+                for _, card in df_valprod_pend.head(20).iterrows():
+                    tipo = card.get('tipo', 'TAREFA')
+                    tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#64748b"
+                    responsavel = card.get('qa', card.get('desenvolvedor', card.get('relator', 'N/A')))
+                    if not responsavel or responsavel == 'Não atribuído':
+                        responsavel = card.get('desenvolvedor', card.get('relator', 'N/A'))
+                    titulo = str(card.get('titulo', card.get('resumo', '')))[:50]
+                    ticket_id = card.get('ticket_id', '')
+                    
+                    cards_html2 += f'''
+                    <div style="background: #fef9c3; padding: 8px; margin: 4px 0; border-radius: 4px; font-size: 0.85em;">
+                        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                            <span style="background: {tipo_cor}; color: white; padding: 1px 4px; border-radius: 2px; font-size: 10px;">{tipo}</span>
+                            <a href="https://ninatecnologia.atlassian.net/browse/{ticket_id}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 500;">{ticket_id}</a>
+                        </div>
+                        <div style="color: #713f12; font-size: 0.8em; margin-top: 4px; line-height: 1.3;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 50 else ""}</div>
+                        <div style="color: #854d0e; font-size: 0.75em; margin-top: 2px;">👤 {responsavel}</div>
+                    </div>'''
+                cards_html2 += '</div>'
+                if len(df_valprod_pend) > 20:
+                    cards_html2 += f'<p style="color: #64748b; font-size: 0.8em; margin-top: 8px;">... e mais {len(df_valprod_pend) - 20} cards</p>'
+                
+                components.html(cards_html2, height=400, scrolling=True)
             
-            st.markdown('</div>', unsafe_allow_html=True)
+            with col_aguard3:
+                st.markdown(f"##### 📦 Backlog ({len(df_pb_aguard)})")
+                
+                # Gera HTML completo com scroll
+                cards_html3 = '<div style="max-height: 350px; overflow-y: auto; padding-right: 5px;">'
+                for _, card in df_pb_aguard.head(20).iterrows():
+                    tipo = card.get('tipo', 'TAREFA')
+                    tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#64748b"
+                    responsavel = card.get('desenvolvedor', card.get('qa', card.get('relator', 'N/A')))
+                    if not responsavel or responsavel == 'Não atribuído':
+                        responsavel = card.get('relator', 'N/A')
+                    titulo = str(card.get('titulo', card.get('resumo', '')))[:50]
+                    ticket_id = card.get('ticket_id', '')
+                    
+                    cards_html3 += f'''
+                    <div style="background: #e0f2fe; padding: 8px; margin: 4px 0; border-radius: 4px; font-size: 0.85em;">
+                        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                            <span style="background: {tipo_cor}; color: white; padding: 1px 4px; border-radius: 2px; font-size: 10px;">{tipo}</span>
+                            <a href="https://ninatecnologia.atlassian.net/browse/{ticket_id}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 500;">{ticket_id}</a>
+                        </div>
+                        <div style="color: #075985; font-size: 0.8em; margin-top: 4px; line-height: 1.3;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 50 else ""}</div>
+                        <div style="color: #0369a1; font-size: 0.75em; margin-top: 2px;">👤 {responsavel}</div>
+                    </div>'''
+                cards_html3 += '</div>'
+                if len(df_pb_aguard) > 20:
+                    cards_html3 += f'<p style="color: #64748b; font-size: 0.8em; margin-top: 8px;">... e mais {len(df_pb_aguard) - 20} cards</p>'
+                
+                components.html(cards_html3, height=400, scrolling=True)
         
         # ===== GRÁFICO: TIPOS DE CARDS =====
         st.markdown("---")
@@ -7521,33 +7507,31 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
         return
     
     # ========== RESUMO: ONDE ESTÃO MEUS CARDS ==========
-    # Linha com nome da pessoa + botão copiar link
-    col_titulo, col_copiar = st.columns([4, 1])
+    # Linha com nome da pessoa + botão copiar link (IGUAL AO QA/DEV)
+    import urllib.parse
+    base_url = "https://plataforma-de-qualidade-e-decis-o-de-software-8ze3ycurhvmdahdv.streamlit.app/"
+    share_url = f"{base_url}?aba=suporte&pessoa={urllib.parse.quote(pessoa_selecionada)}"
+    
+    col_titulo, col_copiar = st.columns([3, 1])
     
     with col_titulo:
-        st.markdown(f"#### 📊 Resumo de {pessoa_selecionada}")
+        st.markdown(f"### 👤 Métricas de {pessoa_selecionada}")
     
     with col_copiar:
-        import urllib.parse
-        base_url = "https://plataforma-de-qualidade-e-decis-o-de-software-8ze3ycurhvmdahdv.streamlit.app/"
-        share_url = f"{base_url}?aba=suporte&pessoa={urllib.parse.quote(pessoa_selecionada)}"
-        
-        # Botão Copiar Link (igual QA/Dev)
+        # Botão Copiar Link (IGUAL QA - mesmo estilo e altura)
         components.html(f"""
         <button id="copyBtnSuporteIndividual" style="
             background: linear-gradient(135deg, #AF0C37 0%, #8B0A2C 100%);
             color: white;
             border: none;
-            padding: 8px 16px;
+            padding: 10px 16px;
             border-radius: 6px;
             cursor: pointer;
             width: 100%;
-            height: 36px;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 500;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             transition: all 0.2s ease;
-            box-sizing: border-box;
         ">📋 Copiar Link</button>
         <script>
             document.getElementById('copyBtnSuporteIndividual').addEventListener('click', function() {{
@@ -7576,7 +7560,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                 }});
             }});
         </script>
-        """, height=40)
+        """, height=45)
     
     # Métricas por projeto
     col1, col2, col3, col4, col5 = st.columns(5)
@@ -8946,7 +8930,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.68 • Dashboard de Inteligência QA
+                    v8.69 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -8962,6 +8946,12 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.69** *(16/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 📋 **Botão Copiar Link Padronizado**: Mesmo estilo do QA/Dev (height=45px)
+                - 📜 **Cards Aguardando Ação em Expander**: Agora pode ocultar/expandir
+                - 🔄 **Scroll Interno Funcional**: Usa components.html com scrolling=True
+                - 🚫 **Removido Checkbox Ver Todos**: Substituído por scroll interno
+                
                 **v8.68** *(16/04/2026)* <span style="background: #ef4444; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🔥</span>
                 - 🔧 **Fix Redirecionamento**: Corrigido bug que redirecionava para aba Dev
                 - 📌 **Isolamento de Abas**: QA/Dev/Suporte não interferem mais entre si
