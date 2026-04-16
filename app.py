@@ -300,7 +300,7 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
     cores = {"PB": "#8b5cf6", "SD": "#3b82f6", "QA": "#22c55e"}
     cor = cores.get(projeto, "#6b7280")
     
-    # HTML com popup CSS puro
+    # HTML com popup CSS puro - NinaDash com hover vermelho, Jira com hover cinza
     html = f'''<span class="card-popup-container" tabindex="0" style="position: relative; display: {'inline-block' if inline else 'block'};">
         <span class="card-popup-trigger" style="
             color: {cor}; 
@@ -326,7 +326,7 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
             min-width: 160px;
             margin-bottom: 5px;
         ">
-            <a href="{url_dashboard}" target="_blank" class="card-popup-option" style="
+            <a href="{url_dashboard}" target="_blank" class="card-popup-option card-popup-ninadash" style="
                 display: flex;
                 align-items: center;
                 gap: 8px;
@@ -335,12 +335,12 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
                 text-decoration: none;
                 border-radius: 6px;
                 font-size: 13px;
-                transition: background 0.15s;
+                transition: all 0.15s ease;
                 white-space: nowrap;
-            " onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
+            " onmouseover="this.style.background='#AF0C37'; this.style.color='white';" onmouseout="this.style.background='transparent'; this.style.color='#374151';">
                 <span style="font-size: 16px;">📊</span> Ver no NinaDash
             </a>
-            <a href="{url_jira}" target="_blank" class="card-popup-option" style="
+            <a href="{url_jira}" target="_blank" class="card-popup-option card-popup-jira" style="
                 display: flex;
                 align-items: center;
                 gap: 8px;
@@ -349,7 +349,7 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
                 text-decoration: none;
                 border-radius: 6px;
                 font-size: 13px;
-                transition: background 0.15s;
+                transition: all 0.15s ease;
                 white-space: nowrap;
             " onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
                 <span style="font-size: 16px;">🔗</span> Abrir no Jira
@@ -565,6 +565,86 @@ def fazer_logout():
     # Limpa dados carregados para forçar reload após novo login
     if 'dados_carregados' in st.session_state:
         del st.session_state.dados_carregados
+
+
+def mostrar_tela_loading():
+    """Tela de carregamento exibida enquanto verifica autenticação."""
+    st.markdown("""
+    <style>
+    .stApp {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%) !important;
+    }
+    
+    header[data-testid="stHeader"],
+    [data-testid="stSidebar"],
+    #MainMenu, footer {
+        display: none !important;
+    }
+    
+    .block-container {
+        max-width: 100% !important;
+        padding: 0 !important;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(0.95); }
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 20px;
+    }
+    
+    .loading-logo {
+        animation: pulse 2s ease-in-out infinite;
+        margin-bottom: 30px;
+    }
+    
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid rgba(175, 12, 55, 0.2);
+        border-top: 4px solid #AF0C37;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+    }
+    
+    .loading-text {
+        color: white;
+        font-size: 1.1em;
+        font-weight: 500;
+        opacity: 0.9;
+    }
+    </style>
+    
+    <div class="loading-container">
+        <div class="loading-logo">
+            <svg width="100" height="100" viewBox="0 0 187 187" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M173.709 89.2107C172.209 86.6048 169.414 84.838 166.225 84.838C163.036 84.838 160.241 86.5649 158.741 89.1627H151.683C149.465 58.8237 124.495 35 94.0216 35C63.5489 35 38.5862 58.8237 36.3678 89.1627H29.1759C27.6759 86.5649 24.8734 84.798 21.6682 84.798C18.463 84.798 15.6605 86.5806 14.1605 89.2031C13.4184 90.4899 13 92.001 13 93.6C13 95.1987 13.4184 96.7017 14.1605 97.997C15.6605 100.619 18.463 102.306 21.6682 102.306C24.8734 102.306 27.6838 100.435 29.1759 97.8369H36.3678C38.5862 128.168 63.5489 152 94.0216 152C124.495 152 149.465 128.176 151.675 97.8369H158.686C160.178 100.435 162.996 102.354 166.217 102.354C169.438 102.354 172.256 100.611 173.749 97.9648C174.475 96.6856 174.885 95.2148 174.885 93.6319C174.885 92.049 174.451 90.5222 173.701 89.2188L173.709 89.2107ZM111.145 125.554C107.971 131.518 101.758 135.459 94.5981 135.459C87.4374 135.459 81.2248 131.566 78.0509 125.602C77.1666 123.947 78.3667 122.092 80.2219 122.092H108.982C110.837 122.092 112.029 123.891 111.153 125.554H111.145ZM140.528 94.1277C140.528 103.825 132.76 111.691 123.184 111.691H65.4432C55.8675 111.691 48.0991 103.825 48.0991 94.1277V93.7199C48.0991 84.0223 55.8675 76.1557 65.4432 76.1557H123.184C132.76 76.1557 140.528 84.0223 140.528 93.7199V94.1277Z" fill="#AF0C37"/>
+            <path d="M76.5809 105.311C82.9686 105.311 88.1466 100.068 88.1466 93.5996C88.1466 87.1312 82.9686 81.8875 76.5809 81.8875C70.1936 81.8875 65.0156 87.1312 65.0156 93.5996C65.0156 100.068 70.1936 105.311 76.5809 105.311Z" fill="#AF0C37"/>
+            <path d="M111.437 105.311C117.824 105.311 123.002 100.068 123.002 93.5996C123.002 87.1312 117.824 81.8875 111.437 81.8875C105.049 81.8875 99.8712 87.1312 99.8712 93.5996C99.8712 100.068 105.049 105.311 111.437 105.311Z" fill="#AF0C37"/>
+            </svg>
+        </div>
+        <div class="loading-spinner"></div>
+        <p class="loading-text">Carregando NinaDash...</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Força um rerun após um momento para tentar verificar login novamente
+    import time
+    time.sleep(0.5)
+    st.rerun()
 
 
 def mostrar_tela_login():
@@ -7663,9 +7743,24 @@ def main():
     """Função principal do dashboard."""
     
     # ========== VERIFICAR LOGIN (via session_state ou cookie) ==========
+    # Controla número de tentativas de verificação para evitar loop infinito
+    if 'login_check_count' not in st.session_state:
+        st.session_state.login_check_count = 0
+    
     if not verificar_login():
+        st.session_state.login_check_count += 1
+        
+        # Nas primeiras 2 tentativas, mostra loading (cookies podem estar carregando)
+        if st.session_state.login_check_count <= 2:
+            mostrar_tela_loading()
+            return
+        
+        # Após 2 tentativas, mostra tela de login
         mostrar_tela_login()
         return
+    
+    # Reset contador quando login é bem-sucedido
+    st.session_state.login_check_count = 0
     
     # ========== USUÁRIO LOGADO - DASHBOARD ==========
     aplicar_estilos()
@@ -7900,7 +7995,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.53 • Dashboard de Inteligência QA
+                    v8.54 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -7916,6 +8011,11 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.54** *(16/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 🎨 **Popup UX**: Hover vermelho no "Ver no NinaDash"
+                - ⏳ **Tela de Loading**: Substituiu flash de login ao abrir
+                - 🔄 Loading animado com logo NINA durante verificação
+                
                 **v8.53** *(16/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🚀 **Popup em TODAS aparições de cards**
                 - 📊 QA: Em Trabalho, Reprovados, Impedidos, Validados
