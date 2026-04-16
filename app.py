@@ -4912,8 +4912,112 @@ def aba_qa(df: pd.DataFrame):
             
             st.markdown("---")
             
+            # ===== CARDS EM TRABALHO (Aguardando + Em Validação) =====
+            df_em_trabalho = df_qa[df_qa['status_cat'].isin(['waiting_qa', 'testing'])].copy()
+            
+            st.markdown("**🔄 Cards em Trabalho**")
+            st.caption("Cards que você está trabalhando agora (aguardando validação + em validação)")
+            
+            if not df_em_trabalho.empty:
+                df_em_trabalho_sorted = df_em_trabalho.sort_values('dias_em_status', ascending=False)
+                
+                for _, row in df_em_trabalho_sorted.iterrows():
+                    status_icon = "⏳" if row['status_cat'] == 'waiting_qa' else "🧪"
+                    status_nome = "Aguardando" if row['status_cat'] == 'waiting_qa' else "Validando"
+                    status_cor = "#f59e0b" if row['status_cat'] == 'waiting_qa' else "#3b82f6"
+                    dias_status = row['dias_em_status']
+                    urgencia_cor = '#ef4444' if dias_status > 3 else '#eab308' if dias_status > 1 else '#22c55e'
+                    
+                    st.markdown(f"""
+                    <div style="padding: 12px; margin: 8px 0; border-left: 4px solid {status_cor}; background: {status_cor}10; border-radius: 6px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 200px;">
+                                <strong>{status_icon} <a href="{row['link']}" target="_blank" style="color: #60a5fa; text-decoration: none;">{row['ticket_id']}</a></strong>
+                                <span style="color: #64748b;"> - {row['titulo']}</span>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <span style="background: {status_cor}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">{status_nome}</span>
+                                <span style="background: {urgencia_cor}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">📅 {dias_status}d</span>
+                                <span style="background: #6366f1; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">{int(row['sp'])} SP</span>
+                            </div>
+                        </div>
+                        <div style="margin-top: 6px; font-size: 12px; color: #94a3b8;">
+                            👤 DEV: {row['desenvolvedor']} | 🏷️ {row.get('complexidade', 'N/A')}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.success("✅ Nenhum card em trabalho no momento - fila limpa!")
+            
+            st.markdown("---")
+            
+            # ===== CARDS REPROVADOS =====
+            df_reprovados_qa = df_qa[df_qa['status_cat'] == 'rejected'].copy()
+            
+            st.markdown("**❌ Cards Reprovados**")
+            st.caption("Cards que você reprovou e voltaram para correção")
+            
+            if not df_reprovados_qa.empty:
+                df_reprovados_sorted = df_reprovados_qa.sort_values('atualizado', ascending=False)
+                
+                for _, row in df_reprovados_sorted.iterrows():
+                    data_ref = row.get('atualizado')
+                    data_reprovacao = data_ref.strftime("%d/%m %H:%M") if pd.notna(data_ref) else "N/A"
+                    
+                    st.markdown(f"""
+                    <div style="padding: 12px; margin: 8px 0; border-left: 4px solid #dc2626; background: rgba(220, 38, 38, 0.05); border-radius: 6px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 200px;">
+                                <strong>❌ <a href="{row['link']}" target="_blank" style="color: #f87171; text-decoration: none;">{row['ticket_id']}</a></strong>
+                                <span style="color: #64748b;"> - {row['titulo']}</span>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <span style="background: #dc2626; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">Reprovado</span>
+                                <span style="background: #ef4444; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">🐛 {int(row['bugs'])}</span>
+                                <span style="background: #6366f1; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">{int(row['sp'])} SP</span>
+                            </div>
+                        </div>
+                        <div style="margin-top: 6px; font-size: 12px; color: #94a3b8;">
+                            📅 {data_reprovacao} | 👤 DEV: {row['desenvolvedor']}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.info("💡 Nenhum card reprovado no momento")
+            
+            st.markdown("---")
+            
+            # ===== CARDS IMPEDIDOS =====
+            df_impedidos_qa = df_qa[df_qa['status_cat'] == 'blocked'].copy()
+            
+            if not df_impedidos_qa.empty:
+                st.markdown("**🚫 Cards Impedidos**")
+                st.caption("Cards bloqueados que precisam de atenção")
+                
+                for _, row in df_impedidos_qa.iterrows():
+                    st.markdown(f"""
+                    <div style="padding: 12px; margin: 8px 0; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.05); border-radius: 6px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 200px;">
+                                <strong>🚫 <a href="{row['link']}" target="_blank" style="color: #f87171; text-decoration: none;">{row['ticket_id']}</a></strong>
+                                <span style="color: #64748b;"> - {row['titulo']}</span>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <span style="background: #ef4444; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">Impedido</span>
+                                <span style="background: #6366f1; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">{int(row['sp'])} SP</span>
+                            </div>
+                        </div>
+                        <div style="margin-top: 6px; font-size: 12px; color: #94a3b8;">
+                            👤 DEV: {row['desenvolvedor']} | ⏱️ {row['dias_em_status']}d bloqueado
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                st.markdown("---")
+            
             # Cards Validados na Semana (Timeline detalhada)
             st.markdown("**✅ Cards Validados na Semana**")
+            st.caption("Cards que você concluiu a validação")
             
             if not df_validados_semana.empty:
                 # Ordena por resolutiondate (mais preciso) ou atualizado
@@ -4945,25 +5049,44 @@ def aba_qa(df: pd.DataFrame):
                     </div>
                     """, unsafe_allow_html=True)
                 
-                # Resumo textual para copiar
+                # Resumo textual completo para copiar
                 st.markdown("---")
-                st.markdown("**📝 Resumo:**")
+                st.markdown("**📝 Resumo Completo (copie para a daily/retro):**")
                 
                 total_validados = len(df_validados_semana)
-                total_sp = int(df_validados_semana['sp'].sum())
+                total_sp_validados = int(df_validados_semana['sp'].sum())
                 total_bugs = int(df_validados_semana['bugs'].sum())
                 clean_rate = len(df_validados_semana[df_validados_semana['bugs'] == 0]) / total_validados * 100 if total_validados > 0 else 0
+                
+                # Monta resumo completo
+                resumo_em_trabalho = ""
+                if not df_em_trabalho.empty:
+                    resumo_em_trabalho = "\n🔄 Em trabalho:\n" + "\n".join([f"  • {row['ticket_id']}: {row['titulo']} ({'Aguardando' if row['status_cat'] == 'waiting_qa' else 'Validando'})" for _, row in df_em_trabalho_sorted.iterrows()])
+                
+                resumo_reprovados = ""
+                if not df_reprovados_qa.empty:
+                    resumo_reprovados = "\n❌ Reprovados:\n" + "\n".join([f"  • {row['ticket_id']}: {row['titulo']} ({int(row['bugs'])} bugs)" for _, row in df_reprovados_sorted.iterrows()])
+                
+                resumo_impedidos = ""
+                if not df_impedidos_qa.empty:
+                    resumo_impedidos = "\n🚫 Impedidos:\n" + "\n".join([f"  • {row['ticket_id']}: {row['titulo']}" for _, row in df_impedidos_qa.iterrows()])
+                
+                resumo_validados = ""
+                if not df_validados_semana.empty:
+                    resumo_validados = "\n✅ Validados:\n" + "\n".join([f"  • {row['ticket_id']}: {row['titulo']}" for _, row in df_validados_semana_sorted.iterrows()])
                 
                 resumo_texto = f"""📊 Resumo Semanal - {qa_sel}
 📅 Período: {segunda_semana.strftime('%d/%m')} a {sexta_semana.strftime('%d/%m')}
 
+📈 MÉTRICAS:
+• {len(df_em_trabalho)} cards em trabalho
+• {len(df_reprovados_qa)} cards reprovados
+• {len(df_impedidos_qa)} cards impedidos
 • {total_validados} cards validados
-• {total_sp} Story Points entregues
+• {total_sp_validados} SP entregues
 • {total_bugs} bugs encontrados
-• {clean_rate:.0f}% taxa de validação limpa (FPY)
-
-Cards validados:
-""" + "\n".join([f"- {row['ticket_id']}: {row['titulo']}" for _, row in df_validados_semana_sorted.iterrows()])
+• {clean_rate:.0f}% FPY (taxa validação limpa)
+{resumo_em_trabalho}{resumo_reprovados}{resumo_impedidos}{resumo_validados}"""
                 
                 st.code(resumo_texto, language=None)
             else:
@@ -7612,7 +7735,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.49 • Dashboard de Inteligência QA
+                    v8.50 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -7628,26 +7751,29 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.50** *(16/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 🔄 **Novo:** Cards em Trabalho no resumo QA individual
+                - ❌ **Novo:** Cards Reprovados listados no resumo
+                - 🚫 **Novo:** Cards Impedidos listados no resumo
+                - 📝 Resumo completo copiável (ideal para daily/retro)
+                - 📊 Todas as categorias: em trabalho, reprovados, impedidos, validados
+                
                 **v8.49** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
-                - 🚫 **Novo:** Cards Impedidos e Reprovados em QA e DEV
-                - 📊 KPIs de bloqueio: SP travados, bug rate
-                - 🐛 **Fix:** Navegação entre QA/DEV não sai mais da aba
-                - 👤 Visão individual mostra cards com problemas
+                - 🚫 Cards Impedidos/Reprovados em QA e DEV
+                - 🐛 Fix navegação entre QA/DEV
                 
                 **v8.48** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
-                - 📈 Gráfico "Evolução da Semana" (Fila ↓ + Concluídos ↑)
-                - 📝 Títulos completos em TODA a ferramenta
+                - 📈 Gráfico "Evolução da Semana"
+                - 📝 Títulos completos em toda ferramenta
                 
                 **v8.47** *(15/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
                 - 🐛 Dados históricos usam `resolutiondate`
                 
                 **v8.46** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 📆 Seletor de semanas (2-4 semanas atrás)
-                - 📅 Apenas dias úteis (seg-sex)
                 
                 **v8.45** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 📅 "Resumo da Semana" QA/DEV
-                - 📈 Timeline + resumo copiável
                 
                 **v8.44** *(15/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🤝 **Novo:** Seção "Interação QA x DEV" na aba QA
