@@ -1611,21 +1611,30 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Di
     with col2:
         # Usar components.html para JavaScript funcionar (iframe isolado)
         components.html(f"""
+        <style>
+            html, body {{
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden;
+            }}
+        </style>
         <button id="copyBtn" style="
             background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
+            padding: 0 16px;
+            border-radius: 8px;
             cursor: pointer;
             width: 100%;
-            height: 38px;
+            height: 36px;
             font-size: 14px;
             font-weight: 500;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             transition: all 0.2s ease;
-            margin: 0;
-            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         ">📋 Copiar Link</button>
         <script>
             document.getElementById('copyBtn').addEventListener('click', function() {{
@@ -1639,7 +1648,6 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Di
                         btn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
                     }}, 2000);
                 }}).catch(function() {{
-                    // Fallback
                     var temp = document.createElement('textarea');
                     temp.value = url;
                     document.body.appendChild(temp);
@@ -1655,7 +1663,7 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Di
                 }});
             }});
         </script>
-        """, height=38)
+        """, height=36)
     
     with col3:
         st.caption(f"Sprint: **{card['sprint']}** | Produto: **{card['produto']}**")
@@ -1910,6 +1918,16 @@ def exibir_detalhes_sd(card: Dict, links: List[Dict], comentarios: List[Dict]):
     for i, insight in enumerate(insights):
         with cols[i]:
             st.markdown(insight)
+    
+    # ===== DESCRIÇÃO DO CARD =====
+    descricao = card.get('descricao', '')
+    if descricao and descricao.strip():
+        with st.expander("📝 **Descrição**", expanded=False):
+            st.markdown(f"""
+<div style='background: #f8fafc; padding: 16px; border-radius: 8px; border-left: 3px solid #3b82f6;'>
+    <div style='color: #374151; line-height: 1.6; white-space: pre-wrap;'>{descricao}</div>
+</div>
+            """, unsafe_allow_html=True)
     
     # ===== CARDS VINCULADOS =====
     exibir_cards_vinculados(links)
@@ -7738,7 +7756,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.50 • Dashboard de Inteligência QA
+                    v8.51 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -7754,6 +7772,10 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.51** *(16/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
+                - 🔧 **Fix:** Botão "Copiar Link" alinhamento corrigido
+                - 📝 **Novo:** Seção Descrição adicionada nos cards SD
+                
                 **v8.50** *(16/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🔄 **Novo:** Cards em Trabalho no resumo QA individual
                 - ❌ **Novo:** Cards Reprovados listados no resumo
