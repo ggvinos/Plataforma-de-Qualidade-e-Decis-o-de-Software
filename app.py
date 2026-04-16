@@ -3865,6 +3865,56 @@ def mostrar_indicador_atualizacao(ultima_atualizacao: datetime):
     st.markdown(f'<span class="{classe}">🕐 {texto}</span>', unsafe_allow_html=True)
 
 
+def formatar_tempo_relativo(dt: datetime) -> str:
+    """
+    Formata uma datetime como tempo relativo (ex: "há 5 min", "há 2h", "há 3 dias").
+    
+    Args:
+        dt: datetime a ser formatada
+        
+    Returns:
+        String formatada com tempo relativo
+    """
+    if dt is None or pd.isna(dt):
+        return ""
+    
+    agora = datetime.now()
+    
+    # Garante que dt seja datetime
+    if isinstance(dt, str):
+        try:
+            dt = pd.to_datetime(dt)
+        except:
+            return ""
+    
+    # Se dt tem timezone, remove para comparação
+    if hasattr(dt, 'tzinfo') and dt.tzinfo is not None:
+        dt = dt.replace(tzinfo=None)
+    
+    diff = agora - dt
+    segundos = diff.total_seconds()
+    
+    if segundos < 0:
+        return "agora"
+    elif segundos < 60:
+        return "agora"
+    elif segundos < 3600:  # menos de 1 hora
+        minutos = int(segundos / 60)
+        return f"há {minutos} min"
+    elif segundos < 86400:  # menos de 1 dia
+        horas = int(segundos / 3600)
+        return f"há {horas}h"
+    elif segundos < 604800:  # menos de 1 semana
+        dias = int(segundos / 86400)
+        return f"há {dias}d"
+    elif segundos < 2592000:  # menos de 30 dias
+        semanas = int(segundos / 604800)
+        return f"há {semanas} sem"
+    else:
+        meses = int(segundos / 2592000)
+        return f"há {meses} mês" if meses == 1 else f"há {meses} meses"
+
+
 def criar_card_metrica(valor: str, titulo: str, cor: str = "blue", subtitulo: str = "", tooltip_key: str = ""):
     """Cria card de métrica visual. tooltip_key é ignorado (usar st.metric com help para tooltips)."""
     # Sempre mostra sublabel para manter altura uniforme
@@ -5204,7 +5254,7 @@ def aba_qa(df: pd.DataFrame):
             st.caption("Cards que você está trabalhando agora (aguardando validação + em validação)")
             
             if not df_em_trabalho.empty:
-                df_em_trabalho_sorted = df_em_trabalho.sort_values('dias_em_status', ascending=False)
+                df_em_trabalho_sorted = df_em_trabalho.sort_values('atualizado', ascending=False)
                 
                 for _, row in df_em_trabalho_sorted.iterrows():
                     status_icon = "⏳" if row['status_cat'] == 'waiting_qa' else "🧪"
@@ -5213,6 +5263,7 @@ def aba_qa(df: pd.DataFrame):
                     dias_status = row['dias_em_status']
                     urgencia_cor = '#ef4444' if dias_status > 3 else '#eab308' if dias_status > 1 else '#22c55e'
                     card_popup = card_link_com_popup(row['ticket_id'])
+                    tempo_atualizacao = formatar_tempo_relativo(row.get('atualizado'))
                     
                     st.markdown(f"""
                     <div style="padding: 12px; margin: 8px 0; border-left: 4px solid {status_cor}; background: {status_cor}10; border-radius: 6px;">
@@ -5228,7 +5279,7 @@ def aba_qa(df: pd.DataFrame):
                             </div>
                         </div>
                         <div style="margin-top: 6px; font-size: 12px; color: #94a3b8;">
-                            👤 DEV: {row['desenvolvedor']} | 🏷️ {row.get('complexidade', 'N/A')}
+                            👤 DEV: {row['desenvolvedor']} | 🏷️ {row.get('complexidade', 'N/A')} | 🕐 Atualizado: {tempo_atualizacao}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -7406,7 +7457,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
             background: linear-gradient(135deg, #AF0C37 0%, #8B0A2C 100%);
             color: white;
             border: none;
-            padding: 10px 16px;
+            padding: 8px 16px;
             border-radius: 6px;
             cursor: pointer;
             width: 100%;
@@ -7414,7 +7465,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
             font-weight: 500;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             transition: all 0.2s ease;
-            margin-top: 8px;
+            margin-top: 25px;
         ">📋 Copiar Link</button>
         <script>
             document.getElementById('copyBtnSuporteHeader').addEventListener('click', function() {{
@@ -7538,17 +7589,18 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                     cor = "#ef4444" if dias > 7 else "#f59e0b" if dias > 3 else "#22c55e"
                     tipo = card.get('tipo', 'TAREFA')
                     tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#6366f1" if tipo == "SUGESTÃO" else "#64748b"
-                    titulo = card.get('titulo', card.get('resumo', ''))[:80]
+                    titulo = card.get('titulo', card.get('resumo', ''))[:70]
+                    tempo_atualizacao = formatar_tempo_relativo(card.get('atualizado')) if 'atualizado' in card else ""
                     
                     st.markdown(f"""
                     <div style="background: #f8fafc; border-left: 4px solid {cor}; padding: 12px; margin: 8px 0; border-radius: 0 8px 8px 0;">
                         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
                             <span style="background: {tipo_cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">{tipo}</span>
                             {card_link_com_popup(card['ticket_id'], 'VALPROD')}
-                            <span style="background: {cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: auto;">{dias}d</span>
+                            <span style="color: #64748b; font-size: 0.75em; margin-left: auto;">🕐 {tempo_atualizacao}</span>
                         </div>
-                        <div style="color: #374151; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 80 else ''}</div>
-                        <div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: {card.get('status', 'N/A')}</div>
+                        <div style="color: #374151; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 70 else ''}</div>
+                        <div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: {card.get('status', 'N/A')} • Criado: {dias}d atrás</div>
                     </div>
                     """, unsafe_allow_html=True)
             else:
@@ -7558,8 +7610,9 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
     
     # ========== CARDS AGUARDANDO RESPOSTA ==========
     with st.expander("💬 Cards Aguardando Resposta", expanded=True):
-        # Cards com status "aguardando" em qualquer projeto
-        df_aguardando = df_pessoa[df_pessoa['status'].str.lower().str.contains('aguardando', na=False)]
+        # Cards com status "aguardando" em qualquer projeto (várias variações)
+        filtro_aguardando = 'aguardando|waiting|pendente resposta|aguarda |em espera'
+        df_aguardando = df_pessoa[df_pessoa['status'].str.lower().str.contains(filtro_aguardando, na=False, regex=True)]
         
         if not df_aguardando.empty:
             st.markdown(f"##### 💬 {len(df_aguardando)} cards aguardando algum retorno")
@@ -7568,8 +7621,10 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                 dias = (datetime.now() - pd.to_datetime(card['criado'])).days if pd.notna(card.get('criado')) else 0
                 projeto = card.get('projeto', 'SD')
                 tipo = card.get('tipo', 'TAREFA')
+                # Tempo desde última atualização
+                tempo_atualizacao = formatar_tempo_relativo(card.get('atualizado')) if 'atualizado' in card else ""
                 tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#6366f1" if tipo == "SUGESTÃO" else "#64748b"
-                titulo = card.get('titulo', card.get('resumo', ''))[:80]
+                titulo = card.get('titulo', card.get('resumo', ''))[:70]
                 
                 st.markdown(f"""
                 <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 8px 0; border-radius: 0 8px 8px 0;">
@@ -7577,14 +7632,48 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                         <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
                         <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
                         {card_link_com_popup(card['ticket_id'], projeto)}
-                        <span style="color: #64748b; font-size: 0.8em; margin-left: auto;">{dias}d</span>
+                        <span style="color: #64748b; font-size: 0.75em; margin-left: auto;">🕐 {tempo_atualizacao}</span>
                     </div>
-                    <div style="color: #92400e; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 80 else ''}</div>
+                    <div style="color: #92400e; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 70 else ''}</div>
                     <div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: {card.get('status', '')}</div>
                 </div>
                 """, unsafe_allow_html=True)
         else:
             st.success("✅ Nenhum card aguardando resposta!")
+    
+    # ========== CARDS AGUARDANDO MINHA VALIDAÇÃO (QA) ==========
+    # Cards onde a pessoa é o QA responsável e precisa validar
+    if 'qa' in df_todos.columns:
+        df_aguardando_validacao = df_todos[
+            (df_todos['qa'] == pessoa_selecionada) & 
+            (df_todos['status'].str.lower().str.contains('aguardando validação|validação|testing|em teste|em qa', na=False, regex=True))
+        ].copy()
+        
+        if not df_aguardando_validacao.empty:
+            with st.expander(f"🔬 Cards Aguardando Minha Validação ({len(df_aguardando_validacao)})", expanded=True):
+                st.markdown(f"##### 🔬 {len(df_aguardando_validacao)} cards para você validar")
+                st.caption("Estes cards estão atribuídos a você como QA e aguardam validação")
+                
+                for _, card in df_aguardando_validacao.iterrows():
+                    projeto = card.get('projeto', 'SD')
+                    tipo = card.get('tipo', 'TAREFA')
+                    tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#6366f1" if tipo == "SUGESTÃO" else "#64748b"
+                    titulo = card.get('titulo', card.get('resumo', ''))[:70]
+                    tempo_atualizacao = formatar_tempo_relativo(card.get('atualizado')) if 'atualizado' in card else ""
+                    relator = card.get('relator', 'N/A')
+                    
+                    st.markdown(f"""
+                    <div style="background: #ede9fe; border-left: 4px solid #8b5cf6; padding: 12px; margin: 8px 0; border-radius: 0 8px 8px 0;">
+                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                            <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
+                            <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
+                            {card_link_com_popup(card['ticket_id'], projeto)}
+                            <span style="color: #7c3aed; font-size: 0.75em; margin-left: auto;">🕐 {tempo_atualizacao}</span>
+                        </div>
+                        <div style="color: #5b21b6; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 70 else ''}</div>
+                        <div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Aberto por: {relator} • Status: {card.get('status', '')}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
     
     # ========== FUNIL DO PB ==========
     with st.expander("📋 Meus Cards no Product Backlog", expanded=False):
@@ -8745,7 +8834,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.62 • Dashboard de Inteligência QA
+                    v8.63 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -8761,6 +8850,13 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.63** *(16/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 🕐 **Tempo de Atualização**: Mostra "há X min/h/d" nos cards
+                - 🔬 **Cards Aguardando Minha Validação**: Nova seção para QA
+                - 📏 **Fix Copiar Link**: Alinhado com seletor de pessoa
+                - 🔍 **Filtro Aguardando**: Inclui mais variações de status
+                - 📊 **QA Cards em Trabalho**: Ordenado por atualização
+                
                 **v8.62** *(16/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
                 - 🔧 **Fix UI Visão Geral**: Removido card desalinhado
                 - 🤖 **Filtro Bots**: Automation for Jira removido do Top 15
