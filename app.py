@@ -211,6 +211,9 @@ CUSTOM_FIELDS = {
     "sla_status": "customfield_11124",  # SLA: Atrasado
 }
 
+# URL base do NinaDash - CENTRALIZADA para facilitar alterações futuras
+NINADASH_URL = "https://ninadash.streamlit.app/"
+
 STATUS_FLOW = {
     "backlog": ["Backlog", "To Do", "Tarefas pendentes"],
     "development": ["Em andamento"],
@@ -1837,7 +1840,7 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Di
         return False
     
     # Gera URL de compartilhamento
-    base_url = "https://ninadash.streamlit.app/"
+    base_url = NINADASH_URL
     share_url = f"{base_url}?card={card['ticket_id']}&projeto={projeto}"
     
     # ===== HEADER DO CARD =====
@@ -5022,7 +5025,7 @@ def aba_qa(df: pd.DataFrame):
         
         # Header com título e botão de compartilhamento
         import urllib.parse
-        base_url = "https://ninadash.streamlit.app/"
+        base_url = NINADASH_URL
         share_url = f"{base_url}?aba=qa&qa={urllib.parse.quote(qa_sel)}"
         
         col_titulo, col_share = st.columns([3, 1])
@@ -5244,20 +5247,32 @@ def aba_qa(df: pd.DataFrame):
                 dia_nome = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'][i]
                 
                 # Cards concluídos até este dia (acumulado)
+                # Converte dia para pd.Timestamp para comparação segura
+                dia_fim = pd.Timestamp(dia.date()) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+                
                 if 'resolutiondate' in df_qa.columns:
+                    # Remove timezone se existir para comparação segura
+                    col_resolution = df_qa['resolutiondate']
+                    if hasattr(col_resolution.dtype, 'tz') and col_resolution.dtype.tz is not None:
+                        col_resolution = col_resolution.dt.tz_localize(None)
+                    
                     concluidos_ate_dia = len(df_qa[
                         (df_qa['status_cat'] == 'done') &
-                        (df_qa['resolutiondate'].notna()) &
-                        (df_qa['resolutiondate'] >= inicio_semana) &
-                        (df_qa['resolutiondate'].dt.date <= dia.date())
+                        (col_resolution.notna()) &
+                        (col_resolution >= inicio_semana) &
+                        (col_resolution <= dia_fim)
                     ])
                     
-                    # Fallback
+                    # Fallback com atualizado
                     if concluidos_ate_dia == 0:
+                        col_atualizado = df_qa['atualizado']
+                        if hasattr(col_atualizado.dtype, 'tz') and col_atualizado.dtype.tz is not None:
+                            col_atualizado = col_atualizado.dt.tz_localize(None)
+                        
                         concluidos_ate_dia = len(df_qa[
                             (df_qa['status_cat'] == 'done') &
-                            (df_qa['atualizado'] >= inicio_semana) &
-                            (df_qa['atualizado'].dt.date <= dia.date())
+                            (col_atualizado >= inicio_semana) &
+                            (col_atualizado <= dia_fim)
                         ])
                 else:
                     concluidos_ate_dia = 0
@@ -6026,7 +6041,7 @@ def aba_dev(df: pd.DataFrame):
         if analise:
             # Header com título e botão de compartilhamento
             import urllib.parse
-            base_url = "https://ninadash.streamlit.app/"
+            base_url = NINADASH_URL
             share_url = f"{base_url}?aba=dev&dev={urllib.parse.quote(dev_sel)}"
             
             col_titulo, col_share = st.columns([3, 1])
@@ -6239,20 +6254,32 @@ def aba_dev(df: pd.DataFrame):
                     dia_str = dia.strftime("%d/%m")
                     dia_nome = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'][i]
                     
+                    # Converte dia para pd.Timestamp para comparação segura
+                    dia_fim = pd.Timestamp(dia.date()) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+                    
                     # Cards concluídos até este dia (acumulado)
                     if 'resolutiondate' in df_dev.columns:
+                        # Remove timezone se existir para comparação segura
+                        col_resolution = df_dev['resolutiondate']
+                        if hasattr(col_resolution.dtype, 'tz') and col_resolution.dtype.tz is not None:
+                            col_resolution = col_resolution.dt.tz_localize(None)
+                        
                         concluidos_ate_dia = len(df_dev[
                             (df_dev['status_cat'] == 'done') &
-                            (df_dev['resolutiondate'].notna()) &
-                            (df_dev['resolutiondate'] >= inicio_semana) &
-                            (df_dev['resolutiondate'].dt.date <= dia.date())
+                            (col_resolution.notna()) &
+                            (col_resolution >= inicio_semana) &
+                            (col_resolution <= dia_fim)
                         ])
                         
                         if concluidos_ate_dia == 0:
+                            col_atualizado = df_dev['atualizado']
+                            if hasattr(col_atualizado.dtype, 'tz') and col_atualizado.dtype.tz is not None:
+                                col_atualizado = col_atualizado.dt.tz_localize(None)
+                            
                             concluidos_ate_dia = len(df_dev[
                                 (df_dev['status_cat'] == 'done') &
-                                (df_dev['atualizado'] >= inicio_semana) &
-                                (df_dev['atualizado'].dt.date <= dia.date())
+                                (col_atualizado >= inicio_semana) &
+                                (col_atualizado <= dia_fim)
                             ])
                     else:
                         concluidos_ate_dia = 0
@@ -7586,7 +7613,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
     # ========== RESUMO: ONDE ESTÃO MEUS CARDS ==========
     # Linha com nome da pessoa + botão copiar link (IGUAL AO QA/DEV)
     import urllib.parse
-    base_url = "https://ninadash.streamlit.app/"
+    base_url = NINADASH_URL
     share_url = f"{base_url}?aba=suporte&pessoa={urllib.parse.quote(pessoa_selecionada)}"
     
     col_titulo, col_copiar = st.columns([3, 1])
@@ -9007,7 +9034,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.71 • Qualidade e Decisão de Software
+                    v8.72 • Qualidade e Decisão de Software
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -9023,10 +9050,15 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.72** *(17/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
+                - 🔗 **URL Centralizada**: Constante `NINADASH_URL` para facilitar alterações
+                - 🐛 **Fix TypeError**: Corrigido erro de comparação de datas com timezone
+                - 🔄 **Cookies**: Novo domínio requer login na primeira vez (normal)
+                
                 **v8.71** *(17/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🎨 **Novo Nome**: Dashboard de Qualidade e Decisão de Software
-                - � **Nova URL**: ninadash.streamlit.app (mais curta e fácil)
-                - �📊 **Barra de Progresso**: Visual da sprint com % concluído
+                - 🔗 **Nova URL**: ninadash.streamlit.app (mais curta e fácil)
+                - 📊 **Barra de Progresso**: Visual da sprint com % concluído
                 - 📈 **KPIs Simplificados**: 5 métricas essenciais (Cards, SP, Concluído, Bugs, Dias)
                 - 🔬 **Métricas Técnicas**: FPY/DDP/Lead Time/Health/Fator K em expander separado
                 - 📋 **Cards por Status**: Layout 2 colunas (mais espaço para leitura)
