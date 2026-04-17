@@ -4313,9 +4313,9 @@ def aba_clientes(df_todos: pd.DataFrame):
             
             total_cards = len(df_temas)
             total_clientes = len(clientes_unicos)
-            total_dev_pago = df_temas['dev_pago'].sum()
-            total_sp = int(df_temas['sp'].sum())
-            total_concluidos = len(df_temas[df_temas['status_cat'] == 'done'])
+            total_dev_pago = df_temas['dev_pago'].sum() if 'dev_pago' in df_temas.columns else 0
+            total_sp = int(df_temas['sp'].sum()) if 'sp' in df_temas.columns else 0
+            total_concluidos = len(df_temas[df_temas['status_cat'] == 'done']) if 'status_cat' in df_temas.columns else 0
             
             with col1:
                 criar_card_metrica(str(total_clientes), "Clientes Ativos", "blue")
@@ -4336,16 +4336,39 @@ def aba_clientes(df_todos: pd.DataFrame):
         st.markdown("#### 📊 Top 15 Clientes por Volume de Cards")
         
         # Ranking de clientes com desenvolvimento pago
-        ranking_clientes = df_temas.groupby('temas').agg({
-            'ticket_id': 'count',
-            'sp': 'sum',
-            'bugs': 'sum',
-            'status_cat': lambda x: (x == 'done').sum(),
-            'dev_pago': 'sum',
-            'projeto': lambda x: ', '.join(sorted(x.unique()))
-        }).reset_index()
-        ranking_clientes.columns = ['Cliente', 'Cards', 'SP Total', 'Bugs', 'Concluídos', 'Dev Pago', 'Projetos']
-        ranking_clientes['% Concluído'] = (ranking_clientes['Concluídos'] / ranking_clientes['Cards'] * 100).round(0).astype(int)
+        # Constrói dicionário de agregação dinamicamente com colunas existentes
+        agg_dict = {'ticket_id': 'count'}
+        if 'sp' in df_temas.columns:
+            agg_dict['sp'] = 'sum'
+        if 'bugs' in df_temas.columns:
+            agg_dict['bugs'] = 'sum'
+        if 'status_cat' in df_temas.columns:
+            agg_dict['status_cat'] = lambda x: (x == 'done').sum()
+        if 'dev_pago' in df_temas.columns:
+            agg_dict['dev_pago'] = 'sum'
+        if 'projeto' in df_temas.columns:
+            agg_dict['projeto'] = lambda x: ', '.join(sorted(x.unique()))
+        
+        ranking_clientes = df_temas.groupby('temas').agg(agg_dict).reset_index()
+        
+        # Renomeia colunas baseado nas que existem
+        col_names = ['Cliente', 'Cards']
+        if 'sp' in df_temas.columns:
+            col_names.append('SP Total')
+        if 'bugs' in df_temas.columns:
+            col_names.append('Bugs')
+        if 'status_cat' in df_temas.columns:
+            col_names.append('Concluídos')
+        if 'dev_pago' in df_temas.columns:
+            col_names.append('Dev Pago')
+        if 'projeto' in df_temas.columns:
+            col_names.append('Projetos')
+        ranking_clientes.columns = col_names
+        
+        if 'Concluídos' in ranking_clientes.columns:
+            ranking_clientes['% Concluído'] = (ranking_clientes['Concluídos'] / ranking_clientes['Cards'] * 100).round(0).astype(int)
+        else:
+            ranking_clientes['% Concluído'] = 0
         ranking_clientes = ranking_clientes.sort_values('Cards', ascending=False).head(15)
         
         # Layout com gráfico e tabela
@@ -4363,66 +4386,79 @@ def aba_clientes(df_todos: pd.DataFrame):
             st.plotly_chart(fig, use_container_width=True)
         
         with col_tab:
-            # Tabela resumida com desenvolvimento pago
+            # Tabela resumida - usa colunas disponíveis
+            colunas_tabela = ['Cliente', 'Cards']
+            if 'Dev Pago' in ranking_clientes.columns:
+                colunas_tabela.append('Dev Pago')
+            if 'SP Total' in ranking_clientes.columns:
+                colunas_tabela.append('SP Total')
+            colunas_tabela.append('% Concluído')
+            if 'Projetos' in ranking_clientes.columns:
+                colunas_tabela.append('Projetos')
+            
             st.dataframe(
-                ranking_clientes[['Cliente', 'Cards', 'Dev Pago', 'SP Total', '% Concluído', 'Projetos']],
+                ranking_clientes[colunas_tabela],
                 hide_index=True, use_container_width=True, height=450
             )
         
         # ===== DESENVOLVIMENTO PAGO VS OUTROS =====
-        st.markdown("---")
-        st.markdown("#### 💰 Análise de Desenvolvimento Pago")
-        st.caption("Cards com label indicando desenvolvimento pago")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Gráfico de pizza: Pago vs Não Pago
-            pago_count = df_temas.groupby('dev_pago').size().reset_index(name='Cards')
-            pago_count['Categoria'] = pago_count['dev_pago'].apply(lambda x: '💰 Desenvolvimento Pago' if x else '🔧 Outros')
+        if 'dev_pago' in df_temas.columns:
+            st.markdown("---")
+            st.markdown("#### 💰 Análise de Desenvolvimento Pago")
+            st.caption("Cards com label indicando desenvolvimento pago")
             
-            fig_pago = px.pie(pago_count, values='Cards', names='Categoria',
-                              title='Distribuição: Pago vs Outros',
-                              color='Categoria',
-                              color_discrete_map={'💰 Desenvolvimento Pago': '#22c55e', '🔧 Outros': '#6b7280'})
-            fig_pago.update_layout(height=350)
-            st.plotly_chart(fig_pago, use_container_width=True)
-        
-        with col2:
-            # Top clientes com mais desenvolvimento pago
-            clientes_pago = df_temas[df_temas['dev_pago'] == True].groupby('temas').size().reset_index(name='Cards Pagos')
-            clientes_pago = clientes_pago.sort_values('Cards Pagos', ascending=False).head(10)
+            col1, col2 = st.columns(2)
             
-            if not clientes_pago.empty:
-                fig_top_pago = px.bar(
-                    clientes_pago,
-                    x='temas', y='Cards Pagos',
-                    title='Top 10 Clientes com Dev. Pago',
-                    color='Cards Pagos', color_continuous_scale='Greens'
-                )
-                fig_top_pago.update_layout(height=350, xaxis_title="Cliente", xaxis_tickangle=45)
-                st.plotly_chart(fig_top_pago, use_container_width=True)
-            else:
-                st.info("ℹ️ Nenhum card com label de desenvolvimento pago encontrado")
+            with col1:
+                # Gráfico de pizza: Pago vs Não Pago
+                pago_count = df_temas.groupby('dev_pago').size().reset_index(name='Cards')
+                pago_count['Categoria'] = pago_count['dev_pago'].apply(lambda x: '💰 Desenvolvimento Pago' if x else '🔧 Outros')
+                
+                fig_pago = px.pie(pago_count, values='Cards', names='Categoria',
+                                  title='Distribuição: Pago vs Outros',
+                                  color='Categoria',
+                                  color_discrete_map={'💰 Desenvolvimento Pago': '#22c55e', '🔧 Outros': '#6b7280'})
+                fig_pago.update_layout(height=350)
+                st.plotly_chart(fig_pago, use_container_width=True)
+            
+            with col2:
+                # Top clientes com mais desenvolvimento pago
+                clientes_pago = df_temas[df_temas['dev_pago'] == True].groupby('temas').size().reset_index(name='Cards Pagos')
+                clientes_pago = clientes_pago.sort_values('Cards Pagos', ascending=False).head(10)
+                
+                if not clientes_pago.empty:
+                    fig_top_pago = px.bar(
+                        clientes_pago,
+                        x='temas', y='Cards Pagos',
+                        title='Top 10 Clientes com Dev. Pago',
+                        color='Cards Pagos', color_continuous_scale='Greens'
+                    )
+                    fig_top_pago.update_layout(height=350, xaxis_title="Cliente", xaxis_tickangle=45)
+                    st.plotly_chart(fig_top_pago, use_container_width=True)
+                else:
+                    st.info("ℹ️ Nenhum card com label de desenvolvimento pago encontrado")
         
         # ===== CLIENTES COM MAIS BUGS =====
         st.markdown("---")
         st.markdown("#### 🐛 Clientes com Mais Bugs Encontrados")
         
-        clientes_bugs = df_temas.groupby('temas')['bugs'].sum().reset_index()
-        clientes_bugs = clientes_bugs[clientes_bugs['bugs'] > 0].sort_values('bugs', ascending=False).head(10)
-        
-        if not clientes_bugs.empty:
-            fig_bugs = px.bar(
-                clientes_bugs,
-                x='temas', y='bugs',
-                title='Top 10 Clientes por Bugs Encontrados',
-                color='bugs', color_continuous_scale='Reds'
-            )
-            fig_bugs.update_layout(height=350, xaxis_title="Cliente", yaxis_title="Bugs")
-            st.plotly_chart(fig_bugs, use_container_width=True)
+        if 'bugs' in df_temas.columns:
+            clientes_bugs = df_temas.groupby('temas')['bugs'].sum().reset_index()
+            clientes_bugs = clientes_bugs[clientes_bugs['bugs'] > 0].sort_values('bugs', ascending=False).head(10)
+            
+            if not clientes_bugs.empty:
+                fig_bugs = px.bar(
+                    clientes_bugs,
+                    x='temas', y='bugs',
+                    title='Top 10 Clientes por Bugs Encontrados',
+                    color='bugs', color_continuous_scale='Reds'
+                )
+                fig_bugs.update_layout(height=350, xaxis_title="Cliente", yaxis_title="Bugs")
+                st.plotly_chart(fig_bugs, use_container_width=True)
+            else:
+                st.info("ℹ️ Nenhum bug registrado para clientes no período")
         else:
-            st.info("ℹ️ Nenhum bug registrado para clientes no período")
+            st.info("ℹ️ Dados de bugs não disponíveis")
     
     else:
         # ===== ANÁLISE DO CLIENTE SELECIONADO =====
@@ -4432,11 +4468,11 @@ def aba_clientes(df_todos: pd.DataFrame):
         
         # ===== MÉTRICAS PRINCIPAIS =====
         total_cards = len(df_cliente)
-        total_concluidos = len(df_cliente[df_cliente['status_cat'] == 'done'])
-        total_em_andamento = len(df_cliente[df_cliente['status_cat'] == 'progress'])
-        total_sp = int(df_cliente['sp'].sum())
-        total_bugs = int(df_cliente['bugs'].sum())
-        total_dev_pago = df_cliente['dev_pago'].sum()
+        total_concluidos = len(df_cliente[df_cliente['status_cat'] == 'done']) if 'status_cat' in df_cliente.columns else 0
+        total_em_andamento = len(df_cliente[df_cliente['status_cat'] == 'progress']) if 'status_cat' in df_cliente.columns else 0
+        total_sp = int(df_cliente['sp'].sum()) if 'sp' in df_cliente.columns else 0
+        total_bugs = int(df_cliente['bugs'].sum()) if 'bugs' in df_cliente.columns else 0
+        total_dev_pago = df_cliente['dev_pago'].sum() if 'dev_pago' in df_cliente.columns else 0
         
         with st.expander("📊 Métricas do Cliente", expanded=True):
             col1, col2, col3, col4, col5, col6 = st.columns(6)
@@ -4460,8 +4496,9 @@ def aba_clientes(df_todos: pd.DataFrame):
                 criar_card_metrica(f"{total_dev_pago} ({pct_pago}%)", "💰 Dev. Pago", cor)
         
         # ===== PROJETOS DO CLIENTE =====
-        projetos_cliente = df_cliente['projeto'].value_counts()
-        st.markdown(f"**📂 Presença em Projetos:** {', '.join([f'{proj} ({qtd})' for proj, qtd in projetos_cliente.items()])}")
+        if 'projeto' in df_cliente.columns:
+            projetos_cliente = df_cliente['projeto'].value_counts()
+            st.markdown(f"**📂 Presença em Projetos:** {', '.join([f'{proj} ({qtd})' for proj, qtd in projetos_cliente.items()])}")
         
         st.markdown("---")
         
@@ -4470,22 +4507,28 @@ def aba_clientes(df_todos: pd.DataFrame):
         
         with col_status:
             st.markdown("##### 📊 Distribuição por Status")
-            status_count = df_cliente.groupby('status_cat').size().reset_index(name='Cards')
-            status_count['Status'] = status_count['status_cat'].map(STATUS_NOMES)
-            
-            fig_status = px.pie(status_count, values='Cards', names='Status',
-                                color_discrete_sequence=px.colors.qualitative.Set2)
-            fig_status.update_layout(height=300)
-            st.plotly_chart(fig_status, use_container_width=True)
+            if 'status_cat' in df_cliente.columns:
+                status_count = df_cliente.groupby('status_cat').size().reset_index(name='Cards')
+                status_count['Status'] = status_count['status_cat'].map(STATUS_NOMES)
+                
+                fig_status = px.pie(status_count, values='Cards', names='Status',
+                                    color_discrete_sequence=px.colors.qualitative.Set2)
+                fig_status.update_layout(height=300)
+                st.plotly_chart(fig_status, use_container_width=True)
+            else:
+                st.caption("Dados de status não disponíveis")
         
         with col_tipo:
             st.markdown("##### 📋 Distribuição por Tipo")
-            tipo_count = df_cliente.groupby('tipo_issue').size().reset_index(name='Cards')
-            
-            fig_tipo = px.pie(tipo_count, values='Cards', names='tipo_issue',
-                              color_discrete_sequence=px.colors.qualitative.Pastel)
-            fig_tipo.update_layout(height=300)
-            st.plotly_chart(fig_tipo, use_container_width=True)
+            if 'tipo' in df_cliente.columns:
+                tipo_count = df_cliente.groupby('tipo').size().reset_index(name='Cards')
+                
+                fig_tipo = px.pie(tipo_count, values='Cards', names='tipo',
+                                  color_discrete_sequence=px.colors.qualitative.Pastel)
+                fig_tipo.update_layout(height=300)
+                st.plotly_chart(fig_tipo, use_container_width=True)
+            else:
+                st.caption("Dados de tipo não disponíveis")
         
         st.markdown("---")
         
@@ -4496,26 +4539,35 @@ def aba_clientes(df_todos: pd.DataFrame):
         
         with col_relator:
             st.markdown("**📝 Relatores (criadores)**")
-            relatores = df_cliente['relator'].value_counts().head(5)
-            for nome, qtd in relatores.items():
-                pct = int(qtd / total_cards * 100)
-                st.markdown(f"- **{nome}**: {qtd} cards ({pct}%)")
+            if 'relator' in df_cliente.columns:
+                relatores = df_cliente['relator'].value_counts().head(5)
+                for nome, qtd in relatores.items():
+                    pct = int(qtd / total_cards * 100)
+                    st.markdown(f"- **{nome}**: {qtd} cards ({pct}%)")
+            else:
+                st.caption("Dados não disponíveis")
         
         with col_dev:
             st.markdown("**👨‍💻 Desenvolvedores**")
-            devs = df_cliente['desenvolvedor'].value_counts().head(5)
-            for nome, qtd in devs.items():
-                if nome != 'Não atribuído':
-                    pct = int(qtd / total_cards * 100)
-                    st.markdown(f"- **{nome}**: {qtd} cards ({pct}%)")
+            if 'desenvolvedor' in df_cliente.columns:
+                devs = df_cliente['desenvolvedor'].value_counts().head(5)
+                for nome, qtd in devs.items():
+                    if nome != 'Não atribuído':
+                        pct = int(qtd / total_cards * 100)
+                        st.markdown(f"- **{nome}**: {qtd} cards ({pct}%)")
+            else:
+                st.caption("Dados não disponíveis")
         
         with col_qa:
             st.markdown("**🔬 QAs responsáveis**")
-            qas = df_cliente['qa'].value_counts().head(5)
-            for nome, qtd in qas.items():
-                if nome != 'Não atribuído':
-                    pct = int(qtd / total_cards * 100)
-                    st.markdown(f"- **{nome}**: {qtd} cards ({pct}%)")
+            if 'qa' in df_cliente.columns:
+                qas = df_cliente['qa'].value_counts().head(5)
+                for nome, qtd in qas.items():
+                    if nome != 'Não atribuído':
+                        pct = int(qtd / total_cards * 100)
+                        st.markdown(f"- **{nome}**: {qtd} cards ({pct}%)")
+            else:
+                st.caption("Dados não disponíveis")
         
         st.markdown("---")
         
@@ -4529,12 +4581,15 @@ def aba_clientes(df_todos: pd.DataFrame):
             cards_pagos = df_cliente[df_cliente['dev_pago'] == True]
             cards_outros = df_cliente[df_cliente['dev_pago'] == False]
             
+            sp_pagos = int(cards_pagos['sp'].sum()) if 'sp' in cards_pagos.columns else 0
+            sp_outros = int(cards_outros['sp'].sum()) if 'sp' in cards_outros.columns else 0
+            
             st.markdown(f"""
             <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 15px; margin-bottom: 10px;">
                 <div style="font-size: 24px; font-weight: bold; color: #22c55e;">💰 {len(cards_pagos)}</div>
                 <div style="color: #166534;">Cards de Desenvolvimento Pago</div>
                 <div style="color: #6b7280; font-size: 12px; margin-top: 5px;">
-                    {int(len(cards_pagos)/total_cards*100) if total_cards > 0 else 0}% do total | {int(cards_pagos['sp'].sum())} SP
+                    {int(len(cards_pagos)/total_cards*100) if total_cards > 0 else 0}% do total | {sp_pagos} SP
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -4544,7 +4599,7 @@ def aba_clientes(df_todos: pd.DataFrame):
                 <div style="font-size: 24px; font-weight: bold; color: #6b7280;">🔧 {len(cards_outros)}</div>
                 <div style="color: #475569;">Outros (Manutenção/Suporte)</div>
                 <div style="color: #6b7280; font-size: 12px; margin-top: 5px;">
-                    {int(len(cards_outros)/total_cards*100) if total_cards > 0 else 0}% do total | {int(cards_outros['sp'].sum())} SP
+                    {int(len(cards_outros)/total_cards*100) if total_cards > 0 else 0}% do total | {sp_outros} SP
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -4555,7 +4610,8 @@ def aba_clientes(df_todos: pd.DataFrame):
                 st.markdown("**Últimos Cards Pagos:**")
                 for _, card in cards_pagos.head(5).iterrows():
                     card_popup = card_link_com_popup(card['ticket_id'])
-                    st.markdown(f"- {card_popup}: {card['titulo'][:40]}...")
+                    titulo = card.get('titulo', card.get('summary', 'Sem título'))
+                    st.markdown(f"- {card_popup}: {str(titulo)[:40]}...")
             else:
                 st.info("Nenhum card de desenvolvimento pago para este cliente")
         
@@ -4565,21 +4621,24 @@ def aba_clientes(df_todos: pd.DataFrame):
         st.markdown("##### 📅 Timeline de Cards")
         
         # Agrupa por mês
-        df_cliente_copy = df_cliente.copy()
-        df_cliente_copy['mes'] = df_cliente_copy['criado'].dt.to_period('M').astype(str)
-        timeline = df_cliente_copy.groupby('mes').agg({
-            'ticket_id': 'count',
-            'sp': 'sum'
-        }).reset_index()
-        timeline.columns = ['Mês', 'Cards', 'SP']
-        
-        if len(timeline) > 1:
-            fig_timeline = px.line(timeline, x='Mês', y='Cards', markers=True,
-                                   title='Evolução de Cards por Mês')
-            fig_timeline.update_layout(height=300)
-            st.plotly_chart(fig_timeline, use_container_width=True)
+        if 'criado' in df_cliente.columns:
+            df_cliente_copy = df_cliente.copy()
+            df_cliente_copy['mes'] = df_cliente_copy['criado'].dt.to_period('M').astype(str)
+            agg_dict = {'ticket_id': 'count'}
+            if 'sp' in df_cliente_copy.columns:
+                agg_dict['sp'] = 'sum'
+            timeline = df_cliente_copy.groupby('mes').agg(agg_dict).reset_index()
+            timeline.columns = ['Mês', 'Cards'] + (['SP'] if 'sp' in agg_dict else [])
+            
+            if len(timeline) > 1:
+                fig_timeline = px.line(timeline, x='Mês', y='Cards', markers=True,
+                                       title='Evolução de Cards por Mês')
+                fig_timeline.update_layout(height=300)
+                st.plotly_chart(fig_timeline, use_container_width=True)
+            else:
+                st.caption("Timeline não disponível (período muito curto)")
         else:
-            st.caption("Timeline não disponível (período muito curto)")
+            st.caption("Dados de data não disponíveis")
         
         st.markdown("---")
         
@@ -4587,31 +4646,40 @@ def aba_clientes(df_todos: pd.DataFrame):
         st.markdown("##### 📄 Últimos 10 Cards")
         
         # Ordena por data de atualização
-        ultimos_cards = df_cliente.sort_values('atualizado', ascending=False).head(10)
+        if 'atualizado' in df_cliente.columns:
+            ultimos_cards = df_cliente.sort_values('atualizado', ascending=False).head(10)
+        else:
+            ultimos_cards = df_cliente.head(10)
         
         for _, card in ultimos_cards.iterrows():
-            status_cor = STATUS_CORES.get(card['status_cat'], '#6b7280')
-            status_nome = STATUS_NOMES.get(card['status_cat'], card['status'])
+            status_cor = STATUS_CORES.get(card.get('status_cat', ''), '#6b7280')
+            status_nome = STATUS_NOMES.get(card.get('status_cat', ''), card.get('status', 'N/A'))
             card_popup = card_link_com_popup(card['ticket_id'])
             
             # Tempo relativo
-            tempo = formatar_tempo_relativo(card['atualizado'])
+            tempo = formatar_tempo_relativo(card['atualizado']) if 'atualizado' in card else 'N/A'
             
             # Tag de desenvolvimento pago
-            tag_pago = '<span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px; margin-left: 5px;">💰 PAGO</span>' if card['dev_pago'] else ''
+            tag_pago = '<span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px; margin-left: 5px;">💰 PAGO</span>' if card.get('dev_pago', False) else ''
+            
+            titulo = card.get('titulo', card.get('summary', 'Sem título'))
+            relator = card.get('relator', 'N/A')
+            dev = card.get('desenvolvedor', 'N/A')
+            qa = card.get('qa', 'N/A')
+            projeto = card.get('projeto', 'N/A')
             
             st.markdown(f"""
             <div style="background: #f8fafc; border-left: 4px solid {status_cor}; padding: 10px 15px; margin: 5px 0; border-radius: 4px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        {card_popup} <span style="color: #64748b;">- {card['titulo'][:50]}{'...' if len(str(card['titulo'])) > 50 else ''}</span>
-                        <span style="color: #9ca3af; font-size: 11px;">({card['projeto']})</span>
+                        {card_popup} <span style="color: #64748b;">- {str(titulo)[:50]}{'...' if len(str(titulo)) > 50 else ''}</span>
+                        <span style="color: #9ca3af; font-size: 11px;">({projeto})</span>
                         {tag_pago}
                     </div>
                     <span style="background: {status_cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{status_nome}</span>
                 </div>
                 <div style="margin-top: 5px; font-size: 12px; color: #94a3b8;">
-                    👤 {card['relator']} → 👨‍💻 {card['desenvolvedor']} → 🔬 {card['qa']} | {tempo}
+                    👤 {relator} → 👨‍💻 {dev} → 🔬 {qa} | {tempo}
                 </div>
             </div>
             """, unsafe_allow_html=True)
