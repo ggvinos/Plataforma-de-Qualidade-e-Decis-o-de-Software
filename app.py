@@ -4680,14 +4680,16 @@ def aba_clientes(df_todos: pd.DataFrame):
         else:
             ultimos_cards = df_cliente.head(10)
         
+        import html as html_lib
+        
         for _, card in ultimos_cards.iterrows():
             status_cor = STATUS_CORES.get(card.get('status_cat', ''), '#6b7280')
             status_nome = STATUS_NOMES.get(card.get('status_cat', ''), card.get('status', 'N/A'))
             
-            # Link simples para o Jira (sem popup complexo que quebra o HTML)
-            ticket_id = card['ticket_id']
+            # Link simples para o Jira
+            ticket_id = str(card['ticket_id'])
             url_jira = f"{JIRA_BASE_URL}/browse/{ticket_id}"
-            projeto = card.get('projeto', 'N/A')
+            projeto = str(card.get('projeto', 'N/A'))
             
             # Cor por projeto
             cores_projeto = {"PB": "#8b5cf6", "SD": "#3b82f6", "QA": "#22c55e", "VALPROD": "#f59e0b"}
@@ -4697,28 +4699,32 @@ def aba_clientes(df_todos: pd.DataFrame):
             tempo = formatar_tempo_relativo(card['atualizado']) if 'atualizado' in card else 'N/A'
             
             # Tag de desenvolvimento pago
-            tag_pago = '<span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px; margin-left: 5px;">💰 PAGO</span>' if card.get('dev_pago', False) else ''
+            is_pago = card.get('dev_pago', False)
+            tag_pago = '<span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px; margin-left: 5px;">💰 PAGO</span>' if is_pago else ''
             
-            titulo = str(card.get('titulo', card.get('summary', 'Sem título')))
+            # Escapa caracteres especiais HTML
+            titulo = html_lib.escape(str(card.get('titulo', card.get('summary', 'Sem título'))))
             titulo_truncado = titulo[:50] + ('...' if len(titulo) > 50 else '')
-            relator = card.get('relator', 'N/A')
-            dev = card.get('desenvolvedor', 'N/A')
-            qa = card.get('qa', 'N/A')
+            relator = html_lib.escape(str(card.get('relator', 'N/A')))
+            dev = html_lib.escape(str(card.get('desenvolvedor', 'N/A')))
+            qa = html_lib.escape(str(card.get('qa', 'N/A')))
+            status_nome = html_lib.escape(str(status_nome))
             
-            st.markdown(f"""<div style="background: #f8fafc; border-left: 4px solid {status_cor}; padding: 10px 15px; margin: 5px 0; border-radius: 4px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 5px;">
-            <a href="{url_jira}" target="_blank" style="color: {cor_projeto}; font-weight: 600; text-decoration: none;">{ticket_id}</a>
-            <span style="color: #64748b;">- {titulo_truncado}</span>
-            <span style="color: #9ca3af; font-size: 11px;">({projeto})</span>
-            {tag_pago}
-        </div>
-        <span style="background: {status_cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap;">{status_nome}</span>
-    </div>
-    <div style="margin-top: 5px; font-size: 12px; color: #94a3b8;">
-        👤 {relator} → 👨‍💻 {dev} → 🔬 {qa} | {tempo}
-    </div>
-</div>""", unsafe_allow_html=True)
+            html_card = f'''<div style="background: #f8fafc; border-left: 4px solid {status_cor}; padding: 10px 15px; margin: 5px 0; border-radius: 4px;">
+<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 5px;">
+<a href="{url_jira}" target="_blank" style="color: {cor_projeto}; font-weight: 600; text-decoration: none;">{ticket_id}</a>
+<span style="color: #64748b;">- {titulo_truncado}</span>
+<span style="color: #9ca3af; font-size: 11px;">({projeto})</span>
+{tag_pago}
+</div>
+<span style="background: {status_cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap;">{status_nome}</span>
+</div>
+<div style="margin-top: 5px; font-size: 12px; color: #94a3b8;">
+👤 {relator} → 👨‍💻 {dev} → 🔬 {qa} | {tempo}
+</div>
+</div>'''
+            st.markdown(html_card, unsafe_allow_html=True)
 
 
 def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
