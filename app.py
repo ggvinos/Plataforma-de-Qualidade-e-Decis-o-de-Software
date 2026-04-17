@@ -525,8 +525,12 @@ def salvar_login_localStorage(email: str):
     """Salva o email no localStorage do navegador usando JavaScript."""
     js_code = f"""
     <script>
-        localStorage.setItem('ninadash_email', '{email}');
-        localStorage.setItem('ninadash_login_time', '{datetime.now().isoformat()}');
+        try {{
+            parent.window.localStorage.setItem('ninadash_email', '{email}');
+            parent.window.localStorage.setItem('ninadash_login_time', '{datetime.now().isoformat()}');
+        }} catch(e) {{
+            console.log('Erro ao salvar localStorage:', e);
+        }}
     </script>
     """
     components.html(js_code, height=0)
@@ -536,8 +540,12 @@ def limpar_login_localStorage():
     """Remove o email do localStorage do navegador."""
     js_code = """
     <script>
-        localStorage.removeItem('ninadash_email');
-        localStorage.removeItem('ninadash_login_time');
+        try {
+            parent.window.localStorage.removeItem('ninadash_email');
+            parent.window.localStorage.removeItem('ninadash_login_time');
+        } catch(e) {
+            console.log('Erro ao limpar localStorage:', e);
+        }
     </script>
     """
     components.html(js_code, height=0)
@@ -690,21 +698,26 @@ def mostrar_tela_login():
     
     # ===== VERIFICAR localStorage E FAZER AUTO-LOGIN =====
     # Injeta JavaScript que verifica se há email salvo e redireciona
+    # Usa parent.location para funcionar no contexto do Streamlit
     components.html("""
     <script>
         (function() {
-            // Verifica se já tem auto_login na URL (evita loop)
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.has('auto_login')) {
-                return; // Já está tentando auto-login
-            }
-            
-            // Verifica localStorage
-            const savedEmail = localStorage.getItem('ninadash_email');
-            if (savedEmail && savedEmail.includes('@')) {
-                // Redireciona com auto_login param
-                const baseUrl = window.location.origin + window.location.pathname;
-                window.location.href = baseUrl + '?auto_login=' + encodeURIComponent(savedEmail);
+            try {
+                // Verifica se já tem auto_login na URL (evita loop)
+                const urlParams = new URLSearchParams(parent.window.location.search);
+                if (urlParams.has('auto_login')) {
+                    return; // Já está tentando auto-login
+                }
+                
+                // Verifica localStorage do parent (contexto principal)
+                const savedEmail = parent.window.localStorage.getItem('ninadash_email');
+                if (savedEmail && savedEmail.includes('@')) {
+                    // Redireciona com auto_login param usando parent.location
+                    const baseUrl = parent.window.location.origin + parent.window.location.pathname;
+                    parent.window.location.href = baseUrl + '?auto_login=' + encodeURIComponent(savedEmail);
+                }
+            } catch(e) {
+                console.log('Auto-login check:', e);
             }
         })();
     </script>
@@ -4601,6 +4614,155 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
                          color='count', color_continuous_scale='Blues')
             fig.update_layout(height=350, showlegend=False)
             st.plotly_chart(fig, use_container_width=True)
+    
+    # ===== ANÁLISE POR CLIENTE =====
+    with st.expander("🏢 Análise por Cliente/Tema", expanded=False):
+        st.caption("Pesquise por cliente para ver métricas, responsáveis e histórico de cards")
+        
+        # Verifica se a coluna temas existe
+        if 'temas' not in df.columns:
+            st.warning("⚠️ Dados de clientes/temas não disponíveis neste projeto")
+        else:
+            # Explode temas para análise
+            df_temas = df.explode('temas')
+            df_temas = df_temas[df_temas['temas'].notna() & (df_temas['temas'] != '') & (df_temas['temas'] != 'Sem tema')]
+            
+            if df_temas.empty:
+                st.info("ℹ️ Nenhum card com cliente/tema definido no período")
+            else:
+                # Lista de clientes únicos ordenados por frequência
+                clientes_count = df_temas['temas'].value_counts()
+                clientes_unicos = clientes_count.index.tolist()
+                
+                # Seletor de cliente
+                col_sel, col_info = st.columns([2, 1])
+                
+                with col_sel:
+                    cliente_selecionado = st.selectbox(
+                        "🔍 Selecione ou pesquise um cliente",
+                        options=["📊 Visão Geral (Top Clientes)"] + clientes_unicos,
+                        key="select_cliente_analise"
+                    )
+                
+                with col_info:
+                    st.metric("Total Clientes", len(clientes_unicos))
+                
+                st.markdown("---")
+                
+                if cliente_selecionado == "📊 Visão Geral (Top Clientes)":
+                    # ===== TOP CLIENTES =====
+                    st.markdown("#### 📊 Top 10 Clientes por Volume de Cards")
+                    
+                    # Ranking de clientes
+                    ranking_clientes = df_temas.groupby('temas').agg({
+                        'ticket_id': 'count',
+                        'sp': 'sum',
+                        'bugs': 'sum',
+                        'status_cat': lambda x: (x == 'done').sum()
+                    }).reset_index()
+                    ranking_clientes.columns = ['Cliente', 'Cards', 'SP Total', 'Bugs', 'Concluídos']
+                    ranking_clientes['% Concluído'] = (ranking_clientes['Concluídos'] / ranking_clientes['Cards'] * 100).round(0).astype(int)
+                    ranking_clientes = ranking_clientes.sort_values('Cards', ascending=False).head(10)
+                    
+                    # Gráfico de barras horizontais
+                    fig = px.bar(
+                        ranking_clientes.sort_values('Cards', ascending=True),
+                        x='Cards', y='Cliente', orientation='h',
+                        color='% Concluído', color_continuous_scale='RdYlGn',
+                        title='Top 10 Clientes por Volume'
+                    )
+                    fig.update_layout(height=400, yaxis={'categoryorder': 'total ascending'})
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Tabela resumida
+                    st.dataframe(
+                        ranking_clientes[['Cliente', 'Cards', 'SP Total', 'Concluídos', '% Concluído']],
+                        hide_index=True, use_container_width=True
+                    )
+                
+                else:
+                    # ===== ANÁLISE DO CLIENTE SELECIONADO =====
+                    df_cliente = df_temas[df_temas['temas'] == cliente_selecionado]
+                    
+                    st.markdown(f"#### 🏢 {cliente_selecionado}")
+                    
+                    # Métricas do cliente
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    total_cards = len(df_cliente)
+                    total_concluidos = len(df_cliente[df_cliente['status_cat'] == 'done'])
+                    total_sp = int(df_cliente['sp'].sum())
+                    total_bugs = int(df_cliente['bugs'].sum())
+                    
+                    with col1:
+                        st.metric("📋 Total Cards", total_cards)
+                    with col2:
+                        pct = int(total_concluidos / total_cards * 100) if total_cards > 0 else 0
+                        st.metric("✅ Concluídos", f"{total_concluidos} ({pct}%)")
+                    with col3:
+                        st.metric("📐 Story Points", total_sp)
+                    with col4:
+                        st.metric("🐛 Bugs", total_bugs)
+                    
+                    st.markdown("---")
+                    
+                    # ===== QUEM MAIS TRATA ESSE CLIENTE =====
+                    st.markdown("##### 👥 Pessoas que mais tratam este cliente")
+                    
+                    col_relator, col_dev, col_qa = st.columns(3)
+                    
+                    with col_relator:
+                        st.markdown("**📝 Relatores (criadores)**")
+                        relatores = df_cliente['relator'].value_counts().head(5)
+                        for nome, qtd in relatores.items():
+                            pct = int(qtd / total_cards * 100)
+                            st.markdown(f"- **{nome}**: {qtd} cards ({pct}%)")
+                    
+                    with col_dev:
+                        st.markdown("**👨‍💻 Desenvolvedores**")
+                        devs = df_cliente['desenvolvedor'].value_counts().head(5)
+                        for nome, qtd in devs.items():
+                            if nome != 'Não atribuído':
+                                pct = int(qtd / total_cards * 100)
+                                st.markdown(f"- **{nome}**: {qtd} cards ({pct}%)")
+                    
+                    with col_qa:
+                        st.markdown("**🔬 QAs responsáveis**")
+                        qas = df_cliente['qa'].value_counts().head(5)
+                        for nome, qtd in qas.items():
+                            if nome != 'Não atribuído':
+                                pct = int(qtd / total_cards * 100)
+                                st.markdown(f"- **{nome}**: {qtd} cards ({pct}%)")
+                    
+                    st.markdown("---")
+                    
+                    # ===== ÚLTIMOS CARDS DO CLIENTE =====
+                    st.markdown("##### 📄 Últimos Cards")
+                    
+                    # Ordena por data de atualização
+                    ultimos_cards = df_cliente.sort_values('atualizado', ascending=False).head(10)
+                    
+                    for _, card in ultimos_cards.iterrows():
+                        status_cor = STATUS_CORES.get(card['status_cat'], '#6b7280')
+                        status_nome = STATUS_NOMES.get(card['status_cat'], card['status'])
+                        card_popup = card_link_com_popup(card['ticket_id'])
+                        
+                        # Tempo relativo
+                        tempo = formatar_tempo_relativo(card['atualizado'])
+                        
+                        st.markdown(f"""
+                        <div style="background: #f8fafc; border-left: 4px solid {status_cor}; padding: 10px 15px; margin: 5px 0; border-radius: 4px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    {card_popup} <span style="color: #64748b;">- {card['titulo'][:60]}{'...' if len(str(card['titulo'])) > 60 else ''}</span>
+                                </div>
+                                <span style="background: {status_cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{status_nome}</span>
+                            </div>
+                            <div style="margin-top: 5px; font-size: 12px; color: #94a3b8;">
+                                👤 {card['relator']} → 👨‍💻 {card['desenvolvedor']} → 🔬 {card['qa']} | {tempo}
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
 
 
 def aba_qa(df: pd.DataFrame):
@@ -8999,7 +9161,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.74 • Qualidade e Decisão de Software
+                    v8.75 • Qualidade e Decisão de Software
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -9015,11 +9177,17 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.75** *(17/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 🏢 **Análise por Cliente**: Nova seção em Visão Geral para pesquisar clientes
+                - 📊 **Top Clientes**: Ranking dos clientes com mais cards
+                - 👥 **Responsáveis**: Ver quem mais trata cada cliente (Relator, Dev, QA)
+                - 📄 **Últimos Cards**: Histórico recente por cliente
+                - 🔐 **Fix Login**: Corrigido localStorage usando parent.window
+                
                 **v8.74** *(17/04/2026)* <span style="background: #ef4444; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🔥</span>
                 - 🔐 **Login via localStorage**: Substitui cookies por localStorage (mais confiável)
                 - ⚡ **Auto-login**: JavaScript detecta email salvo e faz login automático
                 - 🔄 **Persiste entre Refreshes**: Atualizar página mantém o login
-                - 🆕 **Nova Aba Funciona**: Abrir links em nova aba mantém sessão
                 
                 **v8.73** *(17/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
                 - 🔗 **URL Limpa**: Remove params da URL ao navegar (não polui mais)
