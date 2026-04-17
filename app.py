@@ -518,22 +518,16 @@ def verificar_credenciais() -> bool:
 
 
 # ==============================================================================
-# AUTENTICAÇÃO DE USUÁRIO (usando CookieManager + Query Params como fallback)
+# AUTENTICAÇÃO DE USUÁRIO (usando session_state + Query Params)
 # ==============================================================================
 
-@st.cache_resource
-def get_cookie_manager():
-    """Retorna uma instância única do CookieManager."""
-    return stx.CookieManager(key="ninadash_auth_v3")
-
-
 def verificar_login() -> bool:
-    """Verifica se o usuário está logado (via session_state, cookie ou query_params)."""
+    """Verifica se o usuário está logado (via session_state ou query_params)."""
     # 1. Primeiro verifica session_state (mais rápido)
     if st.session_state.get("logged_in", False) and st.session_state.get("user_email"):
         return True
     
-    # 2. Verifica query_params para auto-login (vindo de link ou refresh com cookie)
+    # 2. Verifica query_params para auto-login (vindo de link compartilhado)
     auto_login_email = st.query_params.get("_auth", None)
     if auto_login_email and validar_email_corporativo(auto_login_email):
         st.session_state.logged_in = True
@@ -543,21 +537,6 @@ def verificar_login() -> bool:
         if "_auth" in st.query_params:
             del st.query_params["_auth"]
         return True
-    
-    # 3. Tenta ler cookie
-    try:
-        cookie_manager = get_cookie_manager()
-        cookies = cookie_manager.get_all()
-        
-        if cookies is not None:
-            email_cookie = cookies.get("ninadash_user")
-            if email_cookie and validar_email_corporativo(email_cookie):
-                st.session_state.logged_in = True
-                st.session_state.user_email = email_cookie
-                st.session_state.user_nome = extrair_nome_usuario(email_cookie)
-                return True
-    except Exception as e:
-        pass  # Falha silenciosa
     
     return False
 
@@ -591,30 +570,13 @@ def fazer_login(email: str, lembrar: bool = False) -> bool:
         st.session_state.logged_in = True
         st.session_state.user_email = email_lower
         st.session_state.user_nome = extrair_nome_usuario(email_lower)
-        
-        # Se marcou "lembrar", salva no cookie
-        if lembrar:
-            try:
-                cookie_manager = get_cookie_manager()
-                # Cookie válido por 30 dias
-                cookie_manager.set("ninadash_user", email_lower, expires_at=datetime.now() + timedelta(days=30))
-            except Exception:
-                pass  # Falha silenciosa
-        
         return True
     
     return False
 
 
 def fazer_logout():
-    """Remove sessão do usuário e limpa cookie."""
-    # Limpa cookie
-    try:
-        cookie_manager = get_cookie_manager()
-        cookie_manager.delete("ninadash_user")
-    except Exception:
-        pass  # Falha silenciosa
-    
+    """Remove sessão do usuário."""
     # Limpa session_state
     st.session_state.logged_in = False
     st.session_state.user_email = None
