@@ -4245,21 +4245,18 @@ def aba_clientes(df_todos: pd.DataFrame):
         st.info("ℹ️ Nenhum card com cliente/tema definido no período")
         return
     
-    # ===== FUNÇÃO PARA IDENTIFICAR DESENVOLVIMENTO PAGO =====
-    def is_desenvolvimento_pago(labels):
-        """Verifica se o card é desenvolvimento pago com base nas labels."""
-        if not labels or (isinstance(labels, float) and pd.isna(labels)):
+    # ===== DETECTAR DESENVOLVIMENTO PAGO (baseado no tipo de ticket) =====
+    def is_desenvolvimento_pago(tipo):
+        """Verifica se o card é desenvolvimento pago com base no tipo de ticket."""
+        if not tipo or (isinstance(tipo, float) and pd.isna(tipo)):
             return False
-        if isinstance(labels, list):
-            labels_lower = [str(l).lower() for l in labels]
-            # Palavras-chave que indicam desenvolvimento pago
-            keywords_pago = ['pago', 'desenvolvimento pago', 'dev pago', 'customização', 'projeto pago', 'faturável']
-            return any(keyword in ' '.join(labels_lower) for keyword in keywords_pago)
-        return False
+        tipo_lower = str(tipo).lower()
+        # O tipo exato é "Desenvolvimento Pago" ou similar
+        return 'desenvolvimento pago' in tipo_lower or tipo_lower == 'desenvolvimento pago'
     
-    # Adiciona coluna de desenvolvimento pago (se labels existir)
-    if 'labels' in df_temas.columns:
-        df_temas['dev_pago'] = df_temas['labels'].apply(is_desenvolvimento_pago)
+    # Adiciona coluna de desenvolvimento pago (baseado no tipo de ticket)
+    if 'tipo' in df_temas.columns:
+        df_temas['dev_pago'] = df_temas['tipo'].apply(is_desenvolvimento_pago)
     else:
         df_temas['dev_pago'] = False
     
@@ -4273,36 +4270,13 @@ def aba_clientes(df_todos: pd.DataFrame):
     if cliente_url and cliente_url in clientes_unicos:
         indice_inicial = opcoes_cliente.index(cliente_url)
     
-    # ===== SELETOR DE CLIENTE =====
-    col_sel, col_info, col_link = st.columns([2, 1, 1])
-    
-    with col_sel:
-        cliente_selecionado = st.selectbox(
-            "🔍 Selecione ou pesquise um cliente",
-            options=opcoes_cliente,
-            index=indice_inicial,
-            key="select_cliente_aba"
-        )
-    
-    with col_info:
-        st.metric("Total Clientes", len(clientes_unicos))
-    
-    with col_link:
-        # Botão de copiar link (se não é visão geral)
-        if cliente_selecionado != "👀 Visão Geral do Time":
-            link = f"{NINADASH_URL}?cliente={requests.utils.quote(cliente_selecionado)}"
-            st.markdown(f"""
-            <a href="{link}" target="_blank" style="
-                display: inline-flex; align-items: center; gap: 6px;
-                background: linear-gradient(135deg, #AF0C37, #8F0A2E); 
-                color: white; padding: 8px 16px; border-radius: 8px; 
-                text-decoration: none; font-size: 13px; font-weight: 500;
-                box-shadow: 0 2px 6px rgba(175,12,55,0.25);
-                transition: all 0.2s ease;
-            " onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'">
-                🔗 Copiar Link
-            </a>
-            """, unsafe_allow_html=True)
+    # ===== SELETOR DE CLIENTE (igual QA/Dev) =====
+    cliente_selecionado = st.selectbox(
+        "🔍 Selecione ou pesquise um cliente",
+        options=opcoes_cliente,
+        index=indice_inicial,
+        key="select_cliente_aba"
+    )
     
     st.markdown("---")
     
@@ -4464,7 +4438,61 @@ def aba_clientes(df_todos: pd.DataFrame):
         # ===== ANÁLISE DO CLIENTE SELECIONADO =====
         df_cliente = df_temas[df_temas['temas'] == cliente_selecionado]
         
-        st.markdown(f"#### 🏢 {cliente_selecionado}")
+        if df_cliente.empty:
+            st.warning(f"Nenhum card encontrado para o cliente {cliente_selecionado}")
+            return
+        
+        # Header com título e botão de compartilhamento (igual QA/Dev)
+        import urllib.parse
+        share_url = f"{NINADASH_URL}?cliente={urllib.parse.quote(cliente_selecionado)}"
+        
+        col_titulo, col_share = st.columns([3, 1])
+        with col_titulo:
+            st.markdown(f"### 🏢 {cliente_selecionado}")
+        with col_share:
+            # Botão Copiar Link usando components.html (mesmo padrão do QA/Dev)
+            components.html(f"""
+            <button id="copyBtnCliente" style="
+                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                color: white;
+                border: none;
+                padding: 10px 16px;
+                border-radius: 6px;
+                cursor: pointer;
+                width: 100%;
+                font-size: 14px;
+                font-weight: 500;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                transition: all 0.2s ease;
+            ">📋 Copiar Link</button>
+            <script>
+                document.getElementById('copyBtnCliente').addEventListener('click', function() {{
+                    var url = '{share_url}';
+                    var btn = this;
+                    navigator.clipboard.writeText(url).then(function() {{
+                        btn.innerHTML = '✅ Copiado!';
+                        btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+                        setTimeout(function() {{
+                            btn.innerHTML = '📋 Copiar Link';
+                            btn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+                        }}, 2000);
+                    }}).catch(function() {{
+                        var temp = document.createElement('textarea');
+                        temp.value = url;
+                        document.body.appendChild(temp);
+                        temp.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(temp);
+                        btn.innerHTML = '✅ Copiado!';
+                        btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+                        setTimeout(function() {{
+                            btn.innerHTML = '📋 Copiar Link';
+                            btn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+                        }}, 2000);
+                    }});
+                }});
+            </script>
+            """, height=45)
         
         # ===== MÉTRICAS PRINCIPAIS =====
         total_cards = len(df_cliente)
