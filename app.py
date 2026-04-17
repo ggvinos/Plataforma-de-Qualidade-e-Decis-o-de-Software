@@ -518,45 +518,36 @@ def verificar_credenciais() -> bool:
 
 
 # ==============================================================================
-# AUTENTICAÇÃO DE USUÁRIO
+# AUTENTICAÇÃO DE USUÁRIO (usando localStorage via JavaScript)
 # ==============================================================================
 
-def get_cookie_manager():
-    """Retorna o CookieManager singleton para evitar múltiplas instâncias."""
-    if 'cookie_manager' not in st.session_state:
-        st.session_state.cookie_manager = stx.CookieManager(key="ninadash_cookies_v2")
-    return st.session_state.cookie_manager
+def salvar_login_localStorage(email: str):
+    """Salva o email no localStorage do navegador usando JavaScript."""
+    js_code = f"""
+    <script>
+        localStorage.setItem('ninadash_email', '{email}');
+        localStorage.setItem('ninadash_login_time', '{datetime.now().isoformat()}');
+    </script>
+    """
+    components.html(js_code, height=0)
+
+
+def limpar_login_localStorage():
+    """Remove o email do localStorage do navegador."""
+    js_code = """
+    <script>
+        localStorage.removeItem('ninadash_email');
+        localStorage.removeItem('ninadash_login_time');
+    </script>
+    """
+    components.html(js_code, height=0)
 
 
 def verificar_login() -> bool:
-    """Verifica se o usuário está logado (via session_state ou cookie)."""
-    # Primeiro verifica session_state
+    """Verifica se o usuário está logado (via session_state)."""
+    # Verifica session_state (única fonte de verdade durante a sessão)
     if st.session_state.get("logged_in", False) and st.session_state.get("user_email"):
         return True
-    
-    # Se não está logado na sessão, verifica cookie
-    try:
-        cookie_manager = get_cookie_manager()
-        
-        # Aguarda os cookies serem carregados do navegador
-        all_cookies = cookie_manager.get_all()
-        
-        # Se cookies ainda não carregaram (None), espera próximo ciclo
-        if all_cookies is None:
-            return False
-        
-        email_cookie = all_cookies.get("ninadash_email")
-        
-        if email_cookie and validar_email_corporativo(email_cookie):
-            # Restaura sessão a partir do cookie
-            st.session_state.logged_in = True
-            st.session_state.user_email = email_cookie
-            st.session_state.user_nome = extrair_nome_usuario(email_cookie)
-            return True
-    except Exception:
-        # Se houver erro ao ler cookie, ignora e pede login
-        pass
-    
     return False
 
 
@@ -590,14 +581,9 @@ def fazer_login(email: str, lembrar: bool = False) -> bool:
         st.session_state.user_email = email_lower
         st.session_state.user_nome = extrair_nome_usuario(email_lower)
         
-        # Se marcou "lembrar", salva no cookie
+        # Se marcou "lembrar", salva no localStorage
         if lembrar:
-            try:
-                cookie_manager = get_cookie_manager()
-                # Cookie expira em 30 dias
-                cookie_manager.set("ninadash_email", email_lower, expires_at=datetime.now() + timedelta(days=30))
-            except Exception:
-                pass  # Falha silenciosa se não conseguir salvar cookie
+            salvar_login_localStorage(email_lower)
         
         return True
     
@@ -605,13 +591,9 @@ def fazer_login(email: str, lembrar: bool = False) -> bool:
 
 
 def fazer_logout():
-    """Remove sessão do usuário e limpa cookie."""
-    # Tenta limpar cookie
-    try:
-        cookie_manager = get_cookie_manager()
-        cookie_manager.delete("ninadash_email")
-    except Exception:
-        pass  # Falha silenciosa
+    """Remove sessão do usuário e limpa localStorage."""
+    # Limpa localStorage
+    limpar_login_localStorage()
     
     # Limpa session_state
     st.session_state.logged_in = False
@@ -705,6 +687,28 @@ def mostrar_tela_loading():
 
 def mostrar_tela_login():
     """Tela de login simplificada e profissional."""
+    
+    # ===== VERIFICAR localStorage E FAZER AUTO-LOGIN =====
+    # Injeta JavaScript que verifica se há email salvo e redireciona
+    components.html("""
+    <script>
+        (function() {
+            // Verifica se já tem auto_login na URL (evita loop)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('auto_login')) {
+                return; // Já está tentando auto-login
+            }
+            
+            // Verifica localStorage
+            const savedEmail = localStorage.getItem('ninadash_email');
+            if (savedEmail && savedEmail.includes('@')) {
+                // Redireciona com auto_login param
+                const baseUrl = window.location.origin + window.location.pathname;
+                window.location.href = baseUrl + '?auto_login=' + encodeURIComponent(savedEmail);
+            }
+        })();
+    </script>
+    """, height=0)
     
     # CSS para tela de login
     st.markdown("""
@@ -8650,25 +8654,24 @@ def aba_sobre():
 def main():
     """Função principal do dashboard."""
     
-    # ========== VERIFICAR LOGIN (via session_state ou cookie) ==========
-    # Controla número de tentativas de verificação para evitar loop infinito
-    if 'login_check_count' not in st.session_state:
-        st.session_state.login_check_count = 0
+    # ========== AUTO-LOGIN VIA QUERY PARAMS (vindo do localStorage) ==========
+    # Verifica se há email de auto-login nos query params
+    auto_login_email = st.query_params.get("auto_login", None)
     
+    if auto_login_email and validar_email_corporativo(auto_login_email):
+        # Faz login automático
+        st.session_state.logged_in = True
+        st.session_state.user_email = auto_login_email
+        st.session_state.user_nome = extrair_nome_usuario(auto_login_email)
+        # Limpa o param de auto_login para não ficar na URL
+        st.query_params.clear()
+        st.rerun()
+    
+    # ========== VERIFICAR LOGIN (via session_state) ==========
     if not verificar_login():
-        st.session_state.login_check_count += 1
-        
-        # Nas primeiras 3 tentativas, mostra loading (cookies podem estar carregando)
-        if st.session_state.login_check_count <= 3:
-            mostrar_tela_loading()
-            return
-        
-        # Após 3 tentativas, mostra tela de login
+        # Mostra tela de login (que vai verificar localStorage via JavaScript)
         mostrar_tela_login()
         return
-    
-    # Reset contador quando login é bem-sucedido
-    st.session_state.login_check_count = 0
     
     # ========== USUÁRIO LOGADO - DASHBOARD ==========
     aplicar_estilos()
@@ -8996,7 +8999,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.73 • Qualidade e Decisão de Software
+                    v8.74 • Qualidade e Decisão de Software
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -9012,10 +9015,14 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.74** *(17/04/2026)* <span style="background: #ef4444; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🔥</span>
+                - 🔐 **Login via localStorage**: Substitui cookies por localStorage (mais confiável)
+                - ⚡ **Auto-login**: JavaScript detecta email salvo e faz login automático
+                - 🔄 **Persiste entre Refreshes**: Atualizar página mantém o login
+                - 🆕 **Nova Aba Funciona**: Abrir links em nova aba mantém sessão
+                
                 **v8.73** *(17/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
                 - 🔗 **URL Limpa**: Remove params da URL ao navegar (não polui mais)
-                - 🍪 **Cookie Singleton**: Evita múltiplas instâncias do CookieManager
-                - ⏱️ **Mais Tempo Login**: 3 tentativas para cookies carregarem
                 - 🚫 **Selectbox sem Params**: QA/Dev/Suporte não alteram mais a URL
                 
                 **v8.72** *(17/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
