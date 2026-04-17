@@ -4245,18 +4245,18 @@ def aba_clientes(df_todos: pd.DataFrame):
         st.info("ℹ️ Nenhum card com cliente/tema definido no período")
         return
     
-    # ===== DETECTAR DESENVOLVIMENTO PAGO (baseado no tipo de ticket) =====
-    def is_desenvolvimento_pago(tipo):
-        """Verifica se o card é desenvolvimento pago com base no tipo de ticket."""
-        if not tipo or (isinstance(tipo, float) and pd.isna(tipo)):
+    # ===== DETECTAR DESENVOLVIMENTO PAGO (baseado no tipo ORIGINAL do ticket do Jira) =====
+    def is_desenvolvimento_pago(tipo_original):
+        """Verifica se o card é desenvolvimento pago com base no tipo original do Jira."""
+        if not tipo_original or (isinstance(tipo_original, float) and pd.isna(tipo_original)):
             return False
-        tipo_lower = str(tipo).lower()
-        # O tipo exato é "Desenvolvimento Pago" ou similar
-        return 'desenvolvimento pago' in tipo_lower or tipo_lower == 'desenvolvimento pago'
+        tipo_lower = str(tipo_original).lower().strip()
+        # O tipo exato é "Desenvolvimento Pago" 
+        return 'desenvolvimento pago' in tipo_lower
     
-    # Adiciona coluna de desenvolvimento pago (baseado no tipo de ticket)
-    if 'tipo' in df_temas.columns:
-        df_temas['dev_pago'] = df_temas['tipo'].apply(is_desenvolvimento_pago)
+    # Adiciona coluna de desenvolvimento pago (baseado no tipo ORIGINAL do Jira, não o simplificado)
+    if 'tipo_original' in df_temas.columns:
+        df_temas['dev_pago'] = df_temas['tipo_original'].apply(is_desenvolvimento_pago)
     else:
         df_temas['dev_pago'] = False
     
