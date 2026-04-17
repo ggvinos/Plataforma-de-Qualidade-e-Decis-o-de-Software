@@ -518,44 +518,47 @@ def verificar_credenciais() -> bool:
 
 
 # ==============================================================================
-# AUTENTICAÇÃO DE USUÁRIO (usando localStorage via JavaScript)
+# AUTENTICAÇÃO DE USUÁRIO (usando CookieManager + Query Params como fallback)
 # ==============================================================================
 
-def salvar_login_localStorage(email: str):
-    """Salva o email no localStorage do navegador usando JavaScript."""
-    js_code = f"""
-    <script>
-        try {{
-            parent.window.localStorage.setItem('ninadash_email', '{email}');
-            parent.window.localStorage.setItem('ninadash_login_time', '{datetime.now().isoformat()}');
-        }} catch(e) {{
-            console.log('Erro ao salvar localStorage:', e);
-        }}
-    </script>
-    """
-    components.html(js_code, height=0)
-
-
-def limpar_login_localStorage():
-    """Remove o email do localStorage do navegador."""
-    js_code = """
-    <script>
-        try {
-            parent.window.localStorage.removeItem('ninadash_email');
-            parent.window.localStorage.removeItem('ninadash_login_time');
-        } catch(e) {
-            console.log('Erro ao limpar localStorage:', e);
-        }
-    </script>
-    """
-    components.html(js_code, height=0)
+@st.cache_resource
+def get_cookie_manager():
+    """Retorna uma instância única do CookieManager."""
+    return stx.CookieManager(key="ninadash_auth_v3")
 
 
 def verificar_login() -> bool:
-    """Verifica se o usuário está logado (via session_state)."""
-    # Verifica session_state (única fonte de verdade durante a sessão)
+    """Verifica se o usuário está logado (via session_state, cookie ou query_params)."""
+    # 1. Primeiro verifica session_state (mais rápido)
     if st.session_state.get("logged_in", False) and st.session_state.get("user_email"):
         return True
+    
+    # 2. Verifica query_params para auto-login (vindo de link ou refresh com cookie)
+    auto_login_email = st.query_params.get("_auth", None)
+    if auto_login_email and validar_email_corporativo(auto_login_email):
+        st.session_state.logged_in = True
+        st.session_state.user_email = auto_login_email
+        st.session_state.user_nome = extrair_nome_usuario(auto_login_email)
+        # Limpa o param de auth para não ficar na URL visível
+        if "_auth" in st.query_params:
+            del st.query_params["_auth"]
+        return True
+    
+    # 3. Tenta ler cookie
+    try:
+        cookie_manager = get_cookie_manager()
+        cookies = cookie_manager.get_all()
+        
+        if cookies is not None:
+            email_cookie = cookies.get("ninadash_user")
+            if email_cookie and validar_email_corporativo(email_cookie):
+                st.session_state.logged_in = True
+                st.session_state.user_email = email_cookie
+                st.session_state.user_nome = extrair_nome_usuario(email_cookie)
+                return True
+    except Exception as e:
+        pass  # Falha silenciosa
+    
     return False
 
 
@@ -589,9 +592,14 @@ def fazer_login(email: str, lembrar: bool = False) -> bool:
         st.session_state.user_email = email_lower
         st.session_state.user_nome = extrair_nome_usuario(email_lower)
         
-        # Se marcou "lembrar", salva no localStorage
+        # Se marcou "lembrar", salva no cookie
         if lembrar:
-            salvar_login_localStorage(email_lower)
+            try:
+                cookie_manager = get_cookie_manager()
+                # Cookie válido por 30 dias
+                cookie_manager.set("ninadash_user", email_lower, expires_at=datetime.now() + timedelta(days=30))
+            except Exception:
+                pass  # Falha silenciosa
         
         return True
     
@@ -599,9 +607,13 @@ def fazer_login(email: str, lembrar: bool = False) -> bool:
 
 
 def fazer_logout():
-    """Remove sessão do usuário e limpa localStorage."""
-    # Limpa localStorage
-    limpar_login_localStorage()
+    """Remove sessão do usuário e limpa cookie."""
+    # Limpa cookie
+    try:
+        cookie_manager = get_cookie_manager()
+        cookie_manager.delete("ninadash_user")
+    except Exception:
+        pass  # Falha silenciosa
     
     # Limpa session_state
     st.session_state.logged_in = False
@@ -695,33 +707,6 @@ def mostrar_tela_loading():
 
 def mostrar_tela_login():
     """Tela de login simplificada e profissional."""
-    
-    # ===== VERIFICAR localStorage E FAZER AUTO-LOGIN =====
-    # Injeta JavaScript que verifica se há email salvo e redireciona
-    # Usa parent.location para funcionar no contexto do Streamlit
-    components.html("""
-    <script>
-        (function() {
-            try {
-                // Verifica se já tem auto_login na URL (evita loop)
-                const urlParams = new URLSearchParams(parent.window.location.search);
-                if (urlParams.has('auto_login')) {
-                    return; // Já está tentando auto-login
-                }
-                
-                // Verifica localStorage do parent (contexto principal)
-                const savedEmail = parent.window.localStorage.getItem('ninadash_email');
-                if (savedEmail && savedEmail.includes('@')) {
-                    // Redireciona com auto_login param usando parent.location
-                    const baseUrl = parent.window.location.origin + parent.window.location.pathname;
-                    parent.window.location.href = baseUrl + '?auto_login=' + encodeURIComponent(savedEmail);
-                }
-            } catch(e) {
-                console.log('Auto-login check:', e);
-            }
-        })();
-    </script>
-    """, height=0)
     
     # CSS para tela de login
     st.markdown("""
@@ -4274,6 +4259,399 @@ def criar_grafico_hotfix_por_produto(df: pd.DataFrame) -> go.Figure:
 # ABAS DO DASHBOARD
 # ==============================================================================
 
+def aba_clientes(df_todos: pd.DataFrame):
+    """Aba de análise por Clientes/Temas (usa todos os projetos, ignora filtro de projeto)."""
+    st.markdown("### 🏢 Análise por Cliente/Tema")
+    st.caption("Visualize métricas, responsáveis e histórico de cards por cliente")
+    
+    # ===== AVISO SOBRE OS DADOS =====
+    st.info("📊 **Esta aba mostra dados de TODOS os projetos** (SD, QA, PB, VALPROD) independentemente do filtro da barra lateral.")
+    
+    # Verifica se há cliente na URL para compartilhamento (link compartilhado)
+    cliente_url = st.query_params.get("cliente", None)
+    
+    # Verifica se a coluna temas existe
+    if 'temas' not in df_todos.columns:
+        st.warning("⚠️ Dados de clientes/temas não disponíveis")
+        return
+    
+    # Explode temas para análise
+    df_temas = df_todos.explode('temas')
+    df_temas = df_temas[df_temas['temas'].notna() & (df_temas['temas'] != '') & (df_temas['temas'] != 'Sem tema')]
+    
+    if df_temas.empty:
+        st.info("ℹ️ Nenhum card com cliente/tema definido no período")
+        return
+    
+    # ===== FUNÇÃO PARA IDENTIFICAR DESENVOLVIMENTO PAGO =====
+    def is_desenvolvimento_pago(labels):
+        """Verifica se o card é desenvolvimento pago com base nas labels."""
+        if not labels or (isinstance(labels, float) and pd.isna(labels)):
+            return False
+        if isinstance(labels, list):
+            labels_lower = [str(l).lower() for l in labels]
+            # Palavras-chave que indicam desenvolvimento pago
+            keywords_pago = ['pago', 'desenvolvimento pago', 'dev pago', 'customização', 'projeto pago', 'faturável']
+            return any(keyword in ' '.join(labels_lower) for keyword in keywords_pago)
+        return False
+    
+    # Adiciona coluna de desenvolvimento pago
+    df_temas['dev_pago'] = df_temas['labels'].apply(is_desenvolvimento_pago)
+    
+    # Lista de clientes únicos ordenados por frequência
+    clientes_count = df_temas['temas'].value_counts()
+    clientes_unicos = clientes_count.index.tolist()
+    
+    # Determinar índice inicial baseado na URL (se veio de link compartilhado)
+    opcoes_cliente = ["👀 Visão Geral do Time"] + clientes_unicos
+    indice_inicial = 0
+    if cliente_url and cliente_url in clientes_unicos:
+        indice_inicial = opcoes_cliente.index(cliente_url)
+    
+    # ===== SELETOR DE CLIENTE =====
+    col_sel, col_info, col_link = st.columns([2, 1, 1])
+    
+    with col_sel:
+        cliente_selecionado = st.selectbox(
+            "🔍 Selecione ou pesquise um cliente",
+            options=opcoes_cliente,
+            index=indice_inicial,
+            key="select_cliente_aba"
+        )
+    
+    with col_info:
+        st.metric("Total Clientes", len(clientes_unicos))
+    
+    with col_link:
+        # Botão de copiar link (se não é visão geral)
+        if cliente_selecionado != "👀 Visão Geral do Time":
+            link = f"{NINADASH_URL}?cliente={requests.utils.quote(cliente_selecionado)}"
+            st.markdown(f"""
+            <a href="{link}" target="_blank" style="
+                display: inline-flex; align-items: center; gap: 6px;
+                background: linear-gradient(135deg, #AF0C37, #8F0A2E); 
+                color: white; padding: 8px 16px; border-radius: 8px; 
+                text-decoration: none; font-size: 13px; font-weight: 500;
+                box-shadow: 0 2px 6px rgba(175,12,55,0.25);
+                transition: all 0.2s ease;
+            " onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'">
+                🔗 Copiar Link
+            </a>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    if cliente_selecionado == "👀 Visão Geral do Time":
+        # ===== VISÃO GERAL - KPIs GLOBAIS =====
+        with st.expander("📊 Indicadores Gerais de Clientes", expanded=True):
+            col1, col2, col3, col4, col5 = st.columns(5)
+            
+            total_cards = len(df_temas)
+            total_clientes = len(clientes_unicos)
+            total_dev_pago = df_temas['dev_pago'].sum()
+            total_sp = int(df_temas['sp'].sum())
+            total_concluidos = len(df_temas[df_temas['status_cat'] == 'done'])
+            
+            with col1:
+                criar_card_metrica(str(total_clientes), "Clientes Ativos", "blue")
+            with col2:
+                criar_card_metrica(str(total_cards), "Total de Cards", "blue")
+            with col3:
+                pct_pago = int(total_dev_pago / total_cards * 100) if total_cards > 0 else 0
+                cor = 'green' if pct_pago >= 30 else 'yellow' if pct_pago >= 15 else 'red'
+                criar_card_metrica(f"{total_dev_pago} ({pct_pago}%)", "💰 Dev. Pago", cor)
+            with col4:
+                criar_card_metrica(str(total_sp), "Story Points", "blue")
+            with col5:
+                pct_concluido = int(total_concluidos / total_cards * 100) if total_cards > 0 else 0
+                cor = 'green' if pct_concluido >= 70 else 'yellow' if pct_concluido >= 40 else 'red'
+                criar_card_metrica(f"{pct_concluido}%", "Conclusão", cor)
+        
+        # ===== TOP CLIENTES =====
+        st.markdown("#### 📊 Top 15 Clientes por Volume de Cards")
+        
+        # Ranking de clientes com desenvolvimento pago
+        ranking_clientes = df_temas.groupby('temas').agg({
+            'ticket_id': 'count',
+            'sp': 'sum',
+            'bugs': 'sum',
+            'status_cat': lambda x: (x == 'done').sum(),
+            'dev_pago': 'sum',
+            'projeto': lambda x: ', '.join(sorted(x.unique()))
+        }).reset_index()
+        ranking_clientes.columns = ['Cliente', 'Cards', 'SP Total', 'Bugs', 'Concluídos', 'Dev Pago', 'Projetos']
+        ranking_clientes['% Concluído'] = (ranking_clientes['Concluídos'] / ranking_clientes['Cards'] * 100).round(0).astype(int)
+        ranking_clientes = ranking_clientes.sort_values('Cards', ascending=False).head(15)
+        
+        # Layout com gráfico e tabela
+        col_graf, col_tab = st.columns([1.2, 1])
+        
+        with col_graf:
+            # Gráfico de barras horizontais
+            fig = px.bar(
+                ranking_clientes.sort_values('Cards', ascending=True),
+                x='Cards', y='Cliente', orientation='h',
+                color='% Concluído', color_continuous_scale='RdYlGn',
+                title='Top 15 Clientes por Volume'
+            )
+            fig.update_layout(height=500, yaxis={'categoryorder': 'total ascending'})
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col_tab:
+            # Tabela resumida com desenvolvimento pago
+            st.dataframe(
+                ranking_clientes[['Cliente', 'Cards', 'Dev Pago', 'SP Total', '% Concluído', 'Projetos']],
+                hide_index=True, use_container_width=True, height=450
+            )
+        
+        # ===== DESENVOLVIMENTO PAGO VS OUTROS =====
+        st.markdown("---")
+        st.markdown("#### 💰 Análise de Desenvolvimento Pago")
+        st.caption("Cards com label indicando desenvolvimento pago")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Gráfico de pizza: Pago vs Não Pago
+            pago_count = df_temas.groupby('dev_pago').size().reset_index(name='Cards')
+            pago_count['Categoria'] = pago_count['dev_pago'].apply(lambda x: '💰 Desenvolvimento Pago' if x else '🔧 Outros')
+            
+            fig_pago = px.pie(pago_count, values='Cards', names='Categoria',
+                              title='Distribuição: Pago vs Outros',
+                              color='Categoria',
+                              color_discrete_map={'💰 Desenvolvimento Pago': '#22c55e', '🔧 Outros': '#6b7280'})
+            fig_pago.update_layout(height=350)
+            st.plotly_chart(fig_pago, use_container_width=True)
+        
+        with col2:
+            # Top clientes com mais desenvolvimento pago
+            clientes_pago = df_temas[df_temas['dev_pago'] == True].groupby('temas').size().reset_index(name='Cards Pagos')
+            clientes_pago = clientes_pago.sort_values('Cards Pagos', ascending=False).head(10)
+            
+            if not clientes_pago.empty:
+                fig_top_pago = px.bar(
+                    clientes_pago,
+                    x='temas', y='Cards Pagos',
+                    title='Top 10 Clientes com Dev. Pago',
+                    color='Cards Pagos', color_continuous_scale='Greens'
+                )
+                fig_top_pago.update_layout(height=350, xaxis_title="Cliente", xaxis_tickangle=45)
+                st.plotly_chart(fig_top_pago, use_container_width=True)
+            else:
+                st.info("ℹ️ Nenhum card com label de desenvolvimento pago encontrado")
+        
+        # ===== CLIENTES COM MAIS BUGS =====
+        st.markdown("---")
+        st.markdown("#### 🐛 Clientes com Mais Bugs Encontrados")
+        
+        clientes_bugs = df_temas.groupby('temas')['bugs'].sum().reset_index()
+        clientes_bugs = clientes_bugs[clientes_bugs['bugs'] > 0].sort_values('bugs', ascending=False).head(10)
+        
+        if not clientes_bugs.empty:
+            fig_bugs = px.bar(
+                clientes_bugs,
+                x='temas', y='bugs',
+                title='Top 10 Clientes por Bugs Encontrados',
+                color='bugs', color_continuous_scale='Reds'
+            )
+            fig_bugs.update_layout(height=350, xaxis_title="Cliente", yaxis_title="Bugs")
+            st.plotly_chart(fig_bugs, use_container_width=True)
+        else:
+            st.info("ℹ️ Nenhum bug registrado para clientes no período")
+    
+    else:
+        # ===== ANÁLISE DO CLIENTE SELECIONADO =====
+        df_cliente = df_temas[df_temas['temas'] == cliente_selecionado]
+        
+        st.markdown(f"#### 🏢 {cliente_selecionado}")
+        
+        # ===== MÉTRICAS PRINCIPAIS =====
+        total_cards = len(df_cliente)
+        total_concluidos = len(df_cliente[df_cliente['status_cat'] == 'done'])
+        total_em_andamento = len(df_cliente[df_cliente['status_cat'] == 'progress'])
+        total_sp = int(df_cliente['sp'].sum())
+        total_bugs = int(df_cliente['bugs'].sum())
+        total_dev_pago = df_cliente['dev_pago'].sum()
+        
+        with st.expander("📊 Métricas do Cliente", expanded=True):
+            col1, col2, col3, col4, col5, col6 = st.columns(6)
+            
+            with col1:
+                criar_card_metrica(str(total_cards), "📋 Total Cards", "blue")
+            with col2:
+                pct = int(total_concluidos / total_cards * 100) if total_cards > 0 else 0
+                cor = 'green' if pct >= 70 else 'yellow' if pct >= 40 else 'red'
+                criar_card_metrica(f"{total_concluidos} ({pct}%)", "✅ Concluídos", cor)
+            with col3:
+                criar_card_metrica(str(total_em_andamento), "🔄 Em Andamento", "yellow")
+            with col4:
+                criar_card_metrica(str(total_sp), "📐 Story Points", "blue")
+            with col5:
+                cor = 'red' if total_bugs > 5 else 'yellow' if total_bugs > 0 else 'green'
+                criar_card_metrica(str(total_bugs), "🐛 Bugs", cor)
+            with col6:
+                pct_pago = int(total_dev_pago / total_cards * 100) if total_cards > 0 else 0
+                cor = 'green' if total_dev_pago > 0 else 'gray'
+                criar_card_metrica(f"{total_dev_pago} ({pct_pago}%)", "💰 Dev. Pago", cor)
+        
+        # ===== PROJETOS DO CLIENTE =====
+        projetos_cliente = df_cliente['projeto'].value_counts()
+        st.markdown(f"**📂 Presença em Projetos:** {', '.join([f'{proj} ({qtd})' for proj, qtd in projetos_cliente.items()])}")
+        
+        st.markdown("---")
+        
+        # ===== STATUS E TIPO DOS CARDS =====
+        col_status, col_tipo = st.columns(2)
+        
+        with col_status:
+            st.markdown("##### 📊 Distribuição por Status")
+            status_count = df_cliente.groupby('status_cat').size().reset_index(name='Cards')
+            status_count['Status'] = status_count['status_cat'].map(STATUS_NOMES)
+            
+            fig_status = px.pie(status_count, values='Cards', names='Status',
+                                color_discrete_sequence=px.colors.qualitative.Set2)
+            fig_status.update_layout(height=300)
+            st.plotly_chart(fig_status, use_container_width=True)
+        
+        with col_tipo:
+            st.markdown("##### 📋 Distribuição por Tipo")
+            tipo_count = df_cliente.groupby('tipo_issue').size().reset_index(name='Cards')
+            
+            fig_tipo = px.pie(tipo_count, values='Cards', names='tipo_issue',
+                              color_discrete_sequence=px.colors.qualitative.Pastel)
+            fig_tipo.update_layout(height=300)
+            st.plotly_chart(fig_tipo, use_container_width=True)
+        
+        st.markdown("---")
+        
+        # ===== QUEM MAIS TRATA ESSE CLIENTE =====
+        st.markdown("##### 👥 Pessoas que mais tratam este cliente")
+        
+        col_relator, col_dev, col_qa = st.columns(3)
+        
+        with col_relator:
+            st.markdown("**📝 Relatores (criadores)**")
+            relatores = df_cliente['relator'].value_counts().head(5)
+            for nome, qtd in relatores.items():
+                pct = int(qtd / total_cards * 100)
+                st.markdown(f"- **{nome}**: {qtd} cards ({pct}%)")
+        
+        with col_dev:
+            st.markdown("**👨‍💻 Desenvolvedores**")
+            devs = df_cliente['desenvolvedor'].value_counts().head(5)
+            for nome, qtd in devs.items():
+                if nome != 'Não atribuído':
+                    pct = int(qtd / total_cards * 100)
+                    st.markdown(f"- **{nome}**: {qtd} cards ({pct}%)")
+        
+        with col_qa:
+            st.markdown("**🔬 QAs responsáveis**")
+            qas = df_cliente['qa'].value_counts().head(5)
+            for nome, qtd in qas.items():
+                if nome != 'Não atribuído':
+                    pct = int(qtd / total_cards * 100)
+                    st.markdown(f"- **{nome}**: {qtd} cards ({pct}%)")
+        
+        st.markdown("---")
+        
+        # ===== DESENVOLVIMENTO PAGO =====
+        st.markdown("##### 💰 Análise de Desenvolvimento Pago")
+        
+        col_pago1, col_pago2 = st.columns(2)
+        
+        with col_pago1:
+            # Cards de desenvolvimento pago
+            cards_pagos = df_cliente[df_cliente['dev_pago'] == True]
+            cards_outros = df_cliente[df_cliente['dev_pago'] == False]
+            
+            st.markdown(f"""
+            <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 15px; margin-bottom: 10px;">
+                <div style="font-size: 24px; font-weight: bold; color: #22c55e;">💰 {len(cards_pagos)}</div>
+                <div style="color: #166534;">Cards de Desenvolvimento Pago</div>
+                <div style="color: #6b7280; font-size: 12px; margin-top: 5px;">
+                    {int(len(cards_pagos)/total_cards*100) if total_cards > 0 else 0}% do total | {int(cards_pagos['sp'].sum())} SP
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown(f"""
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px;">
+                <div style="font-size: 24px; font-weight: bold; color: #6b7280;">🔧 {len(cards_outros)}</div>
+                <div style="color: #475569;">Outros (Manutenção/Suporte)</div>
+                <div style="color: #6b7280; font-size: 12px; margin-top: 5px;">
+                    {int(len(cards_outros)/total_cards*100) if total_cards > 0 else 0}% do total | {int(cards_outros['sp'].sum())} SP
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col_pago2:
+            # Lista de cards pagos
+            if not cards_pagos.empty:
+                st.markdown("**Últimos Cards Pagos:**")
+                for _, card in cards_pagos.head(5).iterrows():
+                    card_popup = card_link_com_popup(card['ticket_id'])
+                    st.markdown(f"- {card_popup}: {card['titulo'][:40]}...")
+            else:
+                st.info("Nenhum card de desenvolvimento pago para este cliente")
+        
+        st.markdown("---")
+        
+        # ===== TIMELINE DE CARDS =====
+        st.markdown("##### 📅 Timeline de Cards")
+        
+        # Agrupa por mês
+        df_cliente_copy = df_cliente.copy()
+        df_cliente_copy['mes'] = df_cliente_copy['criado'].dt.to_period('M').astype(str)
+        timeline = df_cliente_copy.groupby('mes').agg({
+            'ticket_id': 'count',
+            'sp': 'sum'
+        }).reset_index()
+        timeline.columns = ['Mês', 'Cards', 'SP']
+        
+        if len(timeline) > 1:
+            fig_timeline = px.line(timeline, x='Mês', y='Cards', markers=True,
+                                   title='Evolução de Cards por Mês')
+            fig_timeline.update_layout(height=300)
+            st.plotly_chart(fig_timeline, use_container_width=True)
+        else:
+            st.caption("Timeline não disponível (período muito curto)")
+        
+        st.markdown("---")
+        
+        # ===== ÚLTIMOS CARDS DO CLIENTE =====
+        st.markdown("##### 📄 Últimos 10 Cards")
+        
+        # Ordena por data de atualização
+        ultimos_cards = df_cliente.sort_values('atualizado', ascending=False).head(10)
+        
+        for _, card in ultimos_cards.iterrows():
+            status_cor = STATUS_CORES.get(card['status_cat'], '#6b7280')
+            status_nome = STATUS_NOMES.get(card['status_cat'], card['status'])
+            card_popup = card_link_com_popup(card['ticket_id'])
+            
+            # Tempo relativo
+            tempo = formatar_tempo_relativo(card['atualizado'])
+            
+            # Tag de desenvolvimento pago
+            tag_pago = '<span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px; margin-left: 5px;">💰 PAGO</span>' if card['dev_pago'] else ''
+            
+            st.markdown(f"""
+            <div style="background: #f8fafc; border-left: 4px solid {status_cor}; padding: 10px 15px; margin: 5px 0; border-radius: 4px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        {card_popup} <span style="color: #64748b;">- {card['titulo'][:50]}{'...' if len(str(card['titulo'])) > 50 else ''}</span>
+                        <span style="color: #9ca3af; font-size: 11px;">({card['projeto']})</span>
+                        {tag_pago}
+                    </div>
+                    <span style="background: {status_cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{status_nome}</span>
+                </div>
+                <div style="margin-top: 5px; font-size: 12px; color: #94a3b8;">
+                    👤 {card['relator']} → 👨‍💻 {card['desenvolvedor']} → 🔬 {card['qa']} | {tempo}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+
 def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
     """Aba principal com visão geral da sprint."""
     
@@ -4614,155 +4992,6 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
                          color='count', color_continuous_scale='Blues')
             fig.update_layout(height=350, showlegend=False)
             st.plotly_chart(fig, use_container_width=True)
-    
-    # ===== ANÁLISE POR CLIENTE =====
-    with st.expander("🏢 Análise por Cliente/Tema", expanded=False):
-        st.caption("Pesquise por cliente para ver métricas, responsáveis e histórico de cards")
-        
-        # Verifica se a coluna temas existe
-        if 'temas' not in df.columns:
-            st.warning("⚠️ Dados de clientes/temas não disponíveis neste projeto")
-        else:
-            # Explode temas para análise
-            df_temas = df.explode('temas')
-            df_temas = df_temas[df_temas['temas'].notna() & (df_temas['temas'] != '') & (df_temas['temas'] != 'Sem tema')]
-            
-            if df_temas.empty:
-                st.info("ℹ️ Nenhum card com cliente/tema definido no período")
-            else:
-                # Lista de clientes únicos ordenados por frequência
-                clientes_count = df_temas['temas'].value_counts()
-                clientes_unicos = clientes_count.index.tolist()
-                
-                # Seletor de cliente
-                col_sel, col_info = st.columns([2, 1])
-                
-                with col_sel:
-                    cliente_selecionado = st.selectbox(
-                        "🔍 Selecione ou pesquise um cliente",
-                        options=["📊 Visão Geral (Top Clientes)"] + clientes_unicos,
-                        key="select_cliente_analise"
-                    )
-                
-                with col_info:
-                    st.metric("Total Clientes", len(clientes_unicos))
-                
-                st.markdown("---")
-                
-                if cliente_selecionado == "📊 Visão Geral (Top Clientes)":
-                    # ===== TOP CLIENTES =====
-                    st.markdown("#### 📊 Top 10 Clientes por Volume de Cards")
-                    
-                    # Ranking de clientes
-                    ranking_clientes = df_temas.groupby('temas').agg({
-                        'ticket_id': 'count',
-                        'sp': 'sum',
-                        'bugs': 'sum',
-                        'status_cat': lambda x: (x == 'done').sum()
-                    }).reset_index()
-                    ranking_clientes.columns = ['Cliente', 'Cards', 'SP Total', 'Bugs', 'Concluídos']
-                    ranking_clientes['% Concluído'] = (ranking_clientes['Concluídos'] / ranking_clientes['Cards'] * 100).round(0).astype(int)
-                    ranking_clientes = ranking_clientes.sort_values('Cards', ascending=False).head(10)
-                    
-                    # Gráfico de barras horizontais
-                    fig = px.bar(
-                        ranking_clientes.sort_values('Cards', ascending=True),
-                        x='Cards', y='Cliente', orientation='h',
-                        color='% Concluído', color_continuous_scale='RdYlGn',
-                        title='Top 10 Clientes por Volume'
-                    )
-                    fig.update_layout(height=400, yaxis={'categoryorder': 'total ascending'})
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                    # Tabela resumida
-                    st.dataframe(
-                        ranking_clientes[['Cliente', 'Cards', 'SP Total', 'Concluídos', '% Concluído']],
-                        hide_index=True, use_container_width=True
-                    )
-                
-                else:
-                    # ===== ANÁLISE DO CLIENTE SELECIONADO =====
-                    df_cliente = df_temas[df_temas['temas'] == cliente_selecionado]
-                    
-                    st.markdown(f"#### 🏢 {cliente_selecionado}")
-                    
-                    # Métricas do cliente
-                    col1, col2, col3, col4 = st.columns(4)
-                    
-                    total_cards = len(df_cliente)
-                    total_concluidos = len(df_cliente[df_cliente['status_cat'] == 'done'])
-                    total_sp = int(df_cliente['sp'].sum())
-                    total_bugs = int(df_cliente['bugs'].sum())
-                    
-                    with col1:
-                        st.metric("📋 Total Cards", total_cards)
-                    with col2:
-                        pct = int(total_concluidos / total_cards * 100) if total_cards > 0 else 0
-                        st.metric("✅ Concluídos", f"{total_concluidos} ({pct}%)")
-                    with col3:
-                        st.metric("📐 Story Points", total_sp)
-                    with col4:
-                        st.metric("🐛 Bugs", total_bugs)
-                    
-                    st.markdown("---")
-                    
-                    # ===== QUEM MAIS TRATA ESSE CLIENTE =====
-                    st.markdown("##### 👥 Pessoas que mais tratam este cliente")
-                    
-                    col_relator, col_dev, col_qa = st.columns(3)
-                    
-                    with col_relator:
-                        st.markdown("**📝 Relatores (criadores)**")
-                        relatores = df_cliente['relator'].value_counts().head(5)
-                        for nome, qtd in relatores.items():
-                            pct = int(qtd / total_cards * 100)
-                            st.markdown(f"- **{nome}**: {qtd} cards ({pct}%)")
-                    
-                    with col_dev:
-                        st.markdown("**👨‍💻 Desenvolvedores**")
-                        devs = df_cliente['desenvolvedor'].value_counts().head(5)
-                        for nome, qtd in devs.items():
-                            if nome != 'Não atribuído':
-                                pct = int(qtd / total_cards * 100)
-                                st.markdown(f"- **{nome}**: {qtd} cards ({pct}%)")
-                    
-                    with col_qa:
-                        st.markdown("**🔬 QAs responsáveis**")
-                        qas = df_cliente['qa'].value_counts().head(5)
-                        for nome, qtd in qas.items():
-                            if nome != 'Não atribuído':
-                                pct = int(qtd / total_cards * 100)
-                                st.markdown(f"- **{nome}**: {qtd} cards ({pct}%)")
-                    
-                    st.markdown("---")
-                    
-                    # ===== ÚLTIMOS CARDS DO CLIENTE =====
-                    st.markdown("##### 📄 Últimos Cards")
-                    
-                    # Ordena por data de atualização
-                    ultimos_cards = df_cliente.sort_values('atualizado', ascending=False).head(10)
-                    
-                    for _, card in ultimos_cards.iterrows():
-                        status_cor = STATUS_CORES.get(card['status_cat'], '#6b7280')
-                        status_nome = STATUS_NOMES.get(card['status_cat'], card['status'])
-                        card_popup = card_link_com_popup(card['ticket_id'])
-                        
-                        # Tempo relativo
-                        tempo = formatar_tempo_relativo(card['atualizado'])
-                        
-                        st.markdown(f"""
-                        <div style="background: #f8fafc; border-left: 4px solid {status_cor}; padding: 10px 15px; margin: 5px 0; border-radius: 4px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    {card_popup} <span style="color: #64748b;">- {card['titulo'][:60]}{'...' if len(str(card['titulo'])) > 60 else ''}</span>
-                                </div>
-                                <span style="background: {status_cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{status_nome}</span>
-                            </div>
-                            <div style="margin-top: 5px; font-size: 12px; color: #94a3b8;">
-                                👤 {card['relator']} → 👨‍💻 {card['desenvolvedor']} → 🔬 {card['qa']} | {tempo}
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
 
 
 def aba_qa(df: pd.DataFrame):
@@ -8816,22 +9045,9 @@ def aba_sobre():
 def main():
     """Função principal do dashboard."""
     
-    # ========== AUTO-LOGIN VIA QUERY PARAMS (vindo do localStorage) ==========
-    # Verifica se há email de auto-login nos query params
-    auto_login_email = st.query_params.get("auto_login", None)
-    
-    if auto_login_email and validar_email_corporativo(auto_login_email):
-        # Faz login automático
-        st.session_state.logged_in = True
-        st.session_state.user_email = auto_login_email
-        st.session_state.user_nome = extrair_nome_usuario(auto_login_email)
-        # Limpa o param de auto_login para não ficar na URL
-        st.query_params.clear()
-        st.rerun()
-    
-    # ========== VERIFICAR LOGIN (via session_state) ==========
+    # ========== VERIFICAR LOGIN (via session_state ou cookie) ==========
     if not verificar_login():
-        # Mostra tela de login (que vai verificar localStorage via JavaScript)
+        # Mostra tela de login
         mostrar_tela_login()
         return
     
@@ -8852,9 +9068,10 @@ def main():
     qa_compartilhado = query_params.get("qa", None)
     dev_compartilhado = query_params.get("dev", None)
     pessoa_compartilhada = query_params.get("pessoa", None)
+    cliente_compartilhado = query_params.get("cliente", None)
     
     # Verifica se é um link compartilhado válido
-    eh_link_compartilhado = any([card_compartilhado, qa_compartilhado, dev_compartilhado, pessoa_compartilhada])
+    eh_link_compartilhado = any([card_compartilhado, qa_compartilhado, dev_compartilhado, pessoa_compartilhada, cliente_compartilhado])
     
     # Se NÃO é link compartilhado mas tem query_params de aba, limpa tudo
     # Isso evita "poluição" de URL quando o usuário navega normalmente
@@ -9161,7 +9378,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.75 • Qualidade e Decisão de Software
+                    v8.77 • Qualidade e Decisão de Software
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -9177,6 +9394,23 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.77** *(17/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 🏢 **Aba Clientes Reposicionada**: Agora entre Suporte e Governança
+                - 💰 **Desenvolvimento Pago**: Detecta cards pagos via label
+                - 📊 **KPIs de Clientes**: Cards pagos, % conclusão, SP total
+                - 👀 **Visão Geral do Time**: Padrão igual às abas QA/Dev/Suporte
+                - 🎨 **Cards com Tag Pago**: Indicador visual 💰 PAGO nos cards
+                - 📈 **Top Clientes Dev Pago**: Ranking de clientes com mais desenvolvimento pago
+                
+                **v8.76** *(17/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 🏢 **Nova Aba Clientes**: Análise completa de clientes em aba dedicada
+                - 📊 **Dados de Todos Projetos**: Aba Clientes ignora filtro de projeto (mostra tudo)
+                - 🔗 **Link Compartilhável**: Copiar link direto para cliente específico
+                - 💰 **Categorização**: Indicadores de desenvolvimento pago vs manutenção
+                - 📅 **Timeline**: Gráfico de evolução de cards por mês para cada cliente
+                - 🐛 **Top Bugs**: Ranking de clientes com mais bugs
+                - 🔐 **Login via Cookie**: Método mais robusto usando CookieManager
+                
                 **v8.75** *(17/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🏢 **Análise por Cliente**: Nova seção em Visão Geral para pesquisar clientes
                 - 📊 **Top Clientes**: Ranking dos clientes com mais cards
@@ -9652,12 +9886,13 @@ def main():
                 aba_sobre()
         
         else:
-            # Projetos SD e QA: Abas completas com QA/Dev + nova aba Suporte
-            tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+            # Projetos SD e QA: Abas completas com QA/Dev + Clientes + Suporte
+            tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
                 "📊 Visão Geral",
                 "🔬 QA",
                 "👨‍💻 Dev",
                 "🎯 Suporte/Implantação",
+                "🏢 Clientes",
                 "📋 Governança",
                 "📦 Produto",
                 "📈 Histórico",
@@ -9678,18 +9913,21 @@ def main():
                 aba_suporte_implantacao(df_todos)
             
             with tab5:
-                aba_governanca(df)
+                aba_clientes(df_todos)
             
             with tab6:
-                aba_produto(df)
+                aba_governanca(df)
             
             with tab7:
-                aba_historico(df)
+                aba_produto(df)
             
             with tab8:
-                aba_lideranca(df)
+                aba_historico(df)
             
             with tab9:
+                aba_lideranca(df)
+            
+            with tab10:
                 aba_sobre()
 
 
