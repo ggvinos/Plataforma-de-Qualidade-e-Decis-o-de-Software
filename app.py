@@ -522,9 +522,10 @@ def verificar_credenciais() -> bool:
 # ==============================================================================
 
 def get_cookie_manager():
-    """Retorna o CookieManager."""
-    # Cria uma nova instância a cada chamada - necessário para funcionar corretamente
-    return stx.CookieManager(key="ninadash_cookies")
+    """Retorna o CookieManager singleton para evitar múltiplas instâncias."""
+    if 'cookie_manager' not in st.session_state:
+        st.session_state.cookie_manager = stx.CookieManager(key="ninadash_cookies_v2")
+    return st.session_state.cookie_manager
 
 
 def verificar_login() -> bool:
@@ -4606,36 +4607,17 @@ def aba_qa(df: pd.DataFrame):
     metricas_qa = calcular_metricas_qa(df)
     qas = [q for q in df['qa'].unique() if q != 'Não atribuído']
     
-    # Verificar se há QA na URL para compartilhamento
+    # Verificar se há QA na URL para compartilhamento (link compartilhado)
     qa_url = st.query_params.get("qa", None)
-    aba_atual = st.query_params.get("aba", None)
     opcoes_qa = ["👀 Visão Geral do Time"] + sorted(qas)
     
-    # Determinar índice inicial baseado na URL
+    # Determinar índice inicial baseado na URL (se veio de link compartilhado)
     indice_inicial = 0
     if qa_url and qa_url in qas:
         indice_inicial = opcoes_qa.index(qa_url)
     
-    # SELETOR DE QA
+    # SELETOR DE QA (NÃO atualiza query_params - apenas o botão Copiar Link faz isso)
     qa_sel = st.selectbox("🔍 Selecione o QA", opcoes_qa, index=indice_inicial, key="select_qa")
-    
-    # Atualizar URL quando selecionar um QA (APENAS se a aba QA está ativa ou não há aba definida)
-    # Evita sobrescrever params quando outra aba está ativa (ex: Suporte)
-    if aba_atual in [None, "qa"]:
-        if qa_sel != "👀 Visão Geral do Time":
-            # Limpa params de Dev antes de definir QA
-            if "dev" in st.query_params:
-                del st.query_params["dev"]
-            if "pessoa" in st.query_params:
-                del st.query_params["pessoa"]
-            st.query_params["qa"] = qa_sel
-            st.query_params["aba"] = "qa"
-        else:
-            # Remove apenas o param de QA, mantém a aba
-            if "qa" in st.query_params:
-                del st.query_params["qa"]
-            # Mantém na aba QA!
-            st.query_params["aba"] = "qa"
     
     st.markdown("---")
     
@@ -5688,33 +5670,15 @@ def aba_dev(df: pd.DataFrame):
     
     devs = [d for d in df['desenvolvedor'].unique() if d != 'Não atribuído']
     
-    # Suporte a query params para compartilhamento
+    # Suporte a query params para compartilhamento (link compartilhado)
     dev_url = st.query_params.get("dev", None)
-    aba_atual = st.query_params.get("aba", None)
     opcoes_dev = ["🏆 Ranking Geral"] + sorted(devs)
     indice_inicial = 0
     if dev_url and dev_url in devs:
         indice_inicial = opcoes_dev.index(dev_url)
     
+    # SELETOR DE DEV (NÃO atualiza query_params - apenas o botão Copiar Link faz isso)
     dev_sel = st.selectbox("👤 Selecione o Desenvolvedor", opcoes_dev, index=indice_inicial, key="select_dev")
-    
-    # Atualiza query params para link compartilhável (APENAS se a aba Dev está ativa ou não há aba definida)
-    # Evita sobrescrever params quando outra aba está ativa (ex: Suporte)
-    if aba_atual in [None, "dev"]:
-        if dev_sel != "🏆 Ranking Geral":
-            # Limpa params de QA antes de definir Dev
-            if "qa" in st.query_params:
-                del st.query_params["qa"]
-            if "pessoa" in st.query_params:
-                del st.query_params["pessoa"]
-            st.query_params["dev"] = dev_sel
-            st.query_params["aba"] = "dev"
-        else:
-            # Remove apenas o param de DEV, mantém a aba
-            if "dev" in st.query_params:
-                del st.query_params["dev"]
-            # Mantém na aba DEV!
-            st.query_params["aba"] = "dev"
     
     st.markdown("---")
     
@@ -7306,32 +7270,17 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
     
     # Verifica se tem pessoa na URL (link compartilhado)
     pessoa_url = st.query_params.get("pessoa", None)
-    aba_atual = st.query_params.get("aba", None)
     pessoa_index = 0  # "👥 Ver Todos" é sempre index 0
     if pessoa_url and pessoa_url in relatores:
         pessoa_index = relatores.index(pessoa_url) + 1  # +1 porque "👥 Ver Todos" é index 0
     
+    # SELETOR DE PESSOA (NÃO atualiza query_params - apenas o botão Copiar Link faz isso)
     pessoa_selecionada = st.selectbox(
         "👤 Selecione a pessoa",
         options=["👥 Ver Todos"] + relatores,
         index=pessoa_index,
         key="pessoa_suporte"
     )
-    
-    # Atualiza query params (APENAS se a aba Suporte está ativa ou não há aba definida)
-    if aba_atual in [None, "suporte"]:
-        if pessoa_selecionada != "👥 Ver Todos":
-            # Limpa params de QA/Dev antes de definir
-            if "qa" in st.query_params:
-                del st.query_params["qa"]
-            if "dev" in st.query_params:
-                del st.query_params["dev"]
-            st.query_params["pessoa"] = pessoa_selecionada
-            st.query_params["aba"] = "suporte"
-        else:
-            # Remove apenas o param de pessoa
-            if "pessoa" in st.query_params:
-                del st.query_params["pessoa"]
     
     # ========== VISÃO GERAL (quando seleciona "Ver Todos") ==========
     if pessoa_selecionada == "👥 Ver Todos":
@@ -8709,12 +8658,12 @@ def main():
     if not verificar_login():
         st.session_state.login_check_count += 1
         
-        # Nas primeiras 2 tentativas, mostra loading (cookies podem estar carregando)
-        if st.session_state.login_check_count <= 2:
+        # Nas primeiras 3 tentativas, mostra loading (cookies podem estar carregando)
+        if st.session_state.login_check_count <= 3:
             mostrar_tela_loading()
             return
         
-        # Após 2 tentativas, mostra tela de login
+        # Após 3 tentativas, mostra tela de login
         mostrar_tela_login()
         return
     
@@ -8730,10 +8679,23 @@ def main():
     # Header principal com logo Nina
     mostrar_header_nina()
     
+    # ========== GERENCIAMENTO DE QUERY PARAMS ==========
     # Captura query params para compartilhamento de busca
     query_params = st.query_params
     card_compartilhado = query_params.get("card", None)
     projeto_param = query_params.get("projeto", None)
+    qa_compartilhado = query_params.get("qa", None)
+    dev_compartilhado = query_params.get("dev", None)
+    pessoa_compartilhada = query_params.get("pessoa", None)
+    
+    # Verifica se é um link compartilhado válido
+    eh_link_compartilhado = any([card_compartilhado, qa_compartilhado, dev_compartilhado, pessoa_compartilhada])
+    
+    # Se NÃO é link compartilhado mas tem query_params de aba, limpa tudo
+    # Isso evita "poluição" de URL quando o usuário navega normalmente
+    if not eh_link_compartilhado and query_params.get("aba", None):
+        # Limpa todos os query params para URL limpa
+        st.query_params.clear()
     
     # Inicializa session_state para controle de busca
     if 'busca_ativa' not in st.session_state:
@@ -9034,7 +8996,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.72 • Qualidade e Decisão de Software
+                    v8.73 • Qualidade e Decisão de Software
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -9050,6 +9012,12 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.73** *(17/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
+                - 🔗 **URL Limpa**: Remove params da URL ao navegar (não polui mais)
+                - 🍪 **Cookie Singleton**: Evita múltiplas instâncias do CookieManager
+                - ⏱️ **Mais Tempo Login**: 3 tentativas para cookies carregarem
+                - 🚫 **Selectbox sem Params**: QA/Dev/Suporte não alteram mais a URL
+                
                 **v8.72** *(17/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
                 - 🔗 **URL Centralizada**: Constante `NINADASH_URL` para facilitar alterações
                 - 🐛 **Fix TypeError**: Corrigido erro de comparação de datas com timezone
