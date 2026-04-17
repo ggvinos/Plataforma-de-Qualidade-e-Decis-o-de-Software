@@ -4257,16 +4257,8 @@ def aba_clientes(df_todos: pd.DataFrame):
     # Adiciona coluna de desenvolvimento pago (baseado no tipo ORIGINAL do Jira, não o simplificado)
     if 'tipo_original' in df_temas.columns:
         df_temas['dev_pago'] = df_temas['tipo_original'].apply(is_desenvolvimento_pago)
-        # Debug: mostra tipos únicos em expander
-        with st.expander("🔍 Debug: Tipos de Ticket encontrados", expanded=False):
-            tipos_unicos = df_temas['tipo_original'].value_counts()
-            st.write("**Tipos de ticket (issuetype) encontrados:**")
-            for tipo, qtd in tipos_unicos.items():
-                dev_pago_marker = " ✅ Dev Pago" if 'desenvolvimento pago' in str(tipo).lower() else ""
-                st.write(f"- {tipo}: {qtd} cards{dev_pago_marker}")
     else:
         df_temas['dev_pago'] = False
-        st.warning("⚠️ Coluna 'tipo_original' não encontrada no DataFrame")
     
     # Lista de clientes únicos ordenados por frequência
     clientes_count = df_temas['temas'].value_counts()
