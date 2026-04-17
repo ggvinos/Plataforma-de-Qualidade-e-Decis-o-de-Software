@@ -85,7 +85,7 @@ NINA_LOGO_SVG = '''<svg width="187" height="187" viewBox="0 0 187 187" fill="non
 NINA_FAVICON = "data:image/svg+xml," + NINA_LOGO_SVG.replace("#", "%23").replace("\n", "").replace(" ", "%20")
 
 st.set_page_config(
-    page_title="NinaDash - Métricas de Qualidade",
+    page_title="NinaDash - Qualidade e Decisão de Software",
     page_icon="favicon.svg",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -1837,7 +1837,7 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Di
         return False
     
     # Gera URL de compartilhamento
-    base_url = "https://plataforma-de-qualidade-e-decis-o-de-software-8ze3ycurhvmdahdv.streamlit.app/"
+    base_url = "https://ninadash.streamlit.app/"
     share_url = f"{base_url}?card={card['ticket_id']}&projeto={projeto}"
     
     # ===== HEADER DO CARD =====
@@ -3840,8 +3840,8 @@ def mostrar_header_nina():
     <div class="nina-header">
         <div class="nina-logo">{logo_svg}</div>
         <div>
-            <p class="nina-title"><span class="nina-highlight">NinaDash</span> — Dashboard de Inteligência e Métricas de QA</p>
-            <p class="nina-subtitle">📊 Transformando dados em decisões: visibilidade de qualidade, gargalos e maturidade do time</p>
+            <p class="nina-title"><span class="nina-highlight">NinaDash</span> — Dashboard de Qualidade e Decisão de Software</p>
+            <p class="nina-subtitle">📊 Visibilidade, métricas e decisões inteligentes para todo o time</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -4256,13 +4256,22 @@ def criar_grafico_hotfix_por_produto(df: pd.DataFrame) -> go.Figure:
 def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
     """Aba principal com visão geral da sprint."""
     
-    col1, col2, col3 = st.columns([2, 1, 1])
+    # Header integrado: Título + Botão de atualizar com indicador
+    col1, col2 = st.columns([3, 1])
     with col1:
         st.markdown("### 📊 Visão Geral da Sprint")
     with col2:
-        mostrar_indicador_atualizacao(ultima_atualizacao)
-    with col3:
-        if st.button("🔄 Atualizar Dados", type="secondary"):
+        # Botão integrado com última atualização
+        agora = datetime.now()
+        diff = (agora - ultima_atualizacao).total_seconds() / 60
+        if diff < 1:
+            tempo_texto = "agora"
+        elif diff < 60:
+            tempo_texto = f"há {int(diff)} min"
+        else:
+            tempo_texto = f"há {int(diff/60)}h"
+        
+        if st.button(f"🔄 Atualizar ({tempo_texto})", type="secondary", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
     
@@ -4332,42 +4341,84 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
         </div>
         """, unsafe_allow_html=True)
     
-    # KPIs principais COM TOOLTIPS
-    with st.expander("📈 KPIs Principais da Sprint", expanded=True):
-        col1, col2, col3, col4, col5 = st.columns(5)
-        
-        with col1:
-            criar_card_metrica(str(len(df)), "Total Cards", "blue")
-        
-        with col2:
-            sp_total = int(df['sp'].sum())
-            criar_card_metrica(str(sp_total), "Story Points", "purple")
-        
-        with col3:
-            concluidos = len(df[df['status_cat'] == 'done'])
-            pct = concluidos / len(df) * 100 if len(df) > 0 else 0
-            cor = 'green' if pct >= 70 else 'yellow' if pct >= 40 else 'red'
-            criar_card_metrica(f"{pct:.0f}%", "Concluído", cor, f"{concluidos}/{len(df)}")
-        
-        with col4:
-            bugs_total = int(df['bugs'].sum())
-            cor = 'green' if bugs_total < 10 else 'yellow' if bugs_total < 20 else 'red'
-            criar_card_metrica(str(bugs_total), "Bugs Encontrados", cor)
-        
-        with col5:
-            fk = calcular_fator_k(sp_total, bugs_total)
-            mat = classificar_maturidade(fk)
-            cor_map = {'#22c55e': 'green', '#eab308': 'yellow', '#f97316': 'orange', '#ef4444': 'red'}
-            criar_card_metrica(f"{fk:.1f}", f"Fator K {mat['emoji']}", cor_map.get(mat['cor'], 'blue'), mat['selo'], "fator_k")
+    # ===== MÉTRICAS PRINCIPAIS (SIMPLIFICADAS) =====
+    # 5 KPIs essenciais: Total, SP, Concluído, Bugs, Dias até Release
+    concluidos = len(df[df['status_cat'] == 'done'])
+    pct_concluido = concluidos / len(df) * 100 if len(df) > 0 else 0
+    sp_total = int(df['sp'].sum())
+    bugs_total = int(df['bugs'].sum())
     
-    # Métricas de Qualidade COM TOOLTIPS
-    with st.expander("🎯 Métricas de Qualidade", expanded=True):
-        col1, col2, col3, col4 = st.columns(4)
+    st.markdown("#### 📈 Resumo da Sprint")
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    with col1:
+        criar_card_metrica(str(len(df)), "Total Cards", "blue")
+    
+    with col2:
+        criar_card_metrica(str(sp_total), "Story Points", "purple")
+    
+    with col3:
+        cor = 'green' if pct_concluido >= 70 else 'yellow' if pct_concluido >= 40 else 'red'
+        criar_card_metrica(f"{pct_concluido:.0f}%", "Concluído", cor, f"{concluidos}/{len(df)}")
+    
+    with col4:
+        cor = 'green' if bugs_total < 10 else 'yellow' if bugs_total < 20 else 'red'
+        criar_card_metrica(str(bugs_total), "Bugs", cor, "encontrados")
+    
+    with col5:
+        if dias_diff is not None:
+            cor = 'green' if dias_diff > 5 else 'yellow' if dias_diff > 2 else 'red'
+            criar_card_metrica(str(max(0, dias_diff)), "Dias p/ Release", cor)
+        else:
+            criar_card_metrica("—", "Dias p/ Release", "blue", "não definido")
+    
+    # ===== BARRA DE PROGRESSO VISUAL DA SPRINT =====
+    st.markdown("#### 📊 Progresso da Sprint")
+    
+    # Calcular métricas por status
+    em_dev = len(df[df['status_cat'] == 'development'])
+    em_review = len(df[df['status_cat'] == 'code_review'])
+    em_fila_qa = len(df[df['status_cat'] == 'waiting_qa'])
+    em_teste = len(df[df['status_cat'] == 'testing'])
+    em_andamento = em_dev + em_review + em_fila_qa + em_teste
+    total = len(df)
+    
+    # Barra de progresso estilizada
+    pct_done = (concluidos / total * 100) if total > 0 else 0
+    pct_progress = (em_andamento / total * 100) if total > 0 else 0
+    
+    st.markdown(f"""
+    <div style="margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+            <span>✅ Concluído: <b>{concluidos}</b></span>
+            <span>🔄 Em Andamento: <b>{em_andamento}</b></span>
+            <span>📋 Total: <b>{total}</b></span>
+        </div>
+        <div style="background: #e5e7eb; border-radius: 10px; height: 30px; overflow: hidden; position: relative;">
+            <div style="background: linear-gradient(90deg, #22c55e, #16a34a); width: {pct_done}%; height: 100%; display: inline-block; transition: width 0.5s;"></div>
+            <div style="background: linear-gradient(90deg, #3b82f6, #2563eb); width: {pct_progress}%; height: 100%; display: inline-block; transition: width 0.5s;"></div>
+            <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-weight: bold; color: #374151;">{pct_done:.0f}% concluído</span>
+        </div>
+        <div style="display: flex; gap: 20px; margin-top: 8px; font-size: 12px; color: #6b7280;">
+            <span>🟢 Concluído ({concluidos})</span>
+            <span>🔵 Em Andamento ({em_andamento})</span>
+            <span>⬜ Pendente ({total - concluidos - em_andamento})</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # ===== MÉTRICAS TÉCNICAS (PARA QUEM QUISER VER) =====
+    with st.expander("🔬 Métricas Técnicas de Qualidade", expanded=False):
+        st.caption("Indicadores avançados para análise detalhada de qualidade")
         
         fpy = calcular_fpy(df)
         ddp = calcular_ddp(df)
         lead = calcular_lead_time(df)
         health = calcular_health_score(df)
+        fk = calcular_fator_k(sp_total, bugs_total)
+        mat = classificar_maturidade(fk)
+        
+        col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
             cor = 'green' if fpy['valor'] >= 80 else 'yellow' if fpy['valor'] >= 60 else 'red'
@@ -4375,7 +4426,7 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
         
         with col2:
             cor = 'green' if ddp['valor'] >= 85 else 'yellow' if ddp['valor'] >= 70 else 'red'
-            criar_card_metrica(f"{ddp['valor']:.0f}%", "DDP", cor, f"{ddp['bugs_qa']} bugs detectados", "ddp")
+            criar_card_metrica(f"{ddp['valor']:.0f}%", "DDP", cor, f"{ddp['bugs_qa']} detectados", "ddp")
         
         with col3:
             cor = 'green' if lead['medio'] <= 7 else 'yellow' if lead['medio'] <= 14 else 'red'
@@ -4385,8 +4436,12 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
             cor = 'green' if health['score'] >= 75 else 'yellow' if health['score'] >= 50 else 'red'
             criar_card_metrica(f"{health['score']:.0f}", "Health Score", cor, health['status'], "health_score")
         
+        with col5:
+            cor_map = {'#22c55e': 'green', '#eab308': 'yellow', '#f97316': 'orange', '#ef4444': 'red'}
+            criar_card_metrica(f"{fk:.1f}", f"Fator K {mat['emoji']}", cor_map.get(mat['cor'], 'blue'), mat['selo'], "fator_k")
+        
         # Tooltips das métricas
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
             mostrar_tooltip("fpy")
         with col2:
@@ -4395,31 +4450,41 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
             mostrar_tooltip("lead_time")
         with col4:
             mostrar_tooltip("health_score")
+        with col5:
+            mostrar_tooltip("fator_k")
     
-    # Distribuição por status COM LISTAGEM COMPLETA
+    # ===== CARDS POR STATUS (2 COLUNAS - MAIS ESPAÇO) =====
     with st.expander("📋 Cards por Status", expanded=True):
         status_counts = df.groupby('status_cat').size().to_dict()
         
-        cols = st.columns(4)
-        status_order = ['development', 'code_review', 'waiting_qa', 'testing']
+        # Agrupamento em 2 colunas para melhor legibilidade
+        status_grupos = [
+            ['development', 'code_review'],  # Coluna 1: Desenvolvimento
+            ['waiting_qa', 'testing']        # Coluna 2: QA
+        ]
         
-        for i, status in enumerate(status_order):
-            with cols[i]:
-                count = status_counts.get(status, 0)
-                nome = STATUS_NOMES.get(status, status)
-                cor = STATUS_CORES.get(status, '#6b7280')
-                
-                st.markdown(f"""
-                <div style="background: {cor}20; border-left: 4px solid {cor}; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <p style="font-size: 28px; font-weight: bold; margin: 0;">{count}</p>
-                    <p style="font-size: 13px; margin: 5px 0 0 0;">{nome}</p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Listagem COMPLETA
-                df_status = df[df['status_cat'] == status]
-                if not df_status.empty:
-                    mostrar_lista_df_completa(df_status, nome)
+        col_esq, col_dir = st.columns(2)
+        
+        for col_idx, (coluna, grupo) in enumerate([(col_esq, status_grupos[0]), (col_dir, status_grupos[1])]):
+            with coluna:
+                for status in grupo:
+                    count = status_counts.get(status, 0)
+                    nome = STATUS_NOMES.get(status, status)
+                    cor = STATUS_CORES.get(status, '#6b7280')
+                    
+                    st.markdown(f"""
+                    <div style="background: {cor}20; border-left: 4px solid {cor}; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 24px; font-weight: bold;">{count}</span>
+                            <span style="font-size: 14px; color: {cor}; font-weight: 500;">{nome}</span>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Listagem COMPLETA com mais espaço
+                    df_status = df[df['status_cat'] == status]
+                    if not df_status.empty:
+                        mostrar_lista_df_completa(df_status, nome)
     
     # ===== NOVA SEÇÃO ELLEN: ANÁLISE DE SPRINT =====
     projeto_atual = df['projeto'].iloc[0] if not df.empty else 'SD'
@@ -4957,7 +5022,7 @@ def aba_qa(df: pd.DataFrame):
         
         # Header com título e botão de compartilhamento
         import urllib.parse
-        base_url = "https://plataforma-de-qualidade-e-decis-o-de-software-8ze3ycurhvmdahdv.streamlit.app/"
+        base_url = "https://ninadash.streamlit.app/"
         share_url = f"{base_url}?aba=qa&qa={urllib.parse.quote(qa_sel)}"
         
         col_titulo, col_share = st.columns([3, 1])
@@ -5961,7 +6026,7 @@ def aba_dev(df: pd.DataFrame):
         if analise:
             # Header com título e botão de compartilhamento
             import urllib.parse
-            base_url = "https://plataforma-de-qualidade-e-decis-o-de-software-8ze3ycurhvmdahdv.streamlit.app/"
+            base_url = "https://ninadash.streamlit.app/"
             share_url = f"{base_url}?aba=dev&dev={urllib.parse.quote(dev_sel)}"
             
             col_titulo, col_share = st.columns([3, 1])
@@ -7521,7 +7586,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
     # ========== RESUMO: ONDE ESTÃO MEUS CARDS ==========
     # Linha com nome da pessoa + botão copiar link (IGUAL AO QA/DEV)
     import urllib.parse
-    base_url = "https://plataforma-de-qualidade-e-decis-o-de-software-8ze3ycurhvmdahdv.streamlit.app/"
+    base_url = "https://ninadash.streamlit.app/"
     share_url = f"{base_url}?aba=suporte&pessoa={urllib.parse.quote(pessoa_selecionada)}"
     
     col_titulo, col_copiar = st.columns([3, 1])
@@ -8942,7 +9007,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.70 • Dashboard de Inteligência QA
+                    v8.71 • Qualidade e Decisão de Software
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -8958,6 +9023,16 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.71** *(17/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 🎨 **Novo Nome**: Dashboard de Qualidade e Decisão de Software
+                - � **Nova URL**: ninadash.streamlit.app (mais curta e fácil)
+                - �📊 **Barra de Progresso**: Visual da sprint com % concluído
+                - 📈 **KPIs Simplificados**: 5 métricas essenciais (Cards, SP, Concluído, Bugs, Dias)
+                - 🔬 **Métricas Técnicas**: FPY/DDP/Lead Time/Health/Fator K em expander separado
+                - 📋 **Cards por Status**: Layout 2 colunas (mais espaço para leitura)
+                - 🔄 **Botão Atualizar**: Integrado com indicador de última atualização
+                - 📝 **Subtítulo Atualizado**: Foco em todo o time, não só QA
+                
                 **v8.70** *(17/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 📦 **Expanders Padronizados**: Todas as seções agora podem ser ocultadas
                 - 👤 **Fix Responsável**: Prioriza campo `responsavel` corretamente (não QA)
