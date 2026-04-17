@@ -4257,8 +4257,16 @@ def aba_clientes(df_todos: pd.DataFrame):
     # Adiciona coluna de desenvolvimento pago (baseado no tipo ORIGINAL do Jira, não o simplificado)
     if 'tipo_original' in df_temas.columns:
         df_temas['dev_pago'] = df_temas['tipo_original'].apply(is_desenvolvimento_pago)
+        # Debug: mostra tipos únicos em expander
+        with st.expander("🔍 Debug: Tipos de Ticket encontrados", expanded=False):
+            tipos_unicos = df_temas['tipo_original'].value_counts()
+            st.write("**Tipos de ticket (issuetype) encontrados:**")
+            for tipo, qtd in tipos_unicos.items():
+                dev_pago_marker = " ✅ Dev Pago" if 'desenvolvimento pago' in str(tipo).lower() else ""
+                st.write(f"- {tipo}: {qtd} cards{dev_pago_marker}")
     else:
         df_temas['dev_pago'] = False
+        st.warning("⚠️ Coluna 'tipo_original' não encontrada no DataFrame")
     
     # Lista de clientes únicos ordenados por frequência
     clientes_count = df_temas['temas'].value_counts()
@@ -4637,9 +4645,10 @@ def aba_clientes(df_todos: pd.DataFrame):
             if not cards_pagos.empty:
                 st.markdown("**Últimos Cards Pagos:**")
                 for _, card in cards_pagos.head(5).iterrows():
-                    card_popup = card_link_com_popup(card['ticket_id'])
-                    titulo = card.get('titulo', card.get('summary', 'Sem título'))
-                    st.markdown(f"- {card_popup}: {str(titulo)[:40]}...")
+                    ticket_id = card['ticket_id']
+                    url_jira = f"{JIRA_BASE_URL}/browse/{ticket_id}"
+                    titulo = str(card.get('titulo', card.get('summary', 'Sem título')))[:40]
+                    st.markdown(f"- [{ticket_id}]({url_jira}): {titulo}...")
             else:
                 st.info("Nenhum card de desenvolvimento pago para este cliente")
         
@@ -4682,7 +4691,15 @@ def aba_clientes(df_todos: pd.DataFrame):
         for _, card in ultimos_cards.iterrows():
             status_cor = STATUS_CORES.get(card.get('status_cat', ''), '#6b7280')
             status_nome = STATUS_NOMES.get(card.get('status_cat', ''), card.get('status', 'N/A'))
-            card_popup = card_link_com_popup(card['ticket_id'])
+            
+            # Link simples para o Jira (sem popup complexo que quebra o HTML)
+            ticket_id = card['ticket_id']
+            url_jira = f"{JIRA_BASE_URL}/browse/{ticket_id}"
+            projeto = card.get('projeto', 'N/A')
+            
+            # Cor por projeto
+            cores_projeto = {"PB": "#8b5cf6", "SD": "#3b82f6", "QA": "#22c55e", "VALPROD": "#f59e0b"}
+            cor_projeto = cores_projeto.get(projeto, "#6b7280")
             
             # Tempo relativo
             tempo = formatar_tempo_relativo(card['atualizado']) if 'atualizado' in card else 'N/A'
@@ -4690,27 +4707,26 @@ def aba_clientes(df_todos: pd.DataFrame):
             # Tag de desenvolvimento pago
             tag_pago = '<span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px; margin-left: 5px;">💰 PAGO</span>' if card.get('dev_pago', False) else ''
             
-            titulo = card.get('titulo', card.get('summary', 'Sem título'))
+            titulo = str(card.get('titulo', card.get('summary', 'Sem título')))
+            titulo_truncado = titulo[:50] + ('...' if len(titulo) > 50 else '')
             relator = card.get('relator', 'N/A')
             dev = card.get('desenvolvedor', 'N/A')
             qa = card.get('qa', 'N/A')
-            projeto = card.get('projeto', 'N/A')
             
-            st.markdown(f"""
-            <div style="background: #f8fafc; border-left: 4px solid {status_cor}; padding: 10px 15px; margin: 5px 0; border-radius: 4px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        {card_popup} <span style="color: #64748b;">- {str(titulo)[:50]}{'...' if len(str(titulo)) > 50 else ''}</span>
-                        <span style="color: #9ca3af; font-size: 11px;">({projeto})</span>
-                        {tag_pago}
-                    </div>
-                    <span style="background: {status_cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{status_nome}</span>
-                </div>
-                <div style="margin-top: 5px; font-size: 12px; color: #94a3b8;">
-                    👤 {relator} → 👨‍💻 {dev} → 🔬 {qa} | {tempo}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<div style="background: #f8fafc; border-left: 4px solid {status_cor}; padding: 10px 15px; margin: 5px 0; border-radius: 4px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 5px;">
+            <a href="{url_jira}" target="_blank" style="color: {cor_projeto}; font-weight: 600; text-decoration: none;">{ticket_id}</a>
+            <span style="color: #64748b;">- {titulo_truncado}</span>
+            <span style="color: #9ca3af; font-size: 11px;">({projeto})</span>
+            {tag_pago}
+        </div>
+        <span style="background: {status_cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap;">{status_nome}</span>
+    </div>
+    <div style="margin-top: 5px; font-size: 12px; color: #94a3b8;">
+        👤 {relator} → 👨‍💻 {dev} → 🔬 {qa} | {tempo}
+    </div>
+</div>""", unsafe_allow_html=True)
 
 
 def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
