@@ -7273,89 +7273,88 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
             pessoas_unicas = df_todos['relator'].nunique()
             st.metric("👥 Pessoas", pessoas_unicas)
         
-        # ===== GRÁFICO: CARDS POR PROJETO E STATUS =====
-        st.markdown("---")
-        st.markdown("#### 📊 Distribuição de Cards")
-        
-        col_graf1, col_graf2 = st.columns(2)
-        
-        with col_graf1:
-            # Gráfico de Pizza por Projeto
-            if 'projeto' in df_todos.columns:
-                projeto_counts = df_todos['projeto'].value_counts().reset_index()
-                projeto_counts.columns = ['projeto', 'count']
-                
-                cores_projeto = {'SD': '#3b82f6', 'QA': '#22c55e', 'PB': '#f59e0b', 'VALPROD': '#8b5cf6'}
-                
-                fig_pizza = px.pie(projeto_counts, values='count', names='projeto',
-                                   title='📊 Cards por Projeto',
-                                   color='projeto',
-                                   color_discrete_map=cores_projeto)
-                fig_pizza.update_layout(height=350)
-                st.plotly_chart(fig_pizza, use_container_width=True)
-        
-        with col_graf2:
-            # Gráfico de Barras por Status (top 10)
-            if 'status' in df_todos.columns:
-                status_counts = df_todos['status'].value_counts().head(10).reset_index()
-                status_counts.columns = ['status', 'count']
-                
-                fig_bar = px.bar(status_counts, x='count', y='status', orientation='h',
-                                 title='📋 Top 10 Status',
-                                 color='count',
-                                 color_continuous_scale='Blues')
-                fig_bar.update_layout(height=350, showlegend=False)
-                st.plotly_chart(fig_bar, use_container_width=True)
-        
-        # ===== GRÁFICO: CARDS POR PROJETO E STATUS (Stacked) =====
-        col_graf3, col_graf4 = st.columns(2)
-        
-        with col_graf3:
-            # Gráfico de Barras Empilhadas
-            if 'projeto' in df_todos.columns and 'status' in df_todos.columns:
-                status_por_projeto = df_todos.groupby(['projeto', 'status']).size().reset_index(name='count')
-                
-                if not status_por_projeto.empty:
-                    fig_stacked = px.bar(status_por_projeto, x='projeto', y='count', color='status',
-                                         title='📊 Cards por Projeto e Status',
-                                         labels={'projeto': 'Projeto', 'count': 'Cards', 'status': 'Status'})
-                    fig_stacked.update_layout(height=400, showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=-0.3))
-                    st.plotly_chart(fig_stacked, use_container_width=True)
-        
-        with col_graf4:
-            # Top Relatores (filtra bots e automações)
-            st.markdown("##### 👥 Top 15 Pessoas com Mais Cards")
-            if 'relator' in df_todos.columns:
-                # Lista de nomes a filtrar (bots, automações, etc)
-                bots_filter = ['automation for jira', 'jira automation', 'system', 'admin', 
-                               'automação', 'bot', 'script', 'integration', 'webhook']
-                
-                # Filtra e conta
-                relatores_filtrados = df_todos[~df_todos['relator'].str.lower().str.contains(
-                    '|'.join(bots_filter), na=True)]['relator']
-                top_relatores = relatores_filtrados.value_counts().head(15)
-                
-                contador = 0
-                for relator, count in top_relatores.items():
-                    if relator and relator != 'Não informado' and contador < 15:
-                        # Calcula proporção para barra visual
-                        pct = count / top_relatores.max() * 100
-                        contador += 1
-                        st.markdown(f"""
-                        <div style="margin: 4px 0;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span style="min-width: 25px; font-weight: bold; color: #64748b;">{contador}.</span>
-                                <span style="flex: 1; font-size: 0.9em;">{relator}</span>
-                                <span style="font-weight: bold; color: #AF0C37;">{count}</span>
+        # ===== GRÁFICO: CARDS POR PROJETO E STATUS - EM EXPANDER =====
+        with st.expander("📊 Distribuição de Cards", expanded=True):
+            st.caption("Gráficos mostrando como os cards estão distribuídos entre projetos e status")
+            
+            col_graf1, col_graf2 = st.columns(2)
+            
+            with col_graf1:
+                # Gráfico de Pizza por Projeto
+                if 'projeto' in df_todos.columns:
+                    projeto_counts = df_todos['projeto'].value_counts().reset_index()
+                    projeto_counts.columns = ['projeto', 'count']
+                    
+                    cores_projeto = {'SD': '#3b82f6', 'QA': '#22c55e', 'PB': '#f59e0b', 'VALPROD': '#8b5cf6'}
+                    
+                    fig_pizza = px.pie(projeto_counts, values='count', names='projeto',
+                                       title='📊 Cards por Projeto',
+                                       color='projeto',
+                                       color_discrete_map=cores_projeto)
+                    fig_pizza.update_layout(height=350)
+                    st.plotly_chart(fig_pizza, use_container_width=True)
+            
+            with col_graf2:
+                # Gráfico de Barras por Status (top 10)
+                if 'status' in df_todos.columns:
+                    status_counts = df_todos['status'].value_counts().head(10).reset_index()
+                    status_counts.columns = ['status', 'count']
+                    
+                    fig_bar = px.bar(status_counts, x='count', y='status', orientation='h',
+                                     title='📋 Top 10 Status',
+                                     color='count',
+                                     color_continuous_scale='Blues')
+                    fig_bar.update_layout(height=350, showlegend=False)
+                    st.plotly_chart(fig_bar, use_container_width=True)
+            
+            # ===== GRÁFICO: CARDS POR PROJETO E STATUS (Stacked) =====
+            col_graf3, col_graf4 = st.columns(2)
+            
+            with col_graf3:
+                # Gráfico de Barras Empilhadas
+                if 'projeto' in df_todos.columns and 'status' in df_todos.columns:
+                    status_por_projeto = df_todos.groupby(['projeto', 'status']).size().reset_index(name='count')
+                    
+                    if not status_por_projeto.empty:
+                        fig_stacked = px.bar(status_por_projeto, x='projeto', y='count', color='status',
+                                             title='📊 Cards por Projeto e Status',
+                                             labels={'projeto': 'Projeto', 'count': 'Cards', 'status': 'Status'})
+                        fig_stacked.update_layout(height=400, showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=-0.3))
+                        st.plotly_chart(fig_stacked, use_container_width=True)
+            
+            with col_graf4:
+                # Top Relatores (filtra bots e automações)
+                st.markdown("##### 👥 Top 15 Pessoas com Mais Cards")
+                if 'relator' in df_todos.columns:
+                    # Lista de nomes a filtrar (bots, automações, etc)
+                    bots_filter = ['automation for jira', 'jira automation', 'system', 'admin', 
+                                   'automação', 'bot', 'script', 'integration', 'webhook']
+                    
+                    # Filtra e conta
+                    relatores_filtrados = df_todos[~df_todos['relator'].str.lower().str.contains(
+                        '|'.join(bots_filter), na=True)]['relator']
+                    top_relatores = relatores_filtrados.value_counts().head(15)
+                    
+                    contador = 0
+                    for relator, count in top_relatores.items():
+                        if relator and relator != 'Não informado' and contador < 15:
+                            # Calcula proporção para barra visual
+                            pct = count / top_relatores.max() * 100
+                            contador += 1
+                            st.markdown(f"""
+                            <div style="margin: 4px 0;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="min-width: 25px; font-weight: bold; color: #64748b;">{contador}.</span>
+                                    <span style="flex: 1; font-size: 0.9em;">{relator}</span>
+                                    <span style="font-weight: bold; color: #AF0C37;">{count}</span>
+                                </div>
+                                <div style="background: #e5e7eb; height: 4px; border-radius: 2px; margin-top: 2px;">
+                                    <div style="background: linear-gradient(90deg, #AF0C37, #f59e0b); height: 100%; width: {pct}%; border-radius: 2px;"></div>
+                                </div>
                             </div>
-                            <div style="background: #e5e7eb; height: 4px; border-radius: 2px; margin-top: 2px;">
-                                <div style="background: linear-gradient(90deg, #AF0C37, #f59e0b); height: 100%; width: {pct}%; border-radius: 2px;"></div>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                            """, unsafe_allow_html=True)
         
         # ===== CARDS AGUARDANDO AÇÃO (VISÃO GERAL) - EM EXPANDER =====
-        st.markdown("---")
         
         # Conta totais para exibir no título do expander
         df_aguard_resp = df_todos[df_todos['status'].str.lower().str.contains('aguardando', na=False)]
@@ -7365,135 +7364,148 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                                 (df_todos['status'].str.lower().str.contains('aguardando|roteiro|ux', na=False))]
         total_aguardando = len(df_aguard_resp) + len(df_valprod_pend) + len(df_pb_aguard)
         
-        with st.expander(f"⏳ Cards Aguardando Ação ({total_aguardando})", expanded=False):
-            st.caption("Mostra o **responsável** e **título** de cada card que precisa de ação")
+        with st.expander(f"⏳ Cards Aguardando Ação ({total_aguardando})", expanded=True):
+            st.caption("Cards que precisam de ação. O **responsável** mostrado é quem deve agir no card.")
+            
+            # Checkbox para ver todos os cards
+            ver_todos_cards = st.checkbox("📋 Ver todos os cards (sem limite)", key="ver_todos_cards_aguardando", value=False)
+            limite_cards = 999 if ver_todos_cards else 20
             
             col_aguard1, col_aguard2, col_aguard3 = st.columns(3)
             
             with col_aguard1:
                 st.markdown(f"##### 💬 Aguardando Resposta ({len(df_aguard_resp)})")
                 
-                # Gera HTML completo com scroll
-                cards_html = '<div style="max-height: 350px; overflow-y: auto; padding-right: 5px;">'
-                for _, card in df_aguard_resp.head(20).iterrows():
+                # Gera HTML completo com scroll e fonte padronizada
+                cards_html = '''<div style="max-height: 400px; overflow-y: auto; padding-right: 5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">'''
+                for _, card in df_aguard_resp.head(limite_cards).iterrows():
                     projeto = card.get('projeto', 'SD')
                     tipo = card.get('tipo', 'TAREFA')
                     tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#64748b"
-                    responsavel = card.get('desenvolvedor', card.get('qa', card.get('relator', 'N/A')))
+                    # Prioridade: responsavel > desenvolvedor > qa > relator
+                    responsavel = card.get('responsavel') or card.get('desenvolvedor') or card.get('qa') or card.get('relator', 'N/A')
                     if not responsavel or responsavel == 'Não atribuído':
-                        responsavel = card.get('qa', card.get('relator', 'N/A'))
-                    titulo = str(card.get('titulo', card.get('resumo', '')))[:50]
+                        responsavel = card.get('relator', 'N/A')
+                    titulo = str(card.get('titulo', card.get('resumo', '')))[:80]
                     ticket_id = card.get('ticket_id', '')
                     
                     cards_html += f'''
-                    <div style="background: #fef3c7; padding: 8px; margin: 4px 0; border-radius: 4px; font-size: 0.85em;">
-                        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                            <span style="background: #64748b; color: white; padding: 1px 4px; border-radius: 2px; font-size: 10px;">{projeto}</span>
-                            <span style="background: {tipo_cor}; color: white; padding: 1px 4px; border-radius: 2px; font-size: 10px;">{tipo}</span>
-                            <a href="https://ninatecnologia.atlassian.net/browse/{ticket_id}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 500;">{ticket_id}</a>
+                    <div style="background: #fef3c7; padding: 10px; margin: 5px 0; border-radius: 6px; border-left: 3px solid #f59e0b;">
+                        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 6px;">
+                            <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">{projeto}</span>
+                            <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">{tipo}</span>
+                            <a href="https://ninatecnologia.atlassian.net/browse/{ticket_id}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600; font-size: 13px;">{ticket_id}</a>
                         </div>
-                        <div style="color: #78350f; font-size: 0.8em; margin-top: 4px; line-height: 1.3;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 50 else ""}</div>
-                        <div style="color: #92400e; font-size: 0.75em; margin-top: 2px;">👤 {responsavel}</div>
+                        <div style="color: #78350f; font-size: 13px; margin-top: 4px; line-height: 1.4;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 80 else ""}</div>
+                        <div style="color: #92400e; font-size: 12px; margin-top: 4px; font-weight: 500;">👤 Responsável: {responsavel}</div>
                     </div>'''
                 cards_html += '</div>'
-                if len(df_aguard_resp) > 20:
-                    cards_html += f'<p style="color: #64748b; font-size: 0.8em; margin-top: 8px;">... e mais {len(df_aguard_resp) - 20} cards</p>'
+                if len(df_aguard_resp) > limite_cards:
+                    cards_html += f'<p style="color: #64748b; font-size: 12px; margin-top: 8px; text-align: center;">... e mais {len(df_aguard_resp) - limite_cards} cards</p>'
                 
-                components.html(cards_html, height=400, scrolling=True)
+                altura_container = min(500, 80 * min(limite_cards, len(df_aguard_resp)) + 50)
+                components.html(cards_html, height=altura_container, scrolling=True)
             
             with col_aguard2:
                 st.markdown(f"##### 🔍 Validação Produção ({len(df_valprod_pend)})")
                 
-                # Gera HTML completo com scroll
-                cards_html2 = '<div style="max-height: 350px; overflow-y: auto; padding-right: 5px;">'
-                for _, card in df_valprod_pend.head(20).iterrows():
+                # Gera HTML completo com scroll e fonte padronizada
+                cards_html2 = '''<div style="max-height: 400px; overflow-y: auto; padding-right: 5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">'''
+                for _, card in df_valprod_pend.head(limite_cards).iterrows():
                     tipo = card.get('tipo', 'TAREFA')
                     tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#64748b"
-                    responsavel = card.get('qa', card.get('desenvolvedor', card.get('relator', 'N/A')))
+                    # Prioridade para VALPROD: responsavel > desenvolvedor > relator (não QA, que é quem validou)
+                    responsavel = card.get('responsavel') or card.get('desenvolvedor') or card.get('relator', 'N/A')
                     if not responsavel or responsavel == 'Não atribuído':
-                        responsavel = card.get('desenvolvedor', card.get('relator', 'N/A'))
-                    titulo = str(card.get('titulo', card.get('resumo', '')))[:50]
+                        responsavel = card.get('relator', 'N/A')
+                    titulo = str(card.get('titulo', card.get('resumo', '')))[:80]
                     ticket_id = card.get('ticket_id', '')
                     
                     cards_html2 += f'''
-                    <div style="background: #fef9c3; padding: 8px; margin: 4px 0; border-radius: 4px; font-size: 0.85em;">
-                        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                            <span style="background: {tipo_cor}; color: white; padding: 1px 4px; border-radius: 2px; font-size: 10px;">{tipo}</span>
-                            <a href="https://ninatecnologia.atlassian.net/browse/{ticket_id}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 500;">{ticket_id}</a>
+                    <div style="background: #fef9c3; padding: 10px; margin: 5px 0; border-radius: 6px; border-left: 3px solid #eab308;">
+                        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 6px;">
+                            <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">{tipo}</span>
+                            <a href="https://ninatecnologia.atlassian.net/browse/{ticket_id}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600; font-size: 13px;">{ticket_id}</a>
                         </div>
-                        <div style="color: #713f12; font-size: 0.8em; margin-top: 4px; line-height: 1.3;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 50 else ""}</div>
-                        <div style="color: #854d0e; font-size: 0.75em; margin-top: 2px;">👤 {responsavel}</div>
+                        <div style="color: #713f12; font-size: 13px; margin-top: 4px; line-height: 1.4;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 80 else ""}</div>
+                        <div style="color: #854d0e; font-size: 12px; margin-top: 4px; font-weight: 500;">👤 Responsável: {responsavel}</div>
                     </div>'''
                 cards_html2 += '</div>'
-                if len(df_valprod_pend) > 20:
-                    cards_html2 += f'<p style="color: #64748b; font-size: 0.8em; margin-top: 8px;">... e mais {len(df_valprod_pend) - 20} cards</p>'
+                if len(df_valprod_pend) > limite_cards:
+                    cards_html2 += f'<p style="color: #64748b; font-size: 12px; margin-top: 8px; text-align: center;">... e mais {len(df_valprod_pend) - limite_cards} cards</p>'
                 
-                components.html(cards_html2, height=400, scrolling=True)
+                altura_container2 = min(500, 80 * min(limite_cards, len(df_valprod_pend)) + 50)
+                components.html(cards_html2, height=altura_container2, scrolling=True)
             
             with col_aguard3:
                 st.markdown(f"##### 📦 Backlog ({len(df_pb_aguard)})")
                 
-                # Gera HTML completo com scroll
-                cards_html3 = '<div style="max-height: 350px; overflow-y: auto; padding-right: 5px;">'
-                for _, card in df_pb_aguard.head(20).iterrows():
+                # Gera HTML completo com scroll e fonte padronizada
+                cards_html3 = '''<div style="max-height: 400px; overflow-y: auto; padding-right: 5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">'''
+                for _, card in df_pb_aguard.head(limite_cards).iterrows():
                     tipo = card.get('tipo', 'TAREFA')
                     tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#64748b"
-                    responsavel = card.get('desenvolvedor', card.get('qa', card.get('relator', 'N/A')))
+                    # Prioridade: responsavel > desenvolvedor > relator
+                    responsavel = card.get('responsavel') or card.get('desenvolvedor') or card.get('relator', 'N/A')
                     if not responsavel or responsavel == 'Não atribuído':
                         responsavel = card.get('relator', 'N/A')
-                    titulo = str(card.get('titulo', card.get('resumo', '')))[:50]
+                    titulo = str(card.get('titulo', card.get('resumo', '')))[:80]
                     ticket_id = card.get('ticket_id', '')
                     
                     cards_html3 += f'''
-                    <div style="background: #e0f2fe; padding: 8px; margin: 4px 0; border-radius: 4px; font-size: 0.85em;">
-                        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                            <span style="background: {tipo_cor}; color: white; padding: 1px 4px; border-radius: 2px; font-size: 10px;">{tipo}</span>
-                            <a href="https://ninatecnologia.atlassian.net/browse/{ticket_id}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 500;">{ticket_id}</a>
+                    <div style="background: #e0f2fe; padding: 10px; margin: 5px 0; border-radius: 6px; border-left: 3px solid #0ea5e9;">
+                        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 6px;">
+                            <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">{tipo}</span>
+                            <a href="https://ninatecnologia.atlassian.net/browse/{ticket_id}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600; font-size: 13px;">{ticket_id}</a>
                         </div>
-                        <div style="color: #075985; font-size: 0.8em; margin-top: 4px; line-height: 1.3;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 50 else ""}</div>
-                        <div style="color: #0369a1; font-size: 0.75em; margin-top: 2px;">👤 {responsavel}</div>
+                        <div style="color: #075985; font-size: 13px; margin-top: 4px; line-height: 1.4;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 80 else ""}</div>
+                        <div style="color: #0369a1; font-size: 12px; margin-top: 4px; font-weight: 500;">👤 Responsável: {responsavel}</div>
                     </div>'''
                 cards_html3 += '</div>'
-                if len(df_pb_aguard) > 20:
-                    cards_html3 += f'<p style="color: #64748b; font-size: 0.8em; margin-top: 8px;">... e mais {len(df_pb_aguard) - 20} cards</p>'
+                if len(df_pb_aguard) > limite_cards:
+                    cards_html3 += f'<p style="color: #64748b; font-size: 12px; margin-top: 8px; text-align: center;">... e mais {len(df_pb_aguard) - limite_cards} cards</p>'
                 
-                components.html(cards_html3, height=400, scrolling=True)
+                altura_container3 = min(500, 80 * min(limite_cards, len(df_pb_aguard)) + 50)
+                components.html(cards_html3, height=altura_container3, scrolling=True)
         
-        # ===== GRÁFICO: TIPOS DE CARDS =====
-        st.markdown("---")
-        col_tipo1, col_tipo2 = st.columns(2)
-        
-        with col_tipo1:
-            st.markdown("##### 🏷️ Distribuição por Tipo")
-            if 'tipo' in df_todos.columns:
-                tipo_counts = df_todos['tipo'].value_counts().reset_index()
-                tipo_counts.columns = ['tipo', 'count']
-                
-                cores_tipo = {'HOTFIX': '#ef4444', 'BUG': '#f97316', 'TAREFA': '#64748b', 'SUGESTÃO': '#6366f1', 'HISTÓRIA': '#22c55e'}
-                
-                fig_tipo = px.pie(tipo_counts, values='count', names='tipo',
-                                  color='tipo',
-                                  color_discrete_map=cores_tipo)
-                fig_tipo.update_layout(height=300)
-                st.plotly_chart(fig_tipo, use_container_width=True)
-        
-        with col_tipo2:
-            st.markdown("##### 📅 Cards por Idade")
-            # Distribuição por idade do card
-            if 'criado' in df_todos.columns:
-                df_com_idade = df_todos.copy()
-                df_com_idade['idade_dias'] = (datetime.now() - pd.to_datetime(df_com_idade['criado'])).dt.days
-                
-                faixas = pd.cut(df_com_idade['idade_dias'], 
-                               bins=[0, 7, 14, 30, 90, float('inf')],
-                               labels=['< 1 sem', '1-2 sem', '2-4 sem', '1-3 meses', '> 3 meses'])
-                faixa_counts = faixas.value_counts().reset_index()
-                faixa_counts.columns = ['faixa', 'count']
-                
-                fig_idade = px.bar(faixa_counts, x='faixa', y='count',
-                                   color='count', color_continuous_scale='Reds')
-                fig_idade.update_layout(height=300, showlegend=False)
-                st.plotly_chart(fig_idade, use_container_width=True)
+        # ===== GRÁFICOS: TIPOS E IDADE - EM EXPANDER =====
+        with st.expander("📊 Análise de Distribuição", expanded=False):
+            st.caption("Visualize a distribuição dos cards por **tipo** (Bug, Hotfix, Tarefa) e por **idade** (quanto tempo desde a criação)")
+            
+            col_tipo1, col_tipo2 = st.columns(2)
+            
+            with col_tipo1:
+                st.markdown("##### 🏷️ Distribuição por Tipo")
+                st.caption("Mostra a proporção de cada tipo de card (Hotfix, Bug, Tarefa, etc)")
+                if 'tipo' in df_todos.columns:
+                    tipo_counts = df_todos['tipo'].value_counts().reset_index()
+                    tipo_counts.columns = ['tipo', 'count']
+                    
+                    cores_tipo = {'HOTFIX': '#ef4444', 'BUG': '#f97316', 'TAREFA': '#64748b', 'SUGESTÃO': '#6366f1', 'HISTÓRIA': '#22c55e'}
+                    
+                    fig_tipo = px.pie(tipo_counts, values='count', names='tipo',
+                                      color='tipo',
+                                      color_discrete_map=cores_tipo)
+                    fig_tipo.update_layout(height=300)
+                    st.plotly_chart(fig_tipo, use_container_width=True)
+            
+            with col_tipo2:
+                st.markdown("##### 📅 Cards por Idade")
+                st.caption("Quanto tempo os cards estão abertos. Cards antigos (> 3 meses) precisam de atenção!")
+                if 'criado' in df_todos.columns:
+                    df_com_idade = df_todos.copy()
+                    df_com_idade['idade_dias'] = (datetime.now() - pd.to_datetime(df_com_idade['criado'])).dt.days
+                    
+                    faixas = pd.cut(df_com_idade['idade_dias'], 
+                                   bins=[0, 7, 14, 30, 90, float('inf')],
+                                   labels=['< 1 sem', '1-2 sem', '2-4 sem', '1-3 meses', '> 3 meses'])
+                    faixa_counts = faixas.value_counts().reset_index()
+                    faixa_counts.columns = ['faixa', 'count']
+                    
+                    fig_idade = px.bar(faixa_counts, x='faixa', y='count',
+                                       color='count', color_continuous_scale='Reds')
+                    fig_idade.update_layout(height=300, showlegend=False)
+                    st.plotly_chart(fig_idade, use_container_width=True)
         
         return
     
@@ -8930,7 +8942,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.69 • Dashboard de Inteligência QA
+                    v8.70 • Dashboard de Inteligência QA
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -8946,6 +8958,15 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.70** *(17/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 📦 **Expanders Padronizados**: Todas as seções agora podem ser ocultadas
+                - 👤 **Fix Responsável**: Prioriza campo `responsavel` corretamente (não QA)
+                - 📝 **Título Completo**: Aumentado de 50 para 80 caracteres
+                - ✅ **Checkbox Ver Todos**: Voltou! Remove limite de 20 cards
+                - 🎨 **Fonte Padronizada**: Cards com fonte consistente e legível
+                - 📊 **Gráficos com Explicação**: Captions descritivos nos gráficos
+                - 🔧 **Cards Aguardando Aberto**: Agora inicia expandido por padrão
+                
                 **v8.69** *(16/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 📋 **Botão Copiar Link Padronizado**: Mesmo estilo do QA/Dev (height=45px)
                 - 📜 **Cards Aguardando Ação em Expander**: Agora pode ocultar/expandir
