@@ -4257,8 +4257,11 @@ def aba_clientes(df_todos: pd.DataFrame):
             return any(keyword in ' '.join(labels_lower) for keyword in keywords_pago)
         return False
     
-    # Adiciona coluna de desenvolvimento pago
-    df_temas['dev_pago'] = df_temas['labels'].apply(is_desenvolvimento_pago)
+    # Adiciona coluna de desenvolvimento pago (se labels existir)
+    if 'labels' in df_temas.columns:
+        df_temas['dev_pago'] = df_temas['labels'].apply(is_desenvolvimento_pago)
+    else:
+        df_temas['dev_pago'] = False
     
     # Lista de clientes únicos ordenados por frequência
     clientes_count = df_temas['temas'].value_counts()
