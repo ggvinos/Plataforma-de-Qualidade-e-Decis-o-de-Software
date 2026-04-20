@@ -2727,21 +2727,32 @@ def exibir_detalhes_pb(card: Dict, links: List[Dict], comentarios: List[Dict]):
 
 def exibir_cards_vinculados(links: List[Dict]):
     """Exibe seção de cards vinculados com popup para navegar. Inclui links transitivos (2º nível)."""
-    if links and len(links) > 0:
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # Separa links de primeiro e segundo nível
-        links_nivel_1 = [l for l in links if l.get('nivel', 1) == 1]
-        links_nivel_2 = [l for l in links if l.get('nivel', 1) == 2]
-        
-        with st.expander(f"🔗 **Cards Vinculados ({len(links)})**", expanded=True):
-            # Links de primeiro nível (diretos)
-            if links_nivel_1:
-                st.markdown("**🔵 Links Diretos:**")
-                for link in links_nivel_1:
-                    tipo_cor = "#6366f1" if link['tipo'] == 'Pai' else "#22c55e" if link['tipo'] == 'Subtarefa' else "#f59e0b"
-                    card_popup_html = card_link_com_popup(link['ticket_id'])
-                    st.markdown(f"""
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    if not links or len(links) == 0:
+        # Mostra mensagem quando não há vínculos
+        with st.expander("🔗 **Cards Vinculados (0)**", expanded=False):
+            st.markdown("""
+<div style='background: #f8fafc; padding: 15px; border-radius: 8px; text-align: center; color: #64748b;'>
+    <span style='font-size: 1.5em;'>🔗</span><br>
+    <span style='font-size: 0.9em;'>Nenhum card vinculado</span><br>
+    <span style='font-size: 0.8em; color: #94a3b8;'>Este card não possui links com outros cards no Jira</span>
+</div>
+            """, unsafe_allow_html=True)
+        return
+    
+    # Separa links de primeiro e segundo nível
+    links_nivel_1 = [l for l in links if l.get('nivel', 1) == 1]
+    links_nivel_2 = [l for l in links if l.get('nivel', 1) == 2]
+    
+    with st.expander(f"🔗 **Cards Vinculados ({len(links)})**", expanded=True):
+        # Links de primeiro nível (diretos)
+        if links_nivel_1:
+            st.markdown("**🔵 Links Diretos:**")
+            for link in links_nivel_1:
+                tipo_cor = "#6366f1" if link['tipo'] == 'Pai' else "#22c55e" if link['tipo'] == 'Subtarefa' else "#f59e0b"
+                card_popup_html = card_link_com_popup(link['ticket_id'])
+                st.markdown(f"""
 <div style='background: {tipo_cor}10; padding: 10px 15px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid {tipo_cor};'>
     <div style='display: flex; justify-content: space-between; align-items: center;'>
         <div>
