@@ -5617,87 +5617,11 @@ def exibir_timeline_transicoes(historico: List[Dict], titulo: str = "📜 Timeli
         # ===== TIMELINE DETALHADA =====
         st.markdown("##### 📅 Timeline Detalhada")
         
-        # CSS da timeline
-        st.markdown("""
-        <style>
-        .timeline-container {
-            position: relative;
-            padding-left: 30px;
-        }
-        .timeline-container::before {
-            content: '';
-            position: absolute;
-            left: 10px;
-            top: 0;
-            bottom: 0;
-            width: 2px;
-            background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
-        }
-        .timeline-item {
-            position: relative;
-            padding-bottom: 20px;
-            padding-left: 25px;
-        }
-        .timeline-item:last-child {
-            padding-bottom: 0;
-        }
-        .timeline-dot {
-            position: absolute;
-            left: -25px;
-            top: 3px;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            z-index: 1;
-        }
-        .timeline-content {
-            background: #f8fafc;
-            border-radius: 8px;
-            padding: 12px 15px;
-            border-left: 3px solid;
-        }
-        .timeline-date {
-            font-size: 11px;
-            color: #64748b;
-            margin-bottom: 4px;
-        }
-        .timeline-title {
-            font-weight: 600;
-            font-size: 13px;
-            margin-bottom: 3px;
-        }
-        .timeline-detail {
-            font-size: 12px;
-            color: #475569;
-        }
-        .timeline-author {
-            font-size: 11px;
-            color: #94a3b8;
-            margin-top: 5px;
-        }
-        .timeline-duration {
-            font-size: 10px;
-            background: #e2e8f0;
-            color: #475569;
-            padding: 2px 6px;
-            border-radius: 10px;
-            display: inline-block;
-            margin-top: 5px;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-        
         # Tab para escolher entre todas as transições ou só status
         tab_status, tab_todos = st.tabs(["🔄 Transições de Status", "📋 Todos os Eventos"])
         
         with tab_status:
             if transicoes_status:
-                timeline_html = '<div class="timeline-container">'
-                
                 for i, evento in enumerate(transicoes_status):
                     data_fmt = evento['data'].strftime('%d/%m/%Y às %H:%M') if evento['data'] else 'Data desconhecida'
                     duracao_texto = ""
@@ -5721,32 +5645,29 @@ def exibir_timeline_transicoes(historico: List[Dict], titulo: str = "📜 Timeli
                     is_current = (i == len(transicoes_status) - 1)
                     current_badge = "<span style='background:#22c55e; color:white; font-size:9px; padding:2px 6px; border-radius:10px; margin-left:8px;'>ATUAL</span>" if is_current else ""
                     
-                    timeline_html += f'''
-                    <div class="timeline-item">
-                        <div class="timeline-dot" style="background:{evento['cor']}20; border: 2px solid {evento['cor']};">
-                            {evento['icone']}
-                        </div>
-                        <div class="timeline-content" style="border-left-color:{evento['cor']};">
-                            <div class="timeline-date">{data_fmt}</div>
-                            <div class="timeline-title" style="color:{evento['cor']};">
-                                {evento['campo']}: {evento['para']}{current_badge}
-                            </div>
-                            <div class="timeline-detail">{evento['detalhes']}</div>
-                            <div class="timeline-author">👤 {evento['autor']}</div>
-                            <span class="timeline-duration">⏱️ {duracao_texto} {'neste status' if not is_current else 'até agora'}</span>
-                        </div>
-                    </div>
-                    '''
-                
-                timeline_html += '</div>'
-                st.markdown(timeline_html, unsafe_allow_html=True)
+                    st.markdown(f"""
+<div style='display:flex; gap:12px; margin-bottom:12px; padding-left:10px; border-left:3px solid {evento['cor']};'>
+    <div style='background:{evento['cor']}20; border:2px solid {evento['cor']}; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;'>
+        {evento['icone']}
+    </div>
+    <div style='flex:1; background:#f8fafc; border-radius:8px; padding:12px;'>
+        <div style='font-size:11px; color:#64748b;'>{data_fmt}</div>
+        <div style='font-weight:600; font-size:13px; color:{evento['cor']}; margin:4px 0;'>
+            {evento['campo']}: {evento['para']}{current_badge}
+        </div>
+        <div style='font-size:12px; color:#475569;'>{evento['detalhes']}</div>
+        <div style='font-size:11px; color:#94a3b8; margin-top:5px;'>👤 {evento['autor']}</div>
+        <span style='font-size:10px; background:#e2e8f0; color:#475569; padding:2px 6px; border-radius:10px; display:inline-block; margin-top:5px;'>
+            ⏱️ {duracao_texto} {'neste status' if not is_current else 'até agora'}
+        </span>
+    </div>
+</div>
+                    """, unsafe_allow_html=True)
             else:
                 st.info("Nenhuma transição de status registrada.")
         
         with tab_todos:
             if historico:
-                timeline_html = '<div class="timeline-container">'
-                
                 for i, evento in enumerate(historico):
                     data_fmt = evento['data'].strftime('%d/%m/%Y às %H:%M') if evento['data'] else 'Data desconhecida'
                     duracao_texto = ""
@@ -5760,24 +5681,21 @@ def exibir_timeline_transicoes(historico: List[Dict], titulo: str = "📜 Timeli
                     
                     is_current = (i == len(historico) - 1)
                     
-                    timeline_html += f'''
-                    <div class="timeline-item">
-                        <div class="timeline-dot" style="background:{evento['cor']}20; border: 2px solid {evento['cor']};">
-                            {evento['icone']}
-                        </div>
-                        <div class="timeline-content" style="border-left-color:{evento['cor']};">
-                            <div class="timeline-date">{data_fmt}</div>
-                            <div class="timeline-title" style="color:{evento['cor']};">
-                                {evento['campo']}: {evento.get('para', 'N/A')}
-                            </div>
-                            <div class="timeline-detail">{evento['detalhes']}</div>
-                            <div class="timeline-author">👤 {evento['autor']}</div>
-                        </div>
-                    </div>
-                    '''
-                
-                timeline_html += '</div>'
-                st.markdown(timeline_html, unsafe_allow_html=True)
+                    st.markdown(f"""
+<div style='display:flex; gap:12px; margin-bottom:12px; padding-left:10px; border-left:3px solid {evento['cor']};'>
+    <div style='background:{evento['cor']}20; border:2px solid {evento['cor']}; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;'>
+        {evento['icone']}
+    </div>
+    <div style='flex:1; background:#f8fafc; border-radius:8px; padding:12px;'>
+        <div style='font-size:11px; color:#64748b;'>{data_fmt}</div>
+        <div style='font-weight:600; font-size:13px; color:{evento['cor']}; margin:4px 0;'>
+            {evento['campo']}: {evento.get('para', 'N/A')}
+        </div>
+        <div style='font-size:12px; color:#475569;'>{evento['detalhes']}</div>
+        <div style='font-size:11px; color:#94a3b8; margin-top:5px;'>👤 {evento['autor']}</div>
+    </div>
+</div>
+                    """, unsafe_allow_html=True)
             else:
                 st.info("Nenhum evento registrado.")
         
@@ -5818,9 +5736,9 @@ def exibir_timeline_transicoes(historico: List[Dict], titulo: str = "📜 Timeli
                     """, unsafe_allow_html=True)
         
         # ===== QUANTIDADE DE REPROVAÇÕES =====
-        reprovacoes = len([h for h in historico if h['tipo'] == 'transicao' and 
+        reprovacoes = len([h for h in historico if h['tipo'] == 'transicao' and h.get('para') and
                           any(x in h['para'].lower() for x in ['reprovado', 'rejected', 'recusado'])])
-        retornos_dev = len([h for h in historico if h['tipo'] == 'transicao' and 
+        retornos_dev = len([h for h in historico if h['tipo'] == 'transicao' and h.get('de') and h.get('para') and
                            any(x in h['de'].lower() for x in ['validação', 'qa', 'testing']) and
                            any(x in h['para'].lower() for x in ['desenvolvimento', 'andamento', 'development'])])
         
