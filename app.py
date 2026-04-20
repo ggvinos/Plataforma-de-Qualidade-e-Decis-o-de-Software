@@ -1,11 +1,18 @@
 """
 ================================================================================
-JIRA DASHBOARD v8.81 - NINA TECNOLOGIA - VERSÃO COMPLETA E ENRIQUECIDA
+JIRA DASHBOARD v8.82 - NINA TECNOLOGIA - VERSÃO COMPLETA E ENRIQUECIDA
 ================================================================================
 📊 NinaDash — Dashboard de Inteligência e Métricas de QA
 
 🎯 Propósito: Transformar o QA de um processo sem visibilidade em um sistema 
    de inteligência operacional baseado em dados.
+
+MELHORIAS v8.82:
+- 🔧 FIX: Corrigido Meu Dashboard que não mostrava filtros corretamente
+- 👤 PESSOAS: Lista de pessoas agora carrega corretamente
+- ➕ ADICIONAR: Botão de adicionar widget agora funciona
+- 📊 DEBUG: Mostra quantidade de dados e pessoas encontradas
+- 🧹 SIMPLIFICADO: Interface mais limpa e direta
 
 MELHORIAS v8.81:
 - 🎨 MEU DASHBOARD: Tela totalmente nova para construir dashboards personalizados
@@ -1886,148 +1893,126 @@ def tela_consulta_personalizada(df_todos: pd.DataFrame):
     st.markdown("""
     <div style="text-align: center; padding: 10px 0 20px;">
         <h1 style="color: #AF0C37; margin: 0; font-size: 2em;">🎨 Meu Dashboard</h1>
-        <p style="color: #666; font-size: 1em; margin-top: 5px;">Monte seu dashboard personalizado com as métricas que você precisa</p>
+        <p style="color: #666; font-size: 1em; margin-top: 5px;">Monte seu dashboard personalizado</p>
     </div>
     """, unsafe_allow_html=True)
     
     # ===============================================
+    # DEBUG: Mostra dados carregados
+    # ===============================================
+    st.info(f"📊 Dados carregados: {len(df_todos)} cards de {df_todos['projeto'].nunique() if 'projeto' in df_todos.columns else 0} projetos")
+    
+    # ===============================================
     # SEÇÃO 1: CONSTRUTOR DE WIDGET (TOPO)
     # ===============================================
-    with st.container():
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); 
-                    border-radius: 10px; padding: 20px; margin-bottom: 20px;
-                    border: 1px solid #dee2e6;">
-            <h3 style="color: #AF0C37; margin: 0 0 15px 0;">➕ Adicionar Widget</h3>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown("### ➕ Adicionar Widget")
+    
+    # Coleta lista de pessoas ANTES de renderizar os filtros
+    pessoas_lista = []
+    if 'responsavel' in df_todos.columns:
+        responsaveis = df_todos['responsavel'].dropna().unique().tolist()
+        pessoas_lista.extend([p for p in responsaveis if p and p != 'Não atribuído' and len(str(p)) > 2])
+    if 'qa_responsavel' in df_todos.columns:
+        qas = df_todos['qa_responsavel'].dropna().unique().tolist()
+        pessoas_lista.extend([p for p in qas if p and p not in pessoas_lista and len(str(p)) > 2])
+    pessoas_lista = sorted(list(set(pessoas_lista)))
+    
+    # DEBUG: Mostra quantas pessoas encontrou
+    st.caption(f"👥 {len(pessoas_lista)} pessoas encontradas nos dados")
+    
+    # Linha 1: Tipo de widget
+    col_tipo = st.columns([1])[0]
+    with col_tipo:
+        # Lista todos os widgets disponíveis
+        opcoes_widgets = list(CATALOGO_WIDGETS.keys())
         
-        # Formulário de adicionar widget
-        col1, col2, col3 = st.columns([2, 2, 1])
-        
-        with col1:
-            # Agrupa widgets por categoria
-            categorias = {}
-            for widget_id, widget_info in CATALOGO_WIDGETS.items():
-                cat = widget_info.get('categoria', 'Outros')
-                if cat not in categorias:
-                    categorias[cat] = []
-                categorias[cat].append((widget_id, widget_info['nome']))
-            
-            # Opções agrupadas
-            opcoes_widget = []
-            for cat, widgets in sorted(categorias.items()):
-                for wid, nome in widgets:
-                    opcoes_widget.append(wid)
-            
-            tipo_widget = st.selectbox(
-                "📊 Tipo de Widget",
-                options=opcoes_widget,
-                format_func=lambda x: f"{CATALOGO_WIDGETS[x]['categoria']} | {CATALOGO_WIDGETS[x]['nome']}",
-                key="select_widget_tipo"
-            )
-            
-            widget_info = CATALOGO_WIDGETS.get(tipo_widget, {})
-            st.caption(widget_info.get('descricao', ''))
-        
-        with col2:
-            # Filtros disponíveis para o widget selecionado
-            filtros_widget = {}
-            filtros_disponiveis = widget_info.get('filtros', [])
-            
-            # Coleta pessoas únicas
-            pessoas = set()
-            if 'responsavel' in df_todos.columns:
-                pessoas.update(df_todos['responsavel'].dropna().unique())
-            if 'qa_responsavel' in df_todos.columns:
-                pessoas.update(df_todos['qa_responsavel'].dropna().unique())
-            pessoas = sorted([p for p in pessoas if p and p != 'Não atribuído' and len(str(p)) > 2])
-            
-            if 'pessoa' in filtros_disponiveis:
-                filtros_widget['pessoa'] = st.selectbox(
-                    "👤 Pessoa",
-                    options=["Todos"] + pessoas,
-                    key="widget_filtro_pessoa"
-                )
-            
-            if 'papel_pessoa' in filtros_disponiveis:
-                filtros_widget['papel_pessoa'] = st.selectbox(
-                    "🎭 Papel",
-                    options=list(PAPEIS_PESSOA.keys()),
-                    format_func=lambda x: PAPEIS_PESSOA[x],
-                    key="widget_filtro_papel"
-                )
-            
-            if 'status' in filtros_disponiveis:
-                filtros_widget['status'] = st.selectbox(
-                    "🏷️ Status",
-                    options=list(STATUS_FILTRO.keys()),
-                    format_func=lambda x: STATUS_FILTRO[x],
-                    key="widget_filtro_status"
-                )
-            
-            if 'periodo' in filtros_disponiveis:
-                filtros_widget['periodo'] = st.selectbox(
-                    "📅 Período",
-                    options=list(PERIODOS_PREDEFINIDOS.keys()),
-                    format_func=lambda x: PERIODOS_PREDEFINIDOS[x],
-                    key="widget_filtro_periodo",
-                    index=5  # Todo o Período
-                )
-        
-        with col3:
-            st.markdown("<br>", unsafe_allow_html=True)  # Espaçamento
-            if st.button("➕ Adicionar", type="primary", use_container_width=True, key="btn_adicionar_widget"):
-                adicionar_widget(tipo_widget, filtros_widget)
-                st.success(f"Widget '{widget_info['nome']}' adicionado!")
-                st.rerun()
+        tipo_widget = st.selectbox(
+            "📊 Selecione o tipo de visualização",
+            options=opcoes_widgets,
+            format_func=lambda x: f"{CATALOGO_WIDGETS[x]['nome']} - {CATALOGO_WIDGETS[x]['descricao']}",
+            key="select_tipo_widget_novo"
+        )
+    
+    # Linha 2: Filtros em colunas
+    st.markdown("**Filtros (opcional):**")
+    col_pessoa, col_status, col_periodo = st.columns(3)
+    
+    with col_pessoa:
+        pessoa_selecionada = st.selectbox(
+            "👤 Pessoa",
+            options=["Todos"] + pessoas_lista,
+            key="filtro_pessoa_novo",
+            help="Filtra por responsável, QA ou relator"
+        )
+    
+    with col_status:
+        status_selecionado = st.selectbox(
+            "🏷️ Status",
+            options=list(STATUS_FILTRO.keys()),
+            format_func=lambda x: STATUS_FILTRO[x],
+            key="filtro_status_novo"
+        )
+    
+    with col_periodo:
+        periodo_selecionado = st.selectbox(
+            "📅 Período",
+            options=list(PERIODOS_PREDEFINIDOS.keys()),
+            format_func=lambda x: PERIODOS_PREDEFINIDOS[x],
+            key="filtro_periodo_novo",
+            index=5  # Todo o Período
+        )
+    
+    # Botão de adicionar
+    if st.button("➕ ADICIONAR WIDGET AO DASHBOARD", type="primary", use_container_width=True, key="btn_add_widget_novo"):
+        filtros_novos = {
+            "pessoa": pessoa_selecionada,
+            "status": status_selecionado,
+            "periodo": periodo_selecionado
+        }
+        adicionar_widget(tipo_widget, filtros_novos)
+        st.success(f"✅ Widget '{CATALOGO_WIDGETS[tipo_widget]['nome']}' adicionado!")
+        st.rerun()
     
     st.markdown("---")
     
     # ===============================================
     # SEÇÃO 2: WIDGETS ADICIONADOS (ABAIXO)
     # ===============================================
-    widgets = st.session_state.meu_dashboard_widgets
+    widgets = st.session_state.get('meu_dashboard_widgets', [])
     
     if not widgets:
-        # Estado vazio - mostra sugestões
+        # Estado vazio
         st.markdown("""
         <div style="text-align: center; padding: 40px 20px; background: #f8f9fa; 
                     border-radius: 10px; border: 2px dashed #dee2e6;">
             <h3 style="color: #6c757d; margin: 0;">📭 Seu dashboard está vazio</h3>
-            <p style="color: #adb5bd; margin-top: 10px;">Use o construtor acima para adicionar widgets</p>
+            <p style="color: #adb5bd; margin-top: 10px;">Selecione um tipo de widget acima e clique em "Adicionar"</p>
         </div>
         """, unsafe_allow_html=True)
         
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("### 💡 Começar com Templates")
-        st.caption("Clique para adicionar um conjunto de widgets pré-configurados:")
+        st.markdown("---")
+        st.markdown("### 💡 Ou comece com um template pronto:")
         
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            if st.button("📊 Visão Executiva", use_container_width=True, key="template_exec"):
-                adicionar_widget("kpi_total_cards", {"periodo": "ultimo_mes"})
-                adicionar_widget("kpi_story_points", {"periodo": "ultimo_mes"})
-                adicionar_widget("kpi_fator_k", {"periodo": "ultimo_mes"})
-                adicionar_widget("grafico_status", {"periodo": "ultimo_mes"})
-                st.success("Template 'Visão Executiva' adicionado!")
+            if st.button("📊 Visão Executiva", use_container_width=True, key="tpl_exec"):
+                adicionar_widget("kpi_total_cards", {"periodo": "todo_periodo"})
+                adicionar_widget("kpi_story_points", {"periodo": "todo_periodo"})
+                adicionar_widget("kpi_fator_k", {"periodo": "todo_periodo"})
+                adicionar_widget("grafico_status", {"periodo": "todo_periodo"})
                 st.rerun()
         
         with col2:
-            if st.button("👨‍💻 Foco DEV", use_container_width=True, key="template_dev"):
-                adicionar_widget("tabela_ranking_devs", {"periodo": "ultimo_mes"})
-                adicionar_widget("grafico_bugs_dev", {"periodo": "ultimo_mes"})
-                adicionar_widget("kpi_fpy", {"periodo": "ultimo_mes"})
-                st.success("Template 'Foco DEV' adicionado!")
+            if st.button("👨‍💻 Foco DEV", use_container_width=True, key="tpl_dev"):
+                adicionar_widget("tabela_ranking_devs", {"periodo": "todo_periodo"})
+                adicionar_widget("grafico_bugs_dev", {"periodo": "todo_periodo"})
                 st.rerun()
         
         with col3:
-            if st.button("🔬 Foco QA", use_container_width=True, key="template_qa"):
-                adicionar_widget("kpi_bugs", {"periodo": "ultimo_mes"})
-                adicionar_widget("kpi_taxa_conclusao", {"periodo": "ultimo_mes"})
-                adicionar_widget("tabela_aging", {"status": "em_validacao"})
-                st.success("Template 'Foco QA' adicionado!")
+            if st.button("🔬 Foco QA", use_container_width=True, key="tpl_qa"):
+                adicionar_widget("kpi_bugs", {"periodo": "todo_periodo"})
+                adicionar_widget("tabela_aging", {"status": "todos"})
                 st.rerun()
     
     else:
@@ -2036,16 +2021,69 @@ def tela_consulta_personalizada(df_todos: pd.DataFrame):
         with col_info:
             st.markdown(f"### 📊 Seus Widgets ({len(widgets)})")
         with col_limpar:
-            if st.button("🗑️ Limpar Tudo", key="btn_limpar_todos"):
+            if st.button("🗑️ Limpar Tudo", key="btn_limpar"):
                 st.session_state.meu_dashboard_widgets = []
                 _salvar_dashboard_cookie()
                 st.rerun()
         
-        st.markdown("<br>", unsafe_allow_html=True)
-        
         # Renderiza cada widget
         for idx, widget in enumerate(widgets):
-            renderizar_widget(widget, df_todos, idx, len(widgets))
+            with st.container():
+                # Header do widget
+                col_titulo, col_acoes = st.columns([5, 1])
+                
+                widget_info = CATALOGO_WIDGETS.get(widget.get('tipo', ''), {})
+                
+                with col_titulo:
+                    st.markdown(f"#### {widget_info.get('nome', widget.get('tipo', 'Widget'))}")
+                    
+                    # Mostra filtros aplicados
+                    filtros = widget.get('filtros', {})
+                    filtros_txt = []
+                    if filtros.get('pessoa') and filtros['pessoa'] != 'Todos':
+                        filtros_txt.append(f"👤 {filtros['pessoa']}")
+                    if filtros.get('status') and filtros['status'] != 'todos':
+                        filtros_txt.append(f"🏷️ {STATUS_FILTRO.get(filtros['status'], '')}")
+                    if filtros.get('periodo'):
+                        filtros_txt.append(f"📅 {PERIODOS_PREDEFINIDOS.get(filtros['periodo'], '')}")
+                    if filtros_txt:
+                        st.caption(" | ".join(filtros_txt))
+                
+                with col_acoes:
+                    col_up, col_down, col_del = st.columns(3)
+                    with col_up:
+                        if idx > 0 and st.button("⬆️", key=f"up_{idx}"):
+                            mover_widget_cima(widget['id'])
+                            st.rerun()
+                    with col_down:
+                        if idx < len(widgets) - 1 and st.button("⬇️", key=f"down_{idx}"):
+                            mover_widget_baixo(widget['id'])
+                            st.rerun()
+                    with col_del:
+                        if st.button("🗑️", key=f"del_{idx}"):
+                            remover_widget(widget['id'])
+                            st.rerun()
+                
+                # Renderiza conteúdo do widget
+                filtros = widget.get('filtros', {})
+                df_widget = aplicar_filtros_widget(df_todos.copy(), filtros)
+                
+                if df_widget.empty:
+                    st.warning("Nenhum dado encontrado para os filtros aplicados")
+                else:
+                    tipo = widget.get('tipo', '')
+                    tipo_viz = widget_info.get('tipo', 'kpi')
+                    
+                    if tipo_viz == 'kpi':
+                        renderizar_kpi_widget(tipo, df_widget)
+                    elif tipo_viz == 'grafico_barra':
+                        renderizar_grafico_widget(tipo, df_widget)
+                    elif tipo_viz == 'tabela':
+                        renderizar_tabela_widget(tipo, df_widget)
+                    elif tipo_viz == 'lista':
+                        renderizar_lista_widget(tipo, df_widget, filtros)
+                
+                st.markdown("---")
 
 
 # Mantém compatibilidade com a função antiga mas redireciona para nova
