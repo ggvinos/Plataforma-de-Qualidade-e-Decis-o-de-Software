@@ -3009,17 +3009,17 @@ def buscar_dados_jira_cached(projeto: str, jql: str) -> Tuple[Optional[List[Dict
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[List[Dict]], Optional[List[Dict]]]:
+def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[List[Dict]], Optional[List[Dict]], Optional[List[Dict]]]:
     """
     Busca um card específico pelo ID, sem filtros de período.
-    Retorna: (issue, links, comentarios)
+    Retorna: (issue, links, comentarios, historico_transicoes)
     """
     secrets = get_secrets()
     if not secrets["email"] or not secrets["token"]:
-        return None, None, None
+        return None, None, None, None
     
     try:
-        # Busca o card específico com links
+        # Busca o card específico com links e changelog
         base_url = f"{JIRA_BASE_URL}/rest/api/3/issue/{ticket_id}"
         headers = {"Accept": "application/json"}
         
@@ -3036,7 +3036,8 @@ def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[Lis
             CUSTOM_FIELDS["produto"],
         ]
         
-        params = {"fields": ",".join(fields), "expand": "renderedFields"}
+        # Adiciona changelog para histórico de transições
+        params = {"fields": ",".join(fields), "expand": "renderedFields,changelog"}
         
         response = requests.get(
             base_url,
@@ -3047,7 +3048,7 @@ def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[Lis
         )
         
         if response.status_code == 404:
-            return None, None, None
+            return None, None, None, None
         
         response.raise_for_status()
         issue = response.json()
@@ -3227,11 +3228,222 @@ def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[Lis
         except Exception:
             pass  # Comentários são opcionais
         
-        return issue, links, comentarios
+        # ===== EXTRAI HISTÓRICO DE TRANSIÇÕES DO CHANGELOG =====
+        historico_transicoes = extrair_historico_transicoes(issue, ticket_id)
+        
+        return issue, links, comentarios, historico_transicoes
     
     except Exception as e:
         st.error(f"Erro ao buscar card: {e}")
-        return None, None, None
+        return None, None, None, None
+
+
+def extrair_historico_transicoes(issue: Dict, ticket_id: str) -> List[Dict]:
+    """
+    Extrai o histórico completo de transições de status do changelog do Jira.
+    
+    Retorna lista ordenada cronologicamente com:
+    - data: datetime da transição
+    - de: status anterior
+    - para: novo status
+    - autor: quem fez a mudança
+    - tipo: 'criacao', 'transicao', 'campo'
+    - campo: nome do campo alterado (se não for status)
+    - tempo_no_status: dias que ficou no status anterior
+    """
+    historico = []
+    
+    try:
+        fields = issue.get('fields', {})
+        changelog = issue.get('changelog', {})
+        
+        # 1. Primeiro evento: Criação do card
+        data_criacao_str = fields.get('created', '')
+        reporter = fields.get('reporter', {})
+        
+        if data_criacao_str:
+            try:
+                data_criacao = datetime.fromisoformat(data_criacao_str.replace('Z', '+00:00')).replace(tzinfo=None)
+            except:
+                data_criacao = datetime.now()
+            
+            historico.append({
+                'data': data_criacao,
+                'de': None,
+                'para': 'Criado',
+                'autor': reporter.get('displayName', 'Sistema') if reporter else 'Sistema',
+                'tipo': 'criacao',
+                'campo': 'Card',
+                'detalhes': f"Card {ticket_id} criado",
+                'icone': '🎫',
+                'cor': '#22c55e'
+            })
+        
+        # 2. Processa todas as entradas do changelog
+        histories = changelog.get('histories', [])
+        
+        for entry in histories:
+            entry_date_str = entry.get('created', '')
+            author = entry.get('author', {})
+            author_name = author.get('displayName', 'Sistema') if author else 'Sistema'
+            
+            try:
+                entry_date = datetime.fromisoformat(entry_date_str.replace('Z', '+00:00')).replace(tzinfo=None)
+            except:
+                continue
+            
+            items = entry.get('items', [])
+            
+            for item in items:
+                field = item.get('field', '')
+                field_type = item.get('fieldtype', '')
+                from_value = item.get('fromString', '') or ''
+                to_value = item.get('toString', '') or ''
+                
+                # Transições de STATUS são as mais importantes
+                if field.lower() == 'status':
+                    # Determina ícone e cor baseado no status de destino
+                    icone, cor = obter_icone_status(to_value)
+                    
+                    historico.append({
+                        'data': entry_date,
+                        'de': from_value if from_value else 'Sem status',
+                        'para': to_value if to_value else 'Desconhecido',
+                        'autor': author_name,
+                        'tipo': 'transicao',
+                        'campo': 'Status',
+                        'detalhes': f"{from_value or 'Início'} → {to_value}",
+                        'icone': icone,
+                        'cor': cor
+                    })
+                
+                # Também captura mudanças importantes de outros campos
+                elif field.lower() in ['assignee', 'responsável']:
+                    historico.append({
+                        'data': entry_date,
+                        'de': from_value if from_value else 'Não atribuído',
+                        'para': to_value if to_value else 'Não atribuído',
+                        'autor': author_name,
+                        'tipo': 'atribuicao',
+                        'campo': 'Responsável',
+                        'detalhes': f"Atribuído: {from_value or 'Ninguém'} → {to_value or 'Ninguém'}",
+                        'icone': '👤',
+                        'cor': '#6366f1'
+                    })
+                
+                elif 'qa' in field.lower() or field == CUSTOM_FIELDS.get('qa_responsavel', ''):
+                    historico.append({
+                        'data': entry_date,
+                        'de': from_value if from_value else 'Não atribuído',
+                        'para': to_value if to_value else 'Não atribuído',
+                        'autor': author_name,
+                        'tipo': 'qa_atribuicao',
+                        'campo': 'QA Responsável',
+                        'detalhes': f"QA: {from_value or 'Ninguém'} → {to_value or 'Ninguém'}",
+                        'icone': '🧪',
+                        'cor': '#8b5cf6'
+                    })
+                
+                elif field.lower() == 'sprint':
+                    historico.append({
+                        'data': entry_date,
+                        'de': from_value if from_value else 'Sem sprint',
+                        'para': to_value if to_value else 'Removido da sprint',
+                        'autor': author_name,
+                        'tipo': 'sprint',
+                        'campo': 'Sprint',
+                        'detalhes': f"Sprint: {from_value or 'Nenhuma'} → {to_value or 'Removido'}",
+                        'icone': '🏃',
+                        'cor': '#f59e0b'
+                    })
+                
+                elif 'story point' in field.lower() or field == CUSTOM_FIELDS.get('story_points', ''):
+                    historico.append({
+                        'data': entry_date,
+                        'de': from_value if from_value else '0',
+                        'para': to_value if to_value else '0',
+                        'autor': author_name,
+                        'tipo': 'estimativa',
+                        'campo': 'Story Points',
+                        'detalhes': f"SP: {from_value or '0'} → {to_value or '0'}",
+                        'icone': '📊',
+                        'cor': '#3b82f6'
+                    })
+                
+                elif 'bug' in field.lower() or field == CUSTOM_FIELDS.get('bugs_encontrados', ''):
+                    historico.append({
+                        'data': entry_date,
+                        'de': from_value if from_value else '0',
+                        'para': to_value if to_value else '0',
+                        'autor': author_name,
+                        'tipo': 'bugs',
+                        'campo': 'Bugs Encontrados',
+                        'detalhes': f"Bugs: {from_value or '0'} → {to_value or '0'}",
+                        'icone': '🐛',
+                        'cor': '#ef4444'
+                    })
+                
+                elif field.lower() == 'resolution':
+                    historico.append({
+                        'data': entry_date,
+                        'de': from_value if from_value else 'Sem resolução',
+                        'para': to_value if to_value else 'Reaberto',
+                        'autor': author_name,
+                        'tipo': 'resolucao',
+                        'campo': 'Resolução',
+                        'detalhes': f"Resolução: {to_value or 'Reaberto'}",
+                        'icone': '✅' if to_value else '🔄',
+                        'cor': '#22c55e' if to_value else '#f97316'
+                    })
+        
+        # 3. Ordena por data
+        historico.sort(key=lambda x: x['data'])
+        
+        # 4. Calcula tempo em cada status
+        for i, evento in enumerate(historico):
+            if i < len(historico) - 1:
+                proximo = historico[i + 1]
+                delta = proximo['data'] - evento['data']
+                evento['duracao_dias'] = delta.days
+                evento['duracao_horas'] = int(delta.total_seconds() / 3600)
+            else:
+                # Último evento - calcula até agora
+                delta = datetime.now() - evento['data']
+                evento['duracao_dias'] = delta.days
+                evento['duracao_horas'] = int(delta.total_seconds() / 3600)
+        
+        return historico
+    
+    except Exception as e:
+        # Em caso de erro, retorna lista vazia
+        return []
+
+
+def obter_icone_status(status: str) -> Tuple[str, str]:
+    """Retorna ícone e cor baseado no nome do status."""
+    status_lower = status.lower() if status else ''
+    
+    # Mapeamento de status para ícones e cores
+    if any(x in status_lower for x in ['backlog', 'to do', 'pendente', 'aberto']):
+        return '📋', '#64748b'
+    elif any(x in status_lower for x in ['andamento', 'development', 'desenvolviment', 'em progresso']):
+        return '💻', '#3b82f6'
+    elif any(x in status_lower for x in ['revisão', 'review', 'code review']):
+        return '👀', '#8b5cf6'
+    elif any(x in status_lower for x in ['aguardando validação', 'waiting', 'aguardando qa']):
+        return '⏳', '#f59e0b'
+    elif any(x in status_lower for x in ['validação', 'em validação', 'testing', 'qa']):
+        return '🧪', '#06b6d4'
+    elif any(x in status_lower for x in ['concluído', 'done', 'finalizado', 'resolvido']):
+        return '✅', '#22c55e'
+    elif any(x in status_lower for x in ['bloqueado', 'blocked', 'impedido']):
+        return '🚫', '#ef4444'
+    elif any(x in status_lower for x in ['reprovado', 'rejected', 'recusado']):
+        return '❌', '#dc2626'
+    elif any(x in status_lower for x in ['adiado', 'deferred', 'descartado']):
+        return '📅', '#6b7280'
+    else:
+        return '📌', '#9ca3af'
 
 
 def extrair_texto_adf(adf_content: Dict) -> str:
@@ -4605,7 +4817,7 @@ def calcular_metricas_dev(df: pd.DataFrame) -> Dict:
 # BUSCA E DETALHES DO CARD
 # ==============================================================================
 
-def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Dict], projeto: str = "SD") -> bool:
+def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Dict], historico: List[Dict] = None, projeto: str = "SD") -> bool:
     """
     Exibe painel detalhado com informações de um card específico.
     Adapta o conteúdo conforme o projeto:
@@ -4615,6 +4827,10 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Di
     """
     if not card:
         return False
+    
+    # Garante que historico seja uma lista
+    if historico is None:
+        historico = []
     
     # Gera URL de compartilhamento
     base_url = NINADASH_URL
@@ -4714,19 +4930,23 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Di
     # ========================================================================
     
     if projeto == "SD":
-        exibir_detalhes_sd(card, links, comentarios)
+        exibir_detalhes_sd(card, links, comentarios, historico)
     elif projeto == "QA":
-        exibir_detalhes_qa(card, links, comentarios)
+        exibir_detalhes_qa(card, links, comentarios, historico)
     elif projeto == "PB":
-        exibir_detalhes_pb(card, links, comentarios)
+        exibir_detalhes_pb(card, links, comentarios, historico)
     else:
-        exibir_detalhes_sd(card, links, comentarios)  # Fallback
+        exibir_detalhes_sd(card, links, comentarios, historico)  # Fallback
     
     return True
 
 
-def exibir_detalhes_sd(card: Dict, links: List[Dict], comentarios: List[Dict]):
+def exibir_detalhes_sd(card: Dict, links: List[Dict], comentarios: List[Dict], historico: List[Dict] = None):
     """Exibe detalhes para projeto SD (Service Desk) - Completo com qualidade."""
+    
+    # Garante que historico seja uma lista
+    if historico is None:
+        historico = []
     
     # ===== KPIs PRINCIPAIS (CARDS ESTILIZADOS) =====
     fk = calcular_fator_k(card['sp'], card['bugs'])
@@ -4968,6 +5188,10 @@ def exibir_detalhes_sd(card: Dict, links: List[Dict], comentarios: List[Dict]):
 </div>
             """, unsafe_allow_html=True)
     
+    # ===== TIMELINE DE TRANSIÇÕES =====
+    if historico:
+        exibir_timeline_transicoes(historico, "📜 Timeline Completa do Card")
+    
     # ===== CARDS VINCULADOS =====
     exibir_cards_vinculados(links)
     
@@ -4975,8 +5199,12 @@ def exibir_detalhes_sd(card: Dict, links: List[Dict], comentarios: List[Dict]):
     exibir_comentarios(comentarios, projeto="SD")
 
 
-def exibir_detalhes_qa(card: Dict, links: List[Dict], comentarios: List[Dict]):
+def exibir_detalhes_qa(card: Dict, links: List[Dict], comentarios: List[Dict], historico: List[Dict] = None):
     """Exibe detalhes para projeto QA - Foco em automação e tempo parado."""
+    
+    # Garante que historico seja uma lista
+    if historico is None:
+        historico = []
     
     # ===== KPIs PRINCIPAIS (CARDS ESTILIZADOS - QA) =====
     # Cores por status
@@ -5106,6 +5334,10 @@ def exibir_detalhes_qa(card: Dict, links: List[Dict], comentarios: List[Dict]):
     else:
         st.error("🚨 Card parado há muito tempo. Recomenda-se revisar a necessidade ou arquivar se não for mais relevante.")
     
+    # ===== TIMELINE DE TRANSIÇÕES =====
+    if historico:
+        exibir_timeline_transicoes(historico, "📜 Timeline Completa do Card")
+    
     # ===== CARDS VINCULADOS =====
     exibir_cards_vinculados(links)
     
@@ -5113,8 +5345,12 @@ def exibir_detalhes_qa(card: Dict, links: List[Dict], comentarios: List[Dict]):
     exibir_comentarios(comentarios, projeto="QA")
 
 
-def exibir_detalhes_pb(card: Dict, links: List[Dict], comentarios: List[Dict]):
+def exibir_detalhes_pb(card: Dict, links: List[Dict], comentarios: List[Dict], historico: List[Dict] = None):
     """Exibe detalhes para projeto PB (Backlog) - Sem bugs, foco em prioridade."""
+    
+    # Garante que historico seja uma lista
+    if historico is None:
+        historico = []
     
     # ===== KPIs PRINCIPAIS (CARDS ESTILIZADOS - PB) =====
     # Cores por status
@@ -5314,11 +5550,304 @@ def exibir_detalhes_pb(card: Dict, links: List[Dict], comentarios: List[Dict]):
         with cols[i]:
             st.markdown(insight)
     
+    # ===== TIMELINE DE TRANSIÇÕES =====
+    if historico:
+        exibir_timeline_transicoes(historico, "📜 Timeline Completa do Card")
+    
     # ===== CARDS VINCULADOS =====
     exibir_cards_vinculados(links)
     
     # ===== COMENTÁRIOS =====
     exibir_comentarios(comentarios, projeto="PB")
+
+
+def exibir_timeline_transicoes(historico: List[Dict], titulo: str = "📜 Timeline Completa do Card"):
+    """
+    Exibe uma timeline visual completa com todas as transições do card.
+    
+    Mostra:
+    - Criação do card
+    - Todas as transições de status
+    - Atribuições de responsável/QA
+    - Mudanças de sprint
+    - Registro de bugs
+    - Tempo em cada status
+    """
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    if not historico or len(historico) == 0:
+        with st.expander(f"{titulo} (0 eventos)", expanded=False):
+            st.markdown("""
+<div style='background: #f8fafc; padding: 15px; border-radius: 8px; text-align: center; color: #64748b;'>
+    <span style='font-size: 1.5em;'>📜</span><br>
+    <span style='font-size: 0.9em;'>Histórico não disponível</span><br>
+    <span style='font-size: 0.8em; color: #94a3b8;'>Não foi possível carregar o histórico de transições</span>
+</div>
+            """, unsafe_allow_html=True)
+        return
+    
+    # Filtra apenas transições de status por padrão (mais relevantes)
+    transicoes_status = [h for h in historico if h['tipo'] in ['criacao', 'transicao', 'resolucao']]
+    outros_eventos = [h for h in historico if h['tipo'] not in ['criacao', 'transicao', 'resolucao']]
+    
+    with st.expander(f"{titulo} ({len(historico)} eventos)", expanded=True):
+        
+        # ===== RESUMO DO FLUXO =====
+        st.markdown("##### 🔄 Fluxo de Status")
+        
+        # Mostra fluxo resumido de status em uma linha
+        status_flow = []
+        for h in transicoes_status:
+            if h['tipo'] == 'criacao':
+                status_flow.append(('🎫 Criado', h['cor']))
+            elif h['tipo'] == 'transicao':
+                status_flow.append((f"{h['icone']} {h['para']}", h['cor']))
+            elif h['tipo'] == 'resolucao' and h['para']:
+                status_flow.append((f"✅ {h['para']}", h['cor']))
+        
+        if status_flow:
+            flow_html = " → ".join([
+                f"<span style='background:{cor}20; color:{cor}; padding:3px 8px; border-radius:4px; font-size:12px; font-weight:500;'>{status}</span>" 
+                for status, cor in status_flow
+            ])
+            st.markdown(f"<div style='margin-bottom:15px; overflow-x:auto; white-space:nowrap;'>{flow_html}</div>", unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # ===== TIMELINE DETALHADA =====
+        st.markdown("##### 📅 Timeline Detalhada")
+        
+        # CSS da timeline
+        st.markdown("""
+        <style>
+        .timeline-container {
+            position: relative;
+            padding-left: 30px;
+        }
+        .timeline-container::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
+        }
+        .timeline-item {
+            position: relative;
+            padding-bottom: 20px;
+            padding-left: 25px;
+        }
+        .timeline-item:last-child {
+            padding-bottom: 0;
+        }
+        .timeline-dot {
+            position: absolute;
+            left: -25px;
+            top: 3px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            z-index: 1;
+        }
+        .timeline-content {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 12px 15px;
+            border-left: 3px solid;
+        }
+        .timeline-date {
+            font-size: 11px;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+        .timeline-title {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 3px;
+        }
+        .timeline-detail {
+            font-size: 12px;
+            color: #475569;
+        }
+        .timeline-author {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 5px;
+        }
+        .timeline-duration {
+            font-size: 10px;
+            background: #e2e8f0;
+            color: #475569;
+            padding: 2px 6px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-top: 5px;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        # Tab para escolher entre todas as transições ou só status
+        tab_status, tab_todos = st.tabs(["🔄 Transições de Status", "📋 Todos os Eventos"])
+        
+        with tab_status:
+            if transicoes_status:
+                timeline_html = '<div class="timeline-container">'
+                
+                for i, evento in enumerate(transicoes_status):
+                    data_fmt = evento['data'].strftime('%d/%m/%Y às %H:%M') if evento['data'] else 'Data desconhecida'
+                    duracao_texto = ""
+                    
+                    if evento.get('duracao_dias', 0) > 0:
+                        dias = evento['duracao_dias']
+                        if dias == 1:
+                            duracao_texto = "1 dia"
+                        else:
+                            duracao_texto = f"{dias} dias"
+                    elif evento.get('duracao_horas', 0) > 0:
+                        horas = evento['duracao_horas']
+                        if horas == 1:
+                            duracao_texto = "1 hora"
+                        else:
+                            duracao_texto = f"{horas} horas"
+                    else:
+                        duracao_texto = "< 1 hora"
+                    
+                    # Verifica se é o último item (status atual)
+                    is_current = (i == len(transicoes_status) - 1)
+                    current_badge = "<span style='background:#22c55e; color:white; font-size:9px; padding:2px 6px; border-radius:10px; margin-left:8px;'>ATUAL</span>" if is_current else ""
+                    
+                    timeline_html += f'''
+                    <div class="timeline-item">
+                        <div class="timeline-dot" style="background:{evento['cor']}20; border: 2px solid {evento['cor']};">
+                            {evento['icone']}
+                        </div>
+                        <div class="timeline-content" style="border-left-color:{evento['cor']};">
+                            <div class="timeline-date">{data_fmt}</div>
+                            <div class="timeline-title" style="color:{evento['cor']};">
+                                {evento['campo']}: {evento['para']}{current_badge}
+                            </div>
+                            <div class="timeline-detail">{evento['detalhes']}</div>
+                            <div class="timeline-author">👤 {evento['autor']}</div>
+                            <span class="timeline-duration">⏱️ {duracao_texto} {'neste status' if not is_current else 'até agora'}</span>
+                        </div>
+                    </div>
+                    '''
+                
+                timeline_html += '</div>'
+                st.markdown(timeline_html, unsafe_allow_html=True)
+            else:
+                st.info("Nenhuma transição de status registrada.")
+        
+        with tab_todos:
+            if historico:
+                timeline_html = '<div class="timeline-container">'
+                
+                for i, evento in enumerate(historico):
+                    data_fmt = evento['data'].strftime('%d/%m/%Y às %H:%M') if evento['data'] else 'Data desconhecida'
+                    duracao_texto = ""
+                    
+                    if evento.get('duracao_dias', 0) > 0:
+                        duracao_texto = f"{evento['duracao_dias']} dia(s)"
+                    elif evento.get('duracao_horas', 0) > 0:
+                        duracao_texto = f"{evento['duracao_horas']} hora(s)"
+                    else:
+                        duracao_texto = "< 1 hora"
+                    
+                    is_current = (i == len(historico) - 1)
+                    
+                    timeline_html += f'''
+                    <div class="timeline-item">
+                        <div class="timeline-dot" style="background:{evento['cor']}20; border: 2px solid {evento['cor']};">
+                            {evento['icone']}
+                        </div>
+                        <div class="timeline-content" style="border-left-color:{evento['cor']};">
+                            <div class="timeline-date">{data_fmt}</div>
+                            <div class="timeline-title" style="color:{evento['cor']};">
+                                {evento['campo']}: {evento.get('para', 'N/A')}
+                            </div>
+                            <div class="timeline-detail">{evento['detalhes']}</div>
+                            <div class="timeline-author">👤 {evento['autor']}</div>
+                        </div>
+                    </div>
+                    '''
+                
+                timeline_html += '</div>'
+                st.markdown(timeline_html, unsafe_allow_html=True)
+            else:
+                st.info("Nenhum evento registrado.")
+        
+        # ===== MÉTRICAS DE TEMPO =====
+        st.markdown("---")
+        st.markdown("##### ⏱️ Métricas de Tempo por Status")
+        
+        # Agrupa tempo por status
+        tempo_por_status = {}
+        for evento in transicoes_status:
+            if evento['tipo'] == 'transicao' and evento.get('de'):
+                status_anterior = evento['de']
+                if status_anterior not in tempo_por_status:
+                    tempo_por_status[status_anterior] = 0
+                # Procura o tempo que ficou nesse status (olhando o evento anterior)
+                idx = transicoes_status.index(evento)
+                if idx > 0:
+                    evento_anterior = transicoes_status[idx - 1]
+                    tempo_por_status[status_anterior] += evento_anterior.get('duracao_dias', 0)
+        
+        # Adiciona tempo no status atual
+        if transicoes_status:
+            ultimo = transicoes_status[-1]
+            status_atual = ultimo.get('para', 'Desconhecido')
+            tempo_por_status[status_atual] = ultimo.get('duracao_dias', 0)
+        
+        if tempo_por_status:
+            cols = st.columns(min(len(tempo_por_status), 5))
+            for i, (status, dias) in enumerate(tempo_por_status.items()):
+                with cols[i % len(cols)]:
+                    icone, cor = obter_icone_status(status)
+                    st.markdown(f"""
+<div style='background:{cor}15; padding:10px; border-radius:8px; text-align:center; border-left:3px solid {cor};'>
+    <div style='font-size:18px;'>{icone}</div>
+    <div style='font-size:11px; color:#666;'>{status[:15]}{'...' if len(status) > 15 else ''}</div>
+    <div style='font-size:16px; font-weight:600; color:{cor};'>{dias}d</div>
+</div>
+                    """, unsafe_allow_html=True)
+        
+        # ===== QUANTIDADE DE REPROVAÇÕES =====
+        reprovacoes = len([h for h in historico if h['tipo'] == 'transicao' and 
+                          any(x in h['para'].lower() for x in ['reprovado', 'rejected', 'recusado'])])
+        retornos_dev = len([h for h in historico if h['tipo'] == 'transicao' and 
+                           any(x in h['de'].lower() for x in ['validação', 'qa', 'testing']) and
+                           any(x in h['para'].lower() for x in ['desenvolvimento', 'andamento', 'development'])])
+        
+        if reprovacoes > 0 or retornos_dev > 0:
+            st.markdown("---")
+            st.markdown("##### 🔄 Análise de Retrabalho")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                cor_rep = "#ef4444" if reprovacoes > 0 else "#22c55e"
+                st.markdown(f"""
+<div style='background:{cor_rep}15; padding:12px; border-radius:8px; text-align:center; border-left:3px solid {cor_rep};'>
+    <div style='font-size:22px;'>❌</div>
+    <div style='font-size:24px; font-weight:700; color:{cor_rep};'>{reprovacoes}</div>
+    <div style='font-size:12px; color:#666;'>Reprovações</div>
+</div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                cor_ret = "#f97316" if retornos_dev > 0 else "#22c55e"
+                st.markdown(f"""
+<div style='background:{cor_ret}15; padding:12px; border-radius:8px; text-align:center; border-left:3px solid {cor_ret};'>
+    <div style='font-size:22px;'>🔄</div>
+    <div style='font-size:24px; font-weight:700; color:{cor_ret};'>{retornos_dev}</div>
+    <div style='font-size:12px; color:#666;'>Retornos p/ Dev</div>
+</div>
+                """, unsafe_allow_html=True)
 
 
 def exibir_cards_vinculados(links: List[Dict]):
@@ -12898,12 +13427,12 @@ def main():
         
         # Busca o card específico (sem filtros de período)
         with st.spinner(f"🔍 Buscando {busca_card}..."):
-            issue, links, comentarios = buscar_card_especifico(busca_card)
+            issue, links, comentarios, historico_transicoes = buscar_card_especifico(busca_card)
         
         if issue:
             # Processa o card encontrado
             card_data = processar_issue_unica(issue)
-            exibir_card_detalhado_v2(card_data, links, comentarios, projeto_busca)
+            exibir_card_detalhado_v2(card_data, links, comentarios, historico_transicoes, projeto_busca)
         else:
             st.warning(f"⚠️ Card **{busca_card}** não encontrado.")
             st.info("💡 Verifique se o ID está correto. O card será buscado em todo o histórico do projeto.")
