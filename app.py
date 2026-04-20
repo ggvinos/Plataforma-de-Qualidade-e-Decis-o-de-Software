@@ -9792,11 +9792,12 @@ def aba_lideranca(df: pd.DataFrame):
         st.markdown("---")
         
         # ===== FILTROS =====
-        col_filtro1, col_filtro2, col_filtro3 = st.columns([2, 2, 2])
+        col_filtro1, col_filtro2, col_filtro3 = st.columns([2, 3, 2])
         
         # Lista de pessoas únicas
         devs_lista = sorted(list(set([a['pessoa'] for a in concentracao['alertas_dev']])))
         qas_lista = sorted(list(set([a['pessoa'] for a in concentracao['alertas_qa']])))
+        todas_pessoas = sorted(list(set(devs_lista + qas_lista)))
         
         with col_filtro1:
             filtro_tipo = st.selectbox(
@@ -9806,10 +9807,11 @@ def aba_lideranca(df: pd.DataFrame):
             )
         
         with col_filtro2:
-            opcoes_pessoa = ["Todas as pessoas"] + devs_lista + [q for q in qas_lista if q not in devs_lista]
-            filtro_pessoa = st.selectbox(
-                "👤 Filtrar por pessoa:",
-                opcoes_pessoa,
+            filtro_pessoas = st.multiselect(
+                "👤 Filtrar por pessoa(s):",
+                options=todas_pessoas,
+                default=[],
+                placeholder="Todas as pessoas",
                 key="filtro_pessoa_concentracao"
             )
         
@@ -9821,7 +9823,7 @@ def aba_lideranca(df: pd.DataFrame):
             )
         
         # Aplica filtros
-        def filtrar_alertas(alertas, tipo_role, filtro_tipo, filtro_pessoa, filtro_contexto):
+        def filtrar_alertas(alertas, tipo_role, filtro_tipo, filtro_pessoas, filtro_contexto):
             resultado = alertas.copy()
             
             # Filtro por tipo (DEV/QA)
@@ -9830,9 +9832,9 @@ def aba_lideranca(df: pd.DataFrame):
             if filtro_tipo == "Apenas QA" and tipo_role != "qa":
                 return []
             
-            # Filtro por pessoa
-            if filtro_pessoa != "Todas as pessoas":
-                resultado = [a for a in resultado if a['pessoa'] == filtro_pessoa]
+            # Filtro por pessoa(s) - se lista não vazia, filtra
+            if filtro_pessoas:
+                resultado = [a for a in resultado if a['pessoa'] in filtro_pessoas]
             
             # Filtro por contexto
             if filtro_contexto == "Apenas Produto":
@@ -9842,10 +9844,10 @@ def aba_lideranca(df: pd.DataFrame):
             
             return resultado
         
-        alertas_criticos_dev_filtrados = filtrar_alertas(alertas_criticos_dev, "dev", filtro_tipo, filtro_pessoa, filtro_contexto)
-        alertas_criticos_qa_filtrados = filtrar_alertas(alertas_criticos_qa, "qa", filtro_tipo, filtro_pessoa, filtro_contexto)
-        alertas_atencao_dev_filtrados = filtrar_alertas(alertas_atencao_dev, "dev", filtro_tipo, filtro_pessoa, filtro_contexto)
-        alertas_atencao_qa_filtrados = filtrar_alertas(alertas_atencao_qa, "qa", filtro_tipo, filtro_pessoa, filtro_contexto)
+        alertas_criticos_dev_filtrados = filtrar_alertas(alertas_criticos_dev, "dev", filtro_tipo, filtro_pessoas, filtro_contexto)
+        alertas_criticos_qa_filtrados = filtrar_alertas(alertas_criticos_qa, "qa", filtro_tipo, filtro_pessoas, filtro_contexto)
+        alertas_atencao_dev_filtrados = filtrar_alertas(alertas_atencao_dev, "dev", filtro_tipo, filtro_pessoas, filtro_contexto)
+        alertas_atencao_qa_filtrados = filtrar_alertas(alertas_atencao_qa, "qa", filtro_tipo, filtro_pessoas, filtro_contexto)
         
         # ===== ALERTAS AGRUPADOS POR PESSOA (EM EXPANDERS) =====
         todos_alertas_criticos = alertas_criticos_dev_filtrados + alertas_criticos_qa_filtrados
