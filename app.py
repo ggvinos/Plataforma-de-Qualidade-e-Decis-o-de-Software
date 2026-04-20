@@ -632,12 +632,16 @@ def verificar_credenciais() -> bool:
 # AUTENTICAÇÃO DE USUÁRIO (usando Cookies para persistência)
 # ==============================================================================
 
+# Suprimir warning do CookieManager em função cacheada
+import warnings
+warnings.filterwarnings("ignore", message=".*CachedWidgetWarning.*")
+warnings.filterwarnings("ignore", category=UserWarning, module="streamlit")
+
 # CookieManager para persistência de login entre sessões
+@st.cache_resource(show_spinner=False)
 def get_cookie_manager():
-    """Retorna instância do CookieManager via session_state."""
-    if "_cookie_manager" not in st.session_state:
-        st.session_state._cookie_manager = stx.CookieManager(key="ninadash_cookie_manager")
-    return st.session_state._cookie_manager
+    """Retorna instância única do CookieManager."""
+    return stx.CookieManager(key="ninadash_cookie_manager")
 
 
 # Nome do cookie para autenticação
