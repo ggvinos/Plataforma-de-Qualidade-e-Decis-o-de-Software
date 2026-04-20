@@ -376,8 +376,8 @@ def link_jira(ticket_id: str) -> str:
 
 def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True) -> str:
     """
-    Gera HTML de um card com botões de ação que aparecem no hover do card.
-    Design: [TICKET-ID] [📊 NinaDash] [🔗 Jira] - botões aparecem no hover do card.
+    Gera HTML de um link para Jira com botão NinaDash que aparece no hover.
+    Design: [TICKET-ID] [📊 NinaDash] - ID vai pro Jira, botão vai pro NinaDash.
     
     Args:
         ticket_id: ID do card (ex: PB-797, SD-1234)
@@ -385,7 +385,7 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
         inline: Se True, renderiza inline. Se False, bloco.
     
     Returns:
-        HTML string com link e botões de ação.
+        HTML string com link e botão de ação.
     """
     # Detecta projeto automaticamente se não informado
     if not projeto:
@@ -404,13 +404,10 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
     cores = {"PB": "#8b5cf6", "SD": "#3b82f6", "QA": "#22c55e"}
     cor = cores.get(projeto, "#6b7280")
     
-    # HTML com botões inline que aparecem no hover do CARD
+    # HTML: ID vai pro Jira, botão NinaDash aparece no hover do wrapper
     html = f'''<span class="card-link-wrapper">
         <a href="{url_jira}" target="_blank" class="card-link-id" style="color: {cor};">{ticket_id}</a>
-        <span class="card-link-actions">
-            <a href="{url_dashboard}" target="_blank" class="card-action-btn card-action-nina">📊 NinaDash</a>
-            <a href="{url_jira}" target="_blank" class="card-action-btn card-action-jira">🔗 Jira</a>
-        </span>
+        <a href="{url_dashboard}" target="_blank" class="card-action-btn card-action-nina">📊 NinaDash</a>
     </span>'''
     
     return html
@@ -419,14 +416,14 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
 # CSS global para o popup (deve ser inserido uma vez na página)
 CARD_POPUP_CSS = """
 <style>
-    /* Wrapper do link com botões de ação */
+    /* Wrapper do link com botão NinaDash */
     .card-link-wrapper {
         display: inline-flex;
         align-items: center;
         gap: 6px;
     }
     
-    /* ID do ticket (link principal) */
+    /* ID do ticket (link para Jira) */
     .card-link-id {
         font-weight: 600;
         text-decoration: none;
@@ -436,29 +433,12 @@ CARD_POPUP_CSS = """
     }
     .card-link-id:hover {
         background: rgba(59, 130, 246, 0.1);
+        text-decoration: underline;
     }
     
-    /* Container dos botões de ação - escondido por padrão */
-    .card-link-actions {
-        display: none;
-        gap: 4px;
-        align-items: center;
-    }
-    
-    /* Mostrar botões quando hover no CARD inteiro (qualquer variante) */
-    .card-lista:hover .card-link-actions,
-    .card-lista-vermelho:hover .card-link-actions,
-    .card-lista-verde:hover .card-link-actions,
-    .card-lista-azul:hover .card-link-actions,
-    .card-lista-amarelo:hover .card-link-actions,
-    .card-lista-roxo:hover .card-link-actions,
-    .card-lista-laranja:hover .card-link-actions {
-        display: inline-flex;
-    }
-    
-    /* Botões de ação com texto */
+    /* Botão NinaDash - escondido por padrão, aparece no hover do wrapper */
     .card-action-btn {
-        display: inline-flex;
+        display: none;
         align-items: center;
         gap: 3px;
         padding: 3px 8px;
@@ -473,17 +453,15 @@ CARD_POPUP_CSS = """
         white-space: nowrap;
     }
     
+    /* Mostrar botão no hover do wrapper */
+    .card-link-wrapper:hover .card-action-btn {
+        display: inline-flex;
+    }
+    
     /* Hover NinaDash */
     .card-action-nina:hover {
         background: #AF0C37;
         border-color: #AF0C37;
-        color: white;
-    }
-    
-    /* Hover Jira */
-    .card-action-jira:hover {
-        background: #3b82f6;
-        border-color: #3b82f6;
         color: white;
     }
 </style>
