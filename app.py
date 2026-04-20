@@ -377,7 +377,6 @@ def link_jira(ticket_id: str) -> str:
 def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True) -> str:
     """
     Gera HTML de um card com popup para escolher: Ver no NinaDash ou Abrir no Jira.
-    Usa position: fixed com JavaScript para aparecer acima de tudo.
     
     Args:
         ticket_id: ID do card (ex: PB-797, SD-1234)
@@ -404,68 +403,15 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
     cores = {"PB": "#8b5cf6", "SD": "#3b82f6", "QA": "#22c55e"}
     cor = cores.get(projeto, "#6b7280")
     
-    # ID único para este popup
-    popup_id = f"popup_{ticket_id.replace('-', '_')}"
-    
-    # HTML com popup usando position: fixed e JavaScript para posicionamento
-    html = f'''<span style="position: relative; display: {'inline-block' if inline else 'block'};"
-        onmouseenter="
-            var popup = document.getElementById('{popup_id}');
-            var rect = this.getBoundingClientRect();
-            popup.style.display = 'block';
-            popup.style.position = 'fixed';
-            popup.style.left = rect.left + 'px';
-            popup.style.top = (rect.bottom + 5) + 'px';
-            if (rect.top > window.innerHeight / 2) {{
-                popup.style.top = (rect.top - popup.offsetHeight - 5) + 'px';
-            }}
-        "
-        onmouseleave="document.getElementById('{popup_id}').style.display = 'none';"
-    >
-        <span style="
-            color: {cor}; 
-            font-weight: 600; 
-            cursor: pointer; 
-            border-bottom: 1px dashed {cor}40;
-            padding: 1px 3px;
-            border-radius: 3px;
-            transition: all 0.2s ease;
-        ">{ticket_id}</span>
-        <span id="{popup_id}" style="
-            display: none;
-            position: fixed;
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-            padding: 6px;
-            z-index: 99999;
-            min-width: 160px;
-        "
-        onmouseenter="this.style.display = 'block';"
-        onmouseleave="this.style.display = 'none';"
-        >
-            <a href="{url_dashboard}" target="_blank" style="
-                display: block;
-                padding: 8px 12px;
-                color: #1e40af;
-                text-decoration: none;
-                border-radius: 6px;
-                font-size: 13px;
-                transition: background 0.2s;
-            " onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'">
-                <span style="font-size: 16px;">📊</span> Ver no NinaDash
+    # HTML com popup CSS puro usando classes definidas no CSS global
+    html = f'''<span class="card-popup-wrapper">
+        <a href="{url_jira}" target="_blank" class="card-popup-trigger" style="color: {cor};">{ticket_id}</a>
+        <span class="card-popup-menu">
+            <a href="{url_dashboard}" target="_blank" class="card-popup-item card-popup-ninadash">
+                📊 Ver no NinaDash
             </a>
-            <a href="{url_jira}" target="_blank" style="
-                display: block;
-                padding: 8px 12px;
-                color: #166534;
-                text-decoration: none;
-                border-radius: 6px;
-                font-size: 13px;
-                transition: background 0.2s;
-            " onmouseenter="this.style.background='#f0fdf4'" onmouseleave="this.style.background='transparent'">
-                <span style="font-size: 16px;">🔗</span> Abrir no Jira
+            <a href="{url_jira}" target="_blank" class="card-popup-item card-popup-jira">
+                🔗 Abrir no Jira
             </a>
         </span>
     </span>'''
@@ -476,60 +422,86 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
 # CSS global para o popup (deve ser inserido uma vez na página)
 CARD_POPUP_CSS = """
 <style>
-    .card-popup-container:focus .card-popup-menu,
-    .card-popup-container:focus-within .card-popup-menu,
-    .card-popup-container:hover .card-popup-menu {
-        display: block !important;
+    /* Wrapper do popup */
+    .card-popup-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+    
+    /* Trigger (o link do ticket) */
+    .card-popup-trigger {
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        border-bottom: 1px dashed currentColor;
+        padding: 1px 3px;
+        border-radius: 3px;
+        transition: all 0.2s ease;
     }
     .card-popup-trigger:hover {
-        background: rgba(59, 130, 246, 0.1) !important;
+        background: rgba(59, 130, 246, 0.1);
     }
     
-    /* Estilo base dos links do popup */
-    .card-popup-ninadash,
-    .card-popup-jira {
-        display: flex !important;
-        align-items: center !important;
-        gap: 8px !important;
-        padding: 8px 12px !important;
-        color: #374151 !important;
-        text-decoration: none !important;
-        border-radius: 6px !important;
-        font-size: 13px !important;
-        transition: all 0.15s ease !important;
-        white-space: nowrap !important;
-        background: transparent !important;
+    /* Menu popup - aparece ABAIXO do trigger */
+    .card-popup-menu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 5px);
+        left: 0;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        padding: 6px;
+        z-index: 99999;
+        min-width: 160px;
     }
     
-    /* Hover NinaDash - fundo vermelho, texto branco */
-    .card-popup-ninadash:hover {
-        background: #AF0C37 !important;
-        color: white !important;
+    /* Mostrar menu no hover */
+    .card-popup-wrapper:hover .card-popup-menu {
+        display: block;
     }
     
-    /* Hover Jira - fundo cinza claro */
-    .card-popup-jira:hover {
-        background: #3b82f6 !important;
-        color: white !important;
-    }
-    
+    /* Seta do popup - aponta para CIMA */
     .card-popup-menu::after {
         content: '';
         position: absolute;
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%);
+        bottom: 100%;
+        left: 20px;
         border: 6px solid transparent;
-        border-top-color: white;
+        border-bottom-color: white;
     }
     .card-popup-menu::before {
         content: '';
         position: absolute;
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%);
+        bottom: 100%;
+        left: 19px;
         border: 7px solid transparent;
-        border-top-color: #e5e7eb;
+        border-bottom-color: #e5e7eb;
+    }
+    
+    /* Itens do menu */
+    .card-popup-item {
+        display: block;
+        padding: 8px 12px;
+        color: #374151;
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 13px;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+    }
+    
+    /* Hover NinaDash */
+    .card-popup-ninadash:hover {
+        background: #AF0C37;
+        color: white;
+    }
+    
+    /* Hover Jira */
+    .card-popup-jira:hover {
+        background: #3b82f6;
+        color: white;
     }
 </style>
 """
@@ -4095,6 +4067,7 @@ def aplicar_estilos():
         max-height: 450px;
         overflow-y: auto;
         padding-right: 8px;
+        padding-bottom: 80px;
         margin: 10px 0;
         scrollbar-width: thin;
         scrollbar-color: #cbd5e1 #f1f5f9;
