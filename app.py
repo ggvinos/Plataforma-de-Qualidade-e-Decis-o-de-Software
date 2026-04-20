@@ -5563,32 +5563,18 @@ def exibir_detalhes_pb(card: Dict, links: List[Dict], comentarios: List[Dict], h
 
 def exibir_timeline_transicoes(historico: List[Dict], titulo: str = "📜 Timeline Completa do Card"):
     """
-    Exibe uma timeline visual completa com todas as transições do card em scroll horizontal.
-    
-    Mostra:
-    - Criação do card
-    - Todas as transições de status
-    - Atribuições de responsável/QA
-    - Mudanças de sprint
-    - Registro de bugs
-    - Tempo em cada status
+    Exibe uma timeline visual completa com todas as transições do card.
+    Usa st.columns para layout horizontal nativo do Streamlit.
     """
     st.markdown("<br>", unsafe_allow_html=True)
     
     if not historico or len(historico) == 0:
         with st.expander(f"{titulo} (0 eventos)", expanded=False):
-            st.markdown("""
-<div style='background: #f8fafc; padding: 15px; border-radius: 8px; text-align: center; color: #64748b;'>
-    <span style='font-size: 1.5em;'>📜</span><br>
-    <span style='font-size: 0.9em;'>Histórico não disponível</span><br>
-    <span style='font-size: 0.8em; color: #94a3b8;'>Não foi possível carregar o histórico de transições</span>
-</div>
-            """, unsafe_allow_html=True)
+            st.info("Histórico não disponível")
         return
     
     # Filtra apenas transições de status por padrão (mais relevantes)
     transicoes_status = [h for h in historico if h['tipo'] in ['criacao', 'transicao', 'resolucao']]
-    outros_eventos = [h for h in historico if h['tipo'] not in ['criacao', 'transicao', 'resolucao']]
     
     with st.expander(f"{titulo} ({len(historico)} eventos)", expanded=True):
         
@@ -5597,101 +5583,60 @@ def exibir_timeline_transicoes(historico: List[Dict], titulo: str = "📜 Timeli
         
         with tab_status:
             if transicoes_status:
-                # Monta HTML da timeline horizontal
-                items_html = ""
-                for i, evento in enumerate(transicoes_status):
-                    data_fmt = evento['data'].strftime('%d/%m/%Y %H:%M') if evento['data'] else 'N/A'
-                    duracao_texto = ""
-                    
-                    if evento.get('duracao_dias', 0) > 0:
-                        dias = evento['duracao_dias']
-                        duracao_texto = f"{dias}d"
-                    elif evento.get('duracao_horas', 0) > 0:
-                        horas = evento['duracao_horas']
-                        duracao_texto = f"{horas}h"
-                    else:
-                        duracao_texto = "<1h"
-                    
-                    is_current = (i == len(transicoes_status) - 1)
-                    current_badge = "<div style='background:#22c55e; color:white; font-size:9px; padding:2px 6px; border-radius:10px; margin-top:6px; display:inline-block;'>ATUAL</div>" if is_current else ""
-                    
-                    # Seta de conexão (exceto no último)
-                    arrow = "" if is_current else "<div style='position:absolute; right:-20px; top:50%; transform:translateY(-50%); font-size:20px; color:#cbd5e1;'>→</div>"
-                    
-                    items_html += f'''
-                    <div style='flex:0 0 auto; width:180px; background:#f8fafc; border-radius:12px; padding:14px; border-top:4px solid {evento['cor']}; position:relative; margin-right:25px;'>
-                        <div style='display:flex; align-items:center; gap:8px; margin-bottom:8px;'>
-                            <div style='background:{evento['cor']}20; border:2px solid {evento['cor']}; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:12px;'>
-                                {evento['icone']}
-                            </div>
-                            <div style='font-size:10px; color:#64748b;'>{data_fmt}</div>
-                        </div>
-                        <div style='font-weight:600; font-size:12px; color:{evento['cor']}; margin-bottom:4px; word-wrap:break-word;'>
-                            {evento['para'][:25]}{'...' if len(str(evento.get('para', ''))) > 25 else ''}
-                        </div>
-                        <div style='font-size:10px; color:#64748b; margin-bottom:4px;'>👤 {evento['autor'][:15]}{'...' if len(str(evento.get('autor', ''))) > 15 else ''}</div>
-                        <div style='font-size:9px; background:#e2e8f0; color:#475569; padding:2px 6px; border-radius:8px; display:inline-block;'>
-                            ⏱️ {duracao_texto}
-                        </div>
-                        {current_badge}
-                        {arrow}
-                    </div>
-                    '''
+                st.caption("← Arraste para ver mais →")
                 
-                st.markdown(f"""
-<div style='overflow-x:auto; padding:10px 0 15px 0;'>
-    <div style='display:flex; flex-direction:row; gap:0; min-width:max-content;'>
-        {items_html}
-    </div>
+                # Usa colunas do Streamlit para layout horizontal
+                cols = st.columns(len(transicoes_status))
+                
+                for i, evento in enumerate(transicoes_status):
+                    with cols[i]:
+                        data_fmt = evento['data'].strftime('%d/%m %H:%M') if evento['data'] else 'N/A'
+                        
+                        if evento.get('duracao_dias', 0) > 0:
+                            duracao = f"{evento['duracao_dias']}d"
+                        elif evento.get('duracao_horas', 0) > 0:
+                            duracao = f"{evento['duracao_horas']}h"
+                        else:
+                            duracao = "<1h"
+                        
+                        is_current = (i == len(transicoes_status) - 1)
+                        badge = "🟢 ATUAL" if is_current else ""
+                        
+                        # Card compacto
+                        st.markdown(f"""
+<div style="background:{evento['cor']}15; border-top:4px solid {evento['cor']}; border-radius:8px; padding:10px; min-height:120px;">
+    <div style="font-size:18px; margin-bottom:5px;">{evento['icone']}</div>
+    <div style="font-size:10px; color:#64748b;">{data_fmt}</div>
+    <div style="font-weight:600; font-size:11px; color:{evento['cor']}; margin:5px 0; word-break:break-word;">{str(evento.get('para', ''))[:20]}</div>
+    <div style="font-size:9px; color:#64748b;">👤 {str(evento.get('autor', ''))[:12]}</div>
+    <div style="font-size:9px; background:#e2e8f0; color:#475569; padding:2px 5px; border-radius:4px; display:inline-block; margin-top:5px;">⏱️ {duracao}</div>
+    <div style="font-size:9px; color:#22c55e; font-weight:600; margin-top:3px;">{badge}</div>
 </div>
-<p style='font-size:11px; color:#94a3b8; text-align:center; margin-top:5px;'>← Arraste para ver mais →</p>
-                """, unsafe_allow_html=True)
+                        """, unsafe_allow_html=True)
             else:
                 st.info("Nenhuma transição de status registrada.")
         
         with tab_todos:
             if historico:
-                # Monta HTML da timeline horizontal com todos eventos
-                items_html = ""
-                for i, evento in enumerate(historico):
-                    data_fmt = evento['data'].strftime('%d/%m/%Y %H:%M') if evento['data'] else 'N/A'
-                    duracao_texto = ""
-                    
-                    if evento.get('duracao_dias', 0) > 0:
-                        duracao_texto = f"{evento['duracao_dias']}d"
-                    elif evento.get('duracao_horas', 0) > 0:
-                        duracao_texto = f"{evento['duracao_horas']}h"
-                    else:
-                        duracao_texto = "<1h"
-                    
-                    is_current = (i == len(historico) - 1)
-                    arrow = "" if is_current else "<div style='position:absolute; right:-20px; top:50%; transform:translateY(-50%); font-size:20px; color:#cbd5e1;'>→</div>"
-                    
-                    items_html += f'''
-                    <div style='flex:0 0 auto; width:180px; background:#f8fafc; border-radius:12px; padding:14px; border-top:4px solid {evento['cor']}; position:relative; margin-right:25px;'>
-                        <div style='display:flex; align-items:center; gap:8px; margin-bottom:8px;'>
-                            <div style='background:{evento['cor']}20; border:2px solid {evento['cor']}; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:12px;'>
-                                {evento['icone']}
-                            </div>
-                            <div style='font-size:10px; color:#64748b;'>{data_fmt}</div>
-                        </div>
-                        <div style='font-weight:500; font-size:11px; color:#475569; margin-bottom:2px;'>{evento['campo']}</div>
-                        <div style='font-weight:600; font-size:12px; color:{evento['cor']}; margin-bottom:4px; word-wrap:break-word;'>
-                            {str(evento.get('para', 'N/A'))[:25]}{'...' if len(str(evento.get('para', ''))) > 25 else ''}
-                        </div>
-                        <div style='font-size:10px; color:#64748b;'>👤 {evento['autor'][:15]}{'...' if len(str(evento.get('autor', ''))) > 15 else ''}</div>
-                        {arrow}
-                    </div>
-                    '''
+                st.caption("← Arraste para ver mais →")
                 
-                st.markdown(f"""
-<div style='overflow-x:auto; padding:10px 0 15px 0;'>
-    <div style='display:flex; flex-direction:row; gap:0; min-width:max-content;'>
-        {items_html}
-    </div>
+                # Usa colunas do Streamlit para layout horizontal
+                cols = st.columns(len(historico))
+                
+                for i, evento in enumerate(historico):
+                    with cols[i]:
+                        data_fmt = evento['data'].strftime('%d/%m %H:%M') if evento['data'] else 'N/A'
+                        
+                        # Card compacto
+                        st.markdown(f"""
+<div style="background:{evento['cor']}15; border-top:4px solid {evento['cor']}; border-radius:8px; padding:10px; min-height:120px;">
+    <div style="font-size:18px; margin-bottom:5px;">{evento['icone']}</div>
+    <div style="font-size:10px; color:#64748b;">{data_fmt}</div>
+    <div style="font-size:9px; color:#475569;">{evento.get('campo', '')}</div>
+    <div style="font-weight:600; font-size:11px; color:{evento['cor']}; margin:5px 0; word-break:break-word;">{str(evento.get('para', 'N/A'))[:20]}</div>
+    <div style="font-size:9px; color:#64748b;">👤 {str(evento.get('autor', ''))[:12]}</div>
 </div>
-<p style='font-size:11px; color:#94a3b8; text-align:center; margin-top:5px;'>← Arraste para ver mais →</p>
-                """, unsafe_allow_html=True)
+                        """, unsafe_allow_html=True)
             else:
                 st.info("Nenhum evento registrado.")
         
