@@ -1,11 +1,18 @@
 """
 ================================================================================
-JIRA DASHBOARD v8.79 - NINA TECNOLOGIA - VERSÃO COMPLETA E ENRIQUECIDA
+JIRA DASHBOARD v8.80 - NINA TECNOLOGIA - VERSÃO COMPLETA E ENRIQUECIDA
 ================================================================================
 📊 NinaDash — Dashboard de Inteligência e Métricas de QA
 
 🎯 Propósito: Transformar o QA de um processo sem visibilidade em um sistema 
    de inteligência operacional baseado em dados.
+
+MELHORIAS v8.80:
+- 🔧 SIDEBAR REORGANIZADA: Produto junto com Filtros do Dashboard
+- 🎯 FERRAMENTAS AVANÇADAS: Apenas Consulta Personalizada nesta seção
+- 📊 CONSULTA AUTO-EXECUTÁVEL: Resultados aparecem sem precisar clicar
+- 💾 CONSULTAS PERSISTENTES: Salvas em cookie (não perdem ao recarregar)
+- ✨ INTERFACE MELHORADA: Campo de nome em expander organizado
 
 MELHORIAS v8.79:
 - 🎯 CONSULTA PERSONALIZADA: Tela separada para consultas avançadas
@@ -1101,15 +1108,31 @@ PERIODOS_PREDEFINIDOS = {
     "personalizado": "📅 Período Personalizado",
 }
 
+# Nome do cookie para consultas salvas
+COOKIE_CONSULTAS_NAME = "ninadash_consultas_salvas"
+
 
 def inicializar_consultas_personalizadas():
-    """Inicializa o sistema de consultas personalizadas."""
+    """Inicializa o sistema de consultas personalizadas, carregando do cookie se existir."""
     if 'consultas_salvas' not in st.session_state:
-        st.session_state.consultas_salvas = {}
+        # Tenta carregar do cookie
+        try:
+            cookie_manager = get_cookie_manager()
+            consultas_cookie = cookie_manager.get(COOKIE_CONSULTAS_NAME)
+            if consultas_cookie:
+                import json
+                st.session_state.consultas_salvas = json.loads(consultas_cookie)
+            else:
+                st.session_state.consultas_salvas = {}
+        except:
+            st.session_state.consultas_salvas = {}
+    
     if 'modo_consulta_personalizada' not in st.session_state:
         st.session_state.modo_consulta_personalizada = False
     if 'consulta_atual' not in st.session_state:
         st.session_state.consulta_atual = None
+    if 'consulta_executar' not in st.session_state:
+        st.session_state.consulta_executar = None
 
 
 def entrar_modo_consulta():
@@ -1123,15 +1146,42 @@ def sair_modo_consulta():
     st.session_state.consulta_atual = None
 
 
+def _salvar_consultas_cookie():
+    """Salva as consultas no cookie para persistência."""
+    try:
+        import json
+        cookie_manager = get_cookie_manager()
+        # Converte filtros datetime para string antes de serializar
+        consultas_serializaveis = {}
+        for nome, consulta in st.session_state.consultas_salvas.items():
+            consulta_copia = consulta.copy()
+            filtros_copia = consulta_copia.get('filtros', {}).copy()
+            # Remove datetime objects que não são serializáveis
+            for key in ['data_inicio', 'data_fim']:
+                if key in filtros_copia and isinstance(filtros_copia[key], datetime):
+                    filtros_copia[key] = filtros_copia[key].isoformat()
+            consulta_copia['filtros'] = filtros_copia
+            consultas_serializaveis[nome] = consulta_copia
+        
+        cookie_manager.set(
+            COOKIE_CONSULTAS_NAME,
+            json.dumps(consultas_serializaveis),
+            expires_at=datetime.now() + timedelta(days=365)  # 1 ano
+        )
+    except Exception as e:
+        pass  # Silently fail cookie save
+
+
 def salvar_consulta(nome: str, tipo: str, filtros: Dict):
-    """Salva uma consulta personalizada."""
+    """Salva uma consulta personalizada no session_state e no cookie."""
     inicializar_consultas_personalizadas()
     st.session_state.consultas_salvas[nome] = {
         "nome": nome,
         "tipo": tipo,
-        "filtros": filtros,
+        "filtros": filtros.copy(),
         "criado_em": datetime.now().isoformat()
     }
+    _salvar_consultas_cookie()
 
 
 def listar_consultas_salvas() -> Dict:
@@ -1144,6 +1194,7 @@ def excluir_consulta(nome: str):
     """Exclui uma consulta salva."""
     if nome in st.session_state.consultas_salvas:
         del st.session_state.consultas_salvas[nome]
+        _salvar_consultas_cookie()
 
 
 def calcular_periodo_datas(periodo: str, data_inicio_custom: datetime = None, data_fim_custom: datetime = None) -> Tuple[datetime, datetime]:
@@ -1475,7 +1526,7 @@ def tela_consulta_personalizada(df_todos: pd.DataFrame):
                 filtros['produto'] = st.selectbox(
                     "📦 Produto",
                     options=produtos,
-                    key="filtro_produto"
+                    key="filtro_produto_consulta"
                 )
             
             # === FILTRO: PERÍODO ===
@@ -1484,7 +1535,8 @@ def tela_consulta_personalizada(df_todos: pd.DataFrame):
                     "📅 Período",
                     options=list(PERIODOS_PREDEFINIDOS.keys()),
                     format_func=lambda x: PERIODOS_PREDEFINIDOS[x],
-                    key="filtro_periodo"
+                    key="filtro_periodo",
+                    index=5  # Default: "Todo o Período"
                 )
                 
                 if filtros['periodo'] == 'personalizado':
@@ -1507,74 +1559,151 @@ def tela_consulta_personalizada(df_todos: pd.DataFrame):
             
             st.markdown("---")
             
-            # Botões de ação
-            col_btn1, col_btn2 = st.columns(2)
-            with col_btn1:
-                executar = st.button("▶️ Executar Consulta", type="primary", use_container_width=True)
-            with col_btn2:
-                salvar = st.button("💾 Salvar Consulta", use_container_width=True)
-            
-            if salvar:
-                nome_consulta = st.text_input("Nome da consulta", key="nome_consulta_salvar")
-                if nome_consulta and st.button("Confirmar", key="confirmar_salvar"):
-                    salvar_consulta(nome_consulta, tipo_consulta, filtros)
-                    st.success(f"Consulta '{nome_consulta}' salva!")
+            # === SALVAR CONSULTA (interface melhorada) ===
+            with st.expander("💾 Salvar esta Consulta", expanded=False):
+                nome_consulta = st.text_input(
+                    "Nome para a consulta",
+                    placeholder="Ex: Meus cards concluídos",
+                    key="nome_consulta_salvar",
+                    help="Dê um nome descritivo para encontrar facilmente depois"
+                )
+                
+                if st.button("✅ Salvar", key="btn_salvar_consulta", use_container_width=True, disabled=not nome_consulta):
+                    if nome_consulta:
+                        salvar_consulta(nome_consulta, tipo_consulta, filtros)
+                        st.success(f"✅ Consulta '{nome_consulta}' salva com sucesso!")
+                        st.balloons()
+                    else:
+                        st.warning("Digite um nome para a consulta")
         
         with col_preview:
             st.markdown("### 📊 Resultado")
             
-            # Sempre executa a consulta para preview
-            df_filtrado = filtrar_df_por_consulta(df_todos, tipo_consulta, filtros)
+            # Sempre executa a consulta automaticamente (sem precisar de clique)
+            df_filtrado = filtrar_df_por_consulta(df_todos.copy(), tipo_consulta, filtros)
+            
+            # Mostra resumo dos filtros aplicados
+            filtros_ativos = []
+            if filtros.get('pessoa') and filtros.get('pessoa') != "Todos":
+                filtros_ativos.append(f"👤 {filtros['pessoa']}")
+            if filtros.get('papel_pessoa') and filtros.get('papel_pessoa') != "qualquer":
+                filtros_ativos.append(f"🎭 {PAPEIS_PESSOA.get(filtros['papel_pessoa'], '')}")
+            if filtros.get('status') and filtros.get('status') != "todos":
+                filtros_ativos.append(f"🏷️ {STATUS_FILTRO.get(filtros['status'], '')}")
+            if filtros.get('produto') and filtros.get('produto') != "Todos":
+                filtros_ativos.append(f"📦 {filtros['produto']}")
+            if filtros.get('periodo'):
+                filtros_ativos.append(f"📅 {PERIODOS_PREDEFINIDOS.get(filtros['periodo'], '')}")
+            
+            if filtros_ativos:
+                st.caption(f"Filtros: {' | '.join(filtros_ativos)}")
             
             if not df_filtrado.empty:
                 renderizar_resultado_consulta(df_filtrado, tipo_consulta, filtros)
             else:
-                st.info("Configure os filtros e clique em 'Executar Consulta' para ver os resultados.")
+                st.warning("⚠️ Nenhum resultado encontrado para os filtros selecionados.")
+                st.info("💡 Tente ampliar o período ou remover alguns filtros.")
     
     # === TAB: CONSULTAS SALVAS ===
     with tab_salvas:
         consultas = listar_consultas_salvas()
         
         if not consultas:
-            st.info("🔖 Você ainda não tem consultas salvas. Crie uma na aba 'Nova Consulta' e salve!")
+            st.info("🔖 Você ainda não tem consultas salvas.")
+            st.markdown("Para salvar uma consulta:")
+            st.markdown("1. Vá para a aba **Nova Consulta**")
+            st.markdown("2. Configure os filtros desejados")
+            st.markdown("3. Clique em **💾 Salvar esta Consulta**")
+            st.markdown("4. Dê um nome e confirme")
             
-            # Sugestões
-            st.markdown("### 💡 Sugestões de Consultas")
+            st.markdown("---")
+            
+            # Sugestões de consultas rápidas
+            st.markdown("### 💡 Criar Consultas Rápidas")
+            st.caption("Clique para criar automaticamente:")
             
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("📋 Cards Concluídos Recentes", use_container_width=True):
+                if st.button("📋 Cards Concluídos Recentes", use_container_width=True, key="sugestao_1"):
                     salvar_consulta("Cards Concluídos Recentes", "cards_status", {
                         "status": "concluido",
                         "periodo": "ultimas_2_semanas"
                     })
-                    st.success("Consulta salva!")
+                    st.success("✅ Consulta criada!")
                     st.rerun()
             
             with col2:
-                if st.button("🐛 Bugs do Mês", use_container_width=True):
+                if st.button("🐛 Bugs do Mês", use_container_width=True, key="sugestao_2"):
                     salvar_consulta("Bugs do Mês", "bugs_analise", {
                         "periodo": "ultimo_mes"
                     })
-                    st.success("Consulta salva!")
+                    st.success("✅ Consulta criada!")
+                    st.rerun()
+            
+            col3, col4 = st.columns(2)
+            with col3:
+                if st.button("📊 Métricas Gerais", use_container_width=True, key="sugestao_3"):
+                    salvar_consulta("Métricas Gerais", "metricas_pessoa", {
+                        "periodo": "todo_periodo"
+                    })
+                    st.success("✅ Consulta criada!")
+                    st.rerun()
+            
+            with col4:
+                if st.button("🎯 Fator K Detalhado", use_container_width=True, key="sugestao_4"):
+                    salvar_consulta("Fator K Detalhado", "fator_k_detalhado", {
+                        "periodo": "ultimos_3_meses"
+                    })
+                    st.success("✅ Consulta criada!")
                     st.rerun()
         else:
+            st.markdown(f"### 📂 Suas Consultas ({len(consultas)})")
+            
             for nome, consulta in consultas.items():
-                with st.expander(f"📊 {nome}", expanded=False):
-                    tipo = consulta.get('tipo', '')
-                    st.markdown(f"**Tipo:** {TIPOS_CONSULTA.get(tipo, {}).get('nome', tipo)}")
-                    st.caption(f"Criada em: {consulta.get('criado_em', 'N/A')[:16]}")
+                tipo = consulta.get('tipo', '')
+                tipo_nome = TIPOS_CONSULTA.get(tipo, {}).get('nome', tipo)
+                criado_em = consulta.get('criado_em', '')[:16] if consulta.get('criado_em') else 'N/A'
+                
+                with st.container():
+                    col1, col2, col3 = st.columns([3, 1, 1])
                     
-                    col1, col2 = st.columns(2)
                     with col1:
-                        if st.button("▶️ Executar", key=f"exec_{nome}", use_container_width=True):
-                            df_filtrado = filtrar_df_por_consulta(df_todos, tipo, consulta.get('filtros', {}))
-                            renderizar_resultado_consulta(df_filtrado, tipo, consulta.get('filtros', {}))
+                        st.markdown(f"**{nome}**")
+                        st.caption(f"{tipo_nome} • Criada em {criado_em}")
+                    
                     with col2:
-                        if st.button("🗑️ Excluir", key=f"del_{nome}", use_container_width=True):
+                        if st.button("▶️ Executar", key=f"exec_{nome}", use_container_width=True):
+                            # Guarda a consulta para executar
+                            st.session_state.consulta_executar = {
+                                "nome": nome,
+                                "tipo": tipo,
+                                "filtros": consulta.get('filtros', {})
+                            }
+                            st.rerun()
+                    
+                    with col3:
+                        if st.button("🗑️", key=f"del_{nome}", use_container_width=True, help="Excluir consulta"):
                             excluir_consulta(nome)
                             st.success(f"Consulta '{nome}' excluída!")
                             st.rerun()
+                
+                st.markdown("---")
+            
+            # Mostra resultado se uma consulta foi executada
+            if 'consulta_executar' in st.session_state and st.session_state.consulta_executar:
+                consulta_exec = st.session_state.consulta_executar
+                st.markdown(f"### 📊 Resultado: {consulta_exec['nome']}")
+                
+                df_filtrado = filtrar_df_por_consulta(df_todos.copy(), consulta_exec['tipo'], consulta_exec['filtros'])
+                
+                if not df_filtrado.empty:
+                    renderizar_resultado_consulta(df_filtrado, consulta_exec['tipo'], consulta_exec['filtros'])
+                else:
+                    st.warning("⚠️ Nenhum resultado encontrado para esta consulta.")
+                
+                if st.button("❌ Fechar resultado", key="fechar_resultado"):
+                    st.session_state.consulta_executar = None
+                    st.rerun()
 
 
 # Mantém compatibilidade com a função antiga mas redireciona para nova
@@ -12003,29 +12132,32 @@ def aba_sobre():
         | **📋 Backlog** | Saúde do backlog, aging, gargalos, cards problemáticos, recomendações | PO, Liderança |
         | **📈 Histórico** | Evolução de métricas entre releases, tendências | Liderança |
         | **🎯 Liderança** | Decisão Go/No-Go, riscos, simulações | Gerentes, Diretores |
-        | **🎨 Meu Dashboard** | **NOVO!** Crie dashboards personalizados com suas métricas favoritas | Todos |
         | **ℹ️ Sobre** | Esta documentação | Todos |
         
         ---
         
-        ### 🎨 Aba Meu Dashboard (NOVA!)
+        ### 🎯 Consulta Personalizada (NOVA!)
         
-        **Crie dashboards personalizados:**
-        - 📊 Escolha entre 30+ métricas disponíveis
-        - 🎯 Templates prontos: Visão Executiva, Foco QA, Foco Dev
-        - 💾 Salve múltiplos dashboards
-        - 🔄 Atualize com dados em tempo real
+        Acesse pelo botão **"🎯 Consulta Personalizada"** na sidebar!
         
-        **Categorias de métricas:**
-        - Qualidade (Fator K, FPY, DDP, Health Score)
-        - Produtividade (Throughput, Lead Time, WIP)
-        - Bugs (Total, Densidade, Por Dev)
-        - QA (Funil, Carga, Aging)
-        - Desenvolvimento (Ranking, Code Review)
-        - Status (Por status, Impedidos)
-        - Produto (Por produto, Hotfixes)
-        - Concentração (Heatmaps DEV/QA)
-        - Clientes (Top clientes, Bugs)
+        **Tipos de consulta disponíveis:**
+        - 📋 **Cards de uma Pessoa**: Liste todos os cards de alguém com filtros avançados
+        - 📊 **Métricas de uma Pessoa**: KPIs e métricas agregadas individuais
+        - 🏷️ **Cards por Status**: Filtre por status específico (concluído, em andamento, etc.)
+        - 📦 **Cards por Produto**: Análise por produto
+        - ⚖️ **Comparativo**: Compare métricas entre várias pessoas
+        - 📈 **Tendência**: Evolução de métricas ao longo do tempo
+        - 🐛 **Análise de Bugs**: Bugs com filtros avançados
+        - 🎯 **Fator K Detalhado**: Análise profunda do Fator K
+        
+        **Filtros disponíveis:**
+        - 👤 **Pessoa**: Filtre por qualquer pessoa do time
+        - 🎭 **Papel**: Responsável, QA ou Relator
+        - 🏷️ **Status**: Concluído, em andamento, aguardando QA, etc.
+        - 📦 **Produto**: Filtre por produto específico
+        - 📅 **Período**: Sprint atual, semanas, mês ou datas personalizadas
+        
+        **Salve suas consultas favoritas** para reutilizar depois!
         
         ---
         
@@ -12267,18 +12399,8 @@ def main():
                 index=indice_filtro_padrao
             )
             
-            # ===== BOTÃO CONSULTA PERSONALIZADA =====
-            st.markdown("---")
-            st.markdown("##### 🔍 Ferramentas Avançadas")
-            
-            # Inicializa estado de consulta personalizada
-            if 'modo_consulta_personalizada' not in st.session_state:
-                st.session_state.modo_consulta_personalizada = False
-            
-            if st.button("🎯 Consulta Personalizada", use_container_width=True, key="btn_consulta_personalizada", 
-                        help="Crie consultas avançadas com filtros personalizados"):
-                st.session_state.modo_consulta_personalizada = True
-                st.rerun()
+            # Nota: Filtro de Produto será adicionado após carregar os dados
+            # Ferramentas Avançadas também será adicionado após Produto
             
         else:
             # Quando pesquisando, usa o projeto da busca
@@ -12450,23 +12572,34 @@ def main():
         if 'projeto' not in df_todos.columns:
             df_todos['projeto'] = projeto
         
-        # Filtro por produto (dentro da sidebar)
+        # Filtro por produto (dentro da sidebar, junto aos outros filtros)
         with st.sidebar:
+            # Adiciona Produto aos filtros principais
             produtos_disponiveis = ['Todos'] + sorted(df['produto'].unique().tolist())
             filtro_produto = st.selectbox("📦 Produto", produtos_disponiveis, index=0, key="filtro_produto_main")
             
             if filtro_produto != 'Todos':
                 df = df[df['produto'] == filtro_produto]
             
+            # ===== SEÇÃO DE FERRAMENTAS AVANÇADAS (após todos os filtros) =====
+            st.markdown("---")
+            st.markdown("##### 🔍 Ferramentas Avançadas")
+            
+            # Inicializa estado de consulta personalizada
+            if 'modo_consulta_personalizada' not in st.session_state:
+                st.session_state.modo_consulta_personalizada = False
+            
+            if st.button("🎯 Consulta Personalizada", use_container_width=True, key="btn_consulta_personalizada", 
+                        help="Crie consultas avançadas com filtros personalizados"):
+                st.session_state.modo_consulta_personalizada = True
+                st.rerun()
+            
             # ===== RODAPÉ DA SIDEBAR (sempre no final) =====
             st.markdown("---")
             st.markdown("""
             <div style="text-align: center; padding: 5px 0;">
                 <p style="color: #AF0C37; font-weight: bold; margin: 0; font-size: 0.85em;">
-                    📌 NINA Tecnologia
-                </p>
-                <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.78 • Qualidade e Decisão de Software
+                    📌 N9 • Qualidade e Decisão de Software
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -12482,6 +12615,21 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.80** *(20/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
+                - 🔧 **Sidebar Reorganizada**: Produto agora junto com Filtros do Dashboard
+                - 🎯 **Ferramentas Avançadas**: Apenas Consulta Personalizada nesta seção
+                - 📊 **Consulta Auto-Executável**: Resultados aparecem sem precisar clicar
+                - 💾 **Consultas Persistentes**: Consultas salvas ficam no cookie (não perdem ao recarregar)
+                - ✨ **Interface Melhorada**: Campo de nome da consulta em expander organizado
+                
+                **v8.79** *(20/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 🎯 **Consulta Personalizada**: Tela separada acessível pela sidebar
+                - 🔍 **Filtros Avançados**: Pessoa, papel (DEV/QA/Relator), status, período
+                - 📅 **Períodos Flexíveis**: Sprint atual, últimas semanas, mês, ou datas customizadas
+                - 📊 **Tipos de Consulta**: Cards de pessoa, métricas, comparativos, bugs
+                - 💾 **Salvar Consultas**: Guarde suas consultas favoritas para reusar
+                - ⬅️ **Botão na Sidebar**: Acesso rápido abaixo dos filtros
+                
                 **v8.78** *(20/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🎨 **Nova Aba: Meu Dashboard**: Crie dashboards personalizados!
                 - 📊 **Catálogo de Métricas**: 30+ métricas disponíveis para escolher
