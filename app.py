@@ -632,17 +632,20 @@ def verificar_credenciais() -> bool:
 # AUTENTICAÇÃO DE USUÁRIO (usando Cookies para persistência)
 # ==============================================================================
 
-# CookieManager para persistência de login entre sessões
-# Usa experimental_allow_widgets para suprimir o CachedWidgetWarning
-@st.cache_resource(show_spinner=False, experimental_allow_widgets=True)
-def get_cookie_manager():
-    """Retorna instância única do CookieManager."""
-    return stx.CookieManager(key="ninadash_cookie_manager")
-
-
 # Nome do cookie para autenticação
 COOKIE_AUTH_NAME = "ninadash_auth_v2"
 COOKIE_EXPIRY_DAYS = 30
+
+# CookieManager - instanciado globalmente para evitar múltiplas instâncias
+# O warning é esperado mas não afeta funcionalidade
+_cookie_manager = None
+
+def get_cookie_manager():
+    """Retorna instância única do CookieManager."""
+    global _cookie_manager
+    if _cookie_manager is None:
+        _cookie_manager = stx.CookieManager(key="ninadash_cookie_manager")
+    return _cookie_manager
 
 
 def verificar_login() -> bool:
