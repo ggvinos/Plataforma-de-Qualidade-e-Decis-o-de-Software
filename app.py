@@ -4225,17 +4225,15 @@ def criar_card_metrica(valor: str, titulo: str, cor: str = "blue", subtitulo: st
     """, unsafe_allow_html=True)
 
 
-def mostrar_card_ticket(row: dict, compacto: bool = False):
-    """Mostra card de ticket COM LINK para Jira."""
+def gerar_html_card_ticket(row: dict, compacto: bool = False) -> str:
+    """Gera HTML de um card de ticket (retorna string, não renderiza)."""
     bugs = row.get('bugs', 0)
     risco = 'high' if bugs >= 3 else 'medium' if bugs >= 1 else 'low'
-    link = row.get('link', link_jira(row.get('ticket_id', '')))
-    
-    titulo = str(row.get('titulo', ''))[:60] + ('...' if len(str(row.get('titulo', ''))) > 60 else '')
     card_popup = card_link_com_popup(row.get('ticket_id', ''))
+    titulo = str(row.get('titulo', ''))[:60] + ('...' if len(str(row.get('titulo', ''))) > 60 else '')
     
     if compacto:
-        st.markdown(f"""
+        return f'''
         <div class="ticket-card ticket-risk-{risco}">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 {card_popup}
@@ -4243,9 +4241,9 @@ def mostrar_card_ticket(row: dict, compacto: bool = False):
             </div>
             <p style="margin: 5px 0 0 0; font-size: 13px; opacity: 0.9;">{titulo}</p>
         </div>
-        """, unsafe_allow_html=True)
+        '''
     else:
-        st.markdown(f"""
+        return f'''
         <div class="ticket-card ticket-risk-{risco}">
             <div style="display: flex; justify-content: space-between;">
                 {card_popup}
@@ -4259,7 +4257,13 @@ def mostrar_card_ticket(row: dict, compacto: bool = False):
                 <b>{row.get('status', 'N/A')}</b>
             </p>
         </div>
-        """, unsafe_allow_html=True)
+        '''
+
+
+def mostrar_card_ticket(row: dict, compacto: bool = False):
+    """Mostra card de ticket COM LINK para Jira."""
+    html = gerar_html_card_ticket(row, compacto)
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def mostrar_lista_tickets_completa(items: list, titulo: str, mostrar_todos: bool = False, max_height: int = 450):
@@ -4287,16 +4291,17 @@ def mostrar_lista_tickets_completa(items: list, titulo: str, mostrar_todos: bool
         
         limite = total if mostrar_todos else min(5, total)
         
-        # Container com scroll individual
-        st.markdown(f'<div class="scroll-container" style="max-height: {max_height}px;">', unsafe_allow_html=True)
+        # Construir HTML completo em string única (necessário para scroll funcionar)
+        html_lista = f'<div class="scroll-container" style="max-height: {max_height}px;">'
         
         for i, item in enumerate(items[:limite]):
             if isinstance(item, dict):
-                mostrar_card_ticket(item, compacto=True)
+                html_lista += gerar_html_card_ticket(item, compacto=True)
             elif isinstance(item, pd.Series):
-                mostrar_card_ticket(item.to_dict(), compacto=True)
+                html_lista += gerar_html_card_ticket(item.to_dict(), compacto=True)
         
-        st.markdown('</div>', unsafe_allow_html=True)
+        html_lista += '</div>'
+        st.markdown(html_lista, unsafe_allow_html=True)
         
         if not mostrar_todos and total > 5:
             st.caption(f"📌 Mais {total - 5} cards ocultos. Marque acima para ver todos.")
@@ -5457,9 +5462,8 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
                     st.markdown("##### 🚨 Cards Fora do Planejamento Original")
                     st.caption("Cards adicionados após o início da sprint comprometem a previsibilidade")
                     
-                    # Scroll container para listagem
-                    st.markdown('<div class="scroll-container" style="max-height: 400px;">', unsafe_allow_html=True)
-                    # Categorizar motivos
+                    # Construir HTML completo em string única (necessário para scroll funcionar)
+                    html_cards = '<div class="scroll-container" style="max-height: 400px;">'
                     for _, card in adicionados_depois.iterrows():
                         if card['tipo'] == 'HOTFIX':
                             categoria = "🔥 Hotfix/Hotfeature"
@@ -5472,15 +5476,16 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
                             cor_tag = "#8b5cf6"
                         
                         card_popup = card_link_com_popup(card['ticket_id'])
-                        st.markdown(f"""
+                        html_cards += f'''
                         <div class="card-lista" style="border-left-color: {cor_tag};">
                             <span style="background: {cor_tag}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{categoria}</span>
                             <span style="margin-left: 10px;">{card_popup}</span>
                             <span style="color: #64748b;"> - {card['titulo'][:60]}...</span>
                             <span style="float: right; color: #94a3b8; font-size: 12px;">{card['status']}</span>
                         </div>
-                        """, unsafe_allow_html=True)
-                    st.markdown('</div>', unsafe_allow_html=True)
+                        '''
+                    html_cards += '</div>'
+                    st.markdown(html_cards, unsafe_allow_html=True)
                     
                 # Cards por origem do PB
                 if not com_link_pb.empty:
@@ -5616,34 +5621,38 @@ def aba_qa(df: pd.DataFrame):
                 with col1:
                     st.markdown("#### 🚫 Impedidos")
                     if not cards_impedidos.empty:
-                        st.markdown('<div class="scroll-container" style="max-height: 350px;">', unsafe_allow_html=True)
+                        # Construir HTML completo em string única
+                        html_impedidos = '<div class="scroll-container" style="max-height: 350px;">'
                         for _, row in cards_impedidos.iterrows():
                             card_popup = card_link_com_popup(row['ticket_id'])
-                            st.markdown(f"""
+                            html_impedidos += f'''
                             <div class="card-lista-vermelho">
                                 <strong>{card_popup}</strong>
                                 <span style="color: #64748b;"> - {row['titulo']}</span><br>
                                 <small style="color: #94a3b8;">👤 DEV: {row['desenvolvedor']} | 🧑‍🔬 QA: {row['qa']} | {int(row['sp'])} SP</small>
                             </div>
-                            """, unsafe_allow_html=True)
-                        st.markdown('</div>', unsafe_allow_html=True)
+                            '''
+                        html_impedidos += '</div>'
+                        st.markdown(html_impedidos, unsafe_allow_html=True)
                     else:
                         st.success("✅ Nenhum card impedido")
                 
                 with col2:
                     st.markdown("#### ❌ Reprovados")
                     if not cards_reprovados.empty:
-                        st.markdown('<div class="scroll-container" style="max-height: 350px;">', unsafe_allow_html=True)
+                        # Construir HTML completo em string única
+                        html_reprovados = '<div class="scroll-container" style="max-height: 350px;">'
                         for _, row in cards_reprovados.iterrows():
                             card_popup = card_link_com_popup(row['ticket_id'])
-                            st.markdown(f"""
+                            html_reprovados += f'''
                             <div class="card-lista-vermelho">
                                 <strong>{card_popup}</strong>
                                 <span style="color: #64748b;"> - {row['titulo']}</span><br>
                                 <small style="color: #94a3b8;">👤 DEV: {row['desenvolvedor']} | 🧑‍🔬 QA: {row['qa']} | {int(row['sp'])} SP | 🐛 {int(row['bugs'])} bugs</small>
                             </div>
-                            """, unsafe_allow_html=True)
-                        st.markdown('</div>', unsafe_allow_html=True)
+                            '''
+                        html_reprovados += '</div>'
+                        st.markdown(html_reprovados, unsafe_allow_html=True)
                     else:
                         st.success("✅ Nenhum card reprovado")
         
@@ -6909,34 +6918,38 @@ def aba_dev(df: pd.DataFrame):
                 with col_imp:
                     st.markdown("#### 🚫 Impedidos")
                     if not cards_impedidos_dev.empty:
-                        st.markdown('<div class="scroll-container" style="max-height: 350px;">', unsafe_allow_html=True)
+                        # Construir HTML completo em string única
+                        html_imp_dev = '<div class="scroll-container" style="max-height: 350px;">'
                         for _, row in cards_impedidos_dev.iterrows():
                             card_popup = card_link_com_popup(row['ticket_id'])
-                            st.markdown(f"""
+                            html_imp_dev += f'''
                             <div class="card-lista-vermelho">
                                 <strong>{card_popup}</strong>
                                 <span style="color: #64748b;"> - {row['titulo']}</span><br>
                                 <small style="color: #94a3b8;">👤 {row['desenvolvedor']} | 🧑‍🔬 {row['qa']} | {int(row['sp'])} SP</small>
                             </div>
-                            """, unsafe_allow_html=True)
-                        st.markdown('</div>', unsafe_allow_html=True)
+                            '''
+                        html_imp_dev += '</div>'
+                        st.markdown(html_imp_dev, unsafe_allow_html=True)
                     else:
                         st.success("✅ Nenhum card impedido")
                 
                 with col_rep:
                     st.markdown("#### ❌ Reprovados")
                     if not cards_reprovados_dev.empty:
-                        st.markdown('<div class="scroll-container" style="max-height: 350px;">', unsafe_allow_html=True)
+                        # Construir HTML completo em string única
+                        html_rep_dev = '<div class="scroll-container" style="max-height: 350px;">'
                         for _, row in cards_reprovados_dev.iterrows():
                             card_popup = card_link_com_popup(row['ticket_id'])
-                            st.markdown(f"""
+                            html_rep_dev += f'''
                             <div class="card-lista-vermelho">
                                 <strong>{card_popup}</strong>
                                 <span style="color: #64748b;"> - {row['titulo']}</span><br>
                                 <small style="color: #94a3b8;">👤 {row['desenvolvedor']} | 🧑‍🔬 {row['qa']} | {int(row['sp'])} SP | 🐛 {int(row['bugs'])} bugs</small>
                             </div>
-                            """, unsafe_allow_html=True)
-                        st.markdown('</div>', unsafe_allow_html=True)
+                            '''
+                        html_rep_dev += '</div>'
+                        st.markdown(html_rep_dev, unsafe_allow_html=True)
                     else:
                         st.success("✅ Nenhum card reprovado")
     
@@ -7049,18 +7062,20 @@ def aba_dev(df: pd.DataFrame):
                         st.markdown("---")
                         st.markdown("**🚨 Seus cards com problemas:**")
                         all_problemas_dev = pd.concat([cards_impedidos_dev_ind, cards_reprovados_dev_ind]) if not cards_reprovados_dev_ind.empty and not cards_impedidos_dev_ind.empty else (cards_impedidos_dev_ind if not cards_impedidos_dev_ind.empty else cards_reprovados_dev_ind)
-                        st.markdown('<div class="scroll-container" style="max-height: 300px;">', unsafe_allow_html=True)
+                        # Construir HTML completo em string única
+                        html_problemas = '<div class="scroll-container" style="max-height: 300px;">'
                         for _, row in all_problemas_dev.iterrows():
                             status_icon = "🚫" if row['status_cat'] == 'blocked' else "❌"
                             status_name = "Impedido" if row['status_cat'] == 'blocked' else "Reprovado"
                             card_popup = card_link_com_popup(row['ticket_id'])
-                            st.markdown(f"""
+                            html_problemas += f'''
                             <div class="card-lista-vermelho">
                                 <strong>{status_icon}</strong> {card_popup} - {row['titulo']}<br>
                                 <small style="color: #94a3b8;">🧑‍🔬 QA: {row['qa']} | {status_name} | {int(row['sp'])} SP</small>
                             </div>
-                            """, unsafe_allow_html=True)
-                        st.markdown('</div>', unsafe_allow_html=True)
+                            '''
+                        html_problemas += '</div>'
+                        st.markdown(html_problemas, unsafe_allow_html=True)
             
             # ===== NOVA SEÇÃO: RESUMO DA SEMANA - DEV =====
             with st.expander("📅 Resumo da Semana", expanded=True):
@@ -8631,8 +8646,8 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
             st.markdown(f"##### 🔬 {len(df_minha_acao)} cards para você validar/agir")
             st.caption("Cards onde você é QA, Representante do Cliente ou Responsável")
             
-            # Scroll com classe padronizada
-            st.markdown('<div class="scroll-container" style="max-height: 450px;">', unsafe_allow_html=True)
+            # Construir HTML completo em string única
+            html_minha_acao = '<div class="scroll-container" style="max-height: 450px;">'
             
             for _, card in df_minha_acao.iterrows():
                 projeto = card.get('projeto', 'SD')
@@ -8652,7 +8667,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                     papeis.append("Responsável")
                 papel_texto = " • ".join(papeis) if papeis else "Validador"
                 
-                st.markdown(f"""
+                html_minha_acao += f'''
                 <div class="card-lista-roxo">
                     <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap;">
                         <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
@@ -8664,9 +8679,10 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                     <div style="color: #5b21b6; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 70 else ''}</div>
                     <div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Aberto por: {relator} • Status: {card.get('status', '')}</div>
                 </div>
-                """, unsafe_allow_html=True)
+                '''
             
-            st.markdown('</div>', unsafe_allow_html=True)
+            html_minha_acao += '</div>'
+            st.markdown(html_minha_acao, unsafe_allow_html=True)
     
     # ========== 2. CARDS PARA VALIDAR EM PRODUÇÃO ==========
     with st.expander("🔍 Cards para Validar em Produção", expanded=True):
@@ -8676,7 +8692,8 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
             if not df_pendentes.empty:
                 st.markdown(f"##### 🔍 {len(df_pendentes)} cards pendentes de validação")
                 
-                st.markdown('<div class="scroll-container" style="max-height: 400px;">', unsafe_allow_html=True)
+                # Construir HTML completo em string única
+                html_valprod = '<div class="scroll-container" style="max-height: 400px;">'
                 for _, card in df_pendentes.iterrows():
                     dias = (datetime.now() - pd.to_datetime(card['criado'])).days if pd.notna(card.get('criado')) else 0
                     cor = "#ef4444" if dias > 7 else "#f59e0b" if dias > 3 else "#22c55e"
@@ -8685,7 +8702,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                     titulo = card.get('titulo', card.get('resumo', ''))[:70]
                     tempo_atualizacao = formatar_tempo_relativo(card.get('atualizado')) if 'atualizado' in card else ""
                     
-                    st.markdown(f"""
+                    html_valprod += f'''
                     <div class="card-lista" style="border-left-color: {cor};">
                         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
                             <span style="background: {tipo_cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">{tipo}</span>
@@ -8695,8 +8712,9 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                         <div style="color: #374151; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 70 else ''}</div>
                         <div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: {card.get('status', 'N/A')} • Criado: {dias}d atrás</div>
                     </div>
-                    """, unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+                    '''
+                html_valprod += '</div>'
+                st.markdown(html_valprod, unsafe_allow_html=True)
             else:
                 st.success("✅ Nenhum card pendente de validação em produção!")
         else:
@@ -8714,7 +8732,8 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
             # Ordena por data de criação (mais recente primeiro)
             df_concluidos_sorted = df_concluidos_lista.sort_values('criado', ascending=False) if 'criado' in df_concluidos_lista.columns else df_concluidos_lista
             
-            st.markdown('<div class="scroll-container" style="max-height: 400px;">', unsafe_allow_html=True)
+            # Construir HTML completo em string única
+            html_concluidos = '<div class="scroll-container" style="max-height: 400px;">'
             for _, card in df_concluidos_sorted.head(30).iterrows():
                 projeto = card.get('projeto', 'SD')
                 tipo = card.get('tipo', 'TAREFA')
@@ -8725,7 +8744,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                 # Cor do projeto
                 projeto_cor = "#3b82f6" if projeto == "SD" else "#22c55e" if projeto == "QA" else "#f59e0b" if projeto == "PB" else "#8b5cf6"
                 
-                st.markdown(f"""
+                html_concluidos += f'''
                 <div class="card-lista-verde">
                     <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
                         <span style="background: {projeto_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
@@ -8736,8 +8755,9 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                     <div style="color: #166534; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 70 else ''}</div>
                     <div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: {status}</div>
                 </div>
-                """, unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+                '''
+            html_concluidos += '</div>'
+            st.markdown(html_concluidos, unsafe_allow_html=True)
             
             if len(df_concluidos_lista) > 30:
                 st.caption(f"... e mais {len(df_concluidos_lista) - 30} cards concluídos")
