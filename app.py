@@ -5565,6 +5565,7 @@ def exibir_timeline_transicoes(historico: List[Dict], titulo: str = "📜 Timeli
     """
     Exibe uma timeline visual completa com todas as transições do card.
     Usa components.html para scroll horizontal real.
+    Scroll posicionado automaticamente no status atual.
     """
     st.markdown("<br>", unsafe_allow_html=True)
     
@@ -5576,6 +5577,12 @@ def exibir_timeline_transicoes(historico: List[Dict], titulo: str = "📜 Timeli
     # Filtra transições de status para métricas
     transicoes_status = [h for h in historico if h['tipo'] in ['criacao', 'transicao', 'resolucao']]
     
+    # Calcula métricas gerais
+    total_eventos = len(historico)
+    total_dias = sum(e.get('duracao_dias', 0) for e in historico)
+    qtd_retrabalhos = len([h for h in historico if h['tipo'] == 'transicao' and any(x in str(h.get('para', '')).lower() for x in ['desenvolviment', 'development', 'andamento'])])
+    qtd_rejeicoes = len([h for h in historico if any(x in str(h.get('para', '')).lower() for x in ['reprovado', 'rejected', 'recusado'])])
+    
     with st.expander(f"{titulo} ({len(historico)} eventos)", expanded=True):
         
         if historico:
@@ -5586,25 +5593,56 @@ def exibir_timeline_transicoes(historico: List[Dict], titulo: str = "📜 Timeli
                 data_fmt = evento['data'].strftime('%d/%m/%Y') if evento['data'] else 'N/A'
                 hora_fmt = evento['data'].strftime('%H:%M') if evento['data'] else ''
                 
+                # Dia da semana
+                dias_semana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+                dia_semana = dias_semana[evento['data'].weekday()] if evento['data'] else ''
+                
                 # Duração formatada
-                if evento.get('duracao_dias', 0) > 0:
-                    duracao = f"{evento['duracao_dias']} dias"
-                elif evento.get('duracao_horas', 0) > 0:
-                    duracao = f"{evento['duracao_horas']}h"
+                duracao_dias = evento.get('duracao_dias', 0)
+                duracao_horas = evento.get('duracao_horas', 0)
+                if duracao_dias > 0:
+                    duracao = f"{duracao_dias} dia{'s' if duracao_dias > 1 else ''}"
+                elif duracao_horas > 0:
+                    duracao = f"{duracao_horas}h"
                 else:
                     duracao = "< 1h"
                 
+                # Indicador de tempo (se ficou muito tempo)
+                alerta_tempo = ""
+                if duracao_dias >= 5:
+                    alerta_tempo = "<div style='font-size:10px; color:#ef4444; margin-top:4px;'>⚠️ Tempo elevado</div>"
+                elif duracao_dias >= 3:
+                    alerta_tempo = "<div style='font-size:10px; color:#f59e0b; margin-top:4px;'>⏰ Atenção ao tempo</div>"
+                
                 is_current = (i == len(historico) - 1)
-                badge = "<div style='background:#22c55e; color:white; font-size:11px; padding:4px 10px; border-radius:12px; margin-top:8px; display:inline-block; font-weight:600;'>📍 STATUS ATUAL</div>" if is_current else ""
+                current_id = "current-status" if is_current else ""
+                badge = "<div style='background:linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color:white; font-size:11px; padding:6px 12px; border-radius:12px; margin-top:10px; display:inline-block; font-weight:600; box-shadow:0 2px 4px rgba(34,197,94,0.3);'>📍 STATUS ATUAL</div>" if is_current else ""
                 arrow = "" if is_current else "<div style='display:flex; align-items:center; padding:0 8px; color:#94a3b8; font-size:28px; font-weight:300;'>→</div>"
+                
+                # Número do passo
+                passo_num = f"<div style='position:absolute; top:-10px; left:-10px; background:{evento['cor']}; color:white; font-size:10px; font-weight:700; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.2);'>{i+1}</div>"
                 
                 # Campo modificado
                 campo = evento.get('campo', 'Status')
-                campo_display = f"<div style='font-size:11px; color:#94a3b8; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;'>📋 {campo}</div>"
+                tipo = evento.get('tipo', 'transicao')
+                
+                # Ícone baseado no tipo
+                tipo_icone = {
+                    'criacao': '🎫 Criação',
+                    'transicao': '🔄 Status',
+                    'atribuicao': '👤 Atribuição',
+                    'qa_atribuicao': '🧪 QA',
+                    'sprint': '🏃 Sprint',
+                    'estimativa': '📊 Estimativa',
+                    'bugs': '🐛 Bugs',
+                    'resolucao': '✅ Resolução'
+                }.get(tipo, f'📋 {campo}')
+                
+                campo_display = f"<div style='font-size:11px; color:#64748b; margin-bottom:6px; background:#f1f5f9; padding:4px 8px; border-radius:6px; display:inline-block;'>{tipo_icone}</div>"
                 
                 # Valor anterior (de) se existir
                 de_valor = evento.get('de', '')
-                de_display = f"<div style='font-size:12px; color:#ef4444; margin-bottom:4px; text-decoration:line-through;'>❌ {str(de_valor)[:25]}</div>" if de_valor else ""
+                de_display = f"<div style='font-size:12px; color:#94a3b8; margin-bottom:4px;'><span style='text-decoration:line-through; color:#ef4444;'>{str(de_valor)[:25]}</span></div>" if de_valor else ""
                 
                 # Valor novo (para) - destaque principal
                 para_valor = evento.get('para', 'N/A')
@@ -5612,36 +5650,77 @@ def exibir_timeline_transicoes(historico: List[Dict], titulo: str = "📜 Timeli
                 # Autor
                 autor = evento.get('autor', 'Sistema')
                 
+                # Detalhes extras se disponível
+                detalhes = evento.get('detalhes', '')
+                
                 cards_html += f'''
-                <div style="flex:0 0 auto; width:200px; background:white; border-radius:12px; padding:16px; border-top:5px solid {evento['cor']}; box-shadow:0 4px 12px rgba(0,0,0,0.08); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <div style="font-size:28px;">{evento['icone']}</div>
+                <div id="{current_id}" style="position:relative; flex:0 0 auto; width:220px; background:white; border-radius:14px; padding:18px; border-top:5px solid {evento['cor']}; box-shadow:0 4px 16px rgba(0,0,0,0.08); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; {'border:2px solid #22c55e; box-shadow:0 4px 20px rgba(34,197,94,0.2);' if is_current else ''}">
+                    {passo_num}
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+                        <div style="font-size:32px;">{evento['icone']}</div>
                         <div style="text-align:right;">
-                            <div style="font-size:13px; color:#1e293b; font-weight:600;">{data_fmt}</div>
-                            <div style="font-size:12px; color:#64748b;">{hora_fmt}</div>
+                            <div style="font-size:13px; color:#1e293b; font-weight:700;">{data_fmt}</div>
+                            <div style="font-size:11px; color:#64748b;">{dia_semana}, {hora_fmt}</div>
                         </div>
                     </div>
                     {campo_display}
                     {de_display}
-                    <div style="font-weight:700; font-size:14px; color:{evento['cor']}; margin-bottom:10px; word-wrap:break-word; line-height:1.4; padding:8px; background:{evento['cor']}15; border-radius:8px;">✅ {str(para_valor)[:30]}</div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding-top:8px; border-top:1px solid #f1f5f9;">
-                        <div style="font-size:12px; color:#64748b;">👤 {str(autor)[:18]}</div>
-                        <div style="font-size:11px; background:#f1f5f9; color:#475569; padding:4px 8px; border-radius:8px; font-weight:500;">⏱️ {duracao}</div>
+                    <div style="font-weight:700; font-size:14px; color:{evento['cor']}; margin-bottom:10px; word-wrap:break-word; line-height:1.4; padding:10px; background:{evento['cor']}15; border-radius:10px; border-left:3px solid {evento['cor']};">{str(para_valor)[:35]}</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top:1px solid #f1f5f9;">
+                        <div style="font-size:11px; color:#64748b; max-width:110px; overflow:hidden; text-overflow:ellipsis;">👤 {str(autor)[:20]}</div>
+                        <div style="font-size:11px; background:linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); color:#475569; padding:5px 10px; border-radius:10px; font-weight:600;">⏱️ {duracao}</div>
                     </div>
+                    {alerta_tempo}
                     {badge}
                 </div>
                 {arrow}
                 '''
             
-            altura = 280
+            altura = 320
             
+            # HTML completo com scroll posicionado no final (status atual)
             html_completo = f'''
-            <div style="overflow-x:auto; overflow-y:hidden; padding:15px 10px; background:linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-radius:12px; border:1px solid #e2e8f0;">
-                <div style="display:flex; flex-direction:row; align-items:stretch; gap:8px; width:max-content;">
+            <style>
+                .timeline-container {{
+                    overflow-x: auto;
+                    overflow-y: hidden;
+                    padding: 20px 15px;
+                    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+                    border-radius: 14px;
+                    border: 1px solid #e2e8f0;
+                }}
+                .timeline-container::-webkit-scrollbar {{
+                    height: 8px;
+                }}
+                .timeline-container::-webkit-scrollbar-track {{
+                    background: #e2e8f0;
+                    border-radius: 4px;
+                }}
+                .timeline-container::-webkit-scrollbar-thumb {{
+                    background: #94a3b8;
+                    border-radius: 4px;
+                }}
+                .timeline-container::-webkit-scrollbar-thumb:hover {{
+                    background: #64748b;
+                }}
+            </style>
+            <div class="timeline-container" id="timeline-scroll">
+                <div style="display:flex; flex-direction:row; align-items:stretch; gap:10px; width:max-content;">
                     {cards_html}
                 </div>
             </div>
-            <p style="font-size:12px; color:#94a3b8; text-align:center; margin:10px 0 0 0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">← Arraste para ver toda a timeline →</p>
+            <p style="font-size:12px; color:#94a3b8; text-align:center; margin:12px 0 0 0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+                ⬅️ Arraste para ver histórico completo | 📍 Posicionado no status atual ➡️
+            </p>
+            <script>
+                // Auto-scroll para o status atual (final)
+                setTimeout(function() {{
+                    var container = document.getElementById('timeline-scroll');
+                    if (container) {{
+                        container.scrollLeft = container.scrollWidth;
+                    }}
+                }}, 100);
+            </script>
             '''
             
             components.html(html_completo, height=altura, scrolling=True)
