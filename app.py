@@ -211,6 +211,18 @@ CUSTOM_FIELDS = {
     "sla_status": "customfield_11124",  # SLA: Atrasado
 }
 
+# Temas que NÃO devem ser considerados como clientes
+# Usados para demandas internas que beneficiam todos os clientes
+TEMAS_NAO_CLIENTES = [
+    "nina",
+    "interna",
+    "interno",
+    "internal",
+    "nina tecnologia",
+    "nina - interno",
+    "plataforma",  # Se aplicável
+]
+
 # URL base do NinaDash - CENTRALIZADA para facilitar alterações futuras
 NINADASH_URL = "https://ninadash.streamlit.app/"
 
@@ -4238,8 +4250,20 @@ def aba_clientes(df_todos: pd.DataFrame):
         return
     
     # Explode temas para análise
-    df_temas = df_todos.explode('temas')
-    df_temas = df_temas[df_temas['temas'].notna() & (df_temas['temas'] != '') & (df_temas['temas'] != 'Sem tema')]
+    df_temas_todos = df_todos.explode('temas')
+    df_temas_todos = df_temas_todos[df_temas_todos['temas'].notna() & (df_temas_todos['temas'] != '') & (df_temas_todos['temas'] != 'Sem tema')]
+    
+    # Conta cards internos (nina, interna) ANTES de filtrar
+    cards_internos = df_temas_todos[df_temas_todos['temas'].str.lower().str.strip().isin([t.lower() for t in TEMAS_NAO_CLIENTES])]
+    total_cards_internos = len(cards_internos)
+    
+    # Remove temas internos que não são clientes (ex: "nina", "interna")
+    # Esses são mantidos no sistema mas não aparecem na análise de clientes
+    df_temas = df_temas_todos[~df_temas_todos['temas'].str.lower().str.strip().isin([t.lower() for t in TEMAS_NAO_CLIENTES])]
+    
+    # Informa sobre cards internos excluídos
+    if total_cards_internos > 0:
+        st.info(f"ℹ️ **{total_cards_internos} cards internos** (nina, interna) não são exibidos aqui pois beneficiam todos os clientes.")
     
     if df_temas.empty:
         st.info("ℹ️ Nenhum card com cliente/tema definido no período")
@@ -7606,10 +7630,13 @@ def aba_backlog(df: pd.DataFrame):
     if 'temas' in df.columns:
         with st.expander("🏷️ Análise por Temas e Produto", expanded=False):
             st.markdown("#### Cards por Tema/Cliente")
+            st.caption("💡 *Demandas internas (nina, interna) não são exibidas aqui pois beneficiam todos os clientes*")
             
             # Expandir temas (multi-value)
             df_temas = df.explode('temas')
             df_temas = df_temas[df_temas['temas'].notna() & (df_temas['temas'] != '')]
+            # Remove temas internos que não são clientes
+            df_temas = df_temas[~df_temas['temas'].str.lower().str.strip().isin([t.lower() for t in TEMAS_NAO_CLIENTES])]
             
             if not df_temas.empty:
                 col1, col2 = st.columns(2)
