@@ -300,6 +300,49 @@ STATUS_CORES = {
     "valprod_rejeitado": "#ef4444",
 }
 
+# Tradução dos tipos de link do Jira (inglês → português)
+TRADUCAO_LINK_TYPES = {
+    # Tipos de link
+    "Relates": "Relacionado",
+    "Blocks": "Bloqueia",
+    "Clones": "Clone",
+    "Duplicate": "Duplicado",
+    "Parent": "Pai",
+    "Subtask": "Subtarefa",
+    "Epic Link": "Épico",
+    "Polaris work item link": "Implementação",
+    "Issue split": "Divisão",
+    
+    # Direções de link (inward/outward)
+    "relates to": "relacionado a",
+    "is related to": "relacionado a",
+    "blocks": "bloqueia",
+    "is blocked by": "bloqueado por",
+    "clones": "clona",
+    "is cloned by": "clonado por",
+    "duplicates": "duplica",
+    "is duplicated by": "duplicado por",
+    "implements": "implementa",
+    "is implemented by": "implementado por",
+    "is split by": "dividido por",
+    "split to": "dividido para",
+    "is parent of": "é pai de",
+    "is child of": "é filho de",
+    "depends on": "depende de",
+    "is depended on by": "dependência de",
+}
+
+def traduzir_link(texto: str) -> str:
+    """Traduz texto de link do inglês para português."""
+    if not texto:
+        return texto
+    # Busca tradução exata ou parcial (case-insensitive)
+    texto_lower = texto.lower().strip()
+    for en, pt in TRADUCAO_LINK_TYPES.items():
+        if en.lower() == texto_lower:
+            return pt
+    return texto  # Retorna original se não encontrar
+
 # Etapas do funil PB (ordem do processo)
 PB_FUNIL_ETAPAS = [
     ("pb_revisao_produto", "📝 Revisão Produto"),
@@ -458,6 +501,62 @@ CARD_POPUP_CSS = """
     }
 </style>
 """
+
+
+def card_link_para_html(ticket_id: str, projeto: str = None) -> str:
+    """
+    Gera link de card com popup para uso em HTML puro (components.html).
+    Inclui CSS e JavaScript inline para funcionar isoladamente.
+    
+    Args:
+        ticket_id: ID do card (ex: PB-797, SD-1234)
+        projeto: Projeto do card (PB, SD, QA, VALPROD). Se None, detecta automaticamente.
+    
+    Returns:
+        HTML string com popup completo.
+    """
+    if not projeto:
+        if ticket_id.startswith("PB-"):
+            projeto = "PB"
+        elif ticket_id.startswith("QA-"):
+            projeto = "QA"
+        elif ticket_id.startswith("VALPROD-"):
+            projeto = "VALPROD"
+        elif ticket_id.startswith("DVG-"):
+            projeto = "DVG"
+        else:
+            projeto = "SD"
+    
+    url_jira = f"{JIRA_BASE_URL}/browse/{ticket_id}"
+    # URL do NinaDash
+    url_dashboard = f"{NINADASH_URL}?card={ticket_id}&projeto={projeto}"
+    
+    cores = {"PB": "#8b5cf6", "SD": "#3b82f6", "QA": "#22c55e", "VALPROD": "#f59e0b", "DVG": "#14b8a6"}
+    cor = cores.get(projeto, "#6b7280")
+    
+    # Gera ID único para o popup
+    popup_id = f"popup_{ticket_id.replace('-', '_')}"
+    
+    html = f'''<span class="card-popup-inline" style="position: relative; display: inline-block;">
+        <span onclick="document.getElementById('{popup_id}').style.display = document.getElementById('{popup_id}').style.display === 'block' ? 'none' : 'block'" 
+              style="color: {cor}; font-weight: 600; cursor: pointer; text-decoration: underline; text-decoration-style: dashed;">
+            {ticket_id}
+        </span>
+        <span id="{popup_id}" style="display: none; position: absolute; bottom: 120%; left: 0; background: white; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); padding: 6px; z-index: 9999; min-width: 150px;">
+            <a href="{url_dashboard}" target="_blank" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: #374151; text-decoration: none; border-radius: 6px; font-size: 13px;"
+               onmouseover="this.style.background='#AF0C37'; this.style.color='white';"
+               onmouseout="this.style.background='transparent'; this.style.color='#374151';">
+                📊 NinaDash
+            </a>
+            <a href="{url_jira}" target="_blank" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: #374151; text-decoration: none; border-radius: 6px; font-size: 13px;"
+               onmouseover="this.style.background='#3b82f6'; this.style.color='white';"
+               onmouseout="this.style.background='transparent'; this.style.color='#374151';">
+                🔗 Jira
+            </a>
+        </span>
+    </span>'''
+    
+    return html
 
 
 def calcular_dias_necessarios_validacao(complexidade: str) -> int:
@@ -995,18 +1094,19 @@ def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[Lis
         # Links diretos (issuelinks)
         issue_links = fields_data.get('issuelinks', [])
         for link in issue_links:
-            link_type = link.get('type', {}).get('name', 'Relacionado')
+            link_type = traduzir_link(link.get('type', {}).get('name', 'Relacionado'))
             
             # Link de saída (outwardIssue)
             if 'outwardIssue' in link:
                 linked = link['outwardIssue']
                 links.append({
                     'tipo': link_type,
-                    'direcao': link.get('type', {}).get('outward', 'relacionado a'),
+                    'direcao': traduzir_link(link.get('type', {}).get('outward', 'relacionado a')),
                     'ticket_id': linked.get('key', ''),
                     'titulo': linked.get('fields', {}).get('summary', ''),
                     'status': linked.get('fields', {}).get('status', {}).get('name', ''),
-                    'link': f"{JIRA_BASE_URL}/browse/{linked.get('key', '')}"
+                    'link': f"{JIRA_BASE_URL}/browse/{linked.get('key', '')}",
+                    'nivel': 1  # Link direto (primeiro nível)
                 })
             
             # Link de entrada (inwardIssue)
@@ -1014,11 +1114,12 @@ def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[Lis
                 linked = link['inwardIssue']
                 links.append({
                     'tipo': link_type,
-                    'direcao': link.get('type', {}).get('inward', 'relacionado a'),
+                    'direcao': traduzir_link(link.get('type', {}).get('inward', 'relacionado a')),
                     'ticket_id': linked.get('key', ''),
                     'titulo': linked.get('fields', {}).get('summary', ''),
                     'status': linked.get('fields', {}).get('status', {}).get('name', ''),
-                    'link': f"{JIRA_BASE_URL}/browse/{linked.get('key', '')}"
+                    'link': f"{JIRA_BASE_URL}/browse/{linked.get('key', '')}",
+                    'nivel': 1  # Link direto (primeiro nível)
                 })
         
         # Parent (Epic/Story pai)
@@ -1037,13 +1138,87 @@ def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[Lis
         subtasks = fields_data.get('subtasks', [])
         for sub in subtasks:
             links.append({
-                'tipo': 'Subtask',
+                'tipo': 'Subtarefa',
                 'direcao': 'é pai de',
                 'ticket_id': sub.get('key', ''),
                 'titulo': sub.get('fields', {}).get('summary', ''),
                 'status': sub.get('fields', {}).get('status', {}).get('name', ''),
-                'link': f"{JIRA_BASE_URL}/browse/{sub.get('key', '')}"
+                'link': f"{JIRA_BASE_URL}/browse/{sub.get('key', '')}",
+                'nivel': 1
             })
+        
+        # ===== BUSCA LINKS TRANSITIVOS (SEGUNDO NÍVEL) =====
+        # Para cada card vinculado, busca seus links também
+        links_primeiro_nivel = [l['ticket_id'] for l in links]
+        links_transitivos = []
+        
+        for link_info in links:
+            try:
+                linked_ticket = link_info['ticket_id']
+                if not linked_ticket:
+                    continue
+                
+                # Busca os links do card vinculado (sem recursão adicional)
+                linked_url = f"{JIRA_BASE_URL}/rest/api/3/issue/{linked_ticket}"
+                linked_params = {"fields": "issuelinks,summary,status"}
+                
+                linked_response = requests.get(
+                    linked_url,
+                    headers=headers,
+                    params=linked_params,
+                    auth=(secrets["email"], secrets["token"]),
+                    timeout=10
+                )
+                
+                if linked_response.status_code == 200:
+                    linked_data = linked_response.json()
+                    linked_fields = linked_data.get('fields', {})
+                    linked_issue_links = linked_fields.get('issuelinks', [])
+                    
+                    for sub_link in linked_issue_links:
+                        sub_type = traduzir_link(sub_link.get('type', {}).get('name', 'Relacionado'))
+                        
+                        # Link de saída
+                        if 'outwardIssue' in sub_link:
+                            sub_linked = sub_link['outwardIssue']
+                            sub_key = sub_linked.get('key', '')
+                            # Não adiciona se já está nos links diretos ou é o card original
+                            if sub_key and sub_key != ticket_id and sub_key not in links_primeiro_nivel:
+                                links_transitivos.append({
+                                    'tipo': sub_type,
+                                    'direcao': traduzir_link(sub_link.get('type', {}).get('outward', 'relacionado a')),
+                                    'ticket_id': sub_key,
+                                    'titulo': sub_linked.get('fields', {}).get('summary', ''),
+                                    'status': sub_linked.get('fields', {}).get('status', {}).get('name', ''),
+                                    'link': f"{JIRA_BASE_URL}/browse/{sub_key}",
+                                    'nivel': 2,  # Segundo nível (transitivo)
+                                    'via': linked_ticket  # Indica por qual card chegou
+                                })
+                        
+                        # Link de entrada
+                        if 'inwardIssue' in sub_link:
+                            sub_linked = sub_link['inwardIssue']
+                            sub_key = sub_linked.get('key', '')
+                            if sub_key and sub_key != ticket_id and sub_key not in links_primeiro_nivel:
+                                links_transitivos.append({
+                                    'tipo': sub_type,
+                                    'direcao': traduzir_link(sub_link.get('type', {}).get('inward', 'relacionado a')),
+                                    'ticket_id': sub_key,
+                                    'titulo': sub_linked.get('fields', {}).get('summary', ''),
+                                    'status': sub_linked.get('fields', {}).get('status', {}).get('name', ''),
+                                    'link': f"{JIRA_BASE_URL}/browse/{sub_key}",
+                                    'nivel': 2,
+                                    'via': linked_ticket
+                                })
+            except Exception:
+                continue  # Falha silenciosa para links transitivos
+        
+        # Remove duplicatas dos transitivos
+        seen = set(l['ticket_id'] for l in links)
+        for lt in links_transitivos:
+            if lt['ticket_id'] not in seen:
+                links.append(lt)
+                seen.add(lt['ticket_id'])
         
         # Busca comentários do card
         comentarios = []
@@ -2522,15 +2697,22 @@ def exibir_detalhes_pb(card: Dict, links: List[Dict], comentarios: List[Dict]):
 
 
 def exibir_cards_vinculados(links: List[Dict]):
-    """Exibe seção de cards vinculados com popup para navegar."""
+    """Exibe seção de cards vinculados com popup para navegar. Inclui links transitivos (2º nível)."""
     if links and len(links) > 0:
         st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Separa links de primeiro e segundo nível
+        links_nivel_1 = [l for l in links if l.get('nivel', 1) == 1]
+        links_nivel_2 = [l for l in links if l.get('nivel', 1) == 2]
+        
         with st.expander(f"🔗 **Cards Vinculados ({len(links)})**", expanded=True):
-            for link in links:
-                tipo_cor = "#6366f1" if link['tipo'] == 'Parent' else "#22c55e" if link['tipo'] == 'Subtask' else "#f59e0b"
-                # Usa popup para navegação
-                card_popup_html = card_link_com_popup(link['ticket_id'])
-                st.markdown(f"""
+            # Links de primeiro nível (diretos)
+            if links_nivel_1:
+                st.markdown("**🔵 Links Diretos:**")
+                for link in links_nivel_1:
+                    tipo_cor = "#6366f1" if link['tipo'] == 'Pai' else "#22c55e" if link['tipo'] == 'Subtarefa' else "#f59e0b"
+                    card_popup_html = card_link_com_popup(link['ticket_id'])
+                    st.markdown(f"""
 <div style='background: {tipo_cor}10; padding: 10px 15px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid {tipo_cor};'>
     <div style='display: flex; justify-content: space-between; align-items: center;'>
         <div>
@@ -2547,7 +2729,34 @@ def exibir_cards_vinculados(links: List[Dict]):
         </div>
     </div>
 </div>
-                """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
+            
+            # Links de segundo nível (transitivos)
+            if links_nivel_2:
+                st.markdown("---")
+                st.markdown("**🔗 Outros Cards Relacionados** *(via cards vinculados)*:")
+                st.caption("Cards conectados através dos links diretos acima")
+                for link in links_nivel_2:
+                    card_popup_html = card_link_com_popup(link['ticket_id'])
+                    via_text = f" (via {link.get('via', '')})" if link.get('via') else ""
+                    st.markdown(f"""
+<div style='background: #f1f5f9; padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; border-left: 3px dashed #94a3b8;'>
+    <div style='display: flex; justify-content: space-between; align-items: center;'>
+        <div>
+            <span style='color: #64748b; font-size: 0.8em;'>{link['tipo']} • {link['direcao']}</span>
+            <span style='color: #94a3b8; font-size: 0.75em;'>{via_text}</span>
+            <br>
+            {card_popup_html}
+            <span style='color: #64748b; font-size: 0.8em;'> - {link['titulo'][:50]}{'...' if len(link['titulo']) > 50 else ''}</span>
+        </div>
+        <div>
+            <span style='background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 0.7em; color: #64748b;'>
+                {link['status']}
+            </span>
+        </div>
+    </div>
+</div>
+                    """, unsafe_allow_html=True)
 
 
 def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
@@ -7926,13 +8135,15 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                         responsavel = card.get('relator', 'N/A')
                     titulo = str(card.get('titulo', card.get('resumo', '')))[:80]
                     ticket_id = card.get('ticket_id', '')
+                    # Gera popup com opção NinaDash/Jira
+                    popup_html = card_link_para_html(ticket_id, projeto)
                     
                     cards_html += f'''
                     <div style="background: #fef3c7; padding: 10px; margin: 5px 0; border-radius: 6px; border-left: 3px solid #f59e0b;">
                         <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 6px;">
                             <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">{projeto}</span>
                             <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">{tipo}</span>
-                            <a href="https://ninatecnologia.atlassian.net/browse/{ticket_id}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600; font-size: 13px;">{ticket_id}</a>
+                            {popup_html}
                         </div>
                         <div style="color: #78350f; font-size: 13px; margin-top: 4px; line-height: 1.4;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 80 else ""}</div>
                         <div style="color: #92400e; font-size: 12px; margin-top: 4px; font-weight: 500;">👤 Responsável: {responsavel}</div>
@@ -7958,12 +8169,14 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                         responsavel = card.get('relator', 'N/A')
                     titulo = str(card.get('titulo', card.get('resumo', '')))[:80]
                     ticket_id = card.get('ticket_id', '')
+                    # Gera popup com opção NinaDash/Jira
+                    popup_html = card_link_para_html(ticket_id, 'VALPROD')
                     
                     cards_html2 += f'''
                     <div style="background: #fef9c3; padding: 10px; margin: 5px 0; border-radius: 6px; border-left: 3px solid #eab308;">
                         <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 6px;">
                             <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">{tipo}</span>
-                            <a href="https://ninatecnologia.atlassian.net/browse/{ticket_id}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600; font-size: 13px;">{ticket_id}</a>
+                            {popup_html}
                         </div>
                         <div style="color: #713f12; font-size: 13px; margin-top: 4px; line-height: 1.4;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 80 else ""}</div>
                         <div style="color: #854d0e; font-size: 12px; margin-top: 4px; font-weight: 500;">👤 Responsável: {responsavel}</div>
@@ -7989,12 +8202,14 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                         responsavel = card.get('relator', 'N/A')
                     titulo = str(card.get('titulo', card.get('resumo', '')))[:80]
                     ticket_id = card.get('ticket_id', '')
+                    # Gera popup com opção NinaDash/Jira
+                    popup_html = card_link_para_html(ticket_id, 'PB')
                     
                     cards_html3 += f'''
                     <div style="background: #e0f2fe; padding: 10px; margin: 5px 0; border-radius: 6px; border-left: 3px solid #0ea5e9;">
                         <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 6px;">
                             <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">{tipo}</span>
-                            <a href="https://ninatecnologia.atlassian.net/browse/{ticket_id}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600; font-size: 13px;">{ticket_id}</a>
+                            {popup_html}
                         </div>
                         <div style="color: #075985; font-size: 13px; margin-top: 4px; line-height: 1.4;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 80 else ""}</div>
                         <div style="color: #0369a1; font-size: 12px; margin-top: 4px; font-weight: 500;">👤 Responsável: {responsavel}</div>
