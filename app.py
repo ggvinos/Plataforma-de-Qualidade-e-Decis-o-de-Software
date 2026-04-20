@@ -5564,7 +5564,7 @@ def exibir_detalhes_pb(card: Dict, links: List[Dict], comentarios: List[Dict], h
 def exibir_timeline_transicoes(historico: List[Dict], titulo: str = "📜 Timeline Completa do Card"):
     """
     Exibe uma timeline visual completa com todas as transições do card.
-    Usa st.columns para layout horizontal nativo do Streamlit.
+    Usa components.html para scroll horizontal real.
     """
     st.markdown("<br>", unsafe_allow_html=True)
     
@@ -5583,60 +5583,84 @@ def exibir_timeline_transicoes(historico: List[Dict], titulo: str = "📜 Timeli
         
         with tab_status:
             if transicoes_status:
-                st.caption("← Arraste para ver mais →")
-                
-                # Usa colunas do Streamlit para layout horizontal
-                cols = st.columns(len(transicoes_status))
-                
+                # Monta os cards da timeline
+                cards_html = ""
                 for i, evento in enumerate(transicoes_status):
-                    with cols[i]:
-                        data_fmt = evento['data'].strftime('%d/%m %H:%M') if evento['data'] else 'N/A'
-                        
-                        if evento.get('duracao_dias', 0) > 0:
-                            duracao = f"{evento['duracao_dias']}d"
-                        elif evento.get('duracao_horas', 0) > 0:
-                            duracao = f"{evento['duracao_horas']}h"
-                        else:
-                            duracao = "<1h"
-                        
-                        is_current = (i == len(transicoes_status) - 1)
-                        badge = "🟢 ATUAL" if is_current else ""
-                        
-                        # Card compacto
-                        st.markdown(f"""
-<div style="background:{evento['cor']}15; border-top:4px solid {evento['cor']}; border-radius:8px; padding:10px; min-height:120px;">
-    <div style="font-size:18px; margin-bottom:5px;">{evento['icone']}</div>
-    <div style="font-size:10px; color:#64748b;">{data_fmt}</div>
-    <div style="font-weight:600; font-size:11px; color:{evento['cor']}; margin:5px 0; word-break:break-word;">{str(evento.get('para', ''))[:20]}</div>
-    <div style="font-size:9px; color:#64748b;">👤 {str(evento.get('autor', ''))[:12]}</div>
-    <div style="font-size:9px; background:#e2e8f0; color:#475569; padding:2px 5px; border-radius:4px; display:inline-block; margin-top:5px;">⏱️ {duracao}</div>
-    <div style="font-size:9px; color:#22c55e; font-weight:600; margin-top:3px;">{badge}</div>
-</div>
-                        """, unsafe_allow_html=True)
+                    data_fmt = evento['data'].strftime('%d/%m %H:%M') if evento['data'] else 'N/A'
+                    
+                    if evento.get('duracao_dias', 0) > 0:
+                        duracao = f"{evento['duracao_dias']}d"
+                    elif evento.get('duracao_horas', 0) > 0:
+                        duracao = f"{evento['duracao_horas']}h"
+                    else:
+                        duracao = "<1h"
+                    
+                    is_current = (i == len(transicoes_status) - 1)
+                    badge = "<div style='background:#22c55e; color:white; font-size:9px; padding:2px 6px; border-radius:8px; margin-top:6px; display:inline-block;'>ATUAL</div>" if is_current else ""
+                    arrow = "" if is_current else "<div style='display:flex; align-items:center; padding:0 5px; color:#cbd5e1; font-size:20px;'>→</div>"
+                    
+                    cards_html += f'''
+                    <div style="flex:0 0 auto; width:140px; background:white; border-radius:10px; padding:12px; border-top:4px solid {evento['cor']}; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                        <div style="font-size:20px; margin-bottom:6px;">{evento['icone']}</div>
+                        <div style="font-size:10px; color:#64748b; margin-bottom:4px;">{data_fmt}</div>
+                        <div style="font-weight:600; font-size:11px; color:{evento['cor']}; margin-bottom:6px; word-wrap:break-word; line-height:1.3;">{str(evento.get('para', ''))[:22]}</div>
+                        <div style="font-size:9px; color:#64748b; margin-bottom:4px;">👤 {str(evento.get('autor', ''))[:14]}</div>
+                        <div style="font-size:9px; background:#f1f5f9; color:#475569; padding:3px 6px; border-radius:6px; display:inline-block;">⏱️ {duracao}</div>
+                        {badge}
+                    </div>
+                    {arrow}
+                    '''
+                
+                # Calcula altura baseado no conteúdo
+                altura = 200
+                
+                # HTML completo com scroll
+                html_completo = f'''
+                <div style="overflow-x:auto; overflow-y:hidden; padding:10px 5px; background:#f8fafc; border-radius:10px;">
+                    <div style="display:flex; flex-direction:row; align-items:center; gap:5px; width:max-content;">
+                        {cards_html}
+                    </div>
+                </div>
+                <p style="font-size:11px; color:#94a3b8; text-align:center; margin:8px 0 0 0; font-family:sans-serif;">← Arraste para ver mais →</p>
+                '''
+                
+                components.html(html_completo, height=altura, scrolling=True)
             else:
                 st.info("Nenhuma transição de status registrada.")
         
         with tab_todos:
             if historico:
-                st.caption("← Arraste para ver mais →")
-                
-                # Usa colunas do Streamlit para layout horizontal
-                cols = st.columns(len(historico))
-                
+                # Monta os cards da timeline com todos eventos
+                cards_html = ""
                 for i, evento in enumerate(historico):
-                    with cols[i]:
-                        data_fmt = evento['data'].strftime('%d/%m %H:%M') if evento['data'] else 'N/A'
-                        
-                        # Card compacto
-                        st.markdown(f"""
-<div style="background:{evento['cor']}15; border-top:4px solid {evento['cor']}; border-radius:8px; padding:10px; min-height:120px;">
-    <div style="font-size:18px; margin-bottom:5px;">{evento['icone']}</div>
-    <div style="font-size:10px; color:#64748b;">{data_fmt}</div>
-    <div style="font-size:9px; color:#475569;">{evento.get('campo', '')}</div>
-    <div style="font-weight:600; font-size:11px; color:{evento['cor']}; margin:5px 0; word-break:break-word;">{str(evento.get('para', 'N/A'))[:20]}</div>
-    <div style="font-size:9px; color:#64748b;">👤 {str(evento.get('autor', ''))[:12]}</div>
-</div>
-                        """, unsafe_allow_html=True)
+                    data_fmt = evento['data'].strftime('%d/%m %H:%M') if evento['data'] else 'N/A'
+                    
+                    is_current = (i == len(historico) - 1)
+                    arrow = "" if is_current else "<div style='display:flex; align-items:center; padding:0 5px; color:#cbd5e1; font-size:20px;'>→</div>"
+                    
+                    cards_html += f'''
+                    <div style="flex:0 0 auto; width:140px; background:white; border-radius:10px; padding:12px; border-top:4px solid {evento['cor']}; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                        <div style="font-size:20px; margin-bottom:6px;">{evento['icone']}</div>
+                        <div style="font-size:10px; color:#64748b; margin-bottom:2px;">{data_fmt}</div>
+                        <div style="font-size:9px; color:#94a3b8; margin-bottom:4px;">{evento.get('campo', '')}</div>
+                        <div style="font-weight:600; font-size:11px; color:{evento['cor']}; margin-bottom:6px; word-wrap:break-word; line-height:1.3;">{str(evento.get('para', 'N/A'))[:22]}</div>
+                        <div style="font-size:9px; color:#64748b;">👤 {str(evento.get('autor', ''))[:14]}</div>
+                    </div>
+                    {arrow}
+                    '''
+                
+                altura = 200
+                
+                html_completo = f'''
+                <div style="overflow-x:auto; overflow-y:hidden; padding:10px 5px; background:#f8fafc; border-radius:10px;">
+                    <div style="display:flex; flex-direction:row; align-items:center; gap:5px; width:max-content;">
+                        {cards_html}
+                    </div>
+                </div>
+                <p style="font-size:11px; color:#94a3b8; text-align:center; margin:8px 0 0 0; font-family:sans-serif;">← Arraste para ver mais →</p>
+                '''
+                
+                components.html(html_completo, height=altura, scrolling=True)
             else:
                 st.info("Nenhum evento registrado.")
         
