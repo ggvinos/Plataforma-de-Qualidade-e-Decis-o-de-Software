@@ -3504,13 +3504,74 @@ def gerar_icone_tabler(nome_icone: str, tamanho: int = 24, cor: str = "currentCo
     
     svg_path = icones.get(nome_icone, icones['list'])  # Default para 'list' se não encontrado
     
-    return f'''
-    <svg xmlns="http://www.w3.org/2000/svg" width="{tamanho}" height="{tamanho}" 
-         viewBox="0 0 24 24" fill="none" stroke="{cor}" stroke-width="{stroke_width}" 
-         stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;">
-        {svg_path}
-    </svg>
-    '''
+    return f'<svg xmlns="http://www.w3.org/2000/svg" width="{tamanho}" height="{tamanho}" viewBox="0 0 24 24" fill="none" stroke="{cor}" stroke-width="{stroke_width}" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;">{svg_path}</svg>'
+
+
+def gerar_icone_tabler_html(nome_icone: str, tamanho: int = 20, cor: str = "#64748b", stroke_width: float = 2) -> str:
+    """
+    Versão otimizada de gerar_icone_tabler para usar em strings HTML (sem quebras de linha).
+    Retorna SVG inline em uma única linha.
+    """
+    # Biblioteca de ícones Tabler em SVG (simplificados)
+    icones = {
+        'list': '<path d="M9 6h11M9 12h11M9 18h11M5 6v.01M5 12v.01M5 18v.01"/>',
+        'check': '<path d="M5 12l4 4l6 -6"/>',
+        'x': '<path d="M18 6l-12 12M6 6l12 12"/>',
+        'circle-check': '<circle cx="12" cy="12" r="9"/><path d="M9 12l2 2l4 -4"/>',
+        'circle-x': '<circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/>',
+        'bug': '<path d="M9 9v-1a3 3 0 0 1 6 0v1M3 11a6 6 0 0 0 6 6h6a6 6 0 0 0 6 -6v-7a1 1 0 0 0 -1 -1h-16a1 1 0 0 0 -1 1v7M9 17v3M15 17v3"/>',
+        'shield-check': '<path d="M12 3l8 4.5v5.5a9 9 0 0 1 -8 9a9 9 0 0 1 -8 -9v-5.5L12 3M9 12l2 2l4 -4"/>',
+        'alert-circle': '<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16v.01"/>',
+    }
+    
+    svg_path = icones.get(nome_icone, icones['list'])
+    return f'<svg xmlns="http://www.w3.org/2000/svg" width="{tamanho}" height="{tamanho}" viewBox="0 0 24 24" fill="none" stroke="{cor}" stroke-width="{stroke_width}" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:5px;">{svg_path}</svg>'
+
+
+def gerar_badge_status(status: str, icone_nome: str = None, tamanho_icone: int = 16) -> str:
+    """
+    Gera um badge HTML com status e ícone Tabler.
+    
+    Args:
+        status: Texto do status
+        icone_nome: Nome do ícone Tabler (se None, escolhe baseado no status)
+        tamanho_icone: Tamanho do ícone em pixels
+    
+    Returns:
+        String HTML do badge
+    """
+    # Mapeamento padrão de status para cores e ícones
+    mapeamento = {
+        'concluído': ('#22c55e', 'circle-check'),
+        'done': ('#22c55e', 'circle-check'),
+        'reprovado': ('#dc2626', 'circle-x'),
+        'rejected': ('#dc2626', 'circle-x'),
+        'desenvolvimento': ('#3b82f6', 'code'),
+        'development': ('#3b82f6', 'code'),
+        'validação': ('#06b6d4', 'shield-check'),
+        'qa': ('#06b6d4', 'shield-check'),
+        'backlog': ('#64748b', 'list'),
+        'warning': ('#f59e0b', 'alert-circle'),
+    }
+    
+    status_lower = status.lower()
+    cor = '#64748b'
+    icone = 'list'
+    
+    # Encontra mapeamento baseado no status
+    for chave, (cor_encontrada, icone_encontrado) in mapeamento.items():
+        if chave in status_lower:
+            cor = cor_encontrada
+            icone = icone_encontrado
+            break
+    
+    # Sobrescreve se ícone foi especificado
+    if icone_nome:
+        icone = icone_nome
+    
+    icon_svg = gerar_icone_tabler_html(icone, tamanho=tamanho_icone, cor=cor)
+    
+    return f'<span style="display:inline-flex;align-items:center;background:{cor}20;color:{cor};padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600;">{icon_svg}{status}</span>'
 
 
 def obter_icone_evento(tipo_evento: str, status: str = "") -> Tuple[str, str]:
@@ -7420,10 +7481,14 @@ def gerar_html_card_ticket(row: dict, compacto: bool = False) -> str:
     titulo = str(row.get('titulo', ''))[:60] + ('...' if len(str(row.get('titulo', ''))) > 60 else '')
     cor_bug = '#ef4444' if bugs >= 3 else '#f97316' if bugs >= 1 else '#22c55e'
     
+    # Ícone de bugs com Tabler
+    bug_icon = gerar_icone_tabler_html('bug', tamanho=16, cor=cor_bug)
+    
     if compacto:
-        return f'<div class="ticket-card ticket-risk-{risco}"><div style="display: flex; justify-content: space-between; align-items: center;">{card_link}<span style="opacity: 0.7;">{row.get("sp", 0)} SP | 🐛 {bugs}</span></div><p style="margin: 5px 0 0 0; font-size: 13px; opacity: 0.9;">{titulo}</p></div>'
+        return f'<div class="ticket-card ticket-risk-{risco}"><div style="display: flex; justify-content: space-between; align-items: center;">{card_link}<span style="opacity: 0.7;">{row.get("sp", 0)} SP | {bug_icon}{bugs}</span></div><p style="margin: 5px 0 0 0; font-size: 13px; opacity: 0.9;">{titulo}</p></div>'
     else:
-        return f'<div class="ticket-card ticket-risk-{risco}"><div style="display: flex; justify-content: space-between;">{card_link}<span style="color: {cor_bug}; font-weight: bold;">🐛 {bugs} bugs</span></div><p style="margin: 8px 0;">{row.get("titulo", "")}</p><p style="font-size: 12px; opacity: 0.8;"><b>Dev:</b> {row.get("desenvolvedor", "N/A")} | <b>QA:</b> {row.get("qa", "N/A")} | <b>SP:</b> {row.get("sp", 0)} | <b>{row.get("status", "N/A")}</b></p></div>'
+        status_badge = gerar_badge_status(row.get("status", "N/A"))
+        return f'<div class="ticket-card ticket-risk-{risco}"><div style="display: flex; justify-content: space-between;">{card_link}<span style="color: {cor_bug}; font-weight: bold;">{bug_icon}{bugs} bugs</span></div><p style="margin: 8px 0;">{row.get("titulo", "")}</p><p style="font-size: 12px; opacity: 0.8;"><b>Dev:</b> {row.get("desenvolvedor", "N/A")} | <b>QA:</b> {row.get("qa", "N/A")} | <b>SP:</b> {row.get("sp", 0)} | {status_badge}</p></div>'
 
 
 def mostrar_card_ticket(row: dict, compacto: bool = False):
