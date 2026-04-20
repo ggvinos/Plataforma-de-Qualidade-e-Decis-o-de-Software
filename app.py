@@ -9849,6 +9849,47 @@ def aba_lideranca(df: pd.DataFrame):
         alertas_atencao_dev_filtrados = filtrar_alertas(alertas_atencao_dev, "dev", filtro_tipo, filtro_pessoas, filtro_contexto)
         alertas_atencao_qa_filtrados = filtrar_alertas(alertas_atencao_qa, "qa", filtro_tipo, filtro_pessoas, filtro_contexto)
         
+        # ===== FILTRA MATRIZES E ÍNDICES BASEADO NOS FILTROS =====
+        def filtrar_matriz(matriz, pessoas_filtro):
+            """Filtra matriz para mostrar apenas pessoas selecionadas."""
+            if matriz.empty or not pessoas_filtro:
+                return matriz
+            # Filtra apenas linhas (pessoas) que estão na lista
+            pessoas_na_matriz = [p for p in pessoas_filtro if p in matriz.index]
+            if not pessoas_na_matriz:
+                return matriz  # Se nenhuma pessoa do filtro está na matriz, mostra tudo
+            return matriz.loc[pessoas_na_matriz]
+        
+        def filtrar_dataframe_pessoa(df_dados, coluna_pessoa, pessoas_filtro):
+            """Filtra dataframe por pessoa."""
+            if df_dados.empty or not pessoas_filtro:
+                return df_dados
+            return df_dados[df_dados[coluna_pessoa].isin(pessoas_filtro)]
+        
+        def filtrar_indices(indices_dict, pessoas_filtro):
+            """Filtra índices para mostrar apenas onde a pessoa é o top."""
+            if not pessoas_filtro:
+                return indices_dict
+            return {k: v for k, v in indices_dict.items() if v['top_pessoa'] in pessoas_filtro}
+        
+        # Aplica filtros às matrizes
+        matriz_dev_produto_filtrada = filtrar_matriz(concentracao['matriz_dev_produto'], filtro_pessoas if filtro_tipo != "Apenas QA" else [])
+        matriz_dev_cliente_filtrada = filtrar_matriz(concentracao['matriz_dev_cliente'], filtro_pessoas if filtro_tipo != "Apenas QA" else [])
+        matriz_qa_produto_filtrada = filtrar_matriz(concentracao['matriz_qa_produto'], filtro_pessoas if filtro_tipo != "Apenas DEV" else [])
+        matriz_qa_cliente_filtrada = filtrar_matriz(concentracao['matriz_qa_cliente'], filtro_pessoas if filtro_tipo != "Apenas DEV" else [])
+        
+        # Aplica filtros aos dataframes detalhados
+        dev_produto_filtrado = filtrar_dataframe_pessoa(concentracao['dev_produto'], 'DEV', filtro_pessoas if filtro_tipo != "Apenas QA" else [])
+        dev_cliente_filtrado = filtrar_dataframe_pessoa(concentracao['dev_cliente'], 'DEV', filtro_pessoas if filtro_tipo != "Apenas QA" else [])
+        qa_produto_filtrado = filtrar_dataframe_pessoa(concentracao['qa_produto'], 'QA', filtro_pessoas if filtro_tipo != "Apenas DEV" else [])
+        qa_cliente_filtrado = filtrar_dataframe_pessoa(concentracao['qa_cliente'], 'QA', filtro_pessoas if filtro_tipo != "Apenas DEV" else [])
+        
+        # Aplica filtros aos índices
+        indices_dev_produto_filtrado = filtrar_indices(concentracao['indices'].get('dev_produto', {}), filtro_pessoas if filtro_tipo != "Apenas QA" else [])
+        indices_dev_cliente_filtrado = filtrar_indices(concentracao['indices'].get('dev_cliente', {}), filtro_pessoas if filtro_tipo != "Apenas QA" else [])
+        indices_qa_produto_filtrado = filtrar_indices(concentracao['indices'].get('qa_produto', {}), filtro_pessoas if filtro_tipo != "Apenas DEV" else [])
+        indices_qa_cliente_filtrado = filtrar_indices(concentracao['indices'].get('qa_cliente', {}), filtro_pessoas if filtro_tipo != "Apenas DEV" else [])
+        
         # ===== ALERTAS AGRUPADOS POR PESSOA (EM EXPANDERS) =====
         todos_alertas_criticos = alertas_criticos_dev_filtrados + alertas_criticos_qa_filtrados
         todos_alertas_atencao = alertas_atencao_dev_filtrados + alertas_atencao_qa_filtrados
@@ -9913,107 +9954,127 @@ def aba_lideranca(df: pd.DataFrame):
         tab_dev, tab_qa = st.tabs(["👨‍💻 Concentração DEV", "🔬 Concentração QA"])
         
         with tab_dev:
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("#### 📦 DEV x Produto")
-                if not concentracao['matriz_dev_produto'].empty:
-                    fig = criar_grafico_concentracao(
-                        concentracao['matriz_dev_produto'], 
-                        "Cards por DEV em cada Produto",
-                        "dev"
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                    # Tabela resumo
-                    with st.expander("📊 Ver dados detalhados", expanded=False):
-                        st.dataframe(concentracao['dev_produto'], hide_index=True, use_container_width=True)
-                else:
-                    st.info("Sem dados de DEV x Produto")
-            
-            with col2:
-                st.markdown("#### 🏢 DEV x Cliente")
-                if not concentracao['matriz_dev_cliente'].empty:
-                    fig = criar_grafico_concentracao(
-                        concentracao['matriz_dev_cliente'], 
-                        "Cards por DEV em cada Cliente",
-                        "dev"
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                    with st.expander("📊 Ver dados detalhados", expanded=False):
-                        st.dataframe(concentracao['dev_cliente'], hide_index=True, use_container_width=True)
-                else:
-                    st.info("Sem dados de DEV x Cliente")
-            
-            # Índices de concentração DEV (em expander)
-            with st.expander("📈 Índices de Concentração (DEV)", expanded=False):
+            # Verifica se filtro de tipo permite mostrar DEV
+            if filtro_tipo == "Apenas QA":
+                st.info("🔍 Filtro 'Apenas QA' selecionado. Mude para 'Todos' ou 'Apenas DEV' para ver dados de desenvolvedores.")
+            else:
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    st.markdown("**Por Produto:**")
-                    for produto, dados in concentracao['indices'].get('dev_produto', {}).items():
-                        cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
-                        st.markdown(f"{cor} **{produto}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} = {dados['concentracao_pct']}%)")
+                    st.markdown("#### 📦 DEV x Produto")
+                    if not matriz_dev_produto_filtrada.empty:
+                        fig = criar_grafico_concentracao(
+                            matriz_dev_produto_filtrada, 
+                            "Cards por DEV em cada Produto",
+                            "dev"
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        # Tabela resumo
+                        with st.expander("📊 Ver dados detalhados", expanded=False):
+                            st.dataframe(dev_produto_filtrado, hide_index=True, use_container_width=True)
+                    else:
+                        st.info("Sem dados de DEV x Produto para os filtros selecionados")
                 
                 with col2:
-                    st.markdown("**Por Cliente:**")
-                    for cliente, dados in concentracao['indices'].get('dev_cliente', {}).items():
-                        cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
-                        st.markdown(f"{cor} **{cliente}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} = {dados['concentracao_pct']}%)")
+                    st.markdown("#### 🏢 DEV x Cliente")
+                    if not matriz_dev_cliente_filtrada.empty:
+                        fig = criar_grafico_concentracao(
+                            matriz_dev_cliente_filtrada, 
+                            "Cards por DEV em cada Cliente",
+                            "dev"
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        with st.expander("📊 Ver dados detalhados", expanded=False):
+                            st.dataframe(dev_cliente_filtrado, hide_index=True, use_container_width=True)
+                    else:
+                        st.info("Sem dados de DEV x Cliente para os filtros selecionados")
+                
+                # Índices de concentração DEV (em expander)
+                with st.expander("📈 Índices de Concentração (DEV)", expanded=False):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown("**Por Produto:**")
+                        if indices_dev_produto_filtrado:
+                            for produto, dados in indices_dev_produto_filtrado.items():
+                                cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
+                                st.markdown(f"{cor} **{produto}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} = {dados['concentracao_pct']}%)")
+                        else:
+                            st.info("Nenhum índice para os filtros selecionados")
+                    
+                    with col2:
+                        st.markdown("**Por Cliente:**")
+                        if indices_dev_cliente_filtrado:
+                            for cliente, dados in indices_dev_cliente_filtrado.items():
+                                cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
+                                st.markdown(f"{cor} **{cliente}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} = {dados['concentracao_pct']}%)")
+                        else:
+                            st.info("Nenhum índice para os filtros selecionados")
         
         with tab_qa:
-            # Info sobre QAs principais
-            if concentracao['qas_principais']:
-                st.info(f"📋 **QAs considerados:** {', '.join(concentracao['qas_principais'])} (baseado no volume de validações)")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("#### 📦 QA x Produto")
-                if not concentracao['matriz_qa_produto'].empty:
-                    fig = criar_grafico_concentracao(
-                        concentracao['matriz_qa_produto'], 
-                        "Validações por QA em cada Produto",
-                        "qa"
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                    with st.expander("📊 Ver dados detalhados", expanded=False):
-                        st.dataframe(concentracao['qa_produto'], hide_index=True, use_container_width=True)
-                else:
-                    st.info("Sem dados de QA x Produto")
-            
-            with col2:
-                st.markdown("#### 🏢 QA x Cliente")
-                if not concentracao['matriz_qa_cliente'].empty:
-                    fig = criar_grafico_concentracao(
-                        concentracao['matriz_qa_cliente'], 
-                        "Validações por QA em cada Cliente",
-                        "qa"
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                    with st.expander("📊 Ver dados detalhados", expanded=False):
-                        st.dataframe(concentracao['qa_cliente'], hide_index=True, use_container_width=True)
-                else:
-                    st.info("Sem dados de QA x Cliente")
-            
-            # Índices de concentração QA (em expander)
-            with st.expander("📈 Índices de Concentração (QA)", expanded=False):
+            # Verifica se filtro de tipo permite mostrar QA
+            if filtro_tipo == "Apenas DEV":
+                st.info("🔍 Filtro 'Apenas DEV' selecionado. Mude para 'Todos' ou 'Apenas QA' para ver dados de QAs.")
+            else:
+                # Info sobre QAs principais
+                if concentracao['qas_principais']:
+                    st.info(f"📋 **QAs considerados:** {', '.join(concentracao['qas_principais'])} (baseado no volume de validações)")
+                
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    st.markdown("**Por Produto:**")
-                    for produto, dados in concentracao['indices'].get('qa_produto', {}).items():
-                        cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
-                        st.markdown(f"{cor} **{produto}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} = {dados['concentracao_pct']}%)")
+                    st.markdown("#### 📦 QA x Produto")
+                    if not matriz_qa_produto_filtrada.empty:
+                        fig = criar_grafico_concentracao(
+                            matriz_qa_produto_filtrada, 
+                            "Validações por QA em cada Produto",
+                            "qa"
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        with st.expander("📊 Ver dados detalhados", expanded=False):
+                            st.dataframe(qa_produto_filtrado, hide_index=True, use_container_width=True)
+                    else:
+                        st.info("Sem dados de QA x Produto para os filtros selecionados")
                 
                 with col2:
-                    st.markdown("**Por Cliente:**")
-                    for cliente, dados in concentracao['indices'].get('qa_cliente', {}).items():
-                        cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
-                        st.markdown(f"{cor} **{cliente}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} = {dados['concentracao_pct']}%)")
+                    st.markdown("#### 🏢 QA x Cliente")
+                    if not matriz_qa_cliente_filtrada.empty:
+                        fig = criar_grafico_concentracao(
+                            matriz_qa_cliente_filtrada, 
+                            "Validações por QA em cada Cliente",
+                            "qa"
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        with st.expander("📊 Ver dados detalhados", expanded=False):
+                            st.dataframe(qa_cliente_filtrado, hide_index=True, use_container_width=True)
+                    else:
+                        st.info("Sem dados de QA x Cliente para os filtros selecionados")
+                
+                # Índices de concentração QA (em expander)
+                with st.expander("📈 Índices de Concentração (QA)", expanded=False):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown("**Por Produto:**")
+                        if indices_qa_produto_filtrado:
+                            for produto, dados in indices_qa_produto_filtrado.items():
+                                cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
+                                st.markdown(f"{cor} **{produto}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} = {dados['concentracao_pct']}%)")
+                        else:
+                            st.info("Nenhum índice para os filtros selecionados")
+                    
+                    with col2:
+                        st.markdown("**Por Cliente:**")
+                        if indices_qa_cliente_filtrado:
+                            for cliente, dados in indices_qa_cliente_filtrado.items():
+                                cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
+                                st.markdown(f"{cor} **{cliente}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} = {dados['concentracao_pct']}%)")
+                        else:
+                            st.info("Nenhum índice para os filtros selecionados")
         
         # ===== LEGENDA (COLAPSADA) =====
         with st.expander("📖 Legenda e Conceitos", expanded=False):
