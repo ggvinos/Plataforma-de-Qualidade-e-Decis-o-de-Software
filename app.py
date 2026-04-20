@@ -9426,6 +9426,22 @@ def aba_sobre():
 def main():
     """Função principal do dashboard."""
     
+    # ========== CSS GLOBAL PARA ESCONDER WARNINGS ==========
+    # Injeta CSS imediatamente para esconder qualquer warning do CookieManager
+    st.markdown("""
+    <style>
+    /* Esconde warnings/exceptions do Streamlit (CookieManager) */
+    .stException, [data-testid="stException"], 
+    .stWarning, [data-testid="stWarning"],
+    div[data-testid="stNotification"] {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        overflow: hidden !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     # ========== VERIFICAR LOGIN (via session_state ou cookie) ==========
     if not verificar_login():
         # Mostra tela de login
