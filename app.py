@@ -1,20 +1,21 @@
 """
 ================================================================================
-JIRA DASHBOARD v8.78 - NINA TECNOLOGIA - VERSÃO COMPLETA E ENRIQUECIDA
+JIRA DASHBOARD v8.79 - NINA TECNOLOGIA - VERSÃO COMPLETA E ENRIQUECIDA
 ================================================================================
 📊 NinaDash — Dashboard de Inteligência e Métricas de QA
 
 🎯 Propósito: Transformar o QA de um processo sem visibilidade em um sistema 
    de inteligência operacional baseado em dados.
 
-MELHORIAS v8.78:
-- 🎨 NOVA ABA: Meu Dashboard - Crie dashboards personalizados!
-- 📊 CATÁLOGO DE MÉTRICAS: 30+ métricas para escolher
-- 💾 PERSISTÊNCIA: Dashboards salvos na sessão
-- 🎯 TEMPLATES RÁPIDOS: Visão Executiva, Foco QA, Foco Dev
-- 📈 TIPOS DE VISUALIZAÇÃO: KPIs, gráficos, tabelas, heatmaps
+MELHORIAS v8.79:
+- 🎯 CONSULTA PERSONALIZADA: Tela separada para consultas avançadas
+- 🔍 FILTROS DINÂMICOS: Pessoa, status, período, produto personalizados
+- 📋 TIPOS DE CONSULTA: Cards, métricas, comparativos, tendências, bugs
+- 💾 CONSULTAS SALVAS: Salve suas consultas favoritas
+- 📅 PERÍODOS FLEXÍVEIS: Predefinidos ou datas personalizadas
+- ⬅️ BOTÃO NA SIDEBAR: Acesso rápido à ferramenta avançada
 
-MELHORIAS v8.77:
+MELHORIAS v8.78:
 - 🎨 DESIGN REFINADO: Melhor espaçamento entre elementos
 - ⬅️ BOTÃO VOLTAR NA SIDEBAR: Indica card ativo + volta fácil
 - Link de compartilhamento mais compacto e funcional
@@ -1013,7 +1014,577 @@ def mostrar_tooltip(metrica_key: str):
 
 
 # ==============================================================================
-# CATÁLOGO DE MÉTRICAS DISPONÍVEIS PARA DASHBOARD PERSONALIZADO
+# CONSULTAS PERSONALIZADAS - SISTEMA DE MÉTRICAS AVANÇADAS
+# ==============================================================================
+
+# Tipos de consulta disponíveis
+TIPOS_CONSULTA = {
+    "cards_pessoa": {
+        "nome": "📋 Cards de uma Pessoa",
+        "descricao": "Lista de cards filtrados por pessoa (responsável, QA, relator)",
+        "filtros": ["pessoa", "papel_pessoa", "status", "periodo"],
+        "visualizacao": "lista_cards"
+    },
+    "metricas_pessoa": {
+        "nome": "📊 Métricas de uma Pessoa", 
+        "descricao": "KPIs e métricas agregadas para uma pessoa específica",
+        "filtros": ["pessoa", "papel_pessoa", "periodo"],
+        "visualizacao": "metricas"
+    },
+    "cards_status": {
+        "nome": "🏷️ Cards por Status",
+        "descricao": "Cards filtrados por status específico",
+        "filtros": ["status", "pessoa", "periodo"],
+        "visualizacao": "lista_cards"
+    },
+    "cards_produto": {
+        "nome": "📦 Cards por Produto",
+        "descricao": "Cards filtrados por produto",
+        "filtros": ["produto", "status", "pessoa", "periodo"],
+        "visualizacao": "lista_cards"
+    },
+    "comparativo_pessoas": {
+        "nome": "⚖️ Comparativo entre Pessoas",
+        "descricao": "Compare métricas entre várias pessoas",
+        "filtros": ["pessoas_multiplas", "papel_pessoa", "periodo"],
+        "visualizacao": "comparativo"
+    },
+    "tendencia_periodo": {
+        "nome": "📈 Tendência por Período",
+        "descricao": "Evolução de métricas ao longo do tempo",
+        "filtros": ["metrica", "pessoa", "periodo_range"],
+        "visualizacao": "grafico_linha"
+    },
+    "bugs_analise": {
+        "nome": "🐛 Análise de Bugs",
+        "descricao": "Bugs encontrados com filtros avançados",
+        "filtros": ["pessoa", "papel_pessoa", "produto", "periodo"],
+        "visualizacao": "lista_cards_bugs"
+    },
+    "fator_k_detalhado": {
+        "nome": "🎯 Fator K Detalhado",
+        "descricao": "Análise detalhada do Fator K por pessoa/produto",
+        "filtros": ["pessoa", "produto", "periodo"],
+        "visualizacao": "metricas_fk"
+    },
+}
+
+# Status disponíveis para filtro
+STATUS_FILTRO = {
+    "todos": "Todos os status",
+    "concluido": "✅ Concluído",
+    "em_andamento": "🔄 Em Andamento",
+    "em_validacao": "🧪 Em Validação/QA",
+    "aguardando_qa": "⏳ Aguardando QA",
+    "code_review": "👀 Code Review",
+    "impedido": "🚫 Impedido/Bloqueado",
+    "reprovado": "❌ Reprovado",
+    "backlog": "📋 Backlog",
+}
+
+# Papéis de pessoa
+PAPEIS_PESSOA = {
+    "qualquer": "Qualquer papel",
+    "responsavel": "👨‍💻 Responsável/Dev",
+    "qa": "🔬 QA Responsável",
+    "relator": "📝 Relator/Criador",
+}
+
+# Períodos predefinidos
+PERIODOS_PREDEFINIDOS = {
+    "sprint_atual": "Sprint Atual",
+    "ultima_semana": "Última Semana",
+    "ultimas_2_semanas": "Últimas 2 Semanas",
+    "ultimo_mes": "Último Mês",
+    "ultimos_3_meses": "Últimos 3 Meses",
+    "todo_periodo": "Todo o Período",
+    "personalizado": "📅 Período Personalizado",
+}
+
+
+def inicializar_consultas_personalizadas():
+    """Inicializa o sistema de consultas personalizadas."""
+    if 'consultas_salvas' not in st.session_state:
+        st.session_state.consultas_salvas = {}
+    if 'modo_consulta_personalizada' not in st.session_state:
+        st.session_state.modo_consulta_personalizada = False
+    if 'consulta_atual' not in st.session_state:
+        st.session_state.consulta_atual = None
+
+
+def entrar_modo_consulta():
+    """Ativa o modo de consulta personalizada."""
+    st.session_state.modo_consulta_personalizada = True
+
+
+def sair_modo_consulta():
+    """Desativa o modo de consulta personalizada."""
+    st.session_state.modo_consulta_personalizada = False
+    st.session_state.consulta_atual = None
+
+
+def salvar_consulta(nome: str, tipo: str, filtros: Dict):
+    """Salva uma consulta personalizada."""
+    inicializar_consultas_personalizadas()
+    st.session_state.consultas_salvas[nome] = {
+        "nome": nome,
+        "tipo": tipo,
+        "filtros": filtros,
+        "criado_em": datetime.now().isoformat()
+    }
+
+
+def listar_consultas_salvas() -> Dict:
+    """Lista todas as consultas salvas."""
+    inicializar_consultas_personalizadas()
+    return st.session_state.consultas_salvas
+
+
+def excluir_consulta(nome: str):
+    """Exclui uma consulta salva."""
+    if nome in st.session_state.consultas_salvas:
+        del st.session_state.consultas_salvas[nome]
+
+
+def calcular_periodo_datas(periodo: str, data_inicio_custom: datetime = None, data_fim_custom: datetime = None) -> Tuple[datetime, datetime]:
+    """Calcula as datas de início e fim baseado no período selecionado."""
+    hoje = datetime.now()
+    
+    if periodo == "sprint_atual":
+        # Aproxima para 2 semanas
+        return hoje - timedelta(days=14), hoje
+    elif periodo == "ultima_semana":
+        return hoje - timedelta(days=7), hoje
+    elif periodo == "ultimas_2_semanas":
+        return hoje - timedelta(days=14), hoje
+    elif periodo == "ultimo_mes":
+        return hoje - timedelta(days=30), hoje
+    elif periodo == "ultimos_3_meses":
+        return hoje - timedelta(days=90), hoje
+    elif periodo == "todo_periodo":
+        return hoje - timedelta(days=365*5), hoje  # 5 anos
+    elif periodo == "personalizado" and data_inicio_custom and data_fim_custom:
+        return data_inicio_custom, data_fim_custom
+    else:
+        return hoje - timedelta(days=30), hoje
+
+
+def filtrar_df_por_consulta(df: pd.DataFrame, tipo: str, filtros: Dict) -> pd.DataFrame:
+    """Filtra o DataFrame baseado nos filtros da consulta."""
+    df_filtrado = df.copy()
+    
+    # Filtro por período
+    if 'periodo' in filtros and filtros['periodo']:
+        data_inicio, data_fim = calcular_periodo_datas(
+            filtros['periodo'],
+            filtros.get('data_inicio'),
+            filtros.get('data_fim')
+        )
+        if 'data_criacao' in df_filtrado.columns:
+            df_filtrado['data_criacao_dt'] = pd.to_datetime(df_filtrado['data_criacao'], errors='coerce')
+            # Remove timezone info for comparison
+            df_filtrado['data_criacao_dt'] = df_filtrado['data_criacao_dt'].dt.tz_localize(None)
+            df_filtrado = df_filtrado[
+                (df_filtrado['data_criacao_dt'] >= data_inicio) & 
+                (df_filtrado['data_criacao_dt'] <= data_fim)
+            ]
+    
+    # Filtro por pessoa
+    if 'pessoa' in filtros and filtros['pessoa'] and filtros['pessoa'] != "Todos":
+        papel = filtros.get('papel_pessoa', 'qualquer')
+        pessoa = filtros['pessoa']
+        
+        if papel == 'responsavel':
+            df_filtrado = df_filtrado[df_filtrado['responsavel'].str.contains(pessoa, case=False, na=False)]
+        elif papel == 'qa':
+            df_filtrado = df_filtrado[df_filtrado['qa_responsavel'].str.contains(pessoa, case=False, na=False)]
+        elif papel == 'relator':
+            df_filtrado = df_filtrado[df_filtrado['relator'].str.contains(pessoa, case=False, na=False)]
+        else:  # qualquer
+            df_filtrado = df_filtrado[
+                df_filtrado['responsavel'].str.contains(pessoa, case=False, na=False) |
+                df_filtrado['qa_responsavel'].str.contains(pessoa, case=False, na=False) |
+                df_filtrado['relator'].str.contains(pessoa, case=False, na=False)
+            ]
+    
+    # Filtro por status
+    if 'status' in filtros and filtros['status'] and filtros['status'] != "todos":
+        status_map = {
+            "concluido": ["done"],
+            "em_andamento": ["development"],
+            "em_validacao": ["testing"],
+            "aguardando_qa": ["waiting_qa"],
+            "code_review": ["code_review"],
+            "impedido": ["blocked"],
+            "reprovado": ["rejected"],
+            "backlog": ["backlog"],
+        }
+        categorias = status_map.get(filtros['status'], [])
+        if categorias:
+            df_filtrado = df_filtrado[df_filtrado['status_categoria'].isin(categorias)]
+    
+    # Filtro por produto
+    if 'produto' in filtros and filtros['produto'] and filtros['produto'] != "Todos":
+        df_filtrado = df_filtrado[df_filtrado['produto'] == filtros['produto']]
+    
+    return df_filtrado
+
+
+def renderizar_resultado_consulta(df_filtrado: pd.DataFrame, tipo: str, filtros: Dict):
+    """Renderiza o resultado da consulta."""
+    
+    if df_filtrado.empty:
+        st.warning("⚠️ Nenhum resultado encontrado para os filtros selecionados.")
+        return
+    
+    consulta = TIPOS_CONSULTA.get(tipo, {})
+    visualizacao = consulta.get('visualizacao', 'lista_cards')
+    
+    # === VISUALIZAÇÃO: LISTA DE CARDS ===
+    if visualizacao in ['lista_cards', 'lista_cards_bugs']:
+        st.markdown(f"### 📋 {len(df_filtrado)} Cards Encontrados")
+        
+        # Métricas resumo
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Cards", len(df_filtrado))
+        with col2:
+            sp_total = int(df_filtrado['story_points'].sum())
+            st.metric("Story Points", sp_total)
+        with col3:
+            bugs_total = int(df_filtrado['bugs_encontrados'].sum())
+            st.metric("Bugs", bugs_total)
+        with col4:
+            concluidos = len(df_filtrado[df_filtrado['status_categoria'] == 'done'])
+            st.metric("Concluídos", concluidos)
+        
+        st.markdown("---")
+        
+        # Lista de cards
+        for _, row in df_filtrado.head(50).iterrows():
+            with st.container():
+                col1, col2, col3 = st.columns([1, 3, 1])
+                with col1:
+                    st.markdown(f"**[{row['key']}]({link_jira(row['key'])})**")
+                with col2:
+                    titulo = str(row.get('resumo', ''))[:80]
+                    st.markdown(f"{titulo}")
+                    st.caption(f"📌 {row.get('status', 'N/A')} | 👤 {row.get('responsavel', 'N/A')}")
+                with col3:
+                    sp = row.get('story_points', 0)
+                    bugs = row.get('bugs_encontrados', 0)
+                    st.markdown(f"**{sp} SP** | 🐛 {bugs}")
+            st.markdown("---")
+        
+        if len(df_filtrado) > 50:
+            st.info(f"Mostrando 50 de {len(df_filtrado)} cards. Refine os filtros para ver menos resultados.")
+    
+    # === VISUALIZAÇÃO: MÉTRICAS ===
+    elif visualizacao == 'metricas':
+        st.markdown("### 📊 Métricas Calculadas")
+        
+        # KPIs principais
+        col1, col2, col3, col4 = st.columns(4)
+        
+        total_cards = len(df_filtrado)
+        sp_total = int(df_filtrado['story_points'].sum())
+        bugs_total = int(df_filtrado['bugs_encontrados'].sum())
+        concluidos = len(df_filtrado[df_filtrado['status_categoria'] == 'done'])
+        
+        with col1:
+            st.metric("Total Cards", total_cards)
+        with col2:
+            st.metric("Story Points", sp_total)
+        with col3:
+            st.metric("Bugs Encontrados", bugs_total)
+        with col4:
+            taxa_conclusao = (concluidos / total_cards * 100) if total_cards > 0 else 0
+            st.metric("Taxa Conclusão", f"{taxa_conclusao:.1f}%")
+        
+        st.markdown("---")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # Fator K
+            fk = sp_total / (bugs_total + 1)
+            st.metric("Fator K", f"{fk:.2f}", help="SP / (Bugs + 1)")
+        
+        with col2:
+            # FPY
+            sem_bugs = len(df_filtrado[df_filtrado['bugs_encontrados'] == 0])
+            fpy = (sem_bugs / total_cards * 100) if total_cards > 0 else 0
+            st.metric("FPY", f"{fpy:.1f}%", help="Cards sem bugs / Total")
+        
+        with col3:
+            # Média SP
+            media_sp = df_filtrado['story_points'].mean() if total_cards > 0 else 0
+            st.metric("Média SP/Card", f"{media_sp:.1f}")
+        
+        # Gráfico de status
+        st.markdown("---")
+        st.markdown("#### 📈 Distribuição por Status")
+        status_counts = df_filtrado['status'].value_counts()
+        fig = px.bar(x=status_counts.index, y=status_counts.values, labels={'x': 'Status', 'y': 'Quantidade'})
+        fig.update_layout(height=300)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # === VISUALIZAÇÃO: COMPARATIVO ===
+    elif visualizacao == 'comparativo':
+        st.markdown("### ⚖️ Comparativo")
+        
+        pessoas = filtros.get('pessoas_multiplas', [])
+        if not pessoas:
+            st.warning("Selecione pessoas para comparar")
+            return
+        
+        dados_comparativo = []
+        for pessoa in pessoas:
+            df_pessoa = df_filtrado[
+                df_filtrado['responsavel'].str.contains(pessoa, case=False, na=False) |
+                df_filtrado['qa_responsavel'].str.contains(pessoa, case=False, na=False)
+            ]
+            dados_comparativo.append({
+                'Pessoa': pessoa,
+                'Cards': len(df_pessoa),
+                'SP': int(df_pessoa['story_points'].sum()),
+                'Bugs': int(df_pessoa['bugs_encontrados'].sum()),
+                'FK': round(df_pessoa['story_points'].sum() / (df_pessoa['bugs_encontrados'].sum() + 1), 2)
+            })
+        
+        df_comp = pd.DataFrame(dados_comparativo)
+        st.dataframe(df_comp, use_container_width=True, hide_index=True)
+        
+        # Gráfico comparativo
+        fig = px.bar(df_comp, x='Pessoa', y=['Cards', 'SP', 'Bugs'], barmode='group')
+        fig.update_layout(height=350)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # === VISUALIZAÇÃO: FATOR K DETALHADO ===
+    elif visualizacao == 'metricas_fk':
+        st.markdown("### 🎯 Análise Fator K Detalhado")
+        
+        # Por desenvolvedor
+        fk_dev = df_filtrado.groupby('responsavel').agg({
+            'story_points': 'sum',
+            'bugs_encontrados': 'sum',
+            'key': 'count'
+        }).reset_index()
+        fk_dev.columns = ['Desenvolvedor', 'SP', 'Bugs', 'Cards']
+        fk_dev['Fator K'] = fk_dev['SP'] / (fk_dev['Bugs'] + 1)
+        fk_dev = fk_dev.sort_values('Fator K', ascending=False)
+        
+        st.dataframe(fk_dev.head(15), use_container_width=True, hide_index=True)
+        
+        # Gráfico
+        fig = px.bar(fk_dev.head(10), x='Desenvolvedor', y='Fator K', color='Fator K',
+                    color_continuous_scale='RdYlGn')
+        fig.update_layout(height=350)
+        st.plotly_chart(fig, use_container_width=True)
+
+
+def tela_consulta_personalizada(df_todos: pd.DataFrame):
+    """Renderiza a tela de consulta personalizada (tela separada)."""
+    
+    inicializar_consultas_personalizadas()
+    
+    # Header
+    st.markdown("""
+    <div style="text-align: center; padding: 20px 0;">
+        <h1 style="color: #AF0C37; margin: 0;">🔍 Consulta Personalizada</h1>
+        <p style="color: #666; font-size: 1.1em;">Crie consultas avançadas com filtros personalizados</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Tabs principais
+    tab_nova, tab_salvas = st.tabs(["🆕 Nova Consulta", "💾 Consultas Salvas"])
+    
+    # === TAB: NOVA CONSULTA ===
+    with tab_nova:
+        col_config, col_preview = st.columns([1, 2])
+        
+        with col_config:
+            st.markdown("### ⚙️ Configurar Consulta")
+            
+            # Tipo de consulta
+            tipo_consulta = st.selectbox(
+                "📊 O que você quer consultar?",
+                options=list(TIPOS_CONSULTA.keys()),
+                format_func=lambda x: TIPOS_CONSULTA[x]['nome'],
+                key="select_tipo_consulta"
+            )
+            
+            consulta_info = TIPOS_CONSULTA[tipo_consulta]
+            st.info(consulta_info['descricao'])
+            
+            st.markdown("---")
+            st.markdown("### 🎛️ Filtros")
+            
+            filtros = {}
+            filtros_disponiveis = consulta_info.get('filtros', [])
+            
+            # === FILTRO: PESSOA ===
+            if 'pessoa' in filtros_disponiveis or 'pessoas_multiplas' in filtros_disponiveis:
+                # Coleta todas as pessoas únicas
+                pessoas = set()
+                if 'responsavel' in df_todos.columns:
+                    pessoas.update(df_todos['responsavel'].dropna().unique())
+                if 'qa_responsavel' in df_todos.columns:
+                    pessoas.update(df_todos['qa_responsavel'].dropna().unique())
+                if 'relator' in df_todos.columns:
+                    pessoas.update(df_todos['relator'].dropna().unique())
+                
+                pessoas = sorted([p for p in pessoas if p and p != 'Não atribuído' and len(str(p)) > 2])
+                
+                if 'pessoas_multiplas' in filtros_disponiveis:
+                    filtros['pessoas_multiplas'] = st.multiselect(
+                        "👥 Pessoas para comparar",
+                        options=pessoas,
+                        key="filtro_pessoas_multi"
+                    )
+                else:
+                    filtros['pessoa'] = st.selectbox(
+                        "👤 Pessoa",
+                        options=["Todos"] + pessoas,
+                        key="filtro_pessoa"
+                    )
+            
+            # === FILTRO: PAPEL DA PESSOA ===
+            if 'papel_pessoa' in filtros_disponiveis:
+                filtros['papel_pessoa'] = st.selectbox(
+                    "🎭 Papel da pessoa",
+                    options=list(PAPEIS_PESSOA.keys()),
+                    format_func=lambda x: PAPEIS_PESSOA[x],
+                    key="filtro_papel"
+                )
+            
+            # === FILTRO: STATUS ===
+            if 'status' in filtros_disponiveis:
+                filtros['status'] = st.selectbox(
+                    "🏷️ Status",
+                    options=list(STATUS_FILTRO.keys()),
+                    format_func=lambda x: STATUS_FILTRO[x],
+                    key="filtro_status"
+                )
+            
+            # === FILTRO: PRODUTO ===
+            if 'produto' in filtros_disponiveis:
+                produtos = ["Todos"] + sorted(df_todos['produto'].dropna().unique().tolist())
+                filtros['produto'] = st.selectbox(
+                    "📦 Produto",
+                    options=produtos,
+                    key="filtro_produto"
+                )
+            
+            # === FILTRO: PERÍODO ===
+            if 'periodo' in filtros_disponiveis or 'periodo_range' in filtros_disponiveis:
+                filtros['periodo'] = st.selectbox(
+                    "📅 Período",
+                    options=list(PERIODOS_PREDEFINIDOS.keys()),
+                    format_func=lambda x: PERIODOS_PREDEFINIDOS[x],
+                    key="filtro_periodo"
+                )
+                
+                if filtros['periodo'] == 'personalizado':
+                    col_d1, col_d2 = st.columns(2)
+                    with col_d1:
+                        filtros['data_inicio'] = st.date_input(
+                            "Data início",
+                            value=datetime.now() - timedelta(days=30),
+                            key="filtro_data_inicio"
+                        )
+                    with col_d2:
+                        filtros['data_fim'] = st.date_input(
+                            "Data fim",
+                            value=datetime.now(),
+                            key="filtro_data_fim"
+                        )
+                    # Converte para datetime
+                    filtros['data_inicio'] = datetime.combine(filtros['data_inicio'], datetime.min.time())
+                    filtros['data_fim'] = datetime.combine(filtros['data_fim'], datetime.max.time())
+            
+            st.markdown("---")
+            
+            # Botões de ação
+            col_btn1, col_btn2 = st.columns(2)
+            with col_btn1:
+                executar = st.button("▶️ Executar Consulta", type="primary", use_container_width=True)
+            with col_btn2:
+                salvar = st.button("💾 Salvar Consulta", use_container_width=True)
+            
+            if salvar:
+                nome_consulta = st.text_input("Nome da consulta", key="nome_consulta_salvar")
+                if nome_consulta and st.button("Confirmar", key="confirmar_salvar"):
+                    salvar_consulta(nome_consulta, tipo_consulta, filtros)
+                    st.success(f"Consulta '{nome_consulta}' salva!")
+        
+        with col_preview:
+            st.markdown("### 📊 Resultado")
+            
+            # Sempre executa a consulta para preview
+            df_filtrado = filtrar_df_por_consulta(df_todos, tipo_consulta, filtros)
+            
+            if not df_filtrado.empty:
+                renderizar_resultado_consulta(df_filtrado, tipo_consulta, filtros)
+            else:
+                st.info("Configure os filtros e clique em 'Executar Consulta' para ver os resultados.")
+    
+    # === TAB: CONSULTAS SALVAS ===
+    with tab_salvas:
+        consultas = listar_consultas_salvas()
+        
+        if not consultas:
+            st.info("🔖 Você ainda não tem consultas salvas. Crie uma na aba 'Nova Consulta' e salve!")
+            
+            # Sugestões
+            st.markdown("### 💡 Sugestões de Consultas")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("📋 Cards Concluídos Recentes", use_container_width=True):
+                    salvar_consulta("Cards Concluídos Recentes", "cards_status", {
+                        "status": "concluido",
+                        "periodo": "ultimas_2_semanas"
+                    })
+                    st.success("Consulta salva!")
+                    st.rerun()
+            
+            with col2:
+                if st.button("🐛 Bugs do Mês", use_container_width=True):
+                    salvar_consulta("Bugs do Mês", "bugs_analise", {
+                        "periodo": "ultimo_mes"
+                    })
+                    st.success("Consulta salva!")
+                    st.rerun()
+        else:
+            for nome, consulta in consultas.items():
+                with st.expander(f"📊 {nome}", expanded=False):
+                    tipo = consulta.get('tipo', '')
+                    st.markdown(f"**Tipo:** {TIPOS_CONSULTA.get(tipo, {}).get('nome', tipo)}")
+                    st.caption(f"Criada em: {consulta.get('criado_em', 'N/A')[:16]}")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("▶️ Executar", key=f"exec_{nome}", use_container_width=True):
+                            df_filtrado = filtrar_df_por_consulta(df_todos, tipo, consulta.get('filtros', {}))
+                            renderizar_resultado_consulta(df_filtrado, tipo, consulta.get('filtros', {}))
+                    with col2:
+                        if st.button("🗑️ Excluir", key=f"del_{nome}", use_container_width=True):
+                            excluir_consulta(nome)
+                            st.success(f"Consulta '{nome}' excluída!")
+                            st.rerun()
+
+
+# Mantém compatibilidade com a função antiga mas redireciona para nova
+def aba_dashboard_personalizado(df: pd.DataFrame):
+    """Aba para criar e visualizar dashboards personalizados - DEPRECADO."""
+    tela_consulta_personalizada(df)
+
+
+# ==============================================================================
+# CATÁLOGO DE MÉTRICAS - LEGACY (mantido para compatibilidade)
 # ==============================================================================
 
 CATALOGO_METRICAS = {
@@ -11408,7 +11979,7 @@ def aba_sobre():
         | Informação | Valor |
         |------------|-------|
         | **Desenvolvido por** | QA NINA |
-        | **Mantido por** | Vinícios Ferreira |
+        | **Mantido por** |9Vinícios Ferreira |
         | **Versão** | v8.78 |
         | **Última atualização** | Abril 2026 |
         | **Stack** | Python, Streamlit, Plotly, Pandas |
@@ -11695,10 +12266,64 @@ def main():
                 ["Todo o período", "Sprint Ativa", "Últimos 30 dias", "Últimos 90 dias"],
                 index=indice_filtro_padrao
             )
+            
+            # ===== BOTÃO CONSULTA PERSONALIZADA =====
+            st.markdown("---")
+            st.markdown("##### 🔍 Ferramentas Avançadas")
+            
+            # Inicializa estado de consulta personalizada
+            if 'modo_consulta_personalizada' not in st.session_state:
+                st.session_state.modo_consulta_personalizada = False
+            
+            if st.button("🎯 Consulta Personalizada", use_container_width=True, key="btn_consulta_personalizada", 
+                        help="Crie consultas avançadas com filtros personalizados"):
+                st.session_state.modo_consulta_personalizada = True
+                st.rerun()
+            
         else:
             # Quando pesquisando, usa o projeto da busca
             projeto = st.session_state.projeto_buscado
             filtro_sprint = "Sprint Ativa"  # Não usado na busca específica
+    
+    # ===== MODO CONSULTA PERSONALIZADA =====
+    # Inicializa o estado se não existir
+    if 'modo_consulta_personalizada' not in st.session_state:
+        st.session_state.modo_consulta_personalizada = False
+    
+    if st.session_state.modo_consulta_personalizada:
+        # === SIDEBAR SIMPLIFICADA PARA CONSULTA PERSONALIZADA ===
+        with st.sidebar:
+            st.markdown("---")
+            
+            # Botão voltar
+            if st.button("⬅️ Voltar ao Dashboard", type="primary", use_container_width=True, key="btn_voltar_consulta"):
+                st.session_state.modo_consulta_personalizada = False
+                st.rerun()
+        
+        # === CARREGA DADOS DE TODOS OS PROJETOS ===
+        with st.spinner("🔄 Carregando dados de todos os projetos..."):
+            todos_dfs = []
+            
+            for proj in ["SD", "QA", "PB"]:
+                try:
+                    jql_proj = f'project = {proj} ORDER BY created DESC'
+                    issues_proj, _ = buscar_dados_jira_cached(proj, jql_proj)
+                    if issues_proj:
+                        df_proj = processar_issues(issues_proj)
+                        df_proj['projeto'] = proj
+                        todos_dfs.append(df_proj)
+                except:
+                    pass
+            
+            if todos_dfs:
+                df_todos = pd.concat(todos_dfs, ignore_index=True)
+            else:
+                st.error("❌ Não foi possível carregar dados")
+                st.stop()
+        
+        # === RENDERIZA A TELA DE CONSULTA PERSONALIZADA ===
+        tela_consulta_personalizada(df_todos)
+        return  # Sai da função main() para não renderizar o dashboard normal
     
     # ===== MODO BUSCA DE CARD ESPECÍFICO =====
     if st.session_state.busca_ativa and st.session_state.card_buscado:
@@ -12308,12 +12933,11 @@ def main():
         # Abas condicionais por projeto (fluxo normal)
         if projeto == "PB":
             # Projeto PB: Aba de Backlog como foco principal
-            tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+            tab1, tab2, tab3, tab4, tab5 = st.tabs([
                 "📋 Backlog",
                 "📊 Visão Geral",
                 "📦 Produto",
                 "📈 Histórico",
-                "🎨 Meu Dashboard",
                 "ℹ️ Sobre"
             ])
             
@@ -12330,19 +12954,15 @@ def main():
                 aba_historico(df)
             
             with tab5:
-                aba_dashboard_personalizado(df)
-            
-            with tab6:
                 aba_sobre()
         
         elif projeto == "VALPROD":
             # Projeto VALPROD: Foco em Validação em Produção + Suporte
-            tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+            tab1, tab2, tab3, tab4, tab5 = st.tabs([
                 "🎯 Suporte/Implantação",
                 "📊 Visão Geral",
                 "📋 Governança",
                 "📈 Histórico",
-                "🎨 Meu Dashboard",
                 "ℹ️ Sobre"
             ])
             
@@ -12359,14 +12979,11 @@ def main():
                 aba_historico(df)
             
             with tab5:
-                aba_dashboard_personalizado(df)
-            
-            with tab6:
                 aba_sobre()
         
         else:
             # Projetos SD e QA: Abas completas com QA/Dev + Clientes + Suporte
-            tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
+            tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
                 "📊 Visão Geral",
                 "🔬 QA",
                 "👨‍💻 Dev",
@@ -12376,7 +12993,6 @@ def main():
                 "📦 Produto",
                 "📈 Histórico",
                 "🎯 Liderança",
-                "🎨 Meu Dashboard",
                 "ℹ️ Sobre"
             ])
             
@@ -12408,9 +13024,6 @@ def main():
                 aba_lideranca(df)
             
             with tab10:
-                aba_dashboard_personalizado(df)
-            
-            with tab11:
                 aba_sobre()
 
 
