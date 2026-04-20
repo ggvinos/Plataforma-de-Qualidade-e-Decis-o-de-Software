@@ -376,7 +376,8 @@ def link_jira(ticket_id: str) -> str:
 
 def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True) -> str:
     """
-    Gera HTML de um card com popup para escolher: Ver no NinaDash ou Abrir no Jira.
+    Gera HTML de um card com botões de ação que aparecem no hover.
+    Design: [TICKET-ID] [📊] [🔗] - botões aparecem no hover do wrapper.
     
     Args:
         ticket_id: ID do card (ex: PB-797, SD-1234)
@@ -384,7 +385,7 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
         inline: Se True, renderiza inline. Se False, bloco.
     
     Returns:
-        HTML string com popup de navegação.
+        HTML string com link e botões de ação.
     """
     # Detecta projeto automaticamente se não informado
     if not projeto:
@@ -403,16 +404,12 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
     cores = {"PB": "#8b5cf6", "SD": "#3b82f6", "QA": "#22c55e"}
     cor = cores.get(projeto, "#6b7280")
     
-    # HTML com popup CSS puro usando classes definidas no CSS global
-    html = f'''<span class="card-popup-wrapper">
-        <a href="{url_jira}" target="_blank" class="card-popup-trigger" style="color: {cor};">{ticket_id}</a>
-        <span class="card-popup-menu">
-            <a href="{url_dashboard}" target="_blank" class="card-popup-item card-popup-ninadash">
-                📊 Ver no NinaDash
-            </a>
-            <a href="{url_jira}" target="_blank" class="card-popup-item card-popup-jira">
-                🔗 Abrir no Jira
-            </a>
+    # HTML com botões inline que aparecem no hover
+    html = f'''<span class="card-link-wrapper">
+        <a href="{url_jira}" target="_blank" class="card-link-id" style="color: {cor};">{ticket_id}</a>
+        <span class="card-link-actions">
+            <a href="{url_dashboard}" target="_blank" class="card-action-btn card-action-nina" title="Ver no NinaDash">📊</a>
+            <a href="{url_jira}" target="_blank" class="card-action-btn card-action-jira" title="Abrir no Jira">🔗</a>
         </span>
     </span>'''
     
@@ -422,86 +419,64 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
 # CSS global para o popup (deve ser inserido uma vez na página)
 CARD_POPUP_CSS = """
 <style>
-    /* Wrapper do popup */
-    .card-popup-wrapper {
-        position: relative;
-        display: inline-block;
+    /* Wrapper do link com botões de ação */
+    .card-link-wrapper {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
     }
     
-    /* Trigger (o link do ticket) */
-    .card-popup-trigger {
+    /* ID do ticket (link principal) */
+    .card-link-id {
         font-weight: 600;
-        cursor: pointer;
         text-decoration: none;
-        border-bottom: 1px dashed currentColor;
         padding: 1px 3px;
         border-radius: 3px;
         transition: all 0.2s ease;
     }
-    .card-popup-trigger:hover {
+    .card-link-id:hover {
         background: rgba(59, 130, 246, 0.1);
     }
     
-    /* Menu popup - aparece ABAIXO do trigger */
-    .card-popup-menu {
+    /* Container dos botões de ação - escondido por padrão */
+    .card-link-actions {
         display: none;
-        position: absolute;
-        top: calc(100% + 5px);
-        left: 0;
-        background: white;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        padding: 6px;
-        z-index: 99999;
-        min-width: 160px;
+        gap: 2px;
+        align-items: center;
     }
     
-    /* Mostrar menu no hover */
-    .card-popup-wrapper:hover .card-popup-menu {
-        display: block;
+    /* Mostrar botões no hover do wrapper */
+    .card-link-wrapper:hover .card-link-actions {
+        display: inline-flex;
     }
     
-    /* Seta do popup - aponta para CIMA */
-    .card-popup-menu::after {
-        content: '';
-        position: absolute;
-        bottom: 100%;
-        left: 20px;
-        border: 6px solid transparent;
-        border-bottom-color: white;
-    }
-    .card-popup-menu::before {
-        content: '';
-        position: absolute;
-        bottom: 100%;
-        left: 19px;
-        border: 7px solid transparent;
-        border-bottom-color: #e5e7eb;
-    }
-    
-    /* Itens do menu */
-    .card-popup-item {
-        display: block;
-        padding: 8px 12px;
-        color: #374151;
+    /* Botões de ação (emoji) */
+    .card-action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        font-size: 12px;
         text-decoration: none;
-        border-radius: 6px;
-        font-size: 13px;
+        border-radius: 4px;
         transition: all 0.15s ease;
-        white-space: nowrap;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
     }
     
     /* Hover NinaDash */
-    .card-popup-ninadash:hover {
+    .card-action-nina:hover {
         background: #AF0C37;
-        color: white;
+        border-color: #AF0C37;
+        transform: scale(1.1);
     }
     
     /* Hover Jira */
-    .card-popup-jira:hover {
+    .card-action-jira:hover {
         background: #3b82f6;
-        color: white;
+        border-color: #3b82f6;
+        transform: scale(1.1);
     }
 </style>
 """
@@ -4067,7 +4042,6 @@ def aplicar_estilos():
         max-height: 450px;
         overflow-y: auto;
         padding-right: 8px;
-        padding-bottom: 80px;
         margin: 10px 0;
         scrollbar-width: thin;
         scrollbar-color: #cbd5e1 #f1f5f9;
