@@ -5468,7 +5468,7 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
                     st.markdown("##### 🚨 Cards Fora do Planejamento Original")
                     st.caption("Cards adicionados após o início da sprint comprometem a previsibilidade")
                     
-                    # Construir HTML completo em string única (necessário para scroll funcionar)
+                    # Construir HTML completo em string única
                     html_cards = '<div class="scroll-container" style="max-height: 400px;">'
                     for _, card in adicionados_depois.iterrows():
                         if card['tipo'] == 'HOTFIX':
@@ -5482,14 +5482,14 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
                             cor_tag = "#8b5cf6"
                         
                         card_link = card_link_simples(card['ticket_id'])
-                        html_cards += f'''
-                        <div class="card-lista" style="border-left-color: {cor_tag};">
-                            <span style="background: {cor_tag}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{categoria}</span>
-                            <span style="margin-left: 10px;">{card_link}</span>
-                            <span style="color: #64748b;"> - {card['titulo'][:60]}...</span>
-                            <span style="float: right; color: #94a3b8; font-size: 12px;">{card['status']}</span>
-                        </div>
-                        '''
+                        titulo_card = str(card['titulo'])[:60]
+                        status_card = str(card['status'])
+                        html_cards += '<div class="card-lista" style="border-left-color: ' + cor_tag + ';">'
+                        html_cards += '<span style="background: ' + cor_tag + '; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">' + categoria + '</span>'
+                        html_cards += '<span style="margin-left: 10px;">' + card_link + '</span>'
+                        html_cards += '<span style="color: #64748b;"> - ' + titulo_card + '...</span>'
+                        html_cards += '<span style="float: right; color: #94a3b8; font-size: 12px;">' + status_card + '</span>'
+                        html_cards += '</div>'
                     html_cards += '</div>'
                     st.markdown(html_cards, unsafe_allow_html=True)
                     
@@ -5627,17 +5627,18 @@ def aba_qa(df: pd.DataFrame):
                 with col1:
                     st.markdown("#### 🚫 Impedidos")
                     if not cards_impedidos.empty:
-                        # Construir HTML completo em string única
                         html_impedidos = '<div class="scroll-container" style="max-height: 350px;">'
                         for _, row in cards_impedidos.iterrows():
                             card_link = card_link_simples(row['ticket_id'])
-                            html_impedidos += f'''
-                            <div class="card-lista-vermelho">
-                                <strong>{card_link}</strong>
-                                <span style="color: #64748b;"> - {row['titulo']}</span><br>
-                                <small style="color: #94a3b8;">👤 DEV: {row['desenvolvedor']} | 🧑‍🔬 QA: {row['qa']} | {int(row['sp'])} SP</small>
-                            </div>
-                            '''
+                            titulo = str(row['titulo'])
+                            dev = str(row['desenvolvedor'])
+                            qa = str(row['qa'])
+                            sp = int(row['sp'])
+                            html_impedidos += '<div class="card-lista-vermelho">'
+                            html_impedidos += '<strong>' + card_link + '</strong>'
+                            html_impedidos += '<span style="color: #64748b;"> - ' + titulo + '</span><br>'
+                            html_impedidos += '<small style="color: #94a3b8;">👤 DEV: ' + dev + ' | 🧑‍🔬 QA: ' + qa + ' | ' + str(sp) + ' SP</small>'
+                            html_impedidos += '</div>'
                         html_impedidos += '</div>'
                         st.markdown(html_impedidos, unsafe_allow_html=True)
                     else:
@@ -5646,17 +5647,19 @@ def aba_qa(df: pd.DataFrame):
                 with col2:
                     st.markdown("#### ❌ Reprovados")
                     if not cards_reprovados.empty:
-                        # Construir HTML completo em string única
                         html_reprovados = '<div class="scroll-container" style="max-height: 350px;">'
                         for _, row in cards_reprovados.iterrows():
                             card_link = card_link_simples(row['ticket_id'])
-                            html_reprovados += f'''
-                            <div class="card-lista-vermelho">
-                                <strong>{card_link}</strong>
-                                <span style="color: #64748b;"> - {row['titulo']}</span><br>
-                                <small style="color: #94a3b8;">👤 DEV: {row['desenvolvedor']} | 🧑‍🔬 QA: {row['qa']} | {int(row['sp'])} SP | 🐛 {int(row['bugs'])} bugs</small>
-                            </div>
-                            '''
+                            titulo = str(row['titulo'])
+                            dev = str(row['desenvolvedor'])
+                            qa = str(row['qa'])
+                            sp = int(row['sp'])
+                            bugs = int(row['bugs'])
+                            html_reprovados += '<div class="card-lista-vermelho">'
+                            html_reprovados += '<strong>' + card_link + '</strong>'
+                            html_reprovados += '<span style="color: #64748b;"> - ' + titulo + '</span><br>'
+                            html_reprovados += '<small style="color: #94a3b8;">👤 DEV: ' + dev + ' | 🧑‍🔬 QA: ' + qa + ' | ' + str(sp) + ' SP | 🐛 ' + str(bugs) + ' bugs</small>'
+                            html_reprovados += '</div>'
                         html_reprovados += '</div>'
                         st.markdown(html_reprovados, unsafe_allow_html=True)
                     else:
@@ -6924,17 +6927,18 @@ def aba_dev(df: pd.DataFrame):
                 with col_imp:
                     st.markdown("#### 🚫 Impedidos")
                     if not cards_impedidos_dev.empty:
-                        # Construir HTML completo em string única
                         html_imp_dev = '<div class="scroll-container" style="max-height: 350px;">'
                         for _, row in cards_impedidos_dev.iterrows():
                             card_link = card_link_simples(row['ticket_id'])
-                            html_imp_dev += f'''
-                            <div class="card-lista-vermelho">
-                                <strong>{card_link}</strong>
-                                <span style="color: #64748b;"> - {row['titulo']}</span><br>
-                                <small style="color: #94a3b8;">👤 {row['desenvolvedor']} | 🧑‍🔬 {row['qa']} | {int(row['sp'])} SP</small>
-                            </div>
-                            '''
+                            titulo = str(row['titulo'])
+                            dev = str(row['desenvolvedor'])
+                            qa = str(row['qa'])
+                            sp = int(row['sp'])
+                            html_imp_dev += '<div class="card-lista-vermelho">'
+                            html_imp_dev += '<strong>' + card_link + '</strong>'
+                            html_imp_dev += '<span style="color: #64748b;"> - ' + titulo + '</span><br>'
+                            html_imp_dev += '<small style="color: #94a3b8;">👤 ' + dev + ' | 🧑‍🔬 ' + qa + ' | ' + str(sp) + ' SP</small>'
+                            html_imp_dev += '</div>'
                         html_imp_dev += '</div>'
                         st.markdown(html_imp_dev, unsafe_allow_html=True)
                     else:
@@ -6943,17 +6947,19 @@ def aba_dev(df: pd.DataFrame):
                 with col_rep:
                     st.markdown("#### ❌ Reprovados")
                     if not cards_reprovados_dev.empty:
-                        # Construir HTML completo em string única
                         html_rep_dev = '<div class="scroll-container" style="max-height: 350px;">'
                         for _, row in cards_reprovados_dev.iterrows():
                             card_link = card_link_simples(row['ticket_id'])
-                            html_rep_dev += f'''
-                            <div class="card-lista-vermelho">
-                                <strong>{card_link}</strong>
-                                <span style="color: #64748b;"> - {row['titulo']}</span><br>
-                                <small style="color: #94a3b8;">👤 {row['desenvolvedor']} | 🧑‍🔬 {row['qa']} | {int(row['sp'])} SP | 🐛 {int(row['bugs'])} bugs</small>
-                            </div>
-                            '''
+                            titulo = str(row['titulo'])
+                            dev = str(row['desenvolvedor'])
+                            qa = str(row['qa'])
+                            sp = int(row['sp'])
+                            bugs = int(row['bugs'])
+                            html_rep_dev += '<div class="card-lista-vermelho">'
+                            html_rep_dev += '<strong>' + card_link + '</strong>'
+                            html_rep_dev += '<span style="color: #64748b;"> - ' + titulo + '</span><br>'
+                            html_rep_dev += '<small style="color: #94a3b8;">👤 ' + dev + ' | 🧑‍🔬 ' + qa + ' | ' + str(sp) + ' SP | 🐛 ' + str(bugs) + ' bugs</small>'
+                            html_rep_dev += '</div>'
                         html_rep_dev += '</div>'
                         st.markdown(html_rep_dev, unsafe_allow_html=True)
                     else:
@@ -7068,18 +7074,18 @@ def aba_dev(df: pd.DataFrame):
                         st.markdown("---")
                         st.markdown("**🚨 Seus cards com problemas:**")
                         all_problemas_dev = pd.concat([cards_impedidos_dev_ind, cards_reprovados_dev_ind]) if not cards_reprovados_dev_ind.empty and not cards_impedidos_dev_ind.empty else (cards_impedidos_dev_ind if not cards_impedidos_dev_ind.empty else cards_reprovados_dev_ind)
-                        # Construir HTML completo em string única
                         html_problemas = '<div class="scroll-container" style="max-height: 300px;">'
                         for _, row in all_problemas_dev.iterrows():
                             status_icon = "🚫" if row['status_cat'] == 'blocked' else "❌"
                             status_name = "Impedido" if row['status_cat'] == 'blocked' else "Reprovado"
                             card_link = card_link_simples(row['ticket_id'])
-                            html_problemas += f'''
-                            <div class="card-lista-vermelho">
-                                <strong>{status_icon}</strong> {card_link} - {row['titulo']}<br>
-                                <small style="color: #94a3b8;">🧑‍🔬 QA: {row['qa']} | {status_name} | {int(row['sp'])} SP</small>
-                            </div>
-                            '''
+                            titulo = str(row['titulo'])
+                            qa = str(row['qa'])
+                            sp = int(row['sp'])
+                            html_problemas += '<div class="card-lista-vermelho">'
+                            html_problemas += '<strong>' + status_icon + '</strong> ' + card_link + ' - ' + titulo + '<br>'
+                            html_problemas += '<small style="color: #94a3b8;">🧑‍🔬 QA: ' + qa + ' | ' + status_name + ' | ' + str(sp) + ' SP</small>'
+                            html_problemas += '</div>'
                         html_problemas += '</div>'
                         st.markdown(html_problemas, unsafe_allow_html=True)
             
@@ -8656,12 +8662,13 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
             html_minha_acao = '<div class="scroll-container" style="max-height: 450px;">'
             
             for _, card in df_minha_acao.iterrows():
-                projeto = card.get('projeto', 'SD')
-                tipo = card.get('tipo', 'TAREFA')
+                projeto = str(card.get('projeto', 'SD'))
+                tipo = str(card.get('tipo', 'TAREFA'))
                 tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#6366f1" if tipo == "SUGESTÃO" else "#64748b"
-                titulo = card.get('titulo', card.get('resumo', ''))[:70]
+                titulo = str(card.get('titulo', card.get('resumo', '')))[:70]
                 tempo_atualizacao = formatar_tempo_relativo(card.get('atualizado')) if 'atualizado' in card else ""
-                relator = card.get('relator', 'N/A')
+                relator = str(card.get('relator', 'N/A'))
+                status_card = str(card.get('status', ''))
                 
                 # Identificar papel da pessoa
                 papeis = []
@@ -8673,19 +8680,20 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                     papeis.append("Responsável")
                 papel_texto = " • ".join(papeis) if papeis else "Validador"
                 
-                html_minha_acao += f'''
-                <div class="card-lista-roxo">
-                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap;">
-                        <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
-                        <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
-                        <span style="background: #8b5cf6; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{papel_texto}</span>
-                        {card_link_simples(card['ticket_id'], projeto)}
-                        <span style="color: #7c3aed; font-size: 0.75em; margin-left: auto;">🕐 {tempo_atualizacao}</span>
-                    </div>
-                    <div style="color: #5b21b6; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 70 else ''}</div>
-                    <div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Aberto por: {relator} • Status: {card.get('status', '')}</div>
-                </div>
-                '''
+                card_link = card_link_simples(card['ticket_id'], projeto)
+                sufixo = '...' if len(str(card.get('titulo', ''))) > 70 else ''
+                
+                html_minha_acao += '<div class="card-lista-roxo">'
+                html_minha_acao += '<div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap;">'
+                html_minha_acao += '<span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">' + projeto + '</span>'
+                html_minha_acao += '<span style="background: ' + tipo_cor + '; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">' + tipo + '</span>'
+                html_minha_acao += '<span style="background: #8b5cf6; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">' + papel_texto + '</span>'
+                html_minha_acao += card_link
+                html_minha_acao += '<span style="color: #7c3aed; font-size: 0.75em; margin-left: auto;">🕐 ' + tempo_atualizacao + '</span>'
+                html_minha_acao += '</div>'
+                html_minha_acao += '<div style="color: #5b21b6; font-size: 0.9em; line-height: 1.4;">' + titulo + sufixo + '</div>'
+                html_minha_acao += '<div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Aberto por: ' + relator + ' • Status: ' + status_card + '</div>'
+                html_minha_acao += '</div>'
             
             html_minha_acao += '</div>'
             st.markdown(html_minha_acao, unsafe_allow_html=True)
@@ -8698,27 +8706,27 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
             if not df_pendentes.empty:
                 st.markdown(f"##### 🔍 {len(df_pendentes)} cards pendentes de validação")
                 
-                # Construir HTML completo em string única
                 html_valprod = '<div class="scroll-container" style="max-height: 400px;">'
                 for _, card in df_pendentes.iterrows():
                     dias = (datetime.now() - pd.to_datetime(card['criado'])).days if pd.notna(card.get('criado')) else 0
                     cor = "#ef4444" if dias > 7 else "#f59e0b" if dias > 3 else "#22c55e"
-                    tipo = card.get('tipo', 'TAREFA')
+                    tipo = str(card.get('tipo', 'TAREFA'))
                     tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#6366f1" if tipo == "SUGESTÃO" else "#64748b"
-                    titulo = card.get('titulo', card.get('resumo', ''))[:70]
+                    titulo = str(card.get('titulo', card.get('resumo', '')))[:70]
                     tempo_atualizacao = formatar_tempo_relativo(card.get('atualizado')) if 'atualizado' in card else ""
+                    status_card = str(card.get('status', 'N/A'))
+                    sufixo = '...' if len(str(card.get('titulo', ''))) > 70 else ''
+                    card_link = card_link_simples(card['ticket_id'], 'VALPROD')
                     
-                    html_valprod += f'''
-                    <div class="card-lista" style="border-left-color: {cor};">
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                            <span style="background: {tipo_cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">{tipo}</span>
-                            {card_link_simples(card['ticket_id'], 'VALPROD')}
-                            <span style="color: #64748b; font-size: 0.75em; margin-left: auto;">🕐 {tempo_atualizacao}</span>
-                        </div>
-                        <div style="color: #374151; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 70 else ''}</div>
-                        <div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: {card.get('status', 'N/A')} • Criado: {dias}d atrás</div>
-                    </div>
-                    '''
+                    html_valprod += '<div class="card-lista" style="border-left-color: ' + cor + ';">'
+                    html_valprod += '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">'
+                    html_valprod += '<span style="background: ' + tipo_cor + '; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">' + tipo + '</span>'
+                    html_valprod += card_link
+                    html_valprod += '<span style="color: #64748b; font-size: 0.75em; margin-left: auto;">🕐 ' + tempo_atualizacao + '</span>'
+                    html_valprod += '</div>'
+                    html_valprod += '<div style="color: #374151; font-size: 0.9em; line-height: 1.4;">' + titulo + sufixo + '</div>'
+                    html_valprod += '<div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: ' + status_card + ' • Criado: ' + str(dias) + 'd atrás</div>'
+                    html_valprod += '</div>'
                 html_valprod += '</div>'
                 st.markdown(html_valprod, unsafe_allow_html=True)
             else:
@@ -8738,30 +8746,30 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
             # Ordena por data de criação (mais recente primeiro)
             df_concluidos_sorted = df_concluidos_lista.sort_values('criado', ascending=False) if 'criado' in df_concluidos_lista.columns else df_concluidos_lista
             
-            # Construir HTML completo em string única
             html_concluidos = '<div class="scroll-container" style="max-height: 400px;">'
             for _, card in df_concluidos_sorted.head(30).iterrows():
-                projeto = card.get('projeto', 'SD')
-                tipo = card.get('tipo', 'TAREFA')
+                projeto = str(card.get('projeto', 'SD'))
+                tipo = str(card.get('tipo', 'TAREFA'))
                 tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#6366f1" if tipo == "SUGESTÃO" else "#64748b"
-                titulo = card.get('titulo', card.get('resumo', ''))[:70]
-                status = card.get('status', '')
+                titulo = str(card.get('titulo', card.get('resumo', '')))[:70]
+                status = str(card.get('status', ''))
+                sufixo = '...' if len(str(card.get('titulo', ''))) > 70 else ''
                 
                 # Cor do projeto
                 projeto_cor = "#3b82f6" if projeto == "SD" else "#22c55e" if projeto == "QA" else "#f59e0b" if projeto == "PB" else "#8b5cf6"
                 
-                html_concluidos += f'''
-                <div class="card-lista-verde">
-                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-                        <span style="background: {projeto_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
-                        <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
-                        {card_link_simples(card['ticket_id'], projeto)}
-                        <span style="background: #22c55e; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: auto;">✓ Concluído</span>
-                    </div>
-                    <div style="color: #166534; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 70 else ''}</div>
-                    <div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: {status}</div>
-                </div>
-                '''
+                card_link = card_link_simples(card['ticket_id'], projeto)
+                
+                html_concluidos += '<div class="card-lista-verde">'
+                html_concluidos += '<div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">'
+                html_concluidos += '<span style="background: ' + projeto_cor + '; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">' + projeto + '</span>'
+                html_concluidos += '<span style="background: ' + tipo_cor + '; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">' + tipo + '</span>'
+                html_concluidos += card_link
+                html_concluidos += '<span style="background: #22c55e; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: auto;">✓ Concluído</span>'
+                html_concluidos += '</div>'
+                html_concluidos += '<div style="color: #166534; font-size: 0.9em; line-height: 1.4;">' + titulo + sufixo + '</div>'
+                html_concluidos += '<div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: ' + status + '</div>'
+                html_concluidos += '</div>'
             html_concluidos += '</div>'
             st.markdown(html_concluidos, unsafe_allow_html=True)
             
