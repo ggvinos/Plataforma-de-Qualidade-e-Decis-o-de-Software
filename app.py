@@ -9754,45 +9754,156 @@ def aba_lideranca(df: pd.DataFrame):
         # Calcula métricas de concentração
         concentracao = calcular_concentracao_conhecimento(df)
         
-        # Info sobre QAs principais
-        if concentracao['qas_principais']:
-            st.info(f"📋 **QAs considerados na análise:** {', '.join(concentracao['qas_principais'])} (baseado no volume de validações)")
-        
-        # ===== ALERTAS E RECOMENDAÇÕES (TOPO) =====
+        # ===== CARDS RESUMO NO TOPO =====
         alertas_criticos_dev = [a for a in concentracao['alertas_dev'] if a['tipo'] == 'critico']
         alertas_criticos_qa = [a for a in concentracao['alertas_qa'] if a['tipo'] == 'critico']
         alertas_atencao_dev = [a for a in concentracao['alertas_dev'] if a['tipo'] == 'atencao']
         alertas_atencao_qa = [a for a in concentracao['alertas_qa'] if a['tipo'] == 'atencao']
         
-        if alertas_criticos_dev or alertas_criticos_qa:
-            st.markdown("### 🚨 Alertas Críticos de Concentração")
-            for alerta in alertas_criticos_dev + alertas_criticos_qa:
-                st.markdown(f"""
-                <div class="alert-critical" style="margin-bottom: 8px;">
-                    {alerta['msg']}
-                </div>
-                """, unsafe_allow_html=True)
+        total_criticos = len(alertas_criticos_dev) + len(alertas_criticos_qa)
+        total_atencao = len(alertas_atencao_dev) + len(alertas_atencao_qa)
+        total_recomendacoes = len(concentracao['recomendacoes'])
         
-        if alertas_atencao_dev or alertas_atencao_qa:
-            st.markdown("### ⚠️ Pontos de Atenção")
-            for alerta in alertas_atencao_dev + alertas_atencao_qa:
-                st.markdown(f"""
-                <div class="alert-warning" style="margin-bottom: 8px;">
-                    {alerta['msg']}
-                </div>
-                """, unsafe_allow_html=True)
+        # Cards de resumo
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            cor = 'red' if total_criticos > 0 else 'green'
+            criar_card_metrica(str(total_criticos), "Alertas Críticos", cor, "≥80% concentração")
+        with col2:
+            cor = 'yellow' if total_atencao > 0 else 'green'
+            criar_card_metrica(str(total_atencao), "Pontos de Atenção", cor, "60-79% concentração")
+        with col3:
+            criar_card_metrica(str(total_recomendacoes), "Recomendações", "blue", "Sugestões de rodízio")
+        with col4:
+            # Calcula score geral de distribuição
+            total_indices = len(concentracao['indices'].get('dev_produto', {})) + len(concentracao['indices'].get('qa_produto', {}))
+            indices_saudaveis = sum(1 for d in concentracao['indices'].get('dev_produto', {}).values() if d['concentracao_pct'] < 60)
+            indices_saudaveis += sum(1 for d in concentracao['indices'].get('qa_produto', {}).values() if d['concentracao_pct'] < 60)
+            score_distribuicao = (indices_saudaveis / total_indices * 100) if total_indices > 0 else 100
+            cor = 'green' if score_distribuicao >= 70 else 'yellow' if score_distribuicao >= 40 else 'red'
+            criar_card_metrica(f"{score_distribuicao:.0f}%", "Score Distribuição", cor, "Áreas bem distribuídas")
         
-        # ===== RECOMENDAÇÕES DE RODÍZIO =====
+        # Status geral
+        if total_criticos == 0 and total_atencao == 0:
+            st.success("✅ **Excelente!** Conhecimento bem distribuído no time. Nenhuma concentração crítica detectada.")
+        elif total_criticos > 0:
+            st.error(f"🚨 **Atenção necessária:** {total_criticos} área(s) com concentração crítica de conhecimento.")
+        
+        st.markdown("---")
+        
+        # ===== FILTROS =====
+        col_filtro1, col_filtro2, col_filtro3 = st.columns([2, 2, 2])
+        
+        # Lista de pessoas únicas
+        devs_lista = sorted(list(set([a['pessoa'] for a in concentracao['alertas_dev']])))
+        qas_lista = sorted(list(set([a['pessoa'] for a in concentracao['alertas_qa']])))
+        
+        with col_filtro1:
+            filtro_tipo = st.selectbox(
+                "📋 Filtrar por tipo:",
+                ["Todos", "Apenas DEV", "Apenas QA"],
+                key="filtro_tipo_concentracao"
+            )
+        
+        with col_filtro2:
+            opcoes_pessoa = ["Todas as pessoas"] + devs_lista + [q for q in qas_lista if q not in devs_lista]
+            filtro_pessoa = st.selectbox(
+                "👤 Filtrar por pessoa:",
+                opcoes_pessoa,
+                key="filtro_pessoa_concentracao"
+            )
+        
+        with col_filtro3:
+            filtro_contexto = st.selectbox(
+                "🏷️ Filtrar por contexto:",
+                ["Todos", "Apenas Produto", "Apenas Cliente"],
+                key="filtro_contexto_concentracao"
+            )
+        
+        # Aplica filtros
+        def filtrar_alertas(alertas, tipo_role, filtro_tipo, filtro_pessoa, filtro_contexto):
+            resultado = alertas.copy()
+            
+            # Filtro por tipo (DEV/QA)
+            if filtro_tipo == "Apenas DEV" and tipo_role != "dev":
+                return []
+            if filtro_tipo == "Apenas QA" and tipo_role != "qa":
+                return []
+            
+            # Filtro por pessoa
+            if filtro_pessoa != "Todas as pessoas":
+                resultado = [a for a in resultado if a['pessoa'] == filtro_pessoa]
+            
+            # Filtro por contexto
+            if filtro_contexto == "Apenas Produto":
+                resultado = [a for a in resultado if a['contexto'] == 'produto']
+            elif filtro_contexto == "Apenas Cliente":
+                resultado = [a for a in resultado if a['contexto'] == 'cliente']
+            
+            return resultado
+        
+        alertas_criticos_dev_filtrados = filtrar_alertas(alertas_criticos_dev, "dev", filtro_tipo, filtro_pessoa, filtro_contexto)
+        alertas_criticos_qa_filtrados = filtrar_alertas(alertas_criticos_qa, "qa", filtro_tipo, filtro_pessoa, filtro_contexto)
+        alertas_atencao_dev_filtrados = filtrar_alertas(alertas_atencao_dev, "dev", filtro_tipo, filtro_pessoa, filtro_contexto)
+        alertas_atencao_qa_filtrados = filtrar_alertas(alertas_atencao_qa, "qa", filtro_tipo, filtro_pessoa, filtro_contexto)
+        
+        # ===== ALERTAS AGRUPADOS POR PESSOA (EM EXPANDERS) =====
+        todos_alertas_criticos = alertas_criticos_dev_filtrados + alertas_criticos_qa_filtrados
+        todos_alertas_atencao = alertas_atencao_dev_filtrados + alertas_atencao_qa_filtrados
+        
+        # Agrupa por pessoa
+        def agrupar_por_pessoa(alertas):
+            agrupado = {}
+            for a in alertas:
+                pessoa = a['pessoa']
+                if pessoa not in agrupado:
+                    agrupado[pessoa] = []
+                agrupado[pessoa].append(a)
+            return agrupado
+        
+        criticos_por_pessoa = agrupar_por_pessoa(todos_alertas_criticos)
+        atencao_por_pessoa = agrupar_por_pessoa(todos_alertas_atencao)
+        
+        # Exibe alertas críticos
+        if todos_alertas_criticos:
+            with st.expander(f"🚨 Alertas Críticos ({len(todos_alertas_criticos)})", expanded=False):
+                for pessoa, alertas in sorted(criticos_por_pessoa.items()):
+                    st.markdown(f"**👤 {pessoa}** ({len(alertas)} alerta(s)):")
+                    for alerta in alertas:
+                        icone = "📦" if alerta['contexto'] == 'produto' else "🏢"
+                        st.markdown(f"""
+                        <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 8px 12px; margin: 4px 0; border-radius: 4px;">
+                            {icone} <b>{alerta['nome']}</b>: {alerta['pct']}% de concentração
+                        </div>
+                        """, unsafe_allow_html=True)
+                    st.markdown("---")
+        
+        # Exibe alertas de atenção
+        if todos_alertas_atencao:
+            with st.expander(f"⚠️ Pontos de Atenção ({len(todos_alertas_atencao)})", expanded=False):
+                for pessoa, alertas in sorted(atencao_por_pessoa.items()):
+                    st.markdown(f"**👤 {pessoa}** ({len(alertas)} ponto(s)):")
+                    for alerta in alertas:
+                        icone = "📦" if alerta['contexto'] == 'produto' else "🏢"
+                        st.markdown(f"""
+                        <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 8px 12px; margin: 4px 0; border-radius: 4px;">
+                            {icone} <b>{alerta['nome']}</b>: {alerta['pct']}% de concentração
+                        </div>
+                        """, unsafe_allow_html=True)
+                    st.markdown("---")
+        
+        # ===== RECOMENDAÇÕES DE RODÍZIO (EM EXPANDER) =====
         if concentracao['recomendacoes']:
-            st.markdown("### 💡 Recomendações de Rodízio")
-            for rec in concentracao['recomendacoes']:
-                if rec['tipo'] == 'geral':
-                    st.warning(rec['msg'])
-                else:
-                    st.markdown(rec['msg'])
-        
-        if not alertas_criticos_dev and not alertas_criticos_qa and not alertas_atencao_dev and not alertas_atencao_qa:
-            st.success("✅ Conhecimento bem distribuído! Nenhuma concentração crítica detectada.")
+            with st.expander(f"💡 Recomendações de Rodízio ({len(concentracao['recomendacoes'])})", expanded=False):
+                for rec in concentracao['recomendacoes']:
+                    if rec['tipo'] == 'geral':
+                        st.warning(rec['msg'])
+                    else:
+                        st.markdown(f"""
+                        <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 10px 14px; margin: 6px 0; border-radius: 4px;">
+                            {rec['msg']}
+                        </div>
+                        """, unsafe_allow_html=True)
         
         st.markdown("---")
         
@@ -9833,23 +9944,27 @@ def aba_lideranca(df: pd.DataFrame):
                 else:
                     st.info("Sem dados de DEV x Cliente")
             
-            # Índices de concentração DEV
-            st.markdown("#### 📈 Índices de Concentração (DEV)")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("**Por Produto:**")
-                for produto, dados in concentracao['indices'].get('dev_produto', {}).items():
-                    cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
-                    st.markdown(f"{cor} **{produto}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} cards = {dados['concentracao_pct']}%) | {dados['pessoas_atuando']} pessoa(s) atuando")
-            
-            with col2:
-                st.markdown("**Por Cliente:**")
-                for cliente, dados in concentracao['indices'].get('dev_cliente', {}).items():
-                    cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
-                    st.markdown(f"{cor} **{cliente}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} cards = {dados['concentracao_pct']}%) | {dados['pessoas_atuando']} pessoa(s) atuando")
+            # Índices de concentração DEV (em expander)
+            with st.expander("📈 Índices de Concentração (DEV)", expanded=False):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("**Por Produto:**")
+                    for produto, dados in concentracao['indices'].get('dev_produto', {}).items():
+                        cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
+                        st.markdown(f"{cor} **{produto}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} = {dados['concentracao_pct']}%)")
+                
+                with col2:
+                    st.markdown("**Por Cliente:**")
+                    for cliente, dados in concentracao['indices'].get('dev_cliente', {}).items():
+                        cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
+                        st.markdown(f"{cor} **{cliente}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} = {dados['concentracao_pct']}%)")
         
         with tab_qa:
+            # Info sobre QAs principais
+            if concentracao['qas_principais']:
+                st.info(f"📋 **QAs considerados:** {', '.join(concentracao['qas_principais'])} (baseado no volume de validações)")
+            
             col1, col2 = st.columns(2)
             
             with col1:
@@ -9865,7 +9980,7 @@ def aba_lideranca(df: pd.DataFrame):
                     with st.expander("📊 Ver dados detalhados", expanded=False):
                         st.dataframe(concentracao['qa_produto'], hide_index=True, use_container_width=True)
                 else:
-                    st.info("Sem dados de QA x Produto (verifique se há QAs principais com volume suficiente)")
+                    st.info("Sem dados de QA x Produto")
             
             with col2:
                 st.markdown("#### 🏢 QA x Cliente")
@@ -9882,33 +9997,40 @@ def aba_lideranca(df: pd.DataFrame):
                 else:
                     st.info("Sem dados de QA x Cliente")
             
-            # Índices de concentração QA
-            st.markdown("#### 📈 Índices de Concentração (QA)")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("**Por Produto:**")
-                for produto, dados in concentracao['indices'].get('qa_produto', {}).items():
-                    cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
-                    st.markdown(f"{cor} **{produto}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} cards = {dados['concentracao_pct']}%) | {dados['pessoas_atuando']} pessoa(s) atuando")
-            
-            with col2:
-                st.markdown("**Por Cliente:**")
-                for cliente, dados in concentracao['indices'].get('qa_cliente', {}).items():
-                    cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
-                    st.markdown(f"{cor} **{cliente}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} cards = {dados['concentracao_pct']}%) | {dados['pessoas_atuando']} pessoa(s) atuando")
+            # Índices de concentração QA (em expander)
+            with st.expander("📈 Índices de Concentração (QA)", expanded=False):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("**Por Produto:**")
+                    for produto, dados in concentracao['indices'].get('qa_produto', {}).items():
+                        cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
+                        st.markdown(f"{cor} **{produto}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} = {dados['concentracao_pct']}%)")
+                
+                with col2:
+                    st.markdown("**Por Cliente:**")
+                    for cliente, dados in concentracao['indices'].get('qa_cliente', {}).items():
+                        cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
+                        st.markdown(f"{cor} **{cliente}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} = {dados['concentracao_pct']}%)")
         
-        # ===== LEGENDA =====
-        st.markdown("---")
-        st.markdown("""
-        **📖 Legenda de Concentração:**
-        - 🔴 **Crítico (≥80%)**: Conhecimento muito centralizado - risco alto de Bus Factor
-        - 🟡 **Atenção (60-79%)**: Concentração moderada - planejar rodízio
-        - 🟢 **Saudável (<60%)**: Conhecimento bem distribuído
-        
-        **💡 O que é Bus Factor?** É o número mínimo de pessoas que precisam "sair" para o projeto/área ficar parado. 
-        Quanto mais distribuído o conhecimento, maior o Bus Factor e menor o risco.
-        """)
+        # ===== LEGENDA (COLAPSADA) =====
+        with st.expander("📖 Legenda e Conceitos", expanded=False):
+            st.markdown("""
+            **Níveis de Concentração:**
+            - 🔴 **Crítico (≥80%)**: Conhecimento muito centralizado - risco alto de Bus Factor
+            - 🟡 **Atenção (60-79%)**: Concentração moderada - planejar rodízio
+            - 🟢 **Saudável (<60%)**: Conhecimento bem distribuído
+            
+            **💡 O que é Bus Factor?** 
+            É o número mínimo de pessoas que precisam "sair" para o projeto/área ficar parado. 
+            Quanto mais distribuído o conhecimento, maior o Bus Factor e menor o risco.
+            
+            **Como usar estas informações:**
+            1. Identifique áreas com concentração crítica (🔴)
+            2. Planeje rodízios nas próximas sprints
+            3. Considere pair programming para transferência de conhecimento
+            4. Documente processos específicos de áreas concentradas
+            """)
     
     # Performance por Desenvolvedor
     with st.expander("👨‍💻 Performance por Desenvolvedor", expanded=False):
