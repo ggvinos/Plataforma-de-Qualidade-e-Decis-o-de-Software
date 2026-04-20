@@ -441,6 +441,33 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
     return html
 
 
+def card_link_simples(ticket_id: str, projeto: str = None) -> str:
+    """
+    Gera HTML de um link simples para o Jira (sem popup).
+    Usar em listagens com scroll onde o popup complexo causa problemas.
+    
+    Args:
+        ticket_id: ID do card (ex: PB-797, SD-1234)
+        projeto: Projeto do card (PB, SD, QA). Se None, detecta automaticamente.
+    
+    Returns:
+        HTML string com link simples.
+    """
+    if not projeto:
+        if ticket_id.startswith("PB-"):
+            projeto = "PB"
+        elif ticket_id.startswith("QA-"):
+            projeto = "QA"
+        else:
+            projeto = "SD"
+    
+    url_jira = f"{JIRA_BASE_URL}/browse/{ticket_id}"
+    cores = {"PB": "#8b5cf6", "SD": "#3b82f6", "QA": "#22c55e"}
+    cor = cores.get(projeto, "#6b7280")
+    
+    return f'<a href="{url_jira}" target="_blank" style="color: {cor}; font-weight: 600; text-decoration: none;">{ticket_id}</a>'
+
+
 # CSS global para o popup (deve ser inserido uma vez na página)
 CARD_POPUP_CSS = """
 <style>
@@ -4229,35 +4256,14 @@ def gerar_html_card_ticket(row: dict, compacto: bool = False) -> str:
     """Gera HTML de um card de ticket (retorna string, não renderiza)."""
     bugs = row.get('bugs', 0)
     risco = 'high' if bugs >= 3 else 'medium' if bugs >= 1 else 'low'
-    card_popup = card_link_com_popup(row.get('ticket_id', ''))
+    card_link = card_link_simples(row.get('ticket_id', ''))
     titulo = str(row.get('titulo', ''))[:60] + ('...' if len(str(row.get('titulo', ''))) > 60 else '')
+    cor_bug = '#ef4444' if bugs >= 3 else '#f97316' if bugs >= 1 else '#22c55e'
     
     if compacto:
-        return f'''
-        <div class="ticket-card ticket-risk-{risco}">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                {card_popup}
-                <span style="opacity: 0.7;">{row.get('sp', 0)} SP | 🐛 {bugs}</span>
-            </div>
-            <p style="margin: 5px 0 0 0; font-size: 13px; opacity: 0.9;">{titulo}</p>
-        </div>
-        '''
+        return f'<div class="ticket-card ticket-risk-{risco}"><div style="display: flex; justify-content: space-between; align-items: center;">{card_link}<span style="opacity: 0.7;">{row.get("sp", 0)} SP | 🐛 {bugs}</span></div><p style="margin: 5px 0 0 0; font-size: 13px; opacity: 0.9;">{titulo}</p></div>'
     else:
-        return f'''
-        <div class="ticket-card ticket-risk-{risco}">
-            <div style="display: flex; justify-content: space-between;">
-                {card_popup}
-                <span style="color: {'#ef4444' if bugs >= 3 else '#f97316' if bugs >= 1 else '#22c55e'}; font-weight: bold;">🐛 {bugs} bugs</span>
-            </div>
-            <p style="margin: 8px 0;">{row.get('titulo', '')}</p>
-            <p style="font-size: 12px; opacity: 0.8;">
-                <b>Dev:</b> {row.get('desenvolvedor', 'N/A')} | 
-                <b>QA:</b> {row.get('qa', 'N/A')} | 
-                <b>SP:</b> {row.get('sp', 0)} | 
-                <b>{row.get('status', 'N/A')}</b>
-            </p>
-        </div>
-        '''
+        return f'<div class="ticket-card ticket-risk-{risco}"><div style="display: flex; justify-content: space-between;">{card_link}<span style="color: {cor_bug}; font-weight: bold;">🐛 {bugs} bugs</span></div><p style="margin: 8px 0;">{row.get("titulo", "")}</p><p style="font-size: 12px; opacity: 0.8;"><b>Dev:</b> {row.get("desenvolvedor", "N/A")} | <b>QA:</b> {row.get("qa", "N/A")} | <b>SP:</b> {row.get("sp", 0)} | <b>{row.get("status", "N/A")}</b></p></div>'
 
 
 def mostrar_card_ticket(row: dict, compacto: bool = False):
@@ -5475,11 +5481,11 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
                             categoria = "➕ Criação Direta"
                             cor_tag = "#8b5cf6"
                         
-                        card_popup = card_link_com_popup(card['ticket_id'])
+                        card_link = card_link_simples(card['ticket_id'])
                         html_cards += f'''
                         <div class="card-lista" style="border-left-color: {cor_tag};">
                             <span style="background: {cor_tag}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{categoria}</span>
-                            <span style="margin-left: 10px;">{card_popup}</span>
+                            <span style="margin-left: 10px;">{card_link}</span>
                             <span style="color: #64748b;"> - {card['titulo'][:60]}...</span>
                             <span style="float: right; color: #94a3b8; font-size: 12px;">{card['status']}</span>
                         </div>
@@ -5624,10 +5630,10 @@ def aba_qa(df: pd.DataFrame):
                         # Construir HTML completo em string única
                         html_impedidos = '<div class="scroll-container" style="max-height: 350px;">'
                         for _, row in cards_impedidos.iterrows():
-                            card_popup = card_link_com_popup(row['ticket_id'])
+                            card_link = card_link_simples(row['ticket_id'])
                             html_impedidos += f'''
                             <div class="card-lista-vermelho">
-                                <strong>{card_popup}</strong>
+                                <strong>{card_link}</strong>
                                 <span style="color: #64748b;"> - {row['titulo']}</span><br>
                                 <small style="color: #94a3b8;">👤 DEV: {row['desenvolvedor']} | 🧑‍🔬 QA: {row['qa']} | {int(row['sp'])} SP</small>
                             </div>
@@ -5643,10 +5649,10 @@ def aba_qa(df: pd.DataFrame):
                         # Construir HTML completo em string única
                         html_reprovados = '<div class="scroll-container" style="max-height: 350px;">'
                         for _, row in cards_reprovados.iterrows():
-                            card_popup = card_link_com_popup(row['ticket_id'])
+                            card_link = card_link_simples(row['ticket_id'])
                             html_reprovados += f'''
                             <div class="card-lista-vermelho">
-                                <strong>{card_popup}</strong>
+                                <strong>{card_link}</strong>
                                 <span style="color: #64748b;"> - {row['titulo']}</span><br>
                                 <small style="color: #94a3b8;">👤 DEV: {row['desenvolvedor']} | 🧑‍🔬 QA: {row['qa']} | {int(row['sp'])} SP | 🐛 {int(row['bugs'])} bugs</small>
                             </div>
@@ -6057,10 +6063,10 @@ def aba_qa(df: pd.DataFrame):
                 for _, row in all_problemas.iterrows():
                     status_icon = "🚫" if row['status_cat'] == 'blocked' else "❌"
                     status_name = "Impedido" if row['status_cat'] == 'blocked' else "Reprovado"
-                    card_popup = card_link_com_popup(row['ticket_id'])
+                    card_link = card_link_simples(row['ticket_id'])
                     st.markdown(f"""
                     <div style="padding: 8px; margin: 4px 0; border-left: 3px solid #ef4444; background: rgba(239, 68, 68, 0.1); border-radius: 4px;">
-                        <strong>{status_icon}</strong> {card_popup} - {row['titulo']}<br>
+                        <strong>{status_icon}</strong> {card_link} - {row['titulo']}<br>
                         <small style="color: #94a3b8;">👤 DEV: {row['desenvolvedor']} | {status_name} | {int(row['sp'])} SP</small>
                     </div>
                     """, unsafe_allow_html=True)
@@ -6269,14 +6275,14 @@ def aba_qa(df: pd.DataFrame):
                     status_cor = "#f59e0b" if row['status_cat'] == 'waiting_qa' else "#3b82f6"
                     dias_status = row['dias_em_status']
                     urgencia_cor = '#ef4444' if dias_status > 3 else '#eab308' if dias_status > 1 else '#22c55e'
-                    card_popup = card_link_com_popup(row['ticket_id'])
+                    card_link = card_link_simples(row['ticket_id'])
                     tempo_atualizacao = formatar_tempo_relativo(row.get('atualizado'))
                     
                     st.markdown(f"""
                     <div class="card-lista" style="border-left-color: {status_cor}; background: {status_cor}10;">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
                             <div style="flex: 1; min-width: 200px;">
-                                <strong>{status_icon} {card_popup}</strong>
+                                <strong>{status_icon} {card_link}</strong>
                                 <span style="color: #64748b;"> - {row['titulo']}</span>
                             </div>
                             <div style="display: flex; gap: 8px; align-items: center;">
@@ -6309,13 +6315,13 @@ def aba_qa(df: pd.DataFrame):
                 for _, row in df_reprovados_sorted.iterrows():
                     data_ref = row.get('atualizado')
                     data_reprovacao = data_ref.strftime("%d/%m %H:%M") if pd.notna(data_ref) else "N/A"
-                    card_popup = card_link_com_popup(row['ticket_id'])
+                    card_link = card_link_simples(row['ticket_id'])
                     
                     st.markdown(f"""
                     <div class="card-lista-vermelho">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
                             <div style="flex: 1; min-width: 200px;">
-                                <strong>❌ {card_popup}</strong>
+                                <strong>❌ {card_link}</strong>
                                 <span style="color: #64748b;"> - {row['titulo']}</span>
                             </div>
                             <div style="display: flex; gap: 8px; align-items: center;">
@@ -6344,12 +6350,12 @@ def aba_qa(df: pd.DataFrame):
                 
                 st.markdown('<div class="scroll-container" style="max-height: 300px;">', unsafe_allow_html=True)
                 for _, row in df_impedidos_qa.iterrows():
-                    card_popup = card_link_com_popup(row['ticket_id'])
+                    card_link = card_link_simples(row['ticket_id'])
                     st.markdown(f"""
                     <div class="card-lista-vermelho">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
                             <div style="flex: 1; min-width: 200px;">
-                                <strong>🚫 {card_popup}</strong>
+                                <strong>🚫 {card_link}</strong>
                                 <span style="color: #64748b;"> - {row['titulo']}</span>
                             </div>
                             <div style="display: flex; gap: 8px; align-items: center;">
@@ -6382,13 +6388,13 @@ def aba_qa(df: pd.DataFrame):
                     data_validacao = data_ref.strftime("%d/%m %H:%M") if pd.notna(data_ref) else "N/A"
                     bugs_cor = '#22c55e' if row['bugs'] == 0 else '#f97316' if row['bugs'] == 1 else '#ef4444'
                     badge_bugs = f'<span style="background: {bugs_cor}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">🐛 {int(row["bugs"])}</span>' if row['bugs'] > 0 else '<span style="background: #22c55e; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">✅ Clean</span>'
-                    card_popup = card_link_com_popup(row['ticket_id'])
+                    card_link = card_link_simples(row['ticket_id'])
                     
                     st.markdown(f"""
                     <div class="card-lista-verde">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
                             <div style="flex: 1; min-width: 200px;">
-                                <strong>{card_popup}</strong>
+                                <strong>{card_link}</strong>
                                 <span style="color: #64748b;"> - {row['titulo']}</span>
                             </div>
                             <div style="display: flex; gap: 8px; align-items: center;">
@@ -6504,10 +6510,10 @@ def aba_qa(df: pd.DataFrame):
                 for _, row in cards_fila.iterrows():
                     dias = row['dias_em_status']
                     cor = '#ef4444' if dias > 3 else '#eab308' if dias > 1 else '#22c55e'
-                    card_popup = card_link_com_popup(row['ticket_id'])
+                    card_link = card_link_simples(row['ticket_id'])
                     st.markdown(f"""
                     <div style="padding: 10px; margin: 5px 0; border-left: 3px solid {cor}; background: rgba(100,100,100,0.05); border-radius: 4px;">
-                        <strong>{card_popup}</strong> - {row['titulo'][:50]}...<br>
+                        <strong>{card_link}</strong> - {row['titulo'][:50]}...<br>
                         <small style="color: #94a3b8;">📅 {dias} dia(s) | 👤 {row['desenvolvedor']} | {row['sp']} SP | {row['status']}</small>
                     </div>
                     """, unsafe_allow_html=True)
@@ -6599,10 +6605,10 @@ def aba_qa(df: pd.DataFrame):
             if not cards_done.empty:
                 for _, row in cards_done.iterrows():
                     bugs_cor = '#ef4444' if row['bugs'] >= 2 else '#eab308' if row['bugs'] == 1 else '#22c55e'
-                    card_popup = card_link_com_popup(row['ticket_id'])
+                    card_link = card_link_simples(row['ticket_id'])
                     st.markdown(f"""
                     <div style="padding: 10px; margin: 5px 0; border-left: 3px solid {bugs_cor}; background: rgba(100,100,100,0.05); border-radius: 4px;">
-                        <strong>{card_popup}</strong> - {row['titulo'][:50]}...<br>
+                        <strong>{card_link}</strong> - {row['titulo'][:50]}...<br>
                         <small style="color: #94a3b8;">🐛 {row['bugs']} bugs | 👤 {row['desenvolvedor']} | {row['sp']} SP | ⏱️ {row['lead_time']:.1f}d</small>
                     </div>
                     """, unsafe_allow_html=True)
@@ -6825,10 +6831,10 @@ def aba_dev(df: pd.DataFrame):
                     for _, row in code_review.head(5).iterrows():
                         dias = row['dias_em_status']
                         cor = '#ef4444' if dias > 3 else '#eab308' if dias > 1 else '#22c55e'
-                        card_popup = card_link_com_popup(row['ticket_id'])
+                        card_link = card_link_simples(row['ticket_id'])
                         st.markdown(f"""
                         <div style="padding: 8px; margin: 4px 0; border-left: 3px solid {cor}; background: rgba(99, 102, 241, 0.1); border-radius: 4px;">
-                            <strong>{card_popup}</strong> - {row['titulo']}<br>
+                            <strong>{card_link}</strong> - {row['titulo']}<br>
                             <small style="color: #94a3b8;">📅 {dias} dia(s) em CR | 👤 {row['desenvolvedor']}</small>
                         </div>
                         """, unsafe_allow_html=True)
@@ -6873,10 +6879,10 @@ def aba_dev(df: pd.DataFrame):
                 
                 if not criticos_dev.empty:
                     for _, row in criticos_dev.head(5).iterrows():
-                        card_popup = card_link_com_popup(row['ticket_id'])
+                        card_link = card_link_simples(row['ticket_id'])
                         st.markdown(f"""
                         <div style="padding: 8px; margin: 4px 0; border-left: 3px solid #ef4444; background: rgba(239, 68, 68, 0.1); border-radius: 4px;">
-                            <strong>{card_popup}</strong> - {row['titulo']}<br>
+                            <strong>{card_link}</strong> - {row['titulo']}<br>
                             <small style="color: #fca5a5;">⚠️ {row['prioridade']} | 👤 {row['desenvolvedor']} | {row['sp']} SP</small>
                         </div>
                         """, unsafe_allow_html=True)
@@ -6921,10 +6927,10 @@ def aba_dev(df: pd.DataFrame):
                         # Construir HTML completo em string única
                         html_imp_dev = '<div class="scroll-container" style="max-height: 350px;">'
                         for _, row in cards_impedidos_dev.iterrows():
-                            card_popup = card_link_com_popup(row['ticket_id'])
+                            card_link = card_link_simples(row['ticket_id'])
                             html_imp_dev += f'''
                             <div class="card-lista-vermelho">
-                                <strong>{card_popup}</strong>
+                                <strong>{card_link}</strong>
                                 <span style="color: #64748b;"> - {row['titulo']}</span><br>
                                 <small style="color: #94a3b8;">👤 {row['desenvolvedor']} | 🧑‍🔬 {row['qa']} | {int(row['sp'])} SP</small>
                             </div>
@@ -6940,10 +6946,10 @@ def aba_dev(df: pd.DataFrame):
                         # Construir HTML completo em string única
                         html_rep_dev = '<div class="scroll-container" style="max-height: 350px;">'
                         for _, row in cards_reprovados_dev.iterrows():
-                            card_popup = card_link_com_popup(row['ticket_id'])
+                            card_link = card_link_simples(row['ticket_id'])
                             html_rep_dev += f'''
                             <div class="card-lista-vermelho">
-                                <strong>{card_popup}</strong>
+                                <strong>{card_link}</strong>
                                 <span style="color: #64748b;"> - {row['titulo']}</span><br>
                                 <small style="color: #94a3b8;">👤 {row['desenvolvedor']} | 🧑‍🔬 {row['qa']} | {int(row['sp'])} SP | 🐛 {int(row['bugs'])} bugs</small>
                             </div>
@@ -7067,10 +7073,10 @@ def aba_dev(df: pd.DataFrame):
                         for _, row in all_problemas_dev.iterrows():
                             status_icon = "🚫" if row['status_cat'] == 'blocked' else "❌"
                             status_name = "Impedido" if row['status_cat'] == 'blocked' else "Reprovado"
-                            card_popup = card_link_com_popup(row['ticket_id'])
+                            card_link = card_link_simples(row['ticket_id'])
                             html_problemas += f'''
                             <div class="card-lista-vermelho">
-                                <strong>{status_icon}</strong> {card_popup} - {row['titulo']}<br>
+                                <strong>{status_icon}</strong> {card_link} - {row['titulo']}<br>
                                 <small style="color: #94a3b8;">🧑‍🔬 QA: {row['qa']} | {status_name} | {int(row['sp'])} SP</small>
                             </div>
                             '''
@@ -7275,13 +7281,13 @@ def aba_dev(df: pd.DataFrame):
                         data_conclusao = data_ref.strftime("%d/%m %H:%M") if pd.notna(data_ref) else "N/A"
                         bugs_cor = '#22c55e' if row['bugs'] == 0 else '#f97316' if row['bugs'] == 1 else '#ef4444'
                         badge_bugs = f'<span style="background: {bugs_cor}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">🐛 {int(row["bugs"])}</span>' if row['bugs'] > 0 else '<span style="background: #22c55e; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">✅ Clean</span>'
-                        card_popup = card_link_com_popup(row['ticket_id'])
+                        card_link = card_link_simples(row['ticket_id'])
                         
                         st.markdown(f"""
                         <div class="card-lista-roxo">
                             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
                                 <div>
-                                    <strong>{card_popup}</strong>
+                                    <strong>{card_link}</strong>
                                     <span style="color: #64748b;"> - {row['titulo']}</span>
                                 </div>
                                 <div style="display: flex; gap: 8px; align-items: center;">
@@ -7345,10 +7351,10 @@ Cards concluídos:
             with st.expander(f"📋 Cards de {dev_sel}", expanded=True):
                 for _, row in analise['df'].iterrows():
                     bugs_cor = '#ef4444' if row['bugs'] >= 2 else '#eab308' if row['bugs'] == 1 else '#22c55e'
-                    card_popup = card_link_com_popup(row['ticket_id'])
+                    card_link = card_link_simples(row['ticket_id'])
                     st.markdown(f"""
                     <div style="padding: 10px; margin: 5px 0; border-left: 3px solid {bugs_cor}; background: rgba(100,100,100,0.05); border-radius: 4px;">
-                        <strong>{card_popup}</strong> - {row['titulo'][:50]}...<br>
+                        <strong>{card_link}</strong> - {row['titulo'][:50]}...<br>
                         <small style="color: #94a3b8;">🐛 {row['bugs']} bugs | 📊 {row['sp']} SP | 📍 {row['status']} | ⏱️ {row['lead_time']:.1f}d</small>
                     </div>
                     """, unsafe_allow_html=True)
@@ -8061,11 +8067,11 @@ def aba_backlog(df: pd.DataFrame):
                 st.markdown("##### 🚨 Cards com SLA Atrasado")
                 for _, card in df_atrasados.iterrows():
                     dias_esperando = (datetime.now() - card['atualizado']).days if pd.notna(card['atualizado']) else 0
-                    card_popup = card_link_com_popup(card['ticket_id'])
+                    card_link = card_link_simples(card['ticket_id'])
                     st.markdown(f"""
                     <div style="background: #fee2e2; border-left: 4px solid #ef4444; padding: 10px 15px; margin: 5px 0; border-radius: 4px;">
                         <span style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">🚨 ATRASADO</span>
-                        <span style="margin-left: 10px;">{card_popup}</span>
+                        <span style="margin-left: 10px;">{card_link}</span>
                         <span style="color: #64748b;"> - {card['titulo'][:50]}...</span>
                         <span style="float: right; color: #dc2626; font-size: 12px;">{dias_esperando}d sem atualização</span>
                     </div>
@@ -8673,7 +8679,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                         <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
                         <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
                         <span style="background: #8b5cf6; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{papel_texto}</span>
-                        {card_link_com_popup(card['ticket_id'], projeto)}
+                        {card_link_simples(card['ticket_id'], projeto)}
                         <span style="color: #7c3aed; font-size: 0.75em; margin-left: auto;">🕐 {tempo_atualizacao}</span>
                     </div>
                     <div style="color: #5b21b6; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 70 else ''}</div>
@@ -8706,7 +8712,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                     <div class="card-lista" style="border-left-color: {cor};">
                         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
                             <span style="background: {tipo_cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">{tipo}</span>
-                            {card_link_com_popup(card['ticket_id'], 'VALPROD')}
+                            {card_link_simples(card['ticket_id'], 'VALPROD')}
                             <span style="color: #64748b; font-size: 0.75em; margin-left: auto;">🕐 {tempo_atualizacao}</span>
                         </div>
                         <div style="color: #374151; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 70 else ''}</div>
@@ -8749,7 +8755,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                     <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
                         <span style="background: {projeto_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
                         <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
-                        {card_link_com_popup(card['ticket_id'], projeto)}
+                        {card_link_simples(card['ticket_id'], projeto)}
                         <span style="background: #22c55e; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: auto;">✓ Concluído</span>
                     </div>
                     <div style="color: #166534; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 70 else ''}</div>
@@ -8820,7 +8826,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                     <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
                         <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
                         <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
-                        {card_link_com_popup(card['ticket_id'], projeto)}
+                        {card_link_simples(card['ticket_id'], projeto)}
                         <span style="color: #64748b; font-size: 0.75em; margin-left: auto;">🕐 {tempo_atualizacao}</span>
                     </div>
                     <div style="color: #92400e; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 70 else ''}</div>
@@ -8857,7 +8863,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                     <div style="background: #f1f5f9; padding: 10px; margin: 6px 0; border-radius: 6px;">
                         <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
                             <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
-                            {card_link_com_popup(card['ticket_id'], 'PB')}
+                            {card_link_simples(card['ticket_id'], 'PB')}
                             <span style="background: #cbd5e1; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; margin-left: auto;">{card.get('status', '')}</span>
                         </div>
                         <div style="color: #374151; font-size: 0.85em;">{titulo}{'...' if len(card.get('titulo', '')) > 60 else ''}</div>
@@ -8899,7 +8905,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                         <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
                             <span style="background: #374151; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
                             <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
-                            {card_link_com_popup(card['ticket_id'], projeto)}
+                            {card_link_simples(card['ticket_id'], projeto)}
                             <span style="background: #cbd5e1; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; margin-left: auto;">{card.get('status', '')}</span>
                         </div>
                         <div style="color: #374151; font-size: 0.85em;">{titulo}{'...' if len(card.get('titulo', '')) > 55 else ''}</div>
