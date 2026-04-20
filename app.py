@@ -1,13 +1,20 @@
 """
 ================================================================================
-JIRA DASHBOARD v8.7 - NINA TECNOLOGIA - VERSÃO COMPLETA E ENRIQUECIDA
+JIRA DASHBOARD v8.78 - NINA TECNOLOGIA - VERSÃO COMPLETA E ENRIQUECIDA
 ================================================================================
 📊 NinaDash — Dashboard de Inteligência e Métricas de QA
 
 🎯 Propósito: Transformar o QA de um processo sem visibilidade em um sistema 
    de inteligência operacional baseado em dados.
 
-MELHORIAS v8.7:
+MELHORIAS v8.78:
+- 🎨 NOVA ABA: Meu Dashboard - Crie dashboards personalizados!
+- 📊 CATÁLOGO DE MÉTRICAS: 30+ métricas para escolher
+- 💾 PERSISTÊNCIA: Dashboards salvos na sessão
+- 🎯 TEMPLATES RÁPIDOS: Visão Executiva, Foco QA, Foco Dev
+- 📈 TIPOS DE VISUALIZAÇÃO: KPIs, gráficos, tabelas, heatmaps
+
+MELHORIAS v8.77:
 - 🎨 DESIGN REFINADO: Melhor espaçamento entre elementos
 - ⬅️ BOTÃO VOLTAR NA SIDEBAR: Indica card ativo + volta fácil
 - Link de compartilhamento mais compacto e funcional
@@ -1003,6 +1010,855 @@ def mostrar_tooltip(metrica_key: str):
         for nivel, desc in tooltip['interpretacao'].items():
             st.markdown(f"- {nivel}: {desc}")
         st.caption(f"📚 Fonte: {tooltip['fonte']}")
+
+
+# ==============================================================================
+# CATÁLOGO DE MÉTRICAS DISPONÍVEIS PARA DASHBOARD PERSONALIZADO
+# ==============================================================================
+
+CATALOGO_METRICAS = {
+    # === MÉTRICAS DE QUALIDADE ===
+    "fator_k_geral": {
+        "nome": "Fator K (Geral)",
+        "categoria": "📊 Qualidade",
+        "descricao": "Razão entre Story Points e Bugs do projeto inteiro",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_fator_k_geral"
+    },
+    "fator_k_dev": {
+        "nome": "Fator K por Desenvolvedor",
+        "categoria": "📊 Qualidade",
+        "descricao": "Fator K individual de cada desenvolvedor",
+        "tipo": "tabela",
+        "parametros": ["desenvolvedor"],
+        "funcao": "calcular_fator_k_dev"
+    },
+    "fpy": {
+        "nome": "FPY - First Pass Yield",
+        "categoria": "📊 Qualidade",
+        "descricao": "% de cards aprovados na primeira validação",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_fpy"
+    },
+    "ddp": {
+        "nome": "DDP - Defect Detection",
+        "categoria": "📊 Qualidade",
+        "descricao": "% de defeitos encontrados antes da produção",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_ddp"
+    },
+    "health_score": {
+        "nome": "Health Score",
+        "categoria": "📊 Qualidade",
+        "descricao": "Pontuação de saúde da release (0-100)",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_health_score"
+    },
+    
+    # === MÉTRICAS DE PRODUTIVIDADE ===
+    "throughput_cards": {
+        "nome": "Throughput (Cards)",
+        "categoria": "🚀 Produtividade",
+        "descricao": "Quantidade de cards concluídos",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_throughput_cards"
+    },
+    "throughput_sp": {
+        "nome": "Throughput (Story Points)",
+        "categoria": "🚀 Produtividade",
+        "descricao": "Quantidade de SP entregues",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_throughput_sp"
+    },
+    "lead_time": {
+        "nome": "Lead Time Médio",
+        "categoria": "🚀 Produtividade",
+        "descricao": "Tempo médio do card (criação → conclusão)",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_lead_time"
+    },
+    "wip": {
+        "nome": "WIP - Work In Progress",
+        "categoria": "🚀 Produtividade",
+        "descricao": "Cards em andamento agora",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_wip"
+    },
+    "velocidade_media": {
+        "nome": "Velocidade Média",
+        "categoria": "🚀 Produtividade",
+        "descricao": "SP médio por card concluído",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_velocidade_media"
+    },
+    
+    # === MÉTRICAS DE BUGS ===
+    "total_bugs": {
+        "nome": "Total de Bugs",
+        "categoria": "🐛 Bugs",
+        "descricao": "Quantidade total de bugs encontrados",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_total_bugs"
+    },
+    "densidade_bugs": {
+        "nome": "Densidade de Bugs",
+        "categoria": "🐛 Bugs",
+        "descricao": "Bugs por Story Point",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_densidade_bugs"
+    },
+    "bugs_por_dev": {
+        "nome": "Bugs por Desenvolvedor",
+        "categoria": "🐛 Bugs",
+        "descricao": "Ranking de bugs por desenvolvedor",
+        "tipo": "grafico_barra",
+        "parametros": [],
+        "funcao": "calcular_bugs_por_dev"
+    },
+    
+    # === MÉTRICAS DE QA ===
+    "carga_qa": {
+        "nome": "Carga por QA",
+        "categoria": "🔬 QA",
+        "descricao": "Cards em validação por QA",
+        "tipo": "grafico_barra",
+        "parametros": ["qa"],
+        "funcao": "calcular_carga_qa"
+    },
+    "funil_qa": {
+        "nome": "Funil de QA",
+        "categoria": "🔬 QA",
+        "descricao": "Status do funil de validação",
+        "tipo": "grafico_funil",
+        "parametros": [],
+        "funcao": "calcular_funil_qa"
+    },
+    "aging_qa": {
+        "nome": "Aging QA",
+        "categoria": "🔬 QA",
+        "descricao": "Cards aguardando validação há muito tempo",
+        "tipo": "tabela",
+        "parametros": [],
+        "funcao": "calcular_aging_qa"
+    },
+    "taxa_reprovacao": {
+        "nome": "Taxa de Reprovação",
+        "categoria": "🔬 QA",
+        "descricao": "% de cards reprovados",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_taxa_reprovacao"
+    },
+    
+    # === MÉTRICAS DE DESENVOLVIMENTO ===
+    "ranking_devs": {
+        "nome": "Ranking de Desenvolvedores",
+        "categoria": "👨‍💻 Desenvolvimento",
+        "descricao": "Ranking por Fator K, SP e bugs",
+        "tipo": "tabela",
+        "parametros": [],
+        "funcao": "calcular_ranking_devs"
+    },
+    "code_review_fila": {
+        "nome": "Fila de Code Review",
+        "categoria": "👨‍💻 Desenvolvimento",
+        "descricao": "Cards aguardando code review",
+        "tipo": "lista_cards",
+        "parametros": [],
+        "funcao": "calcular_code_review_fila"
+    },
+    "cards_por_dev": {
+        "nome": "Cards por Desenvolvedor",
+        "categoria": "👨‍💻 Desenvolvimento",
+        "descricao": "Distribuição de cards por desenvolvedor",
+        "tipo": "grafico_pizza",
+        "parametros": [],
+        "funcao": "calcular_cards_por_dev"
+    },
+    
+    # === MÉTRICAS DE STATUS ===
+    "cards_por_status": {
+        "nome": "Cards por Status",
+        "categoria": "📋 Status",
+        "descricao": "Distribuição de cards por status",
+        "tipo": "grafico_barra",
+        "parametros": [],
+        "funcao": "calcular_cards_por_status"
+    },
+    "cards_aguardando_qa": {
+        "nome": "Aguardando QA",
+        "categoria": "📋 Status",
+        "descricao": "Cards aguardando validação",
+        "tipo": "lista_cards",
+        "parametros": [],
+        "funcao": "calcular_aguardando_qa"
+    },
+    "cards_impedidos": {
+        "nome": "Cards Impedidos",
+        "categoria": "📋 Status",
+        "descricao": "Cards com impedimentos",
+        "tipo": "lista_cards",
+        "parametros": [],
+        "funcao": "calcular_impedidos"
+    },
+    "cards_bloqueados": {
+        "nome": "Cards Bloqueados",
+        "categoria": "📋 Status",
+        "descricao": "Cards bloqueados",
+        "tipo": "lista_cards",
+        "parametros": [],
+        "funcao": "calcular_bloqueados"
+    },
+    
+    # === MÉTRICAS DE PRODUTO ===
+    "por_produto": {
+        "nome": "Cards por Produto",
+        "categoria": "📦 Produto",
+        "descricao": "Distribuição por produto",
+        "tipo": "grafico_pizza",
+        "parametros": [],
+        "funcao": "calcular_por_produto"
+    },
+    "hotfix_por_produto": {
+        "nome": "Hotfixes por Produto",
+        "categoria": "📦 Produto",
+        "descricao": "Hotfixes agrupados por produto",
+        "tipo": "grafico_barra",
+        "parametros": [],
+        "funcao": "calcular_hotfix_produto"
+    },
+    
+    # === MÉTRICAS DE CONCENTRAÇÃO ===
+    "concentracao_dev": {
+        "nome": "Concentração DEV",
+        "categoria": "🎯 Concentração",
+        "descricao": "Concentração de conhecimento por DEV",
+        "tipo": "heatmap",
+        "parametros": [],
+        "funcao": "calcular_concentracao_dev"
+    },
+    "concentracao_qa": {
+        "nome": "Concentração QA",
+        "categoria": "🎯 Concentração",
+        "descricao": "Concentração de conhecimento por QA",
+        "tipo": "heatmap",
+        "parametros": [],
+        "funcao": "calcular_concentracao_qa"
+    },
+    
+    # === MÉTRICAS DE CLIENTE ===
+    "top_clientes": {
+        "nome": "Top Clientes",
+        "categoria": "🏢 Clientes",
+        "descricao": "Clientes com mais cards",
+        "tipo": "grafico_barra",
+        "parametros": [],
+        "funcao": "calcular_top_clientes"
+    },
+    "clientes_bugs": {
+        "nome": "Bugs por Cliente",
+        "categoria": "🏢 Clientes",
+        "descricao": "Clientes com mais bugs reportados",
+        "tipo": "grafico_barra",
+        "parametros": [],
+        "funcao": "calcular_clientes_bugs"
+    },
+}
+
+# Categorias disponíveis para filtro
+CATEGORIAS_METRICAS = [
+    "📊 Qualidade",
+    "🚀 Produtividade", 
+    "🐛 Bugs",
+    "🔬 QA",
+    "👨‍💻 Desenvolvimento",
+    "📋 Status",
+    "📦 Produto",
+    "🎯 Concentração",
+    "🏢 Clientes",
+]
+
+
+# ==============================================================================
+# FUNÇÕES DO DASHBOARD PERSONALIZADO
+# ==============================================================================
+
+def inicializar_dashboards_personalizados():
+    """Inicializa o armazenamento de dashboards personalizados no session_state."""
+    if 'dashboards_personalizados' not in st.session_state:
+        st.session_state.dashboards_personalizados = {}
+    if 'dashboard_ativo' not in st.session_state:
+        st.session_state.dashboard_ativo = None
+    if 'modo_builder' not in st.session_state:
+        st.session_state.modo_builder = False
+
+
+def salvar_dashboard_personalizado(nome: str, metricas: List[str], config: Dict = None):
+    """Salva um dashboard personalizado."""
+    inicializar_dashboards_personalizados()
+    
+    st.session_state.dashboards_personalizados[nome] = {
+        "nome": nome,
+        "metricas": metricas,
+        "config": config or {},
+        "criado_em": datetime.now().isoformat(),
+        "atualizado_em": datetime.now().isoformat()
+    }
+
+
+def carregar_dashboard_personalizado(nome: str) -> Optional[Dict]:
+    """Carrega um dashboard personalizado."""
+    inicializar_dashboards_personalizados()
+    return st.session_state.dashboards_personalizados.get(nome)
+
+
+def listar_dashboards_personalizados() -> List[str]:
+    """Lista todos os dashboards personalizados."""
+    inicializar_dashboards_personalizados()
+    return list(st.session_state.dashboards_personalizados.keys())
+
+
+def excluir_dashboard_personalizado(nome: str):
+    """Exclui um dashboard personalizado."""
+    inicializar_dashboards_personalizados()
+    if nome in st.session_state.dashboards_personalizados:
+        del st.session_state.dashboards_personalizados[nome]
+
+
+def renderizar_metrica_personalizada(metrica_key: str, df: pd.DataFrame):
+    """Renderiza uma métrica do catálogo no dashboard personalizado."""
+    if metrica_key not in CATALOGO_METRICAS:
+        st.warning(f"⚠️ Métrica '{metrica_key}' não encontrada")
+        return
+    
+    metrica = CATALOGO_METRICAS[metrica_key]
+    tipo = metrica["tipo"]
+    
+    # Header da métrica
+    st.markdown(f"#### {metrica['nome']}")
+    st.caption(metrica['descricao'])
+    
+    try:
+        # === KPIs (números simples) ===
+        if tipo == "kpi":
+            valor = calcular_valor_metrica(metrica_key, df)
+            if valor is not None:
+                col1, col2, col3 = st.columns([1, 2, 1])
+                with col2:
+                    st.metric(label=metrica['nome'], value=valor)
+        
+        # === Gráficos de Barra ===
+        elif tipo == "grafico_barra":
+            dados = calcular_dados_grafico(metrica_key, df)
+            if dados is not None and not dados.empty:
+                fig = px.bar(dados, x=dados.index, y=dados.values, 
+                           title=metrica['nome'],
+                           labels={'x': '', 'y': 'Quantidade'})
+                fig.update_layout(height=300)
+                st.plotly_chart(fig, use_container_width=True)
+        
+        # === Gráficos de Pizza ===
+        elif tipo == "grafico_pizza":
+            dados = calcular_dados_grafico(metrica_key, df)
+            if dados is not None and not dados.empty:
+                fig = px.pie(values=dados.values, names=dados.index,
+                           title=metrica['nome'])
+                fig.update_layout(height=300)
+                st.plotly_chart(fig, use_container_width=True)
+        
+        # === Tabelas ===
+        elif tipo == "tabela":
+            dados = calcular_dados_tabela(metrica_key, df)
+            if dados is not None and not dados.empty:
+                st.dataframe(dados, use_container_width=True, height=250)
+        
+        # === Listas de Cards ===
+        elif tipo == "lista_cards":
+            cards = calcular_lista_cards(metrica_key, df)
+            if cards is not None and len(cards) > 0:
+                for card in cards[:10]:  # Limita a 10 cards
+                    col1, col2 = st.columns([1, 4])
+                    with col1:
+                        st.markdown(f"**{card.get('key', 'N/A')}**")
+                    with col2:
+                        titulo = card.get('titulo', card.get('resumo', ''))[:60]
+                        st.markdown(f"{titulo}")
+            else:
+                st.info("Nenhum card encontrado")
+        
+        # === Heatmaps ===
+        elif tipo == "heatmap":
+            dados = calcular_dados_heatmap(metrica_key, df)
+            if dados is not None and not dados.empty:
+                fig = px.imshow(dados, aspect='auto', color_continuous_scale='RdYlGn',
+                              title=metrica['nome'])
+                fig.update_layout(height=350)
+                st.plotly_chart(fig, use_container_width=True)
+        
+        # === Funil ===
+        elif tipo == "grafico_funil":
+            dados = calcular_dados_funil(metrica_key, df)
+            if dados:
+                criar_grafico_funil_personalizado(dados, metrica['nome'])
+        
+        else:
+            st.info(f"Tipo de visualização '{tipo}' em desenvolvimento")
+            
+    except Exception as e:
+        st.error(f"Erro ao renderizar métrica: {str(e)}")
+
+
+def calcular_valor_metrica(metrica_key: str, df: pd.DataFrame):
+    """Calcula o valor de uma métrica KPI."""
+    try:
+        if metrica_key == "fator_k_geral":
+            total_sp = df['story_points'].sum()
+            total_bugs = df['bugs_encontrados'].sum()
+            return f"{total_sp / (total_bugs + 1):.2f}"
+        
+        elif metrica_key == "fpy":
+            metricas = calcular_fpy(df)
+            return f"{metricas.get('fpy', 0):.1f}%"
+        
+        elif metrica_key == "ddp":
+            metricas = calcular_ddp(df)
+            return f"{metricas.get('ddp', 0):.1f}%"
+        
+        elif metrica_key == "health_score":
+            metricas = calcular_health_score(df)
+            return f"{metricas.get('score', 0):.0f}"
+        
+        elif metrica_key == "throughput_cards":
+            concluidos = df[df['status_categoria'] == 'done']
+            return str(len(concluidos))
+        
+        elif metrica_key == "throughput_sp":
+            concluidos = df[df['status_categoria'] == 'done']
+            return str(int(concluidos['story_points'].sum()))
+        
+        elif metrica_key == "lead_time":
+            metricas = calcular_lead_time(df)
+            return f"{metricas.get('media', 0):.1f} dias"
+        
+        elif metrica_key == "wip":
+            em_andamento = df[~df['status_categoria'].isin(['done', 'backlog', 'deferred'])]
+            return str(len(em_andamento))
+        
+        elif metrica_key == "velocidade_media":
+            concluidos = df[df['status_categoria'] == 'done']
+            if len(concluidos) > 0:
+                return f"{concluidos['story_points'].mean():.1f} SP"
+            return "0 SP"
+        
+        elif metrica_key == "total_bugs":
+            return str(int(df['bugs_encontrados'].sum()))
+        
+        elif metrica_key == "densidade_bugs":
+            total_sp = df['story_points'].sum()
+            total_bugs = df['bugs_encontrados'].sum()
+            if total_sp > 0:
+                return f"{total_bugs / total_sp:.2f}"
+            return "0.00"
+        
+        elif metrica_key == "taxa_reprovacao":
+            reprovados = df[df['status_categoria'] == 'rejected']
+            total = len(df)
+            if total > 0:
+                return f"{(len(reprovados) / total) * 100:.1f}%"
+            return "0%"
+        
+        return None
+    except Exception:
+        return None
+
+
+def calcular_dados_grafico(metrica_key: str, df: pd.DataFrame):
+    """Calcula dados para gráficos de barra/pizza."""
+    try:
+        if metrica_key == "bugs_por_dev":
+            bugs_dev = df.groupby('responsavel')['bugs_encontrados'].sum().sort_values(ascending=False)
+            return bugs_dev.head(10)
+        
+        elif metrica_key == "carga_qa":
+            em_qa = df[df['status_categoria'].isin(['waiting_qa', 'testing'])]
+            return em_qa['qa_responsavel'].value_counts().head(10)
+        
+        elif metrica_key == "cards_por_status":
+            return df['status'].value_counts()
+        
+        elif metrica_key == "cards_por_dev":
+            return df['responsavel'].value_counts().head(10)
+        
+        elif metrica_key == "por_produto":
+            return df['produto'].value_counts()
+        
+        elif metrica_key == "hotfix_produto":
+            hotfixes = df[df['tipo'].str.lower().str.contains('hotfix', na=False)]
+            return hotfixes['produto'].value_counts()
+        
+        elif metrica_key == "top_clientes":
+            if 'temas' in df.columns:
+                # Extrai clientes dos temas
+                clientes = []
+                for temas in df['temas'].dropna():
+                    if isinstance(temas, list):
+                        clientes.extend(temas)
+                    elif isinstance(temas, str):
+                        clientes.append(temas)
+                return pd.Series(clientes).value_counts().head(10)
+            return pd.Series()
+        
+        elif metrica_key == "clientes_bugs":
+            if 'temas' in df.columns:
+                df_com_bugs = df[df['bugs_encontrados'] > 0]
+                clientes = []
+                for _, row in df_com_bugs.iterrows():
+                    temas = row.get('temas', [])
+                    if isinstance(temas, list):
+                        for tema in temas:
+                            clientes.append(tema)
+                return pd.Series(clientes).value_counts().head(10)
+            return pd.Series()
+        
+        return None
+    except Exception:
+        return None
+
+
+def calcular_dados_tabela(metrica_key: str, df: pd.DataFrame):
+    """Calcula dados para tabelas."""
+    try:
+        if metrica_key == "ranking_devs":
+            # Agrupa por desenvolvedor
+            ranking = df.groupby('responsavel').agg({
+                'story_points': 'sum',
+                'bugs_encontrados': 'sum',
+                'key': 'count'
+            }).reset_index()
+            ranking.columns = ['Desenvolvedor', 'SP', 'Bugs', 'Cards']
+            ranking['Fator K'] = ranking['SP'] / (ranking['Bugs'] + 1)
+            ranking = ranking.sort_values('Fator K', ascending=False)
+            return ranking[['Desenvolvedor', 'Cards', 'SP', 'Bugs', 'Fator K']].head(15)
+        
+        elif metrica_key == "aging_qa":
+            em_qa = df[df['status_categoria'].isin(['waiting_qa', 'testing'])].copy()
+            if 'data_criacao' in em_qa.columns:
+                em_qa['Dias'] = (datetime.now() - pd.to_datetime(em_qa['data_criacao'])).dt.days
+                return em_qa[['key', 'resumo', 'qa_responsavel', 'Dias']].sort_values('Dias', ascending=False).head(10)
+            return pd.DataFrame()
+        
+        elif metrica_key == "fator_k_dev":
+            # Similar ao ranking_devs mas focado no FK
+            ranking = df.groupby('responsavel').agg({
+                'story_points': 'sum',
+                'bugs_encontrados': 'sum'
+            }).reset_index()
+            ranking['Fator K'] = ranking['story_points'] / (ranking['bugs_encontrados'] + 1)
+            ranking = ranking.sort_values('Fator K', ascending=False)
+            ranking.columns = ['Desenvolvedor', 'SP', 'Bugs', 'Fator K']
+            return ranking.head(15)
+        
+        return None
+    except Exception:
+        return None
+
+
+def calcular_lista_cards(metrica_key: str, df: pd.DataFrame):
+    """Calcula lista de cards para exibição."""
+    try:
+        if metrica_key == "code_review_fila":
+            em_cr = df[df['status_categoria'] == 'code_review']
+            return em_cr[['key', 'resumo', 'responsavel']].to_dict('records')
+        
+        elif metrica_key == "cards_aguardando_qa":
+            aguardando = df[df['status_categoria'] == 'waiting_qa']
+            return aguardando[['key', 'resumo', 'qa_responsavel']].to_dict('records')
+        
+        elif metrica_key == "cards_impedidos":
+            impedidos = df[df['status_categoria'] == 'blocked']
+            return impedidos[['key', 'resumo', 'responsavel']].to_dict('records')
+        
+        elif metrica_key == "cards_bloqueados":
+            bloqueados = df[df['status'].str.lower().str.contains('bloque|block', na=False)]
+            return bloqueados[['key', 'resumo', 'responsavel']].to_dict('records')
+        
+        return []
+    except Exception:
+        return []
+
+
+def calcular_dados_heatmap(metrica_key: str, df: pd.DataFrame):
+    """Calcula dados para heatmaps."""
+    try:
+        if metrica_key == "concentracao_dev":
+            conc = calcular_concentracao_conhecimento(df)
+            return conc.get('matriz_dev')
+        
+        elif metrica_key == "concentracao_qa":
+            conc = calcular_concentracao_conhecimento(df)
+            return conc.get('matriz_qa')
+        
+        return None
+    except Exception:
+        return None
+
+
+def calcular_dados_funil(metrica_key: str, df: pd.DataFrame):
+    """Calcula dados para gráficos de funil."""
+    try:
+        if metrica_key == "funil_qa":
+            metricas = calcular_metricas_qa(df)
+            return metricas
+        return None
+    except Exception:
+        return None
+
+
+def criar_grafico_funil_personalizado(dados: Dict, titulo: str):
+    """Cria um gráfico de funil simplificado."""
+    try:
+        # Extrai valores do funil
+        aguardando = dados.get('aguardando_qa', 0)
+        em_validacao = dados.get('em_validacao', 0)
+        concluidos = dados.get('validados', 0)
+        reprovados = dados.get('reprovados', 0)
+        
+        labels = ['Aguardando QA', 'Em Validação', 'Concluídos', 'Reprovados']
+        valores = [aguardando, em_validacao, concluidos, reprovados]
+        
+        fig = go.Figure(go.Funnel(
+            y=labels,
+            x=valores,
+            textposition="inside",
+            textinfo="value+percent initial",
+            marker={"color": ["#f59e0b", "#3b82f6", "#22c55e", "#ef4444"]}
+        ))
+        fig.update_layout(height=300, title=titulo)
+        st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Erro no funil: {e}")
+
+
+def aba_dashboard_personalizado(df: pd.DataFrame):
+    """Aba para criar e visualizar dashboards personalizados."""
+    
+    inicializar_dashboards_personalizados()
+    
+    st.markdown("## 🎨 Dashboard Personalizado")
+    st.markdown("Crie seu próprio dashboard selecionando as métricas que deseja acompanhar.")
+    
+    # Tabs para organizar a interface
+    tab_visualizar, tab_criar, tab_gerenciar = st.tabs([
+        "📊 Visualizar Dashboard",
+        "➕ Criar Novo",
+        "⚙️ Gerenciar"
+    ])
+    
+    # === ABA VISUALIZAR ===
+    with tab_visualizar:
+        dashboards = listar_dashboards_personalizados()
+        
+        if not dashboards:
+            st.info("🎯 Você ainda não tem dashboards personalizados. Crie um na aba 'Criar Novo'!")
+            
+            # Sugestões rápidas
+            st.markdown("### 💡 Sugestões Rápidas")
+            st.markdown("Clique para criar um dashboard pré-configurado:")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                if st.button("📊 Visão Executiva", use_container_width=True, key="btn_exec"):
+                    salvar_dashboard_personalizado(
+                        "Visão Executiva",
+                        ["health_score", "throughput_cards", "fator_k_geral", "lead_time", "cards_por_status"]
+                    )
+                    st.success("Dashboard 'Visão Executiva' criado!")
+                    st.rerun()
+            
+            with col2:
+                if st.button("🔬 Foco em QA", use_container_width=True, key="btn_qa"):
+                    salvar_dashboard_personalizado(
+                        "Foco em QA",
+                        ["fpy", "ddp", "funil_qa", "carga_qa", "aging_qa", "taxa_reprovacao"]
+                    )
+                    st.success("Dashboard 'Foco em QA' criado!")
+                    st.rerun()
+            
+            with col3:
+                if st.button("👨‍💻 Foco em Dev", use_container_width=True, key="btn_dev"):
+                    salvar_dashboard_personalizado(
+                        "Foco em Dev",
+                        ["fator_k_geral", "ranking_devs", "bugs_por_dev", "code_review_fila", "wip"]
+                    )
+                    st.success("Dashboard 'Foco em Dev' criado!")
+                    st.rerun()
+        
+        else:
+            # Seletor de dashboard
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                dashboard_selecionado = st.selectbox(
+                    "Selecione um dashboard",
+                    options=dashboards,
+                    key="select_dash_view"
+                )
+            with col2:
+                if st.button("🔄 Atualizar", use_container_width=True, key="btn_atualizar"):
+                    st.rerun()
+            
+            if dashboard_selecionado:
+                dash = carregar_dashboard_personalizado(dashboard_selecionado)
+                
+                if dash:
+                    st.markdown(f"### 📈 {dash['nome']}")
+                    st.caption(f"Última atualização: {dash.get('atualizado_em', 'N/A')[:16]}")
+                    
+                    st.markdown("---")
+                    
+                    # Renderiza as métricas em grid
+                    metricas = dash.get('metricas', [])
+                    
+                    if not metricas:
+                        st.warning("Este dashboard não tem métricas configuradas.")
+                    else:
+                        # Organiza em colunas (2 métricas por linha)
+                        for i in range(0, len(metricas), 2):
+                            cols = st.columns(2)
+                            
+                            for j, col in enumerate(cols):
+                                idx = i + j
+                                if idx < len(metricas):
+                                    with col:
+                                        with st.container():
+                                            renderizar_metrica_personalizada(metricas[idx], df)
+                                            st.markdown("---")
+    
+    # === ABA CRIAR ===
+    with tab_criar:
+        st.markdown("### ➕ Criar Novo Dashboard")
+        
+        # Nome do dashboard
+        nome_novo = st.text_input(
+            "Nome do Dashboard",
+            placeholder="Ex: Meu Dashboard de QA",
+            key="input_nome_dash"
+        )
+        
+        # Filtro por categoria
+        categorias_selecionadas = st.multiselect(
+            "Filtrar por categoria",
+            options=CATEGORIAS_METRICAS,
+            default=[],
+            key="filtro_categorias"
+        )
+        
+        # Lista de métricas disponíveis
+        st.markdown("#### 📋 Métricas Disponíveis")
+        st.caption("Selecione as métricas que deseja incluir no dashboard")
+        
+        metricas_selecionadas = []
+        
+        # Agrupa métricas por categoria
+        metricas_por_categoria = {}
+        for key, metrica in CATALOGO_METRICAS.items():
+            cat = metrica['categoria']
+            if cat not in metricas_por_categoria:
+                metricas_por_categoria[cat] = []
+            metricas_por_categoria[cat].append((key, metrica))
+        
+        # Exibe métricas agrupadas
+        for categoria in CATEGORIAS_METRICAS:
+            # Aplica filtro de categoria se houver
+            if categorias_selecionadas and categoria not in categorias_selecionadas:
+                continue
+            
+            if categoria in metricas_por_categoria:
+                with st.expander(categoria, expanded=len(categorias_selecionadas) > 0):
+                    for key, metrica in metricas_por_categoria[categoria]:
+                        col1, col2, col3 = st.columns([0.5, 3, 1])
+                        with col1:
+                            selecionado = st.checkbox(
+                                "",
+                                key=f"check_{key}",
+                                label_visibility="collapsed"
+                            )
+                            if selecionado:
+                                metricas_selecionadas.append(key)
+                        with col2:
+                            st.markdown(f"**{metrica['nome']}**")
+                            st.caption(metrica['descricao'])
+                        with col3:
+                            tipo_badge = {
+                                "kpi": "🔢",
+                                "grafico_barra": "📊",
+                                "grafico_pizza": "🥧",
+                                "tabela": "📋",
+                                "lista_cards": "📝",
+                                "heatmap": "🗺️",
+                                "grafico_funil": "📈"
+                            }
+                            st.markdown(f"{tipo_badge.get(metrica['tipo'], '📊')} {metrica['tipo']}")
+        
+        # Preview das seleções
+        if metricas_selecionadas:
+            st.markdown("---")
+            st.markdown(f"**{len(metricas_selecionadas)} métricas selecionadas:**")
+            for m in metricas_selecionadas:
+                st.markdown(f"- {CATALOGO_METRICAS[m]['nome']}")
+        
+        # Botão de salvar
+        st.markdown("---")
+        col1, col2 = st.columns([3, 1])
+        with col2:
+            if st.button("💾 Salvar Dashboard", type="primary", use_container_width=True, key="btn_salvar_dash"):
+                if not nome_novo:
+                    st.error("Digite um nome para o dashboard")
+                elif not metricas_selecionadas:
+                    st.error("Selecione pelo menos uma métrica")
+                else:
+                    salvar_dashboard_personalizado(nome_novo, metricas_selecionadas)
+                    st.success(f"Dashboard '{nome_novo}' salvo com sucesso!")
+                    st.balloons()
+                    st.rerun()
+    
+    # === ABA GERENCIAR ===
+    with tab_gerenciar:
+        st.markdown("### ⚙️ Gerenciar Dashboards")
+        
+        dashboards = listar_dashboards_personalizados()
+        
+        if not dashboards:
+            st.info("Nenhum dashboard personalizado criado ainda.")
+        else:
+            for nome in dashboards:
+                dash = carregar_dashboard_personalizado(nome)
+                with st.expander(f"📊 {nome}", expanded=False):
+                    st.markdown(f"**Métricas:** {len(dash.get('metricas', []))}")
+                    st.caption(f"Criado em: {dash.get('criado_em', 'N/A')[:16]}")
+                    
+                    # Lista métricas
+                    st.markdown("**Métricas incluídas:**")
+                    for m in dash.get('metricas', []):
+                        if m in CATALOGO_METRICAS:
+                            st.markdown(f"- {CATALOGO_METRICAS[m]['nome']}")
+                    
+                    # Botão excluir
+                    if st.button(f"🗑️ Excluir '{nome}'", key=f"btn_excluir_{nome}"):
+                        excluir_dashboard_personalizado(nome)
+                        st.success(f"Dashboard '{nome}' excluído!")
+                        st.rerun()
 
 
 # ==============================================================================
@@ -2291,6 +3147,215 @@ def criar_grafico_concentracao(matriz: pd.DataFrame, titulo: str, tipo: str = "d
     )
     
     return fig
+
+
+def calcular_concentracao_pessoa(df: pd.DataFrame, pessoa: str, tipo: str = "dev") -> Dict:
+    """
+    Calcula a concentração de conhecimento de uma pessoa específica (DEV ou QA).
+    Retorna um resumo simples com produtos e clientes onde a pessoa mais atua.
+    
+    Args:
+        df: DataFrame com os cards
+        pessoa: Nome da pessoa
+        tipo: "dev" ou "qa"
+    
+    Returns:
+        Dict com resumo de concentração da pessoa
+    """
+    if df.empty:
+        return {"produtos": [], "clientes": [], "alertas": [], "total_cards": 0}
+    
+    # Filtra cards da pessoa
+    coluna = 'desenvolvedor' if tipo == "dev" else 'qa'
+    df_pessoa = df[df[coluna] == pessoa].copy()
+    
+    if df_pessoa.empty:
+        return {"produtos": [], "clientes": [], "alertas": [], "total_cards": 0}
+    
+    total_cards = len(df_pessoa)
+    
+    # Extrai cliente do campo tema_principal
+    def extrair_cliente(tema):
+        if not tema or tema == 'Sem tema':
+            return 'Sem cliente'
+        tema_lower = tema.lower().strip()
+        for interno in TEMAS_NAO_CLIENTES:
+            if interno.lower() in tema_lower:
+                return 'Interno/Plataforma'
+        return tema
+    
+    df_pessoa['cliente'] = df_pessoa['tema_principal'].apply(extrair_cliente)
+    
+    # Agrupa por produto
+    por_produto = df_pessoa.groupby('produto').agg({
+        'ticket_id': 'count',
+        'sp': 'sum'
+    }).reset_index()
+    por_produto.columns = ['nome', 'cards', 'sp']
+    por_produto['pct'] = (por_produto['cards'] / total_cards * 100).round(1)
+    por_produto = por_produto.sort_values('cards', ascending=False)
+    
+    # Agrupa por cliente
+    por_cliente = df_pessoa.groupby('cliente').agg({
+        'ticket_id': 'count',
+        'sp': 'sum'
+    }).reset_index()
+    por_cliente.columns = ['nome', 'cards', 'sp']
+    por_cliente['pct'] = (por_cliente['cards'] / total_cards * 100).round(1)
+    por_cliente = por_cliente.sort_values('cards', ascending=False)
+    
+    # Identifica alertas (onde a pessoa é muito concentrada)
+    alertas = []
+    for _, row in por_produto.iterrows():
+        if row['pct'] >= 60 and row['nome'] != 'Não definido':
+            alertas.append({
+                "tipo": "produto",
+                "nome": row['nome'],
+                "pct": row['pct'],
+                "cards": row['cards']
+            })
+    
+    for _, row in por_cliente.iterrows():
+        if row['pct'] >= 60 and row['nome'] not in ['Sem cliente', 'Interno/Plataforma']:
+            alertas.append({
+                "tipo": "cliente",
+                "nome": row['nome'],
+                "pct": row['pct'],
+                "cards": row['cards']
+            })
+    
+    return {
+        "produtos": por_produto.to_dict('records'),
+        "clientes": por_cliente.to_dict('records'),
+        "alertas": alertas,
+        "total_cards": total_cards
+    }
+
+
+def exibir_concentracao_simplificada(df: pd.DataFrame, pessoa: str, tipo: str = "dev", expanded: bool = False):
+    """
+    Exibe um card simplificado com a concentração de conhecimento de uma pessoa.
+    Para uso nas abas DEV e QA.
+    
+    Args:
+        df: DataFrame com os cards
+        pessoa: Nome da pessoa
+        tipo: "dev" ou "qa"
+        expanded: Se o expander deve estar aberto por padrão
+    """
+    concentracao = calcular_concentracao_pessoa(df, pessoa, tipo)
+    
+    if concentracao['total_cards'] == 0:
+        return
+    
+    titulo_emoji = "📦" if tipo == "dev" else "🔬"
+    titulo_tipo = "Desenvolvedor" if tipo == "dev" else "QA"
+    
+    with st.expander(f"{titulo_emoji} Áreas de Atuação", expanded=expanded):
+        # Produtos
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**📦 Por Produto:**")
+            produtos = concentracao['produtos'][:5]  # Top 5
+            if produtos:
+                for p in produtos:
+                    cor = '🔴' if p['pct'] >= 80 else '🟡' if p['pct'] >= 60 else '🟢'
+                    st.markdown(f"{cor} **{p['nome']}**: {p['cards']} cards ({p['pct']}%)")
+            else:
+                st.info("Sem dados de produto")
+        
+        with col2:
+            st.markdown("**🏢 Por Cliente:**")
+            clientes = [c for c in concentracao['clientes'][:5] if c['nome'] not in ['Sem cliente', 'Interno/Plataforma']]
+            if clientes:
+                for c in clientes:
+                    cor = '🔴' if c['pct'] >= 80 else '🟡' if c['pct'] >= 60 else '🟢'
+                    st.markdown(f"{cor} **{c['nome']}**: {c['cards']} cards ({c['pct']}%)")
+            else:
+                st.info("Sem dados de cliente específico")
+        
+        # Alertas de concentração
+        if concentracao['alertas']:
+            st.markdown("---")
+            st.markdown("**⚠️ Pontos de atenção (concentração ≥60%):**")
+            for alerta in concentracao['alertas']:
+                icone = "📦" if alerta['tipo'] == 'produto' else "🏢"
+                st.warning(f"{icone} Alta concentração em **{alerta['nome']}** ({alerta['pct']}% dos cards)")
+
+
+def exibir_concentracao_time(df: pd.DataFrame, tipo: str = "dev"):
+    """
+    Exibe um resumo da concentração de conhecimento do time todo.
+    Para uso na visão geral das abas DEV e QA.
+    
+    Args:
+        df: DataFrame com os cards
+        tipo: "dev" ou "qa"
+    """
+    concentracao = calcular_concentracao_conhecimento(df)
+    
+    # Filtra alertas pelo tipo
+    if tipo == "dev":
+        alertas = concentracao['alertas_dev']
+        indices_produto = concentracao['indices'].get('dev_produto', {})
+        indices_cliente = concentracao['indices'].get('dev_cliente', {})
+    else:
+        alertas = concentracao['alertas_qa']
+        indices_produto = concentracao['indices'].get('qa_produto', {})
+        indices_cliente = concentracao['indices'].get('qa_cliente', {})
+    
+    alertas_criticos = [a for a in alertas if a['tipo'] == 'critico']
+    alertas_atencao = [a for a in alertas if a['tipo'] == 'atencao']
+    
+    titulo_tipo = "DEV" if tipo == "dev" else "QA"
+    
+    with st.expander(f"🔄 Concentração de Conhecimento ({titulo_tipo})", expanded=False):
+        st.caption("Identifique riscos de conhecimento centralizado no time")
+        
+        # Cards resumo
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            cor = 'red' if len(alertas_criticos) > 0 else 'green'
+            criar_card_metrica(str(len(alertas_criticos)), "Críticos", cor, "≥80% concentração")
+        
+        with col2:
+            cor = 'yellow' if len(alertas_atencao) > 0 else 'green'
+            criar_card_metrica(str(len(alertas_atencao)), "Atenção", cor, "60-79% concentração")
+        
+        with col3:
+            total_areas = len(indices_produto) + len(indices_cliente)
+            areas_ok = sum(1 for d in indices_produto.values() if d['concentracao_pct'] < 60)
+            areas_ok += sum(1 for d in indices_cliente.values() if d['concentracao_pct'] < 60)
+            pct_ok = (areas_ok / total_areas * 100) if total_areas > 0 else 100
+            cor = 'green' if pct_ok >= 70 else 'yellow' if pct_ok >= 40 else 'red'
+            criar_card_metrica(f"{pct_ok:.0f}%", "Bem Distribuído", cor)
+        
+        # Lista de alertas se houver
+        if alertas_criticos or alertas_atencao:
+            st.markdown("---")
+            
+            if alertas_criticos:
+                st.markdown("**🚨 Concentração Crítica:**")
+                for a in alertas_criticos[:3]:  # Mostra top 3
+                    icone = "📦" if a['contexto'] == 'produto' else "🏢"
+                    st.error(f"{icone} **{a['pessoa']}** domina {a['pct']}% de '{a['nome']}'")
+                if len(alertas_criticos) > 3:
+                    st.caption(f"... e mais {len(alertas_criticos) - 3} alertas críticos")
+            
+            if alertas_atencao:
+                st.markdown("**⚠️ Pontos de Atenção:**")
+                for a in alertas_atencao[:3]:
+                    icone = "📦" if a['contexto'] == 'produto' else "🏢"
+                    st.warning(f"{icone} **{a['pessoa']}** tem {a['pct']}% de '{a['nome']}'")
+                if len(alertas_atencao) > 3:
+                    st.caption(f"... e mais {len(alertas_atencao) - 3} pontos de atenção")
+        else:
+            st.success("✅ Conhecimento bem distribuído no time!")
+        
+        st.markdown("---")
+        st.caption("💡 Veja análise completa na aba **Liderança** → seção 'Análise de Concentração'")
 
 
 def calcular_metricas_governanca(df: pd.DataFrame) -> Dict:
@@ -6097,6 +7162,9 @@ def aba_qa(df: pd.DataFrame):
                 else:
                     st.info("Nenhum card em validação no momento.")
         
+        # Concentração de Conhecimento do Time QA
+        exibir_concentracao_time(df, "qa")
+        
         # Comparativo entre QAs
         with st.expander("📊 Comparativo de Performance entre QAs", expanded=True):
             if qas:
@@ -6485,6 +7553,9 @@ def aba_qa(df: pd.DataFrame):
                         <small style="color: #94a3b8;">👤 DEV: {row['desenvolvedor']} | {status_name} | {int(row['sp'])} SP</small>
                     </div>
                     """, unsafe_allow_html=True)
+        
+        # ===== ÁREAS DE ATUAÇÃO (CONCENTRAÇÃO) =====
+        exibir_concentracao_simplificada(df, qa_sel, "qa", expanded=False)
         
         # ===== NOVA SEÇÃO: RESUMO DA SEMANA =====
         with st.expander("📅 Resumo da Semana", expanded=True):
@@ -7123,6 +8194,9 @@ def aba_dev(df: pd.DataFrame):
             else:
                 st.success("✅ Todos os desenvolvedores estão com FK adequado!")
         
+        # Concentração de Conhecimento do Time DEV
+        exibir_concentracao_time(df, "dev")
+        
         # Análise do Time
         with st.expander("📊 Análise do Time de Desenvolvimento", expanded=True):
             col1, col2 = st.columns(2)
@@ -7500,6 +8574,9 @@ def aba_dev(df: pd.DataFrame):
                             html_problemas += '</div>'
                         html_problemas += '</div>'
                         st.markdown(html_problemas, unsafe_allow_html=True)
+            
+            # ===== ÁREAS DE ATUAÇÃO (CONCENTRAÇÃO) =====
+            exibir_concentracao_simplificada(df, dev_sel, "dev", expanded=False)
             
             # ===== NOVA SEÇÃO: RESUMO DA SEMANA - DEV =====
             with st.expander("📅 Resumo da Semana", expanded=True):
@@ -10332,7 +11409,7 @@ def aba_sobre():
         |------------|-------|
         | **Desenvolvido por** | QA NINA |
         | **Mantido por** | Vinícios Ferreira |
-        | **Versão** | v8.19 |
+        | **Versão** | v8.78 |
         | **Última atualização** | Abril 2026 |
         | **Stack** | Python, Streamlit, Plotly, Pandas |
         | **Integração** | Jira API REST |
@@ -10348,12 +11425,36 @@ def aba_sobre():
         | **📊 Visão Geral** | KPIs principais, Health Score, alertas e progresso da release | Todos |
         | **🔬 QA** | Funil de validação, carga por QA, aging, comparativo entre QAs, bugs | QA, Liderança |
         | **👨‍💻 Dev** | Ranking Fator K, performance individual, WIP, code review, análise Tech Lead | Devs, Tech Lead |
+        | **🎯 Suporte** | Visão pessoal: onde estão meus cards? Cards aguardando ação | Suporte, Implantação |
+        | **🏢 Clientes** | Análise por cliente, desenvolvimento pago, bugs por cliente | Comercial, Liderança |
         | **📋 Governança** | Qualidade dos dados, campos obrigatórios, compliance | PO, Liderança |
         | **📦 Produto** | Métricas por produto, Health Score, tendências | PO, Stakeholders |
-        | **� Backlog** | Saúde do backlog, aging, gargalos, cards problemáticos, recomendações | PO, Liderança |
-        | **�📈 Histórico** | Evolução de métricas entre releases, tendências | Liderança |
+        | **📋 Backlog** | Saúde do backlog, aging, gargalos, cards problemáticos, recomendações | PO, Liderança |
+        | **📈 Histórico** | Evolução de métricas entre releases, tendências | Liderança |
         | **🎯 Liderança** | Decisão Go/No-Go, riscos, simulações | Gerentes, Diretores |
+        | **🎨 Meu Dashboard** | **NOVO!** Crie dashboards personalizados com suas métricas favoritas | Todos |
         | **ℹ️ Sobre** | Esta documentação | Todos |
+        
+        ---
+        
+        ### 🎨 Aba Meu Dashboard (NOVA!)
+        
+        **Crie dashboards personalizados:**
+        - 📊 Escolha entre 30+ métricas disponíveis
+        - 🎯 Templates prontos: Visão Executiva, Foco QA, Foco Dev
+        - 💾 Salve múltiplos dashboards
+        - 🔄 Atualize com dados em tempo real
+        
+        **Categorias de métricas:**
+        - Qualidade (Fator K, FPY, DDP, Health Score)
+        - Produtividade (Throughput, Lead Time, WIP)
+        - Bugs (Total, Densidade, Por Dev)
+        - QA (Funil, Carga, Aging)
+        - Desenvolvimento (Ranking, Code Review)
+        - Status (Por status, Impedidos)
+        - Produto (Por produto, Hotfixes)
+        - Concentração (Heatmaps DEV/QA)
+        - Clientes (Top clientes, Bugs)
         
         ---
         
@@ -10740,7 +11841,7 @@ def main():
                     📌 NINA Tecnologia
                 </p>
                 <p style="color: #888; font-size: 0.7em; margin: 2px 0 0 0;">
-                    v8.77 • Qualidade e Decisão de Software
+                    v8.78 • Qualidade e Decisão de Software
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -10756,6 +11857,14 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.78** *(20/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 🎨 **Nova Aba: Meu Dashboard**: Crie dashboards personalizados!
+                - 📊 **Catálogo de Métricas**: 30+ métricas disponíveis para escolher
+                - 💾 **Persistência**: Dashboards salvos na sessão
+                - 🎯 **Templates Rápidos**: Visão Executiva, Foco QA, Foco Dev
+                - 📈 **Tipos de Visualização**: KPIs, gráficos, tabelas, heatmaps
+                - 🔧 **Gerenciamento**: Criar, visualizar e excluir dashboards
+                
                 **v8.77** *(17/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🏢 **Aba Clientes Reposicionada**: Agora entre Suporte e Governança
                 - 💰 **Desenvolvimento Pago**: Detecta cards pagos via label
@@ -11199,11 +12308,12 @@ def main():
         # Abas condicionais por projeto (fluxo normal)
         if projeto == "PB":
             # Projeto PB: Aba de Backlog como foco principal
-            tab1, tab2, tab3, tab4, tab5 = st.tabs([
+            tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
                 "📋 Backlog",
                 "📊 Visão Geral",
                 "📦 Produto",
                 "📈 Histórico",
+                "🎨 Meu Dashboard",
                 "ℹ️ Sobre"
             ])
             
@@ -11220,15 +12330,19 @@ def main():
                 aba_historico(df)
             
             with tab5:
+                aba_dashboard_personalizado(df)
+            
+            with tab6:
                 aba_sobre()
         
         elif projeto == "VALPROD":
             # Projeto VALPROD: Foco em Validação em Produção + Suporte
-            tab1, tab2, tab3, tab4, tab5 = st.tabs([
+            tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
                 "🎯 Suporte/Implantação",
                 "📊 Visão Geral",
                 "📋 Governança",
                 "📈 Histórico",
+                "🎨 Meu Dashboard",
                 "ℹ️ Sobre"
             ])
             
@@ -11245,11 +12359,14 @@ def main():
                 aba_historico(df)
             
             with tab5:
+                aba_dashboard_personalizado(df)
+            
+            with tab6:
                 aba_sobre()
         
         else:
             # Projetos SD e QA: Abas completas com QA/Dev + Clientes + Suporte
-            tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+            tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
                 "📊 Visão Geral",
                 "🔬 QA",
                 "👨‍💻 Dev",
@@ -11259,6 +12376,7 @@ def main():
                 "📦 Produto",
                 "📈 Histórico",
                 "🎯 Liderança",
+                "🎨 Meu Dashboard",
                 "ℹ️ Sobre"
             ])
             
@@ -11290,6 +12408,9 @@ def main():
                 aba_lideranca(df)
             
             with tab10:
+                aba_dashboard_personalizado(df)
+            
+            with tab11:
                 aba_sobre()
 
 
