@@ -1842,6 +1842,457 @@ def analisar_dev_detalhado(df: pd.DataFrame, dev_nome: str) -> Optional[Dict]:
     }
 
 
+# ==============================================================================
+# ANÁLISE DE CONCENTRAÇÃO DE CONHECIMENTO (RODÍZIO)
+# ==============================================================================
+
+def filtrar_qas_principais(df: pd.DataFrame, min_cards: int = 5) -> List[str]:
+    """
+    Retorna lista dos QAs principais (que mais validaram cards).
+    Filtra pessoas que eventualmente validam mas não são QAs do time.
+    
+    Args:
+        df: DataFrame com os cards
+        min_cards: Mínimo de cards para ser considerado QA principal
+    
+    Returns:
+        Lista de nomes dos QAs principais
+    """
+    if df.empty:
+        return []
+    
+    # Conta cards por QA
+    qa_counts = df[df['qa'] != 'Não atribuído'].groupby('qa').size().reset_index(name='total_cards')
+    
+    # Filtra apenas QAs com quantidade significativa de cards
+    qas_principais = qa_counts[qa_counts['total_cards'] >= min_cards]['qa'].tolist()
+    
+    return qas_principais
+
+
+def calcular_concentracao_conhecimento(df: pd.DataFrame) -> Dict:
+    """
+    Calcula métricas de concentração de conhecimento por DEV e QA,
+    segmentado por Produto e Cliente.
+    
+    Retorna:
+        Dict com matrizes de concentração, índices e alertas
+    """
+    if df.empty:
+        return {
+            "dev_produto": pd.DataFrame(),
+            "qa_produto": pd.DataFrame(),
+            "dev_cliente": pd.DataFrame(),
+            "qa_cliente": pd.DataFrame(),
+            "alertas_dev": [],
+            "alertas_qa": [],
+            "recomendacoes": [],
+            "indices": {},
+            "qas_principais": [],
+        }
+    
+    # Filtra QAs principais
+    qas_principais = filtrar_qas_principais(df)
+    
+    # Cria cópia para manipulação
+    df_analise = df.copy()
+    
+    # Extrai cliente do campo tema_principal (filtra temas internos)
+    def extrair_cliente(tema):
+        if not tema or tema == 'Sem tema':
+            return 'Sem cliente'
+        tema_lower = tema.lower().strip()
+        for interno in TEMAS_NAO_CLIENTES:
+            if interno.lower() in tema_lower:
+                return 'Interno/Plataforma'
+        return tema
+    
+    df_analise['cliente'] = df_analise['tema_principal'].apply(extrair_cliente)
+    
+    # ==================== MATRIZ DEV x PRODUTO ====================
+    dev_produto = df_analise[df_analise['desenvolvedor'] != 'Não atribuído'].groupby(
+        ['desenvolvedor', 'produto']
+    ).agg({
+        'ticket_id': 'count',
+        'sp': 'sum',
+        'bugs': 'sum'
+    }).reset_index()
+    dev_produto.columns = ['DEV', 'Produto', 'Cards', 'SP', 'Bugs']
+    
+    # Pivot para matriz
+    matriz_dev_produto = dev_produto.pivot_table(
+        index='DEV', 
+        columns='Produto', 
+        values='Cards', 
+        fill_value=0,
+        aggfunc='sum'
+    )
+    
+    # ==================== MATRIZ QA x PRODUTO ====================
+    # Filtra apenas QAs principais
+    df_qa = df_analise[(df_analise['qa'].isin(qas_principais)) & (df_analise['qa'] != 'Não atribuído')]
+    
+    qa_produto = df_qa.groupby(['qa', 'produto']).agg({
+        'ticket_id': 'count',
+        'sp': 'sum',
+        'bugs': 'sum'
+    }).reset_index()
+    qa_produto.columns = ['QA', 'Produto', 'Cards', 'SP', 'Bugs']
+    
+    matriz_qa_produto = qa_produto.pivot_table(
+        index='QA', 
+        columns='Produto', 
+        values='Cards', 
+        fill_value=0,
+        aggfunc='sum'
+    ) if not qa_produto.empty else pd.DataFrame()
+    
+    # ==================== MATRIZ DEV x CLIENTE ====================
+    dev_cliente = df_analise[df_analise['desenvolvedor'] != 'Não atribuído'].groupby(
+        ['desenvolvedor', 'cliente']
+    ).agg({
+        'ticket_id': 'count',
+        'sp': 'sum',
+        'bugs': 'sum'
+    }).reset_index()
+    dev_cliente.columns = ['DEV', 'Cliente', 'Cards', 'SP', 'Bugs']
+    
+    matriz_dev_cliente = dev_cliente.pivot_table(
+        index='DEV', 
+        columns='Cliente', 
+        values='Cards', 
+        fill_value=0,
+        aggfunc='sum'
+    )
+    
+    # ==================== MATRIZ QA x CLIENTE ====================
+    qa_cliente = df_qa.groupby(['qa', 'cliente']).agg({
+        'ticket_id': 'count',
+        'sp': 'sum',
+        'bugs': 'sum'
+    }).reset_index()
+    qa_cliente.columns = ['QA', 'Cliente', 'Cards', 'SP', 'Bugs']
+    
+    matriz_qa_cliente = qa_cliente.pivot_table(
+        index='QA', 
+        columns='Cliente', 
+        values='Cards', 
+        fill_value=0,
+        aggfunc='sum'
+    ) if not qa_cliente.empty else pd.DataFrame()
+    
+    # ==================== CÁLCULO DE ÍNDICES ====================
+    alertas_dev = []
+    alertas_qa = []
+    indices = {
+        "dev_produto": {},
+        "qa_produto": {},
+        "dev_cliente": {},
+        "qa_cliente": {},
+    }
+    
+    # Análise de concentração DEV x Produto
+    for produto in matriz_dev_produto.columns:
+        col = matriz_dev_produto[produto]
+        total = col.sum()
+        if total > 0:
+            max_val = col.max()
+            max_dev = col.idxmax()
+            concentracao = (max_val / total) * 100
+            
+            indices["dev_produto"][produto] = {
+                "top_pessoa": max_dev,
+                "top_cards": int(max_val),
+                "total_cards": int(total),
+                "concentracao_pct": round(concentracao, 1),
+                "pessoas_atuando": int((col > 0).sum()),
+            }
+            
+            # Alertas
+            if concentracao >= 80:
+                alertas_dev.append({
+                    "tipo": "critico",
+                    "contexto": "produto",
+                    "nome": produto,
+                    "pessoa": max_dev,
+                    "pct": round(concentracao, 1),
+                    "msg": f"🔴 CRÍTICO: {max_dev} desenvolveu {concentracao:.0f}% dos cards do produto '{produto}'"
+                })
+            elif concentracao >= 60:
+                alertas_dev.append({
+                    "tipo": "atencao",
+                    "contexto": "produto",
+                    "nome": produto,
+                    "pessoa": max_dev,
+                    "pct": round(concentracao, 1),
+                    "msg": f"🟡 ATENÇÃO: {max_dev} desenvolveu {concentracao:.0f}% dos cards do produto '{produto}'"
+                })
+    
+    # Análise de concentração QA x Produto
+    if not matriz_qa_produto.empty:
+        for produto in matriz_qa_produto.columns:
+            col = matriz_qa_produto[produto]
+            total = col.sum()
+            if total > 0:
+                max_val = col.max()
+                max_qa = col.idxmax()
+                concentracao = (max_val / total) * 100
+                
+                indices["qa_produto"][produto] = {
+                    "top_pessoa": max_qa,
+                    "top_cards": int(max_val),
+                    "total_cards": int(total),
+                    "concentracao_pct": round(concentracao, 1),
+                    "pessoas_atuando": int((col > 0).sum()),
+                }
+                
+                if concentracao >= 80:
+                    alertas_qa.append({
+                        "tipo": "critico",
+                        "contexto": "produto",
+                        "nome": produto,
+                        "pessoa": max_qa,
+                        "pct": round(concentracao, 1),
+                        "msg": f"🔴 CRÍTICO: {max_qa} validou {concentracao:.0f}% dos cards do produto '{produto}'"
+                    })
+                elif concentracao >= 60:
+                    alertas_qa.append({
+                        "tipo": "atencao",
+                        "contexto": "produto",
+                        "nome": produto,
+                        "pessoa": max_qa,
+                        "pct": round(concentracao, 1),
+                        "msg": f"🟡 ATENÇÃO: {max_qa} validou {concentracao:.0f}% dos cards do produto '{produto}'"
+                    })
+    
+    # Análise de concentração DEV x Cliente
+    for cliente in matriz_dev_cliente.columns:
+        if cliente in ['Sem cliente', 'Interno/Plataforma']:
+            continue
+        col = matriz_dev_cliente[cliente]
+        total = col.sum()
+        if total >= 3:  # Só analisa clientes com pelo menos 3 cards
+            max_val = col.max()
+            max_dev = col.idxmax()
+            concentracao = (max_val / total) * 100
+            
+            indices["dev_cliente"][cliente] = {
+                "top_pessoa": max_dev,
+                "top_cards": int(max_val),
+                "total_cards": int(total),
+                "concentracao_pct": round(concentracao, 1),
+                "pessoas_atuando": int((col > 0).sum()),
+            }
+            
+            if concentracao >= 80:
+                alertas_dev.append({
+                    "tipo": "critico",
+                    "contexto": "cliente",
+                    "nome": cliente,
+                    "pessoa": max_dev,
+                    "pct": round(concentracao, 1),
+                    "msg": f"🔴 CRÍTICO: {max_dev} desenvolveu {concentracao:.0f}% dos cards do cliente '{cliente}'"
+                })
+            elif concentracao >= 60:
+                alertas_dev.append({
+                    "tipo": "atencao",
+                    "contexto": "cliente",
+                    "nome": cliente,
+                    "pessoa": max_dev,
+                    "pct": round(concentracao, 1),
+                    "msg": f"🟡 ATENÇÃO: {max_dev} desenvolveu {concentracao:.0f}% dos cards do cliente '{cliente}'"
+                })
+    
+    # Análise de concentração QA x Cliente
+    if not matriz_qa_cliente.empty:
+        for cliente in matriz_qa_cliente.columns:
+            if cliente in ['Sem cliente', 'Interno/Plataforma']:
+                continue
+            col = matriz_qa_cliente[cliente]
+            total = col.sum()
+            if total >= 3:
+                max_val = col.max()
+                max_qa = col.idxmax()
+                concentracao = (max_val / total) * 100
+                
+                indices["qa_cliente"][cliente] = {
+                    "top_pessoa": max_qa,
+                    "top_cards": int(max_val),
+                    "total_cards": int(total),
+                    "concentracao_pct": round(concentracao, 1),
+                    "pessoas_atuando": int((col > 0).sum()),
+                }
+                
+                if concentracao >= 80:
+                    alertas_qa.append({
+                        "tipo": "critico",
+                        "contexto": "cliente",
+                        "nome": cliente,
+                        "pessoa": max_qa,
+                        "pct": round(concentracao, 1),
+                        "msg": f"🔴 CRÍTICO: {max_qa} validou {concentracao:.0f}% dos cards do cliente '{cliente}'"
+                    })
+                elif concentracao >= 60:
+                    alertas_qa.append({
+                        "tipo": "atencao",
+                        "contexto": "cliente",
+                        "nome": cliente,
+                        "pessoa": max_qa,
+                        "pct": round(concentracao, 1),
+                        "msg": f"🟡 ATENÇÃO: {max_qa} validou {concentracao:.0f}% dos cards do cliente '{cliente}'"
+                    })
+    
+    # ==================== RECOMENDAÇÕES DE RODÍZIO ====================
+    recomendacoes = gerar_recomendacoes_rodizio(
+        matriz_dev_produto, matriz_qa_produto,
+        matriz_dev_cliente, matriz_qa_cliente,
+        alertas_dev, alertas_qa
+    )
+    
+    return {
+        "dev_produto": dev_produto,
+        "qa_produto": qa_produto,
+        "dev_cliente": dev_cliente,
+        "qa_cliente": qa_cliente,
+        "matriz_dev_produto": matriz_dev_produto,
+        "matriz_qa_produto": matriz_qa_produto,
+        "matriz_dev_cliente": matriz_dev_cliente,
+        "matriz_qa_cliente": matriz_qa_cliente,
+        "alertas_dev": alertas_dev,
+        "alertas_qa": alertas_qa,
+        "recomendacoes": recomendacoes,
+        "indices": indices,
+        "qas_principais": qas_principais,
+    }
+
+
+def gerar_recomendacoes_rodizio(
+    matriz_dev_produto: pd.DataFrame,
+    matriz_qa_produto: pd.DataFrame,
+    matriz_dev_cliente: pd.DataFrame,
+    matriz_qa_cliente: pd.DataFrame,
+    alertas_dev: List[Dict],
+    alertas_qa: List[Dict]
+) -> List[Dict]:
+    """
+    Gera recomendações automáticas de rodízio baseado nas concentrações detectadas.
+    """
+    recomendacoes = []
+    
+    # Para cada alerta crítico de DEV, sugere outros DEVs que poderiam assumir
+    for alerta in alertas_dev:
+        if alerta["tipo"] == "critico":
+            contexto = alerta["contexto"]
+            nome = alerta["nome"]
+            pessoa_dominante = alerta["pessoa"]
+            
+            # Encontra outros DEVs que NÃO trabalharam nesse contexto
+            if contexto == "produto" and not matriz_dev_produto.empty and nome in matriz_dev_produto.columns:
+                col = matriz_dev_produto[nome]
+                devs_sem_experiencia = col[col == 0].index.tolist()
+                devs_pouca_experiencia = col[(col > 0) & (col < col.max() * 0.3)].index.tolist()
+                
+                sugestoes = devs_pouca_experiencia[:3] if devs_pouca_experiencia else devs_sem_experiencia[:3]
+                
+                if sugestoes:
+                    recomendacoes.append({
+                        "tipo": "rodizio_dev",
+                        "contexto": contexto,
+                        "nome": nome,
+                        "pessoa_atual": pessoa_dominante,
+                        "sugestoes": sugestoes,
+                        "msg": f"🔄 **Rodízio sugerido para '{nome}':** Considere atribuir próximos cards a {', '.join(sugestoes)} para distribuir conhecimento"
+                    })
+            
+            elif contexto == "cliente" and not matriz_dev_cliente.empty and nome in matriz_dev_cliente.columns:
+                col = matriz_dev_cliente[nome]
+                devs_sem_experiencia = col[col == 0].index.tolist()
+                devs_pouca_experiencia = col[(col > 0) & (col < col.max() * 0.3)].index.tolist()
+                
+                sugestoes = devs_pouca_experiencia[:3] if devs_pouca_experiencia else devs_sem_experiencia[:3]
+                
+                if sugestoes:
+                    recomendacoes.append({
+                        "tipo": "rodizio_dev",
+                        "contexto": contexto,
+                        "nome": nome,
+                        "pessoa_atual": pessoa_dominante,
+                        "sugestoes": sugestoes,
+                        "msg": f"🔄 **Rodízio sugerido para cliente '{nome}':** Considere atribuir próximos cards a {', '.join(sugestoes)}"
+                    })
+    
+    # Para cada alerta crítico de QA, sugere outros QAs
+    for alerta in alertas_qa:
+        if alerta["tipo"] == "critico":
+            contexto = alerta["contexto"]
+            nome = alerta["nome"]
+            pessoa_dominante = alerta["pessoa"]
+            
+            if contexto == "produto" and not matriz_qa_produto.empty and nome in matriz_qa_produto.columns:
+                col = matriz_qa_produto[nome]
+                qas_sem_experiencia = col[col == 0].index.tolist()
+                qas_pouca_experiencia = col[(col > 0) & (col < col.max() * 0.3)].index.tolist()
+                
+                sugestoes = qas_pouca_experiencia[:2] if qas_pouca_experiencia else qas_sem_experiencia[:2]
+                
+                if sugestoes:
+                    recomendacoes.append({
+                        "tipo": "rodizio_qa",
+                        "contexto": contexto,
+                        "nome": nome,
+                        "pessoa_atual": pessoa_dominante,
+                        "sugestoes": sugestoes,
+                        "msg": f"🔄 **Rodízio de QA para '{nome}':** Considere atribuir validações a {', '.join(sugestoes)}"
+                    })
+    
+    # Recomendação geral se houver muitos alertas
+    total_alertas = len([a for a in alertas_dev + alertas_qa if a["tipo"] == "critico"])
+    if total_alertas >= 3:
+        recomendacoes.insert(0, {
+            "tipo": "geral",
+            "msg": f"⚠️ **{total_alertas} áreas com concentração crítica detectadas.** Recomenda-se revisar a distribuição de trabalho na próxima sprint planning."
+        })
+    
+    return recomendacoes
+
+
+def criar_grafico_concentracao(matriz: pd.DataFrame, titulo: str, tipo: str = "dev") -> go.Figure:
+    """Cria heatmap de concentração para visualização."""
+    if matriz.empty:
+        fig = go.Figure()
+        fig.add_annotation(text="Sem dados suficientes", xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False)
+        return fig
+    
+    # Calcula percentuais
+    matriz_pct = matriz.div(matriz.sum(axis=0), axis=1) * 100
+    matriz_pct = matriz_pct.fillna(0)
+    
+    # Define escala de cores baseado no tipo
+    colorscale = 'Blues' if tipo == "dev" else 'Purples'
+    
+    fig = go.Figure(data=go.Heatmap(
+        z=matriz_pct.values,
+        x=matriz_pct.columns.tolist(),
+        y=matriz_pct.index.tolist(),
+        colorscale=colorscale,
+        text=matriz.values,  # Mostra valores absolutos
+        texttemplate="%{text}",
+        textfont={"size": 11},
+        hovertemplate="<b>%{y}</b><br>%{x}: %{text} cards (%{z:.0f}%)<extra></extra>",
+        colorbar=dict(title="%", ticksuffix="%")
+    ))
+    
+    fig.update_layout(
+        title=titulo,
+        xaxis_title="",
+        yaxis_title="",
+        height=max(300, len(matriz) * 35 + 100),
+        margin=dict(l=20, r=20, t=50, b=20),
+    )
+    
+    return fig
+
+
 def calcular_metricas_governanca(df: pd.DataFrame) -> Dict:
     """Calcula métricas de governança de dados."""
     total = len(df)
@@ -9295,6 +9746,169 @@ def aba_lideranca(df: pd.DataFrame):
                 criar_card_metrica(f"{fk_medio:.1f}", "FK Médio Parcerias", cor)
         else:
             st.info("💡 Sem dados de interação QA-DEV. Verifique se os cards têm QA e Desenvolvedor atribuídos.")
+    
+    # ===== NOVA SEÇÃO: ANÁLISE DE CONCENTRAÇÃO DE CONHECIMENTO =====
+    with st.expander("🔄 Análise de Concentração de Conhecimento (Rodízio)", expanded=True):
+        st.caption("Identifique riscos de conhecimento centralizado e planeje rodízios para distribuir expertise no time")
+        
+        # Calcula métricas de concentração
+        concentracao = calcular_concentracao_conhecimento(df)
+        
+        # Info sobre QAs principais
+        if concentracao['qas_principais']:
+            st.info(f"📋 **QAs considerados na análise:** {', '.join(concentracao['qas_principais'])} (baseado no volume de validações)")
+        
+        # ===== ALERTAS E RECOMENDAÇÕES (TOPO) =====
+        alertas_criticos_dev = [a for a in concentracao['alertas_dev'] if a['tipo'] == 'critico']
+        alertas_criticos_qa = [a for a in concentracao['alertas_qa'] if a['tipo'] == 'critico']
+        alertas_atencao_dev = [a for a in concentracao['alertas_dev'] if a['tipo'] == 'atencao']
+        alertas_atencao_qa = [a for a in concentracao['alertas_qa'] if a['tipo'] == 'atencao']
+        
+        if alertas_criticos_dev or alertas_criticos_qa:
+            st.markdown("### 🚨 Alertas Críticos de Concentração")
+            for alerta in alertas_criticos_dev + alertas_criticos_qa:
+                st.markdown(f"""
+                <div class="alert-critical" style="margin-bottom: 8px;">
+                    {alerta['msg']}
+                </div>
+                """, unsafe_allow_html=True)
+        
+        if alertas_atencao_dev or alertas_atencao_qa:
+            st.markdown("### ⚠️ Pontos de Atenção")
+            for alerta in alertas_atencao_dev + alertas_atencao_qa:
+                st.markdown(f"""
+                <div class="alert-warning" style="margin-bottom: 8px;">
+                    {alerta['msg']}
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # ===== RECOMENDAÇÕES DE RODÍZIO =====
+        if concentracao['recomendacoes']:
+            st.markdown("### 💡 Recomendações de Rodízio")
+            for rec in concentracao['recomendacoes']:
+                if rec['tipo'] == 'geral':
+                    st.warning(rec['msg'])
+                else:
+                    st.markdown(rec['msg'])
+        
+        if not alertas_criticos_dev and not alertas_criticos_qa and not alertas_atencao_dev and not alertas_atencao_qa:
+            st.success("✅ Conhecimento bem distribuído! Nenhuma concentração crítica detectada.")
+        
+        st.markdown("---")
+        
+        # ===== TABS PARA MATRIZES =====
+        tab_dev, tab_qa = st.tabs(["👨‍💻 Concentração DEV", "🔬 Concentração QA"])
+        
+        with tab_dev:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### 📦 DEV x Produto")
+                if not concentracao['matriz_dev_produto'].empty:
+                    fig = criar_grafico_concentracao(
+                        concentracao['matriz_dev_produto'], 
+                        "Cards por DEV em cada Produto",
+                        "dev"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Tabela resumo
+                    with st.expander("📊 Ver dados detalhados", expanded=False):
+                        st.dataframe(concentracao['dev_produto'], hide_index=True, use_container_width=True)
+                else:
+                    st.info("Sem dados de DEV x Produto")
+            
+            with col2:
+                st.markdown("#### 🏢 DEV x Cliente")
+                if not concentracao['matriz_dev_cliente'].empty:
+                    fig = criar_grafico_concentracao(
+                        concentracao['matriz_dev_cliente'], 
+                        "Cards por DEV em cada Cliente",
+                        "dev"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    with st.expander("📊 Ver dados detalhados", expanded=False):
+                        st.dataframe(concentracao['dev_cliente'], hide_index=True, use_container_width=True)
+                else:
+                    st.info("Sem dados de DEV x Cliente")
+            
+            # Índices de concentração DEV
+            st.markdown("#### 📈 Índices de Concentração (DEV)")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Por Produto:**")
+                for produto, dados in concentracao['indices'].get('dev_produto', {}).items():
+                    cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
+                    st.markdown(f"{cor} **{produto}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} cards = {dados['concentracao_pct']}%) | {dados['pessoas_atuando']} pessoa(s) atuando")
+            
+            with col2:
+                st.markdown("**Por Cliente:**")
+                for cliente, dados in concentracao['indices'].get('dev_cliente', {}).items():
+                    cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
+                    st.markdown(f"{cor} **{cliente}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} cards = {dados['concentracao_pct']}%) | {dados['pessoas_atuando']} pessoa(s) atuando")
+        
+        with tab_qa:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### 📦 QA x Produto")
+                if not concentracao['matriz_qa_produto'].empty:
+                    fig = criar_grafico_concentracao(
+                        concentracao['matriz_qa_produto'], 
+                        "Validações por QA em cada Produto",
+                        "qa"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    with st.expander("📊 Ver dados detalhados", expanded=False):
+                        st.dataframe(concentracao['qa_produto'], hide_index=True, use_container_width=True)
+                else:
+                    st.info("Sem dados de QA x Produto (verifique se há QAs principais com volume suficiente)")
+            
+            with col2:
+                st.markdown("#### 🏢 QA x Cliente")
+                if not concentracao['matriz_qa_cliente'].empty:
+                    fig = criar_grafico_concentracao(
+                        concentracao['matriz_qa_cliente'], 
+                        "Validações por QA em cada Cliente",
+                        "qa"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    with st.expander("📊 Ver dados detalhados", expanded=False):
+                        st.dataframe(concentracao['qa_cliente'], hide_index=True, use_container_width=True)
+                else:
+                    st.info("Sem dados de QA x Cliente")
+            
+            # Índices de concentração QA
+            st.markdown("#### 📈 Índices de Concentração (QA)")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Por Produto:**")
+                for produto, dados in concentracao['indices'].get('qa_produto', {}).items():
+                    cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
+                    st.markdown(f"{cor} **{produto}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} cards = {dados['concentracao_pct']}%) | {dados['pessoas_atuando']} pessoa(s) atuando")
+            
+            with col2:
+                st.markdown("**Por Cliente:**")
+                for cliente, dados in concentracao['indices'].get('qa_cliente', {}).items():
+                    cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
+                    st.markdown(f"{cor} **{cliente}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} cards = {dados['concentracao_pct']}%) | {dados['pessoas_atuando']} pessoa(s) atuando")
+        
+        # ===== LEGENDA =====
+        st.markdown("---")
+        st.markdown("""
+        **📖 Legenda de Concentração:**
+        - 🔴 **Crítico (≥80%)**: Conhecimento muito centralizado - risco alto de Bus Factor
+        - 🟡 **Atenção (60-79%)**: Concentração moderada - planejar rodízio
+        - 🟢 **Saudável (<60%)**: Conhecimento bem distribuído
+        
+        **💡 O que é Bus Factor?** É o número mínimo de pessoas que precisam "sair" para o projeto/área ficar parado. 
+        Quanto mais distribuído o conhecimento, maior o Bus Factor e menor o risco.
+        """)
     
     # Performance por Desenvolvedor
     with st.expander("👨‍💻 Performance por Desenvolvedor", expanded=False):
