@@ -843,6 +843,11 @@ def mostrar_tela_login():
     # CSS para tela de login
     st.markdown("""
     <style>
+    /* ===== ESCONDER WARNING DO COOKIEMANAGER ===== */
+    .stException, [data-testid="stException"] {
+        display: none !important;
+    }
+    
     /* ===== FUNDO E RESET ===== */
     .stApp {
         background: #F7F7F8 !important;
