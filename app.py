@@ -417,9 +417,8 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
         <span class="card-popup-menu" style="
             display: none;
             position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
+            top: 100%;
+            left: 0;
             background: white;
             border: 1px solid #e5e7eb;
             border-radius: 8px;
@@ -427,7 +426,7 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
             padding: 6px;
             z-index: 9999;
             min-width: 160px;
-            margin-bottom: 5px;
+            margin-top: 5px;
         ">
             <a href="{url_dashboard}" target="_blank" class="card-popup-ninadash">
                 <span style="font-size: 16px;">📊</span> Ver no NinaDash
@@ -4062,7 +4061,9 @@ def aplicar_estilos():
     .scroll-container {
         max-height: 450px;
         overflow-y: auto;
+        overflow-x: visible;
         padding-right: 8px;
+        padding-bottom: 80px;
         margin: 10px 0;
         scrollbar-width: thin;
         scrollbar-color: #cbd5e1 #f1f5f9;
