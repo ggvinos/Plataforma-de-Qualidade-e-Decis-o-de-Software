@@ -629,21 +629,60 @@ def verificar_credenciais() -> bool:
 
 
 # ==============================================================================
-# AUTENTICAÇÃO DE USUÁRIO (usando session_state + Query Params)
+# AUTENTICAÇÃO DE USUÁRIO (usando Cookies para persistência)
 # ==============================================================================
 
+# CookieManager para persistência de login entre sessões
+@st.cache_resource(show_spinner=False)
+def get_cookie_manager():
+    """Retorna instância única do CookieManager."""
+    return stx.CookieManager(key="ninadash_cookie_manager")
+
+
+# Nome do cookie para autenticação
+COOKIE_AUTH_NAME = "ninadash_auth_v2"
+COOKIE_EXPIRY_DAYS = 30
+
+
 def verificar_login() -> bool:
-    """Verifica se o usuário está logado (via session_state ou query_params)."""
+    """
+    Verifica se o usuário está logado.
+    Ordem de verificação:
+    1. session_state (mais rápido, já autenticado nesta sessão)
+    2. Cookie (persistência entre recarregamentos/abas)
+    3. Query params (para links compartilhados)
+    """
     # 1. Primeiro verifica session_state (mais rápido)
     if st.session_state.get("logged_in", False) and st.session_state.get("user_email"):
         return True
     
-    # 2. Verifica query_params para auto-login (vindo de link compartilhado)
+    # 2. Verifica cookie para restaurar sessão
+    try:
+        cookie_manager = get_cookie_manager()
+        auth_cookie = cookie_manager.get(COOKIE_AUTH_NAME)
+        
+        if auth_cookie and validar_email_corporativo(auth_cookie):
+            # Restaura sessão a partir do cookie
+            st.session_state.logged_in = True
+            st.session_state.user_email = auth_cookie
+            st.session_state.user_nome = extrair_nome_usuario(auth_cookie)
+            return True
+    except Exception:
+        # Se falhar ao ler cookie, continua para outras verificações
+        pass
+    
+    # 3. Verifica query_params para auto-login (vindo de link compartilhado)
     auto_login_email = st.query_params.get("_auth", None)
     if auto_login_email and validar_email_corporativo(auto_login_email):
         st.session_state.logged_in = True
         st.session_state.user_email = auto_login_email
         st.session_state.user_nome = extrair_nome_usuario(auto_login_email)
+        # Salva no cookie para persistir
+        try:
+            cookie_manager = get_cookie_manager()
+            cookie_manager.set(COOKIE_AUTH_NAME, auto_login_email, expires_at=datetime.now() + timedelta(days=COOKIE_EXPIRY_DAYS))
+        except Exception:
+            pass
         # Limpa o param de auth para não ficar na URL visível
         if "_auth" in st.query_params:
             del st.query_params["_auth"]
@@ -669,10 +708,11 @@ def extrair_nome_usuario(email: str) -> str:
     return nome_formatado
 
 
-def fazer_login(email: str, lembrar: bool = False) -> bool:
+def fazer_login(email: str, lembrar: bool = True) -> bool:
     """
     Valida e realiza login do usuário.
     Apenas e-mails com domínio @confirmationcall.com.br são aceitos.
+    Salva cookie para persistência entre sessões.
     """
     email_lower = email.lower().strip()
     
@@ -681,17 +721,37 @@ def fazer_login(email: str, lembrar: bool = False) -> bool:
         st.session_state.logged_in = True
         st.session_state.user_email = email_lower
         st.session_state.user_nome = extrair_nome_usuario(email_lower)
+        
+        # Salva cookie para persistência
+        if lembrar:
+            try:
+                cookie_manager = get_cookie_manager()
+                cookie_manager.set(
+                    COOKIE_AUTH_NAME, 
+                    email_lower, 
+                    expires_at=datetime.now() + timedelta(days=COOKIE_EXPIRY_DAYS)
+                )
+            except Exception:
+                pass  # Se falhar ao salvar cookie, login ainda funciona na sessão
+        
         return True
     
     return False
 
 
 def fazer_logout():
-    """Remove sessão do usuário."""
+    """Remove sessão do usuário e limpa cookie."""
     # Limpa session_state
     st.session_state.logged_in = False
     st.session_state.user_email = None
     st.session_state.user_nome = None
+    
+    # Remove cookie de autenticação
+    try:
+        cookie_manager = get_cookie_manager()
+        cookie_manager.delete(COOKIE_AUTH_NAME)
+    except Exception:
+        pass  # Se falhar ao remover cookie, sessão já está limpa
     
     # Limpa dados carregados para forçar reload após novo login
     if 'dados_carregados' in st.session_state:
