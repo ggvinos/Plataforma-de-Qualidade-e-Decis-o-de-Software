@@ -377,6 +377,7 @@ def link_jira(ticket_id: str) -> str:
 def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True) -> str:
     """
     Gera HTML de um card com popup para escolher: Ver no NinaDash ou Abrir no Jira.
+    Usa position: fixed com JavaScript para aparecer acima de tudo.
     
     Args:
         ticket_id: ID do card (ex: PB-797, SD-1234)
@@ -403,9 +404,25 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
     cores = {"PB": "#8b5cf6", "SD": "#3b82f6", "QA": "#22c55e"}
     cor = cores.get(projeto, "#6b7280")
     
-    # HTML com popup CSS puro - usa classes para hover (CSS define os estilos)
-    html = f'''<span class="card-popup-container" tabindex="0" style="position: relative; display: {'inline-block' if inline else 'block'};">
-        <span class="card-popup-trigger" style="
+    # ID único para este popup
+    popup_id = f"popup_{ticket_id.replace('-', '_')}"
+    
+    # HTML com popup usando position: fixed e JavaScript para posicionamento
+    html = f'''<span style="position: relative; display: {'inline-block' if inline else 'block'};"
+        onmouseenter="
+            var popup = document.getElementById('{popup_id}');
+            var rect = this.getBoundingClientRect();
+            popup.style.display = 'block';
+            popup.style.position = 'fixed';
+            popup.style.left = rect.left + 'px';
+            popup.style.top = (rect.bottom + 5) + 'px';
+            if (rect.top > window.innerHeight / 2) {{
+                popup.style.top = (rect.top - popup.offsetHeight - 5) + 'px';
+            }}
+        "
+        onmouseleave="document.getElementById('{popup_id}').style.display = 'none';"
+    >
+        <span style="
             color: {cor}; 
             font-weight: 600; 
             cursor: pointer; 
@@ -414,24 +431,40 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
             border-radius: 3px;
             transition: all 0.2s ease;
         ">{ticket_id}</span>
-        <span class="card-popup-menu" style="
+        <span id="{popup_id}" style="
             display: none;
-            position: absolute;
-            top: 100%;
-            left: 0;
+            position: fixed;
             background: white;
             border: 1px solid #e5e7eb;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
             padding: 6px;
-            z-index: 9999;
+            z-index: 99999;
             min-width: 160px;
-            margin-top: 5px;
-        ">
-            <a href="{url_dashboard}" target="_blank" class="card-popup-ninadash">
+        "
+        onmouseenter="this.style.display = 'block';"
+        onmouseleave="this.style.display = 'none';"
+        >
+            <a href="{url_dashboard}" target="_blank" style="
+                display: block;
+                padding: 8px 12px;
+                color: #1e40af;
+                text-decoration: none;
+                border-radius: 6px;
+                font-size: 13px;
+                transition: background 0.2s;
+            " onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'">
                 <span style="font-size: 16px;">📊</span> Ver no NinaDash
             </a>
-            <a href="{url_jira}" target="_blank" class="card-popup-jira">
+            <a href="{url_jira}" target="_blank" style="
+                display: block;
+                padding: 8px 12px;
+                color: #166534;
+                text-decoration: none;
+                border-radius: 6px;
+                font-size: 13px;
+                transition: background 0.2s;
+            " onmouseenter="this.style.background='#f0fdf4'" onmouseleave="this.style.background='transparent'">
                 <span style="font-size: 16px;">🔗</span> Abrir no Jira
             </a>
         </span>
@@ -4061,9 +4094,7 @@ def aplicar_estilos():
     .scroll-container {
         max-height: 450px;
         overflow-y: auto;
-        overflow-x: visible;
         padding-right: 8px;
-        padding-bottom: 80px;
         margin: 10px 0;
         scrollbar-width: thin;
         scrollbar-color: #cbd5e1 #f1f5f9;
