@@ -4058,6 +4058,50 @@ def aplicar_estilos():
         border-left: 4px solid #6366f1;
     }
     
+    /* Scroll container para listagens */
+    .scroll-container {
+        max-height: 450px;
+        overflow-y: auto;
+        padding-right: 8px;
+        margin: 10px 0;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f1f5f9;
+    }
+    .scroll-container::-webkit-scrollbar {
+        width: 6px;
+    }
+    .scroll-container::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 3px;
+    }
+    .scroll-container::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 3px;
+    }
+    .scroll-container::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+    
+    /* Card de listagem padrão */
+    .card-lista {
+        background: rgba(100, 100, 100, 0.05);
+        padding: 12px 15px;
+        margin: 8px 0;
+        border-radius: 8px;
+        border-left: 4px solid #64748b;
+        transition: all 0.2s ease;
+    }
+    .card-lista:hover {
+        transform: translateX(3px);
+        background: rgba(100, 100, 100, 0.1);
+    }
+    .card-lista-amarelo { border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.08); }
+    .card-lista-verde { border-left-color: #22c55e; background: rgba(34, 197, 94, 0.08); }
+    .card-lista-azul { border-left-color: #3b82f6; background: rgba(59, 130, 246, 0.08); }
+    .card-lista-roxo { border-left-color: #8b5cf6; background: rgba(139, 92, 246, 0.08); }
+    .card-lista-vermelho { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.08); }
+    .card-lista-laranja { border-left-color: #f97316; background: rgba(249, 115, 22, 0.08); }
+    
     /* Hide Streamlit elements */
     #MainMenu, .stDeployButton { display: none !important; }
     </style>
@@ -4218,8 +4262,16 @@ def mostrar_card_ticket(row: dict, compacto: bool = False):
         """, unsafe_allow_html=True)
 
 
-def mostrar_lista_tickets_completa(items: list, titulo: str, mostrar_todos: bool = False):
-    """Mostra lista de tickets com opção de ver TODOS."""
+def mostrar_lista_tickets_completa(items: list, titulo: str, mostrar_todos: bool = False, max_height: int = 450):
+    """
+    Mostra lista de tickets com scroll individual e opção de ver TODOS.
+    
+    Args:
+        items: Lista de dicionários com dados dos cards
+        titulo: Título da seção
+        mostrar_todos: Se True, mostra todos os cards (sem limite inicial)
+        max_height: Altura máxima do container de scroll (default 450px)
+    """
     if not items:
         st.info(f"Nenhum card em: {titulo}")
         return
@@ -4235,11 +4287,16 @@ def mostrar_lista_tickets_completa(items: list, titulo: str, mostrar_todos: bool
         
         limite = total if mostrar_todos else min(5, total)
         
+        # Container com scroll individual
+        st.markdown(f'<div class="scroll-container" style="max-height: {max_height}px;">', unsafe_allow_html=True)
+        
         for i, item in enumerate(items[:limite]):
             if isinstance(item, dict):
                 mostrar_card_ticket(item, compacto=True)
             elif isinstance(item, pd.Series):
                 mostrar_card_ticket(item.to_dict(), compacto=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
         
         if not mostrar_todos and total > 5:
             st.caption(f"📌 Mais {total - 5} cards ocultos. Marque acima para ver todos.")
@@ -4253,6 +4310,104 @@ def mostrar_lista_df_completa(df: pd.DataFrame, titulo: str):
     
     items = df.to_dict('records')
     mostrar_lista_tickets_completa(items, titulo)
+
+
+def renderizar_lista_com_scroll(df: pd.DataFrame, titulo: str = None, max_height: int = 400, 
+                                 cor_classe: str = "", mostrar_checkbox: bool = True,
+                                 limite_inicial: int = 20, key_prefix: str = "lista",
+                                 campos_customizados: dict = None):
+    """
+    Renderiza uma lista de cards com scroll individual usando design padronizado.
+    
+    Args:
+        df: DataFrame com os cards
+        titulo: Título opcional da seção (se None, não mostra título)
+        max_height: Altura máxima do container de scroll
+        cor_classe: Classe CSS de cor (amarelo, verde, azul, roxo, vermelho, laranja)
+        mostrar_checkbox: Se True, mostra checkbox "Ver todos"
+        limite_inicial: Limite inicial de cards (se checkbox ativo)
+        key_prefix: Prefixo para keys do Streamlit (evitar duplicatas)
+        campos_customizados: Dict com campos customizados a exibir {campo: label}
+    
+    Returns:
+        None (renderiza diretamente no Streamlit)
+    """
+    if df.empty:
+        st.info("Nenhum card encontrado.")
+        return
+    
+    total = len(df)
+    
+    # Checkbox para ver todos
+    mostrar_todos = False
+    if mostrar_checkbox and total > limite_inicial:
+        mostrar_todos = st.checkbox(
+            f"📋 Ver todos os {total} cards", 
+            key=f"{key_prefix}_ver_todos_{titulo or 'lista'}",
+            value=False
+        )
+    else:
+        mostrar_todos = True
+    
+    limite = total if mostrar_todos else min(limite_inicial, total)
+    
+    # Título se especificado
+    if titulo:
+        st.markdown(f"##### {titulo} ({total})")
+    
+    # Container com scroll
+    cards_html = f'<div class="scroll-container" style="max-height: {max_height}px;">'
+    
+    for _, card in df.head(limite).iterrows():
+        projeto = card.get('projeto', 'SD')
+        tipo = card.get('tipo', 'TAREFA')
+        tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#6366f1" if tipo == "SUGESTÃO" else "#64748b"
+        
+        # Responsável (prioridade: responsavel > desenvolvedor > qa > relator)
+        responsavel = card.get('responsavel') or card.get('desenvolvedor') or card.get('qa') or card.get('relator', 'N/A')
+        if not responsavel or responsavel == 'Não atribuído':
+            responsavel = card.get('relator', 'N/A')
+        
+        titulo_card = str(card.get('titulo', card.get('resumo', '')))[:80]
+        ticket_id = card.get('ticket_id', '')
+        status = card.get('status', '')
+        
+        # Classe de cor
+        classe_cor = f"card-lista-{cor_classe}" if cor_classe else "card-lista"
+        
+        # Popup do card
+        popup_html = card_link_com_popup(ticket_id, projeto)
+        
+        # Campos customizados
+        info_extra = ""
+        if campos_customizados:
+            extras = []
+            for campo, label in campos_customizados.items():
+                valor = card.get(campo, '')
+                if valor and valor != 'N/A' and valor != 'Não atribuído':
+                    extras.append(f"<b>{label}:</b> {valor}")
+            if extras:
+                info_extra = f'<div style="font-size: 11px; color: #64748b; margin-top: 4px;">{" | ".join(extras)}</div>'
+        
+        cards_html += f'''
+        <div class="{classe_cor}">
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px;">
+                <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
+                <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
+                {popup_html}
+                <span style="background: #e5e7eb; color: #374151; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: auto;">{status[:20]}</span>
+            </div>
+            <div style="font-size: 13px; color: #374151; line-height: 1.4;">{titulo_card}{"..." if len(str(card.get("titulo", ""))) > 80 else ""}</div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 4px;">👤 {responsavel}</div>
+            {info_extra}
+        </div>'''
+    
+    cards_html += '</div>'
+    
+    st.markdown(cards_html, unsafe_allow_html=True)
+    
+    if not mostrar_todos and total > limite_inicial:
+        st.caption(f"📌 Mais {total - limite_inicial} cards ocultos. Marque acima para ver todos.")
 
 
 # ==============================================================================
@@ -5458,30 +5613,34 @@ def aba_qa(df: pd.DataFrame):
                 with col1:
                     st.markdown("#### 🚫 Impedidos")
                     if not cards_impedidos.empty:
+                        st.markdown('<div class="scroll-container" style="max-height: 350px;">', unsafe_allow_html=True)
                         for _, row in cards_impedidos.iterrows():
                             card_popup = card_link_com_popup(row['ticket_id'])
                             st.markdown(f"""
-                            <div style="padding: 10px; margin: 5px 0; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.1); border-radius: 6px;">
+                            <div class="card-lista-vermelho">
                                 <strong>{card_popup}</strong>
                                 <span style="color: #64748b;"> - {row['titulo']}</span><br>
                                 <small style="color: #94a3b8;">👤 DEV: {row['desenvolvedor']} | 🧑‍🔬 QA: {row['qa']} | {int(row['sp'])} SP</small>
                             </div>
                             """, unsafe_allow_html=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
                     else:
                         st.success("✅ Nenhum card impedido")
                 
                 with col2:
                     st.markdown("#### ❌ Reprovados")
                     if not cards_reprovados.empty:
+                        st.markdown('<div class="scroll-container" style="max-height: 350px;">', unsafe_allow_html=True)
                         for _, row in cards_reprovados.iterrows():
                             card_popup = card_link_com_popup(row['ticket_id'])
                             st.markdown(f"""
-                            <div style="padding: 10px; margin: 5px 0; border-left: 4px solid #dc2626; background: rgba(220, 38, 38, 0.1); border-radius: 6px;">
+                            <div class="card-lista-vermelho">
                                 <strong>{card_popup}</strong>
                                 <span style="color: #64748b;"> - {row['titulo']}</span><br>
                                 <small style="color: #94a3b8;">👤 DEV: {row['desenvolvedor']} | 🧑‍🔬 QA: {row['qa']} | {int(row['sp'])} SP | 🐛 {int(row['bugs'])} bugs</small>
                             </div>
                             """, unsafe_allow_html=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
                     else:
                         st.success("✅ Nenhum card reprovado")
         
@@ -6090,6 +6249,8 @@ def aba_qa(df: pd.DataFrame):
             if not df_em_trabalho.empty:
                 df_em_trabalho_sorted = df_em_trabalho.sort_values('atualizado', ascending=False)
                 
+                # Scroll container
+                st.markdown('<div class="scroll-container" style="max-height: 400px;">', unsafe_allow_html=True)
                 for _, row in df_em_trabalho_sorted.iterrows():
                     status_icon = "⏳" if row['status_cat'] == 'waiting_qa' else "🧪"
                     status_nome = "Aguardando" if row['status_cat'] == 'waiting_qa' else "Validando"
@@ -6100,7 +6261,7 @@ def aba_qa(df: pd.DataFrame):
                     tempo_atualizacao = formatar_tempo_relativo(row.get('atualizado'))
                     
                     st.markdown(f"""
-                    <div style="padding: 12px; margin: 8px 0; border-left: 4px solid {status_cor}; background: {status_cor}10; border-radius: 6px;">
+                    <div class="card-lista" style="border-left-color: {status_cor}; background: {status_cor}10;">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
                             <div style="flex: 1; min-width: 200px;">
                                 <strong>{status_icon} {card_popup}</strong>
@@ -6117,6 +6278,7 @@ def aba_qa(df: pd.DataFrame):
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.success("✅ Nenhum card em trabalho no momento - fila limpa!")
             
@@ -6131,13 +6293,14 @@ def aba_qa(df: pd.DataFrame):
             if not df_reprovados_qa.empty:
                 df_reprovados_sorted = df_reprovados_qa.sort_values('atualizado', ascending=False)
                 
+                st.markdown('<div class="scroll-container" style="max-height: 350px;">', unsafe_allow_html=True)
                 for _, row in df_reprovados_sorted.iterrows():
                     data_ref = row.get('atualizado')
                     data_reprovacao = data_ref.strftime("%d/%m %H:%M") if pd.notna(data_ref) else "N/A"
                     card_popup = card_link_com_popup(row['ticket_id'])
                     
                     st.markdown(f"""
-                    <div style="padding: 12px; margin: 8px 0; border-left: 4px solid #dc2626; background: rgba(220, 38, 38, 0.05); border-radius: 6px;">
+                    <div class="card-lista-vermelho">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
                             <div style="flex: 1; min-width: 200px;">
                                 <strong>❌ {card_popup}</strong>
@@ -6154,6 +6317,7 @@ def aba_qa(df: pd.DataFrame):
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info("💡 Nenhum card reprovado no momento")
             
@@ -6166,10 +6330,11 @@ def aba_qa(df: pd.DataFrame):
                 st.markdown("**🚫 Cards Impedidos**")
                 st.caption("Cards bloqueados que precisam de atenção")
                 
+                st.markdown('<div class="scroll-container" style="max-height: 300px;">', unsafe_allow_html=True)
                 for _, row in df_impedidos_qa.iterrows():
                     card_popup = card_link_com_popup(row['ticket_id'])
                     st.markdown(f"""
-                    <div style="padding: 12px; margin: 8px 0; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.05); border-radius: 6px;">
+                    <div class="card-lista-vermelho">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
                             <div style="flex: 1; min-width: 200px;">
                                 <strong>🚫 {card_popup}</strong>
@@ -6185,6 +6350,7 @@ def aba_qa(df: pd.DataFrame):
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
                 
                 st.markdown("---")
             
@@ -6197,6 +6363,7 @@ def aba_qa(df: pd.DataFrame):
                 sort_col = 'resolutiondate' if 'resolutiondate' in df_validados_semana.columns and df_validados_semana['resolutiondate'].notna().any() else 'atualizado'
                 df_validados_semana_sorted = df_validados_semana.sort_values(sort_col, ascending=False)
                 
+                st.markdown('<div class="scroll-container" style="max-height: 400px;">', unsafe_allow_html=True)
                 for _, row in df_validados_semana_sorted.iterrows():
                     # Usa resolutiondate se disponível
                     data_ref = row.get('resolutiondate') if pd.notna(row.get('resolutiondate')) else row.get('atualizado')
@@ -6206,7 +6373,7 @@ def aba_qa(df: pd.DataFrame):
                     card_popup = card_link_com_popup(row['ticket_id'])
                     
                     st.markdown(f"""
-                    <div style="padding: 12px; margin: 8px 0; border-left: 4px solid #22c55e; background: rgba(34, 197, 94, 0.05); border-radius: 6px;">
+                    <div class="card-lista-verde">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
                             <div style="flex: 1; min-width: 200px;">
                                 <strong>{card_popup}</strong>
@@ -6222,6 +6389,7 @@ def aba_qa(df: pd.DataFrame):
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
                 
                 # Resumo textual completo para copiar
                 st.markdown("---")
@@ -7076,6 +7244,7 @@ def aba_dev(df: pd.DataFrame):
                 if not df_done_semana.empty:
                     df_done_semana_sorted = df_done_semana.sort_values('resolutiondate' if 'resolutiondate' in df_done_semana.columns else 'atualizado', ascending=False)
                     
+                    st.markdown('<div class="scroll-container" style="max-height: 400px;">', unsafe_allow_html=True)
                     for _, row in df_done_semana_sorted.iterrows():
                         # Usa resolutiondate se disponível
                         data_ref = row.get('resolutiondate') if pd.notna(row.get('resolutiondate')) else row.get('atualizado')
@@ -7085,7 +7254,7 @@ def aba_dev(df: pd.DataFrame):
                         card_popup = card_link_com_popup(row['ticket_id'])
                         
                         st.markdown(f"""
-                        <div style="padding: 12px; margin: 8px 0; border-left: 4px solid #8b5cf6; background: rgba(139, 92, 246, 0.05); border-radius: 6px;">
+                        <div class="card-lista-roxo">
                             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
                                 <div>
                                     <strong>{card_popup}</strong>
@@ -7101,6 +7270,7 @@ def aba_dev(df: pd.DataFrame):
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
                     
                     # Resumo textual
                     st.markdown("---")
@@ -8187,103 +8357,92 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
             with col_aguard1:
                 st.markdown(f"##### 💬 Aguardando Resposta ({len(df_aguard_resp)})")
                 
-                # Gera HTML completo com scroll e fonte padronizada
-                cards_html = '''<div style="max-height: 400px; overflow-y: auto; padding-right: 5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">'''
+                # Gera HTML com scroll usando classe padrão
+                cards_html = '<div class="scroll-container" style="max-height: 400px;">'
                 for _, card in df_aguard_resp.head(limite_cards).iterrows():
                     projeto = card.get('projeto', 'SD')
                     tipo = card.get('tipo', 'TAREFA')
                     tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#64748b"
-                    # Prioridade: responsavel > desenvolvedor > qa > relator
                     responsavel = card.get('responsavel') or card.get('desenvolvedor') or card.get('qa') or card.get('relator', 'N/A')
                     if not responsavel or responsavel == 'Não atribuído':
                         responsavel = card.get('relator', 'N/A')
                     titulo = str(card.get('titulo', card.get('resumo', '')))[:80]
                     ticket_id = card.get('ticket_id', '')
-                    # Gera popup com opção NinaDash/Jira
-                    popup_html = card_link_para_html(ticket_id, projeto)
+                    popup_html = card_link_com_popup(ticket_id, projeto)
                     
                     cards_html += f'''
-                    <div style="background: #fef3c7; padding: 10px; margin: 5px 0; border-radius: 6px; border-left: 3px solid #f59e0b;">
-                        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 6px;">
-                            <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">{projeto}</span>
-                            <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">{tipo}</span>
+                    <div class="card-lista-amarelo">
+                        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 4px;">
+                            <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
+                            <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
                             {popup_html}
                         </div>
-                        <div style="color: #78350f; font-size: 13px; margin-top: 4px; line-height: 1.4;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 80 else ""}</div>
-                        <div style="color: #92400e; font-size: 12px; margin-top: 4px; font-weight: 500;">👤 Responsável: {responsavel}</div>
+                        <div style="font-size: 13px; color: #78350f; line-height: 1.4;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 80 else ""}</div>
+                        <div style="font-size: 11px; color: #92400e; margin-top: 4px;">👤 {responsavel}</div>
                     </div>'''
                 cards_html += '</div>'
                 if len(df_aguard_resp) > limite_cards:
                     cards_html += f'<p style="color: #64748b; font-size: 12px; margin-top: 8px; text-align: center;">... e mais {len(df_aguard_resp) - limite_cards} cards</p>'
                 
-                altura_container = min(500, 80 * min(limite_cards, len(df_aguard_resp)) + 50)
-                components.html(cards_html, height=altura_container, scrolling=True)
+                st.markdown(cards_html, unsafe_allow_html=True)
             
             with col_aguard2:
                 st.markdown(f"##### 🔍 Validação Produção ({len(df_valprod_pend)})")
                 
-                # Gera HTML completo com scroll e fonte padronizada
-                cards_html2 = '''<div style="max-height: 400px; overflow-y: auto; padding-right: 5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">'''
+                cards_html2 = '<div class="scroll-container" style="max-height: 400px;">'
                 for _, card in df_valprod_pend.head(limite_cards).iterrows():
                     tipo = card.get('tipo', 'TAREFA')
                     tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#64748b"
-                    # Prioridade para VALPROD: responsavel > desenvolvedor > relator (não QA, que é quem validou)
                     responsavel = card.get('responsavel') or card.get('desenvolvedor') or card.get('relator', 'N/A')
                     if not responsavel or responsavel == 'Não atribuído':
                         responsavel = card.get('relator', 'N/A')
                     titulo = str(card.get('titulo', card.get('resumo', '')))[:80]
                     ticket_id = card.get('ticket_id', '')
-                    # Gera popup com opção NinaDash/Jira
-                    popup_html = card_link_para_html(ticket_id, 'VALPROD')
+                    popup_html = card_link_com_popup(ticket_id, 'VALPROD')
                     
                     cards_html2 += f'''
-                    <div style="background: #fef9c3; padding: 10px; margin: 5px 0; border-radius: 6px; border-left: 3px solid #eab308;">
-                        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 6px;">
-                            <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">{tipo}</span>
+                    <div class="card-lista-laranja">
+                        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 4px;">
+                            <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
                             {popup_html}
                         </div>
-                        <div style="color: #713f12; font-size: 13px; margin-top: 4px; line-height: 1.4;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 80 else ""}</div>
-                        <div style="color: #854d0e; font-size: 12px; margin-top: 4px; font-weight: 500;">👤 Responsável: {responsavel}</div>
+                        <div style="font-size: 13px; color: #713f12; line-height: 1.4;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 80 else ""}</div>
+                        <div style="font-size: 11px; color: #854d0e; margin-top: 4px;">👤 {responsavel}</div>
                     </div>'''
                 cards_html2 += '</div>'
                 if len(df_valprod_pend) > limite_cards:
                     cards_html2 += f'<p style="color: #64748b; font-size: 12px; margin-top: 8px; text-align: center;">... e mais {len(df_valprod_pend) - limite_cards} cards</p>'
                 
-                altura_container2 = min(500, 80 * min(limite_cards, len(df_valprod_pend)) + 50)
-                components.html(cards_html2, height=altura_container2, scrolling=True)
+                st.markdown(cards_html2, unsafe_allow_html=True)
             
             with col_aguard3:
                 st.markdown(f"##### 📦 Backlog ({len(df_pb_aguard)})")
                 
-                # Gera HTML completo com scroll e fonte padronizada
-                cards_html3 = '''<div style="max-height: 400px; overflow-y: auto; padding-right: 5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">'''
+                cards_html3 = '<div class="scroll-container" style="max-height: 400px;">'
                 for _, card in df_pb_aguard.head(limite_cards).iterrows():
                     tipo = card.get('tipo', 'TAREFA')
                     tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#64748b"
-                    # Prioridade: responsavel > desenvolvedor > relator
                     responsavel = card.get('responsavel') or card.get('desenvolvedor') or card.get('relator', 'N/A')
                     if not responsavel or responsavel == 'Não atribuído':
                         responsavel = card.get('relator', 'N/A')
                     titulo = str(card.get('titulo', card.get('resumo', '')))[:80]
                     ticket_id = card.get('ticket_id', '')
-                    # Gera popup com opção NinaDash/Jira
-                    popup_html = card_link_para_html(ticket_id, 'PB')
+                    popup_html = card_link_com_popup(ticket_id, 'PB')
                     
                     cards_html3 += f'''
-                    <div style="background: #e0f2fe; padding: 10px; margin: 5px 0; border-radius: 6px; border-left: 3px solid #0ea5e9;">
-                        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 6px;">
-                            <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">{tipo}</span>
+                    <div class="card-lista-azul">
+                        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 4px;">
+                            <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
                             {popup_html}
                         </div>
-                        <div style="color: #075985; font-size: 13px; margin-top: 4px; line-height: 1.4;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 80 else ""}</div>
-                        <div style="color: #0369a1; font-size: 12px; margin-top: 4px; font-weight: 500;">👤 Responsável: {responsavel}</div>
+                        <div style="font-size: 13px; color: #075985; line-height: 1.4;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 80 else ""}</div>
+                        <div style="font-size: 11px; color: #0369a1; margin-top: 4px;">👤 {responsavel}</div>
                     </div>'''
                 cards_html3 += '</div>'
                 if len(df_pb_aguard) > limite_cards:
                     cards_html3 += f'<p style="color: #64748b; font-size: 12px; margin-top: 8px; text-align: center;">... e mais {len(df_pb_aguard) - limite_cards} cards</p>'
                 
-                altura_container3 = min(500, 80 * min(limite_cards, len(df_pb_aguard)) + 50)
-                components.html(cards_html3, height=altura_container3, scrolling=True)
+                st.markdown(cards_html3, unsafe_allow_html=True)
         
         # ===== GRÁFICOS: TIPOS E IDADE - EM EXPANDER =====
         with st.expander("📊 Análise de Distribuição", expanded=False):
