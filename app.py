@@ -1,20 +1,22 @@
 """
 ================================================================================
-JIRA DASHBOARD v8.80 - NINA TECNOLOGIA - VERSÃO COMPLETA E ENRIQUECIDA
+JIRA DASHBOARD v8.81 - NINA TECNOLOGIA - VERSÃO COMPLETA E ENRIQUECIDA
 ================================================================================
 📊 NinaDash — Dashboard de Inteligência e Métricas de QA
 
 🎯 Propósito: Transformar o QA de um processo sem visibilidade em um sistema 
    de inteligência operacional baseado em dados.
 
-MELHORIAS v8.80:
-- 🔧 SIDEBAR REORGANIZADA: Produto junto com Filtros do Dashboard
-- 🎯 FERRAMENTAS AVANÇADAS: Apenas Consulta Personalizada nesta seção
-- 📊 CONSULTA AUTO-EXECUTÁVEL: Resultados aparecem sem precisar clicar
-- 💾 CONSULTAS PERSISTENTES: Salvas em cookie (não perdem ao recarregar)
-- ✨ INTERFACE MELHORADA: Campo de nome em expander organizado
+MELHORIAS v8.81:
+- 🎨 MEU DASHBOARD: Tela totalmente nova para construir dashboards personalizados
+- ➕ ADICIONAR WIDGETS: Construtor no topo para adicionar métricas  
+- ⬆️⬇️ REORDENAR: Mova widgets para cima ou para baixo
+- 🗑️ REMOVER: Exclua widgets que não precisa mais
+- 📊 TEMPLATES: Visão Executiva, Foco DEV, Foco QA
+- 💾 PERSISTÊNCIA: Dashboard salvo em cookie
+- 🧹 SIDEBAR LIMPA: Apenas logo e botão voltar na tela do dashboard
 
-MELHORIAS v8.79:
+MELHORIAS v8.80:
 - 🎯 CONSULTA PERSONALIZADA: Tela separada para consultas avançadas
 - 🔍 FILTROS DINÂMICOS: Pessoa, status, período, produto personalizados
 - 📋 TIPOS DE CONSULTA: Cards, métricas, comparativos, tendências, bugs
@@ -1108,8 +1110,447 @@ PERIODOS_PREDEFINIDOS = {
     "personalizado": "📅 Período Personalizado",
 }
 
+# ===============================================================================
+# CATÁLOGO DE WIDGETS PARA MEU DASHBOARD
+# ===============================================================================
+
+CATALOGO_WIDGETS = {
+    # === KPIs SIMPLES ===
+    "kpi_total_cards": {
+        "nome": "📋 Total de Cards",
+        "categoria": "📊 KPIs",
+        "descricao": "Total de cards no período",
+        "tipo": "kpi",
+        "filtros": ["pessoa", "status", "periodo"],
+    },
+    "kpi_story_points": {
+        "nome": "⭐ Story Points",
+        "categoria": "📊 KPIs",
+        "descricao": "Total de Story Points",
+        "tipo": "kpi",
+        "filtros": ["pessoa", "status", "periodo"],
+    },
+    "kpi_bugs": {
+        "nome": "🐛 Total de Bugs",
+        "categoria": "📊 KPIs",
+        "descricao": "Quantidade de bugs encontrados",
+        "tipo": "kpi",
+        "filtros": ["pessoa", "periodo"],
+    },
+    "kpi_fator_k": {
+        "nome": "🎯 Fator K",
+        "categoria": "📊 KPIs",
+        "descricao": "Razão SP/Bugs (qualidade)",
+        "tipo": "kpi",
+        "filtros": ["pessoa", "periodo"],
+    },
+    "kpi_fpy": {
+        "nome": "✅ FPY",
+        "categoria": "📊 KPIs",
+        "descricao": "First Pass Yield - % aprovados de primeira",
+        "tipo": "kpi",
+        "filtros": ["pessoa", "periodo"],
+    },
+    "kpi_taxa_conclusao": {
+        "nome": "🏁 Taxa de Conclusão",
+        "categoria": "📊 KPIs",
+        "descricao": "% de cards concluídos",
+        "tipo": "kpi",
+        "filtros": ["pessoa", "periodo"],
+    },
+    
+    # === GRÁFICOS ===
+    "grafico_status": {
+        "nome": "📊 Gráfico por Status",
+        "categoria": "📈 Gráficos",
+        "descricao": "Distribuição de cards por status",
+        "tipo": "grafico_barra",
+        "filtros": ["pessoa", "periodo"],
+    },
+    "grafico_produto": {
+        "nome": "📦 Gráfico por Produto",
+        "categoria": "📈 Gráficos",
+        "descricao": "Distribuição de cards por produto",
+        "tipo": "grafico_barra",
+        "filtros": ["pessoa", "periodo"],
+    },
+    "grafico_responsavel": {
+        "nome": "👤 Gráfico por Responsável",
+        "categoria": "📈 Gráficos",
+        "descricao": "Cards por responsável",
+        "tipo": "grafico_barra",
+        "filtros": ["status", "periodo"],
+    },
+    "grafico_bugs_dev": {
+        "nome": "🐛 Bugs por Dev",
+        "categoria": "📈 Gráficos",
+        "descricao": "Bugs encontrados por desenvolvedor",
+        "tipo": "grafico_barra",
+        "filtros": ["periodo"],
+    },
+    
+    # === TABELAS ===
+    "tabela_ranking_devs": {
+        "nome": "🏆 Ranking Devs",
+        "categoria": "📋 Tabelas",
+        "descricao": "Ranking de desenvolvedores por Fator K",
+        "tipo": "tabela",
+        "filtros": ["periodo"],
+    },
+    "tabela_cards_recentes": {
+        "nome": "🕐 Cards Recentes",
+        "categoria": "📋 Tabelas",
+        "descricao": "Últimos cards atualizados",
+        "tipo": "tabela",
+        "filtros": ["pessoa", "status"],
+    },
+    "tabela_aging": {
+        "nome": "⏰ Aging",
+        "categoria": "📋 Tabelas",
+        "descricao": "Cards há muito tempo parados",
+        "tipo": "tabela",
+        "filtros": ["status"],
+    },
+    
+    # === LISTAS ===
+    "lista_cards_pessoa": {
+        "nome": "📋 Cards de uma Pessoa",
+        "categoria": "📝 Listas",
+        "descricao": "Lista de cards de uma pessoa específica",
+        "tipo": "lista",
+        "filtros": ["pessoa", "papel_pessoa", "status", "periodo"],
+    },
+    "lista_bugs": {
+        "nome": "🐛 Lista de Bugs",
+        "categoria": "📝 Listas",
+        "descricao": "Lista de bugs encontrados",
+        "tipo": "lista",
+        "filtros": ["pessoa", "periodo"],
+    },
+}
+
 # Nome do cookie para consultas salvas
 COOKIE_CONSULTAS_NAME = "ninadash_consultas_salvas"
+COOKIE_DASHBOARD_NAME = "ninadash_meu_dashboard"
+
+
+def inicializar_meu_dashboard():
+    """Inicializa o sistema de Meu Dashboard."""
+    if 'meu_dashboard_widgets' not in st.session_state:
+        # Tenta carregar do cookie
+        try:
+            cookie_manager = get_cookie_manager()
+            dashboard_cookie = cookie_manager.get(COOKIE_DASHBOARD_NAME)
+            if dashboard_cookie:
+                import json
+                st.session_state.meu_dashboard_widgets = json.loads(dashboard_cookie)
+            else:
+                st.session_state.meu_dashboard_widgets = []
+        except:
+            st.session_state.meu_dashboard_widgets = []
+    
+    if 'modo_meu_dashboard' not in st.session_state:
+        st.session_state.modo_meu_dashboard = False
+
+
+def _salvar_dashboard_cookie():
+    """Salva o dashboard no cookie para persistência."""
+    try:
+        import json
+        cookie_manager = get_cookie_manager()
+        
+        # Serializa os widgets (remove datetime objects)
+        widgets_serializaveis = []
+        for widget in st.session_state.meu_dashboard_widgets:
+            widget_copia = widget.copy()
+            filtros_copia = widget_copia.get('filtros', {}).copy()
+            for key in ['data_inicio', 'data_fim']:
+                if key in filtros_copia:
+                    if isinstance(filtros_copia[key], datetime):
+                        filtros_copia[key] = filtros_copia[key].isoformat()
+            widget_copia['filtros'] = filtros_copia
+            widgets_serializaveis.append(widget_copia)
+        
+        cookie_manager.set(
+            COOKIE_DASHBOARD_NAME,
+            json.dumps(widgets_serializaveis),
+            expires_at=datetime.now() + timedelta(days=365)
+        )
+    except:
+        pass
+
+
+def adicionar_widget(tipo_widget: str, filtros: Dict):
+    """Adiciona um widget ao dashboard."""
+    inicializar_meu_dashboard()
+    
+    widget_info = CATALOGO_WIDGETS.get(tipo_widget, {})
+    novo_widget = {
+        "id": f"widget_{datetime.now().timestamp()}",
+        "tipo": tipo_widget,
+        "nome": widget_info.get('nome', tipo_widget),
+        "filtros": filtros.copy(),
+        "criado_em": datetime.now().isoformat()
+    }
+    st.session_state.meu_dashboard_widgets.append(novo_widget)
+    _salvar_dashboard_cookie()
+
+
+def remover_widget(widget_id: str):
+    """Remove um widget do dashboard."""
+    st.session_state.meu_dashboard_widgets = [
+        w for w in st.session_state.meu_dashboard_widgets if w['id'] != widget_id
+    ]
+    _salvar_dashboard_cookie()
+
+
+def mover_widget_cima(widget_id: str):
+    """Move um widget para cima na lista."""
+    widgets = st.session_state.meu_dashboard_widgets
+    for i, w in enumerate(widgets):
+        if w['id'] == widget_id and i > 0:
+            widgets[i], widgets[i-1] = widgets[i-1], widgets[i]
+            break
+    _salvar_dashboard_cookie()
+
+
+def mover_widget_baixo(widget_id: str):
+    """Move um widget para baixo na lista."""
+    widgets = st.session_state.meu_dashboard_widgets
+    for i, w in enumerate(widgets):
+        if w['id'] == widget_id and i < len(widgets) - 1:
+            widgets[i], widgets[i+1] = widgets[i+1], widgets[i]
+            break
+    _salvar_dashboard_cookie()
+
+
+def renderizar_widget(widget: Dict, df: pd.DataFrame, idx: int, total: int):
+    """Renderiza um widget individual com controles."""
+    
+    tipo = widget['tipo']
+    filtros = widget.get('filtros', {})
+    widget_info = CATALOGO_WIDGETS.get(tipo, {})
+    
+    # Aplica filtros ao DataFrame
+    df_filtrado = aplicar_filtros_widget(df, filtros)
+    
+    # Container do widget com borda
+    with st.container():
+        # Header do widget com controles
+        col_titulo, col_controles = st.columns([4, 1])
+        
+        with col_titulo:
+            st.markdown(f"#### {widget_info.get('nome', tipo)}")
+            # Mostra filtros ativos
+            filtros_texto = []
+            if filtros.get('pessoa') and filtros['pessoa'] != 'Todos':
+                filtros_texto.append(f"👤 {filtros['pessoa']}")
+            if filtros.get('status') and filtros['status'] != 'todos':
+                filtros_texto.append(f"🏷️ {STATUS_FILTRO.get(filtros['status'], filtros['status'])}")
+            if filtros.get('periodo'):
+                filtros_texto.append(f"📅 {PERIODOS_PREDEFINIDOS.get(filtros['periodo'], filtros['periodo'])}")
+            if filtros_texto:
+                st.caption(" | ".join(filtros_texto))
+        
+        with col_controles:
+            col_up, col_down, col_del = st.columns(3)
+            with col_up:
+                if idx > 0:
+                    if st.button("⬆️", key=f"up_{widget['id']}", help="Mover para cima"):
+                        mover_widget_cima(widget['id'])
+                        st.rerun()
+            with col_down:
+                if idx < total - 1:
+                    if st.button("⬇️", key=f"down_{widget['id']}", help="Mover para baixo"):
+                        mover_widget_baixo(widget['id'])
+                        st.rerun()
+            with col_del:
+                if st.button("🗑️", key=f"del_{widget['id']}", help="Remover"):
+                    remover_widget(widget['id'])
+                    st.rerun()
+        
+        # Conteúdo do widget
+        tipo_viz = widget_info.get('tipo', 'kpi')
+        
+        if df_filtrado.empty:
+            st.info("Nenhum dado para os filtros selecionados")
+        elif tipo_viz == 'kpi':
+            renderizar_kpi_widget(tipo, df_filtrado)
+        elif tipo_viz == 'grafico_barra':
+            renderizar_grafico_widget(tipo, df_filtrado)
+        elif tipo_viz == 'tabela':
+            renderizar_tabela_widget(tipo, df_filtrado)
+        elif tipo_viz == 'lista':
+            renderizar_lista_widget(tipo, df_filtrado, filtros)
+        
+        st.markdown("---")
+
+
+def aplicar_filtros_widget(df: pd.DataFrame, filtros: Dict) -> pd.DataFrame:
+    """Aplica filtros ao DataFrame para um widget."""
+    df_filtrado = df.copy()
+    
+    # Filtro por período
+    if filtros.get('periodo'):
+        data_inicio, data_fim = calcular_periodo_datas(
+            filtros['periodo'],
+            filtros.get('data_inicio'),
+            filtros.get('data_fim')
+        )
+        if 'data_criacao' in df_filtrado.columns:
+            df_filtrado['data_criacao_dt'] = pd.to_datetime(df_filtrado['data_criacao'], errors='coerce')
+            df_filtrado['data_criacao_dt'] = df_filtrado['data_criacao_dt'].dt.tz_localize(None)
+            df_filtrado = df_filtrado[
+                (df_filtrado['data_criacao_dt'] >= data_inicio) & 
+                (df_filtrado['data_criacao_dt'] <= data_fim)
+            ]
+    
+    # Filtro por pessoa
+    if filtros.get('pessoa') and filtros['pessoa'] != 'Todos':
+        pessoa = filtros['pessoa']
+        papel = filtros.get('papel_pessoa', 'qualquer')
+        
+        if papel == 'responsavel':
+            df_filtrado = df_filtrado[df_filtrado['responsavel'].str.contains(pessoa, case=False, na=False)]
+        elif papel == 'qa':
+            df_filtrado = df_filtrado[df_filtrado['qa_responsavel'].str.contains(pessoa, case=False, na=False)]
+        elif papel == 'relator':
+            df_filtrado = df_filtrado[df_filtrado['relator'].str.contains(pessoa, case=False, na=False)]
+        else:
+            df_filtrado = df_filtrado[
+                df_filtrado['responsavel'].str.contains(pessoa, case=False, na=False) |
+                df_filtrado['qa_responsavel'].str.contains(pessoa, case=False, na=False) |
+                df_filtrado['relator'].str.contains(pessoa, case=False, na=False)
+            ]
+    
+    # Filtro por status
+    if filtros.get('status') and filtros['status'] != 'todos':
+        status_map = {
+            "concluido": ["done"],
+            "em_andamento": ["development"],
+            "em_validacao": ["testing"],
+            "aguardando_qa": ["waiting_qa"],
+            "code_review": ["code_review"],
+            "impedido": ["blocked"],
+            "reprovado": ["rejected"],
+            "backlog": ["backlog"],
+        }
+        categorias = status_map.get(filtros['status'], [])
+        if categorias:
+            df_filtrado = df_filtrado[df_filtrado['status_categoria'].isin(categorias)]
+    
+    return df_filtrado
+
+
+def renderizar_kpi_widget(tipo: str, df: pd.DataFrame):
+    """Renderiza um widget KPI."""
+    
+    if tipo == "kpi_total_cards":
+        valor = len(df)
+        st.metric("Total de Cards", f"{valor:,}")
+    
+    elif tipo == "kpi_story_points":
+        valor = int(df['story_points'].sum())
+        st.metric("Story Points", f"{valor:,}")
+    
+    elif tipo == "kpi_bugs":
+        valor = int(df['bugs_encontrados'].sum())
+        st.metric("Bugs Encontrados", f"{valor:,}")
+    
+    elif tipo == "kpi_fator_k":
+        sp = df['story_points'].sum()
+        bugs = df['bugs_encontrados'].sum()
+        fk = sp / (bugs + 1)
+        cor = "normal" if fk >= 3 else "inverse"
+        st.metric("Fator K", f"{fk:.2f}", help="SP / (Bugs + 1)")
+    
+    elif tipo == "kpi_fpy":
+        total = len(df)
+        sem_bugs = len(df[df['bugs_encontrados'] == 0])
+        fpy = (sem_bugs / total * 100) if total > 0 else 0
+        st.metric("FPY", f"{fpy:.1f}%", help="Cards sem bugs")
+    
+    elif tipo == "kpi_taxa_conclusao":
+        total = len(df)
+        concluidos = len(df[df['status_categoria'] == 'done'])
+        taxa = (concluidos / total * 100) if total > 0 else 0
+        st.metric("Taxa Conclusão", f"{taxa:.1f}%")
+
+
+def renderizar_grafico_widget(tipo: str, df: pd.DataFrame):
+    """Renderiza um widget de gráfico."""
+    
+    if tipo == "grafico_status":
+        contagem = df['status'].value_counts().head(10)
+        fig = px.bar(x=contagem.index, y=contagem.values, labels={'x': 'Status', 'y': 'Quantidade'})
+        fig.update_layout(height=300, margin=dict(l=20, r=20, t=20, b=20))
+        st.plotly_chart(fig, use_container_width=True)
+    
+    elif tipo == "grafico_produto":
+        contagem = df['produto'].value_counts().head(10)
+        fig = px.bar(x=contagem.index, y=contagem.values, labels={'x': 'Produto', 'y': 'Quantidade'})
+        fig.update_layout(height=300, margin=dict(l=20, r=20, t=20, b=20))
+        st.plotly_chart(fig, use_container_width=True)
+    
+    elif tipo == "grafico_responsavel":
+        contagem = df['responsavel'].value_counts().head(10)
+        fig = px.bar(x=contagem.index, y=contagem.values, labels={'x': 'Responsável', 'y': 'Quantidade'})
+        fig.update_layout(height=300, margin=dict(l=20, r=20, t=20, b=20))
+        st.plotly_chart(fig, use_container_width=True)
+    
+    elif tipo == "grafico_bugs_dev":
+        bugs_dev = df.groupby('responsavel')['bugs_encontrados'].sum().sort_values(ascending=False).head(10)
+        fig = px.bar(x=bugs_dev.index, y=bugs_dev.values, labels={'x': 'Desenvolvedor', 'y': 'Bugs'})
+        fig.update_layout(height=300, margin=dict(l=20, r=20, t=20, b=20))
+        st.plotly_chart(fig, use_container_width=True)
+
+
+def renderizar_tabela_widget(tipo: str, df: pd.DataFrame):
+    """Renderiza um widget de tabela."""
+    
+    if tipo == "tabela_ranking_devs":
+        ranking = df.groupby('responsavel').agg({
+            'story_points': 'sum',
+            'bugs_encontrados': 'sum',
+            'key': 'count'
+        }).reset_index()
+        ranking.columns = ['Desenvolvedor', 'SP', 'Bugs', 'Cards']
+        ranking['FK'] = (ranking['SP'] / (ranking['Bugs'] + 1)).round(2)
+        ranking = ranking.sort_values('FK', ascending=False).head(10)
+        st.dataframe(ranking, use_container_width=True, hide_index=True, height=300)
+    
+    elif tipo == "tabela_cards_recentes":
+        colunas = ['key', 'resumo', 'responsavel', 'status', 'story_points']
+        colunas_existentes = [c for c in colunas if c in df.columns]
+        df_recentes = df[colunas_existentes].head(10)
+        st.dataframe(df_recentes, use_container_width=True, hide_index=True, height=300)
+    
+    elif tipo == "tabela_aging":
+        # Cards parados há mais de 7 dias
+        if 'data_atualizacao' in df.columns:
+            df['data_atualizacao_dt'] = pd.to_datetime(df['data_atualizacao'], errors='coerce')
+            df['dias_parado'] = (datetime.now() - df['data_atualizacao_dt'].dt.tz_localize(None)).dt.days
+            aging = df[df['dias_parado'] > 7][['key', 'resumo', 'status', 'dias_parado']].sort_values('dias_parado', ascending=False).head(10)
+            st.dataframe(aging, use_container_width=True, hide_index=True, height=300)
+        else:
+            st.info("Dados de atualização não disponíveis")
+
+
+def renderizar_lista_widget(tipo: str, df: pd.DataFrame, filtros: Dict):
+    """Renderiza um widget de lista de cards."""
+    
+    if tipo in ["lista_cards_pessoa", "lista_bugs"]:
+        for _, row in df.head(15).iterrows():
+            col1, col2 = st.columns([1, 4])
+            with col1:
+                st.markdown(f"**[{row['key']}]({link_jira(row['key'])})**")
+            with col2:
+                titulo = str(row.get('resumo', ''))[:60]
+                st.markdown(f"{titulo}")
+                st.caption(f"👤 {row.get('responsavel', 'N/A')} | 📌 {row.get('status', 'N/A')}")
+        
+        if len(df) > 15:
+            st.caption(f"... e mais {len(df) - 15} cards")
 
 
 def inicializar_consultas_personalizadas():
@@ -1435,275 +1876,176 @@ def renderizar_resultado_consulta(df_filtrado: pd.DataFrame, tipo: str, filtros:
 
 
 def tela_consulta_personalizada(df_todos: pd.DataFrame):
-    """Renderiza a tela de consulta personalizada (tela separada)."""
+    """Renderiza a tela de Meu Dashboard - Dashboard Builder personalizado."""
     
-    inicializar_consultas_personalizadas()
+    inicializar_meu_dashboard()
     
-    # Header
+    # ===============================================
+    # HEADER
+    # ===============================================
     st.markdown("""
-    <div style="text-align: center; padding: 20px 0;">
-        <h1 style="color: #AF0C37; margin: 0;">🔍 Consulta Personalizada</h1>
-        <p style="color: #666; font-size: 1.1em;">Crie consultas avançadas com filtros personalizados</p>
+    <div style="text-align: center; padding: 10px 0 20px;">
+        <h1 style="color: #AF0C37; margin: 0; font-size: 2em;">🎨 Meu Dashboard</h1>
+        <p style="color: #666; font-size: 1em; margin-top: 5px;">Monte seu dashboard personalizado com as métricas que você precisa</p>
     </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("---")
-    
-    # Tabs principais
-    tab_nova, tab_salvas = st.tabs(["🆕 Nova Consulta", "💾 Consultas Salvas"])
-    
-    # === TAB: NOVA CONSULTA ===
-    with tab_nova:
-        col_config, col_preview = st.columns([1, 2])
+    # ===============================================
+    # SEÇÃO 1: CONSTRUTOR DE WIDGET (TOPO)
+    # ===============================================
+    with st.container():
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); 
+                    border-radius: 10px; padding: 20px; margin-bottom: 20px;
+                    border: 1px solid #dee2e6;">
+            <h3 style="color: #AF0C37; margin: 0 0 15px 0;">➕ Adicionar Widget</h3>
+        </div>
+        """, unsafe_allow_html=True)
         
-        with col_config:
-            st.markdown("### ⚙️ Configurar Consulta")
+        # Formulário de adicionar widget
+        col1, col2, col3 = st.columns([2, 2, 1])
+        
+        with col1:
+            # Agrupa widgets por categoria
+            categorias = {}
+            for widget_id, widget_info in CATALOGO_WIDGETS.items():
+                cat = widget_info.get('categoria', 'Outros')
+                if cat not in categorias:
+                    categorias[cat] = []
+                categorias[cat].append((widget_id, widget_info['nome']))
             
-            # Tipo de consulta
-            tipo_consulta = st.selectbox(
-                "📊 O que você quer consultar?",
-                options=list(TIPOS_CONSULTA.keys()),
-                format_func=lambda x: TIPOS_CONSULTA[x]['nome'],
-                key="select_tipo_consulta"
+            # Opções agrupadas
+            opcoes_widget = []
+            for cat, widgets in sorted(categorias.items()):
+                for wid, nome in widgets:
+                    opcoes_widget.append(wid)
+            
+            tipo_widget = st.selectbox(
+                "📊 Tipo de Widget",
+                options=opcoes_widget,
+                format_func=lambda x: f"{CATALOGO_WIDGETS[x]['categoria']} | {CATALOGO_WIDGETS[x]['nome']}",
+                key="select_widget_tipo"
             )
             
-            consulta_info = TIPOS_CONSULTA[tipo_consulta]
-            st.info(consulta_info['descricao'])
+            widget_info = CATALOGO_WIDGETS.get(tipo_widget, {})
+            st.caption(widget_info.get('descricao', ''))
+        
+        with col2:
+            # Filtros disponíveis para o widget selecionado
+            filtros_widget = {}
+            filtros_disponiveis = widget_info.get('filtros', [])
             
-            st.markdown("---")
-            st.markdown("### 🎛️ Filtros")
+            # Coleta pessoas únicas
+            pessoas = set()
+            if 'responsavel' in df_todos.columns:
+                pessoas.update(df_todos['responsavel'].dropna().unique())
+            if 'qa_responsavel' in df_todos.columns:
+                pessoas.update(df_todos['qa_responsavel'].dropna().unique())
+            pessoas = sorted([p for p in pessoas if p and p != 'Não atribuído' and len(str(p)) > 2])
             
-            filtros = {}
-            filtros_disponiveis = consulta_info.get('filtros', [])
-            
-            # === FILTRO: PESSOA ===
-            if 'pessoa' in filtros_disponiveis or 'pessoas_multiplas' in filtros_disponiveis:
-                # Coleta todas as pessoas únicas
-                pessoas = set()
-                if 'responsavel' in df_todos.columns:
-                    pessoas.update(df_todos['responsavel'].dropna().unique())
-                if 'qa_responsavel' in df_todos.columns:
-                    pessoas.update(df_todos['qa_responsavel'].dropna().unique())
-                if 'relator' in df_todos.columns:
-                    pessoas.update(df_todos['relator'].dropna().unique())
-                
-                pessoas = sorted([p for p in pessoas if p and p != 'Não atribuído' and len(str(p)) > 2])
-                
-                if 'pessoas_multiplas' in filtros_disponiveis:
-                    filtros['pessoas_multiplas'] = st.multiselect(
-                        "👥 Pessoas para comparar",
-                        options=pessoas,
-                        key="filtro_pessoas_multi"
-                    )
-                else:
-                    filtros['pessoa'] = st.selectbox(
-                        "👤 Pessoa",
-                        options=["Todos"] + pessoas,
-                        key="filtro_pessoa"
-                    )
-            
-            # === FILTRO: PAPEL DA PESSOA ===
-            if 'papel_pessoa' in filtros_disponiveis:
-                filtros['papel_pessoa'] = st.selectbox(
-                    "🎭 Papel da pessoa",
-                    options=list(PAPEIS_PESSOA.keys()),
-                    format_func=lambda x: PAPEIS_PESSOA[x],
-                    key="filtro_papel"
+            if 'pessoa' in filtros_disponiveis:
+                filtros_widget['pessoa'] = st.selectbox(
+                    "👤 Pessoa",
+                    options=["Todos"] + pessoas,
+                    key="widget_filtro_pessoa"
                 )
             
-            # === FILTRO: STATUS ===
+            if 'papel_pessoa' in filtros_disponiveis:
+                filtros_widget['papel_pessoa'] = st.selectbox(
+                    "🎭 Papel",
+                    options=list(PAPEIS_PESSOA.keys()),
+                    format_func=lambda x: PAPEIS_PESSOA[x],
+                    key="widget_filtro_papel"
+                )
+            
             if 'status' in filtros_disponiveis:
-                filtros['status'] = st.selectbox(
+                filtros_widget['status'] = st.selectbox(
                     "🏷️ Status",
                     options=list(STATUS_FILTRO.keys()),
                     format_func=lambda x: STATUS_FILTRO[x],
-                    key="filtro_status"
+                    key="widget_filtro_status"
                 )
             
-            # === FILTRO: PRODUTO ===
-            if 'produto' in filtros_disponiveis:
-                produtos = ["Todos"] + sorted(df_todos['produto'].dropna().unique().tolist())
-                filtros['produto'] = st.selectbox(
-                    "📦 Produto",
-                    options=produtos,
-                    key="filtro_produto_consulta"
-                )
-            
-            # === FILTRO: PERÍODO ===
-            if 'periodo' in filtros_disponiveis or 'periodo_range' in filtros_disponiveis:
-                filtros['periodo'] = st.selectbox(
+            if 'periodo' in filtros_disponiveis:
+                filtros_widget['periodo'] = st.selectbox(
                     "📅 Período",
                     options=list(PERIODOS_PREDEFINIDOS.keys()),
                     format_func=lambda x: PERIODOS_PREDEFINIDOS[x],
-                    key="filtro_periodo",
-                    index=5  # Default: "Todo o Período"
+                    key="widget_filtro_periodo",
+                    index=5  # Todo o Período
                 )
-                
-                if filtros['periodo'] == 'personalizado':
-                    col_d1, col_d2 = st.columns(2)
-                    with col_d1:
-                        filtros['data_inicio'] = st.date_input(
-                            "Data início",
-                            value=datetime.now() - timedelta(days=30),
-                            key="filtro_data_inicio"
-                        )
-                    with col_d2:
-                        filtros['data_fim'] = st.date_input(
-                            "Data fim",
-                            value=datetime.now(),
-                            key="filtro_data_fim"
-                        )
-                    # Converte para datetime
-                    filtros['data_inicio'] = datetime.combine(filtros['data_inicio'], datetime.min.time())
-                    filtros['data_fim'] = datetime.combine(filtros['data_fim'], datetime.max.time())
-            
-            st.markdown("---")
-            
-            # === SALVAR CONSULTA (interface melhorada) ===
-            with st.expander("💾 Salvar esta Consulta", expanded=False):
-                nome_consulta = st.text_input(
-                    "Nome para a consulta",
-                    placeholder="Ex: Meus cards concluídos",
-                    key="nome_consulta_salvar",
-                    help="Dê um nome descritivo para encontrar facilmente depois"
-                )
-                
-                if st.button("✅ Salvar", key="btn_salvar_consulta", use_container_width=True, disabled=not nome_consulta):
-                    if nome_consulta:
-                        salvar_consulta(nome_consulta, tipo_consulta, filtros)
-                        st.success(f"✅ Consulta '{nome_consulta}' salva com sucesso!")
-                        st.balloons()
-                    else:
-                        st.warning("Digite um nome para a consulta")
         
-        with col_preview:
-            st.markdown("### 📊 Resultado")
-            
-            # Sempre executa a consulta automaticamente (sem precisar de clique)
-            df_filtrado = filtrar_df_por_consulta(df_todos.copy(), tipo_consulta, filtros)
-            
-            # Mostra resumo dos filtros aplicados
-            filtros_ativos = []
-            if filtros.get('pessoa') and filtros.get('pessoa') != "Todos":
-                filtros_ativos.append(f"👤 {filtros['pessoa']}")
-            if filtros.get('papel_pessoa') and filtros.get('papel_pessoa') != "qualquer":
-                filtros_ativos.append(f"🎭 {PAPEIS_PESSOA.get(filtros['papel_pessoa'], '')}")
-            if filtros.get('status') and filtros.get('status') != "todos":
-                filtros_ativos.append(f"🏷️ {STATUS_FILTRO.get(filtros['status'], '')}")
-            if filtros.get('produto') and filtros.get('produto') != "Todos":
-                filtros_ativos.append(f"📦 {filtros['produto']}")
-            if filtros.get('periodo'):
-                filtros_ativos.append(f"📅 {PERIODOS_PREDEFINIDOS.get(filtros['periodo'], '')}")
-            
-            if filtros_ativos:
-                st.caption(f"Filtros: {' | '.join(filtros_ativos)}")
-            
-            if not df_filtrado.empty:
-                renderizar_resultado_consulta(df_filtrado, tipo_consulta, filtros)
-            else:
-                st.warning("⚠️ Nenhum resultado encontrado para os filtros selecionados.")
-                st.info("💡 Tente ampliar o período ou remover alguns filtros.")
+        with col3:
+            st.markdown("<br>", unsafe_allow_html=True)  # Espaçamento
+            if st.button("➕ Adicionar", type="primary", use_container_width=True, key="btn_adicionar_widget"):
+                adicionar_widget(tipo_widget, filtros_widget)
+                st.success(f"Widget '{widget_info['nome']}' adicionado!")
+                st.rerun()
     
-    # === TAB: CONSULTAS SALVAS ===
-    with tab_salvas:
-        consultas = listar_consultas_salvas()
+    st.markdown("---")
+    
+    # ===============================================
+    # SEÇÃO 2: WIDGETS ADICIONADOS (ABAIXO)
+    # ===============================================
+    widgets = st.session_state.meu_dashboard_widgets
+    
+    if not widgets:
+        # Estado vazio - mostra sugestões
+        st.markdown("""
+        <div style="text-align: center; padding: 40px 20px; background: #f8f9fa; 
+                    border-radius: 10px; border: 2px dashed #dee2e6;">
+            <h3 style="color: #6c757d; margin: 0;">📭 Seu dashboard está vazio</h3>
+            <p style="color: #adb5bd; margin-top: 10px;">Use o construtor acima para adicionar widgets</p>
+        </div>
+        """, unsafe_allow_html=True)
         
-        if not consultas:
-            st.info("🔖 Você ainda não tem consultas salvas.")
-            st.markdown("Para salvar uma consulta:")
-            st.markdown("1. Vá para a aba **Nova Consulta**")
-            st.markdown("2. Configure os filtros desejados")
-            st.markdown("3. Clique em **💾 Salvar esta Consulta**")
-            st.markdown("4. Dê um nome e confirme")
-            
-            st.markdown("---")
-            
-            # Sugestões de consultas rápidas
-            st.markdown("### 💡 Criar Consultas Rápidas")
-            st.caption("Clique para criar automaticamente:")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("📋 Cards Concluídos Recentes", use_container_width=True, key="sugestao_1"):
-                    salvar_consulta("Cards Concluídos Recentes", "cards_status", {
-                        "status": "concluido",
-                        "periodo": "ultimas_2_semanas"
-                    })
-                    st.success("✅ Consulta criada!")
-                    st.rerun()
-            
-            with col2:
-                if st.button("🐛 Bugs do Mês", use_container_width=True, key="sugestao_2"):
-                    salvar_consulta("Bugs do Mês", "bugs_analise", {
-                        "periodo": "ultimo_mes"
-                    })
-                    st.success("✅ Consulta criada!")
-                    st.rerun()
-            
-            col3, col4 = st.columns(2)
-            with col3:
-                if st.button("📊 Métricas Gerais", use_container_width=True, key="sugestao_3"):
-                    salvar_consulta("Métricas Gerais", "metricas_pessoa", {
-                        "periodo": "todo_periodo"
-                    })
-                    st.success("✅ Consulta criada!")
-                    st.rerun()
-            
-            with col4:
-                if st.button("🎯 Fator K Detalhado", use_container_width=True, key="sugestao_4"):
-                    salvar_consulta("Fator K Detalhado", "fator_k_detalhado", {
-                        "periodo": "ultimos_3_meses"
-                    })
-                    st.success("✅ Consulta criada!")
-                    st.rerun()
-        else:
-            st.markdown(f"### 📂 Suas Consultas ({len(consultas)})")
-            
-            for nome, consulta in consultas.items():
-                tipo = consulta.get('tipo', '')
-                tipo_nome = TIPOS_CONSULTA.get(tipo, {}).get('nome', tipo)
-                criado_em = consulta.get('criado_em', '')[:16] if consulta.get('criado_em') else 'N/A'
-                
-                with st.container():
-                    col1, col2, col3 = st.columns([3, 1, 1])
-                    
-                    with col1:
-                        st.markdown(f"**{nome}**")
-                        st.caption(f"{tipo_nome} • Criada em {criado_em}")
-                    
-                    with col2:
-                        if st.button("▶️ Executar", key=f"exec_{nome}", use_container_width=True):
-                            # Guarda a consulta para executar
-                            st.session_state.consulta_executar = {
-                                "nome": nome,
-                                "tipo": tipo,
-                                "filtros": consulta.get('filtros', {})
-                            }
-                            st.rerun()
-                    
-                    with col3:
-                        if st.button("🗑️", key=f"del_{nome}", use_container_width=True, help="Excluir consulta"):
-                            excluir_consulta(nome)
-                            st.success(f"Consulta '{nome}' excluída!")
-                            st.rerun()
-                
-                st.markdown("---")
-            
-            # Mostra resultado se uma consulta foi executada
-            if 'consulta_executar' in st.session_state and st.session_state.consulta_executar:
-                consulta_exec = st.session_state.consulta_executar
-                st.markdown(f"### 📊 Resultado: {consulta_exec['nome']}")
-                
-                df_filtrado = filtrar_df_por_consulta(df_todos.copy(), consulta_exec['tipo'], consulta_exec['filtros'])
-                
-                if not df_filtrado.empty:
-                    renderizar_resultado_consulta(df_filtrado, consulta_exec['tipo'], consulta_exec['filtros'])
-                else:
-                    st.warning("⚠️ Nenhum resultado encontrado para esta consulta.")
-                
-                if st.button("❌ Fechar resultado", key="fechar_resultado"):
-                    st.session_state.consulta_executar = None
-                    st.rerun()
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("### 💡 Começar com Templates")
+        st.caption("Clique para adicionar um conjunto de widgets pré-configurados:")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("📊 Visão Executiva", use_container_width=True, key="template_exec"):
+                adicionar_widget("kpi_total_cards", {"periodo": "ultimo_mes"})
+                adicionar_widget("kpi_story_points", {"periodo": "ultimo_mes"})
+                adicionar_widget("kpi_fator_k", {"periodo": "ultimo_mes"})
+                adicionar_widget("grafico_status", {"periodo": "ultimo_mes"})
+                st.success("Template 'Visão Executiva' adicionado!")
+                st.rerun()
+        
+        with col2:
+            if st.button("👨‍💻 Foco DEV", use_container_width=True, key="template_dev"):
+                adicionar_widget("tabela_ranking_devs", {"periodo": "ultimo_mes"})
+                adicionar_widget("grafico_bugs_dev", {"periodo": "ultimo_mes"})
+                adicionar_widget("kpi_fpy", {"periodo": "ultimo_mes"})
+                st.success("Template 'Foco DEV' adicionado!")
+                st.rerun()
+        
+        with col3:
+            if st.button("🔬 Foco QA", use_container_width=True, key="template_qa"):
+                adicionar_widget("kpi_bugs", {"periodo": "ultimo_mes"})
+                adicionar_widget("kpi_taxa_conclusao", {"periodo": "ultimo_mes"})
+                adicionar_widget("tabela_aging", {"status": "em_validacao"})
+                st.success("Template 'Foco QA' adicionado!")
+                st.rerun()
+    
+    else:
+        # Mostra contagem e botão limpar
+        col_info, col_limpar = st.columns([4, 1])
+        with col_info:
+            st.markdown(f"### 📊 Seus Widgets ({len(widgets)})")
+        with col_limpar:
+            if st.button("🗑️ Limpar Tudo", key="btn_limpar_todos"):
+                st.session_state.meu_dashboard_widgets = []
+                _salvar_dashboard_cookie()
+                st.rerun()
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Renderiza cada widget
+        for idx, widget in enumerate(widgets):
+            renderizar_widget(widget, df_todos, idx, len(widgets))
 
 
 # Mantém compatibilidade com a função antiga mas redireciona para nova
@@ -12136,28 +12478,42 @@ def aba_sobre():
         
         ---
         
-        ### 🎯 Consulta Personalizada (NOVA!)
+        ### � Meu Dashboard (NOVO!)
         
-        Acesse pelo botão **"🎯 Consulta Personalizada"** na sidebar!
+        Acesse pelo botão **"🎨 Meu Dashboard"** na sidebar!
         
-        **Tipos de consulta disponíveis:**
-        - 📋 **Cards de uma Pessoa**: Liste todos os cards de alguém com filtros avançados
-        - 📊 **Métricas de uma Pessoa**: KPIs e métricas agregadas individuais
-        - 🏷️ **Cards por Status**: Filtre por status específico (concluído, em andamento, etc.)
-        - 📦 **Cards por Produto**: Análise por produto
-        - ⚖️ **Comparativo**: Compare métricas entre várias pessoas
-        - 📈 **Tendência**: Evolução de métricas ao longo do tempo
-        - 🐛 **Análise de Bugs**: Bugs com filtros avançados
-        - 🎯 **Fator K Detalhado**: Análise profunda do Fator K
+        **Uma tela totalmente separada** para construir seu dashboard personalizado:
         
-        **Filtros disponíveis:**
-        - 👤 **Pessoa**: Filtre por qualquer pessoa do time
-        - 🎭 **Papel**: Responsável, QA ou Relator
-        - 🏷️ **Status**: Concluído, em andamento, aguardando QA, etc.
-        - 📦 **Produto**: Filtre por produto específico
-        - 📅 **Período**: Sprint atual, semanas, mês ou datas personalizadas
+        **Como funciona:**
+        1. ➕ **Adicionar Widget**: Escolha o tipo de widget no topo da tela
+        2. 🎛️ **Configurar Filtros**: Selecione pessoa, status, período conforme necessário
+        3. 📊 **Visualizar**: O widget aparece na área abaixo
+        4. ⬆️⬇️ **Reordenar**: Mova widgets para cima ou para baixo
+        5. 🗑️ **Remover**: Exclua widgets que não precisa mais
         
-        **Salve suas consultas favoritas** para reutilizar depois!
+        **Tipos de Widgets:**
+        - 📋 **Total de Cards** - Contador de cards
+        - ⭐ **Story Points** - Total de SP
+        - 🐛 **Total de Bugs** - Contador de bugs
+        - 🎯 **Fator K** - Métrica de qualidade
+        - ✅ **FPY** - First Pass Yield
+        - 🏁 **Taxa de Conclusão** - % concluídos
+        - 📊 **Gráfico por Status** - Distribuição visual
+        - 📦 **Gráfico por Produto** - Distribuição visual
+        - 👤 **Gráfico por Responsável** - Cards por pessoa
+        - 🐛 **Bugs por Dev** - Análise de bugs
+        - 🏆 **Ranking Devs** - Tabela de ranking
+        - 🕐 **Cards Recentes** - Últimas atualizações
+        - ⏰ **Aging** - Cards parados
+        - 📋 **Lista de Cards** - Cards de uma pessoa
+        - 🐛 **Lista de Bugs** - Bugs filtrados
+        
+        **Templates prontos:**
+        - 📊 **Visão Executiva**: KPIs principais + gráfico de status
+        - 👨‍💻 **Foco DEV**: Ranking + bugs por dev + FPY
+        - 🔬 **Foco QA**: Bugs + taxa conclusão + aging
+        
+        **💾 Persistência**: Seu dashboard fica salvo mesmo depois de fechar o navegador!
         
         ---
         
@@ -12252,6 +12608,92 @@ def main():
         st.session_state.card_buscado = ""
     if 'projeto_buscado' not in st.session_state:
         st.session_state.projeto_buscado = "SD"
+    
+    # Inicializa modo Meu Dashboard
+    if 'modo_consulta_personalizada' not in st.session_state:
+        st.session_state.modo_consulta_personalizada = False
+    
+    # Verifica se veio via query param para Meu Dashboard
+    if query_params.get("tela", None) == "meu_dashboard":
+        st.session_state.modo_consulta_personalizada = True
+    
+    # ===============================================================
+    # MODO MEU DASHBOARD - TELA SEPARADA COM SIDEBAR LIMPA
+    # ===============================================================
+    if st.session_state.modo_consulta_personalizada:
+        # SIDEBAR MINIMALISTA - apenas logo, usuário e voltar
+        with st.sidebar:
+            # Logo
+            st.markdown('''
+            <div style="text-align: center; padding: 10px 0 5px 0;">
+                <svg width="70" height="70" viewBox="0 0 187 187" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M173.709 89.2107C172.209 86.6048 169.414 84.838 166.225 84.838C163.036 84.838 160.241 86.5649 158.741 89.1627H151.683C149.465 58.8237 124.495 35 94.0216 35C63.5489 35 38.5862 58.8237 36.3678 89.1627H29.1759C27.6759 86.5649 24.8734 84.798 21.6682 84.798C18.463 84.798 15.6605 86.5806 14.1605 89.2031C13.4184 90.4899 13 92.001 13 93.6C13 95.1987 13.4184 96.7017 14.1605 97.997C15.6605 100.619 18.463 102.306 21.6682 102.306C24.8734 102.306 27.6838 100.435 29.1759 97.8369H36.3678C38.5862 128.168 63.5489 152 94.0216 152C124.495 152 149.465 128.176 151.675 97.8369H158.686C160.178 100.435 162.996 102.354 166.217 102.354C169.438 102.354 172.256 100.611 173.749 97.9648C174.475 96.6856 174.885 95.2148 174.885 93.6319C174.885 92.049 174.451 90.5222 173.701 89.2188L173.709 89.2107ZM111.145 125.554C107.971 131.518 101.758 135.459 94.5981 135.459C87.4374 135.459 81.2248 131.566 78.0509 125.602C77.1666 123.947 78.3667 122.092 80.2219 122.092H108.982C110.837 122.092 112.029 123.891 111.153 125.554H111.145ZM140.528 94.1277C140.528 103.825 132.76 111.691 123.184 111.691H65.4432C55.8675 111.691 48.0991 103.825 48.0991 94.1277V93.7199C48.0991 84.0223 55.8675 76.1557 65.4432 76.1557H123.184C132.76 76.1557 140.528 84.0223 140.528 93.7199V94.1277Z" fill="#AF0C37"/>
+                <path d="M76.5809 105.311C82.9686 105.311 88.1466 100.068 88.1466 93.5996C88.1466 87.1312 82.9686 81.8875 76.5809 81.8875C70.1936 81.8875 65.0156 87.1312 65.0156 93.5996C65.0156 100.068 70.1936 105.311 76.5809 105.311Z" fill="#AF0C37"/>
+                <path d="M111.437 105.311C117.824 105.311 123.002 100.068 123.002 93.5996C123.002 87.1312 117.824 81.8875 111.437 81.8875C105.049 81.8875 99.8712 87.1312 99.8712 93.5996C99.8712 100.068 105.049 105.311 111.437 105.311Z" fill="#AF0C37"/>
+                </svg>
+            </div>
+            <div style="text-align: center; margin-bottom: 5px;">
+                <h2 style="color: #AF0C37; margin: 0; font-size: 1.8em;">NinaDash</h2>
+                <p style="color: #666; font-size: 0.85em; margin: 2px 0 0 0; font-style: italic;">
+                    Meu Dashboard
+                </p>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+            # Usuário logado
+            user_nome = st.session_state.get("user_nome", "Usuário")
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #AF0C37 0%, #8F0A2E 100%); 
+                        padding: 10px; border-radius: 8px; margin: 10px 0; text-align: center;">
+                <p style="margin: 0; color: white; font-size: 13px;">👤 {user_nome}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("---")
+            
+            # Botão voltar (grande e em destaque)
+            if st.button("⬅️ Voltar ao Dashboard", type="primary", use_container_width=True, key="btn_voltar_meu_dashboard"):
+                st.session_state.modo_consulta_personalizada = False
+                st.query_params.clear()
+                st.rerun()
+            
+            st.markdown("---")
+            
+            # Rodapé minimalista
+            st.markdown("""
+            <div style="text-align: center; padding: 10px 0; color: #999; font-size: 0.75em;">
+                📌 N9 • Qualidade e Decisão
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # CARREGA DADOS DE TODOS OS PROJETOS
+        with st.spinner("🔄 Carregando dados de todos os projetos..."):
+            todos_dfs = []
+            
+            for proj in ["SD", "QA", "PB"]:
+                try:
+                    jql_proj = f'project = {proj} ORDER BY created DESC'
+                    issues_proj, _ = buscar_dados_jira_cached(proj, jql_proj)
+                    if issues_proj:
+                        df_proj = processar_issues(issues_proj)
+                        df_proj['projeto'] = proj
+                        todos_dfs.append(df_proj)
+                except:
+                    pass
+            
+            if todos_dfs:
+                df_todos = pd.concat(todos_dfs, ignore_index=True)
+            else:
+                st.error("❌ Não foi possível carregar dados")
+                st.stop()
+        
+        # RENDERIZA A TELA MEU DASHBOARD
+        tela_consulta_personalizada(df_todos)
+        return  # Sai da função main() - não renderiza mais nada
+    
+    # ===============================================================
+    # MODO NORMAL - SIDEBAR COMPLETA COM FILTROS
+    # ===============================================================
     
     # Se veio via URL, ativa a busca automaticamente
     if card_compartilhado and not st.session_state.busca_ativa:
@@ -12407,46 +12849,6 @@ def main():
             projeto = st.session_state.projeto_buscado
             filtro_sprint = "Sprint Ativa"  # Não usado na busca específica
     
-    # ===== MODO CONSULTA PERSONALIZADA =====
-    # Inicializa o estado se não existir
-    if 'modo_consulta_personalizada' not in st.session_state:
-        st.session_state.modo_consulta_personalizada = False
-    
-    if st.session_state.modo_consulta_personalizada:
-        # === SIDEBAR SIMPLIFICADA PARA CONSULTA PERSONALIZADA ===
-        with st.sidebar:
-            st.markdown("---")
-            
-            # Botão voltar
-            if st.button("⬅️ Voltar ao Dashboard", type="primary", use_container_width=True, key="btn_voltar_consulta"):
-                st.session_state.modo_consulta_personalizada = False
-                st.rerun()
-        
-        # === CARREGA DADOS DE TODOS OS PROJETOS ===
-        with st.spinner("🔄 Carregando dados de todos os projetos..."):
-            todos_dfs = []
-            
-            for proj in ["SD", "QA", "PB"]:
-                try:
-                    jql_proj = f'project = {proj} ORDER BY created DESC'
-                    issues_proj, _ = buscar_dados_jira_cached(proj, jql_proj)
-                    if issues_proj:
-                        df_proj = processar_issues(issues_proj)
-                        df_proj['projeto'] = proj
-                        todos_dfs.append(df_proj)
-                except:
-                    pass
-            
-            if todos_dfs:
-                df_todos = pd.concat(todos_dfs, ignore_index=True)
-            else:
-                st.error("❌ Não foi possível carregar dados")
-                st.stop()
-        
-        # === RENDERIZA A TELA DE CONSULTA PERSONALIZADA ===
-        tela_consulta_personalizada(df_todos)
-        return  # Sai da função main() para não renderizar o dashboard normal
-    
     # ===== MODO BUSCA DE CARD ESPECÍFICO =====
     if st.session_state.busca_ativa and st.session_state.card_buscado:
         busca_card = st.session_state.card_buscado
@@ -12585,13 +12987,10 @@ def main():
             st.markdown("---")
             st.markdown("##### 🔍 Ferramentas Avançadas")
             
-            # Inicializa estado de consulta personalizada
-            if 'modo_consulta_personalizada' not in st.session_state:
-                st.session_state.modo_consulta_personalizada = False
-            
-            if st.button("🎯 Consulta Personalizada", use_container_width=True, key="btn_consulta_personalizada", 
-                        help="Crie consultas avançadas com filtros personalizados"):
+            if st.button("🎨 Meu Dashboard", use_container_width=True, key="btn_meu_dashboard", 
+                        help="Monte seu dashboard personalizado com widgets"):
                 st.session_state.modo_consulta_personalizada = True
+                st.query_params["tela"] = "meu_dashboard"
                 st.rerun()
             
             # ===== RODAPÉ DA SIDEBAR (sempre no final) =====
@@ -12615,12 +13014,16 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 st.markdown("""
+                **v8.81** *(20/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
+                - 🎨 **Meu Dashboard**: Tela totalmente nova para construir dashboards personalizados
+                - ➕ **Adicionar Widgets**: Construtor no topo para adicionar métricas
+                - ⬆️⬇️ **Reordenar**: Mova widgets para cima ou para baixo
+                - 🗑️ **Remover**: Exclua widgets que não precisa mais
+                - 📊 **Templates**: Visão Executiva, Foco DEV, Foco QA
+                - 💾 **Persistência**: Dashboard salvo em cookie
+                - 🧹 **Sidebar Limpa**: Apenas logo e botão voltar na tela do dashboard
+                
                 **v8.80** *(20/04/2026)* <span style="background: #f97316; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">🐛</span>
-                - 🔧 **Sidebar Reorganizada**: Produto agora junto com Filtros do Dashboard
-                - 🎯 **Ferramentas Avançadas**: Apenas Consulta Personalizada nesta seção
-                - 📊 **Consulta Auto-Executável**: Resultados aparecem sem precisar clicar
-                - 💾 **Consultas Persistentes**: Consultas salvas ficam no cookie (não perdem ao recarregar)
-                - ✨ **Interface Melhorada**: Campo de nome da consulta em expander organizado
                 
                 **v8.79** *(20/04/2026)* <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px;">✨</span>
                 - 🎯 **Consulta Personalizada**: Tela separada acessível pela sidebar
