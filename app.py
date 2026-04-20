@@ -5563,7 +5563,7 @@ def exibir_detalhes_pb(card: Dict, links: List[Dict], comentarios: List[Dict], h
 
 def exibir_timeline_transicoes(historico: List[Dict], titulo: str = "📜 Timeline Completa do Card"):
     """
-    Exibe uma timeline visual completa com todas as transições do card.
+    Exibe uma timeline visual completa com todas as transições do card em scroll horizontal.
     
     Mostra:
     - Criação do card
@@ -5592,110 +5592,106 @@ def exibir_timeline_transicoes(historico: List[Dict], titulo: str = "📜 Timeli
     
     with st.expander(f"{titulo} ({len(historico)} eventos)", expanded=True):
         
-        # ===== RESUMO DO FLUXO =====
-        st.markdown("##### 🔄 Fluxo de Status")
-        
-        # Mostra fluxo resumido de status em uma linha
-        status_flow = []
-        for h in transicoes_status:
-            if h['tipo'] == 'criacao':
-                status_flow.append(('🎫 Criado', h['cor']))
-            elif h['tipo'] == 'transicao':
-                status_flow.append((f"{h['icone']} {h['para']}", h['cor']))
-            elif h['tipo'] == 'resolucao' and h['para']:
-                status_flow.append((f"✅ {h['para']}", h['cor']))
-        
-        if status_flow:
-            flow_html = " → ".join([
-                f"<span style='background:{cor}20; color:{cor}; padding:3px 8px; border-radius:4px; font-size:12px; font-weight:500;'>{status}</span>" 
-                for status, cor in status_flow
-            ])
-            st.markdown(f"<div style='margin-bottom:15px; overflow-x:auto; white-space:nowrap;'>{flow_html}</div>", unsafe_allow_html=True)
-        
-        st.markdown("---")
-        
-        # ===== TIMELINE DETALHADA =====
-        st.markdown("##### 📅 Timeline Detalhada")
-        
         # Tab para escolher entre todas as transições ou só status
         tab_status, tab_todos = st.tabs(["🔄 Transições de Status", "📋 Todos os Eventos"])
         
         with tab_status:
             if transicoes_status:
+                # Monta HTML da timeline horizontal
+                items_html = ""
                 for i, evento in enumerate(transicoes_status):
-                    data_fmt = evento['data'].strftime('%d/%m/%Y às %H:%M') if evento['data'] else 'Data desconhecida'
+                    data_fmt = evento['data'].strftime('%d/%m/%Y %H:%M') if evento['data'] else 'N/A'
                     duracao_texto = ""
                     
                     if evento.get('duracao_dias', 0) > 0:
                         dias = evento['duracao_dias']
-                        if dias == 1:
-                            duracao_texto = "1 dia"
-                        else:
-                            duracao_texto = f"{dias} dias"
+                        duracao_texto = f"{dias}d"
                     elif evento.get('duracao_horas', 0) > 0:
                         horas = evento['duracao_horas']
-                        if horas == 1:
-                            duracao_texto = "1 hora"
-                        else:
-                            duracao_texto = f"{horas} horas"
+                        duracao_texto = f"{horas}h"
                     else:
-                        duracao_texto = "< 1 hora"
+                        duracao_texto = "<1h"
                     
-                    # Verifica se é o último item (status atual)
                     is_current = (i == len(transicoes_status) - 1)
-                    current_badge = "<span style='background:#22c55e; color:white; font-size:9px; padding:2px 6px; border-radius:10px; margin-left:8px;'>ATUAL</span>" if is_current else ""
+                    current_badge = "<div style='background:#22c55e; color:white; font-size:9px; padding:2px 6px; border-radius:10px; margin-top:6px; display:inline-block;'>ATUAL</div>" if is_current else ""
                     
-                    st.markdown(f"""
-<div style='display:flex; gap:12px; margin-bottom:12px; padding-left:10px; border-left:3px solid {evento['cor']};'>
-    <div style='background:{evento['cor']}20; border:2px solid {evento['cor']}; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;'>
-        {evento['icone']}
-    </div>
-    <div style='flex:1; background:#f8fafc; border-radius:8px; padding:12px;'>
-        <div style='font-size:11px; color:#64748b;'>{data_fmt}</div>
-        <div style='font-weight:600; font-size:13px; color:{evento['cor']}; margin:4px 0;'>
-            {evento['campo']}: {evento['para']}{current_badge}
-        </div>
-        <div style='font-size:12px; color:#475569;'>{evento['detalhes']}</div>
-        <div style='font-size:11px; color:#94a3b8; margin-top:5px;'>👤 {evento['autor']}</div>
-        <span style='font-size:10px; background:#e2e8f0; color:#475569; padding:2px 6px; border-radius:10px; display:inline-block; margin-top:5px;'>
-            ⏱️ {duracao_texto} {'neste status' if not is_current else 'até agora'}
-        </span>
+                    # Seta de conexão (exceto no último)
+                    arrow = "" if is_current else "<div style='position:absolute; right:-20px; top:50%; transform:translateY(-50%); font-size:20px; color:#cbd5e1;'>→</div>"
+                    
+                    items_html += f'''
+                    <div style='flex:0 0 auto; width:180px; background:#f8fafc; border-radius:12px; padding:14px; border-top:4px solid {evento['cor']}; position:relative; margin-right:25px;'>
+                        <div style='display:flex; align-items:center; gap:8px; margin-bottom:8px;'>
+                            <div style='background:{evento['cor']}20; border:2px solid {evento['cor']}; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:12px;'>
+                                {evento['icone']}
+                            </div>
+                            <div style='font-size:10px; color:#64748b;'>{data_fmt}</div>
+                        </div>
+                        <div style='font-weight:600; font-size:12px; color:{evento['cor']}; margin-bottom:4px; word-wrap:break-word;'>
+                            {evento['para'][:25]}{'...' if len(str(evento.get('para', ''))) > 25 else ''}
+                        </div>
+                        <div style='font-size:10px; color:#64748b; margin-bottom:4px;'>👤 {evento['autor'][:15]}{'...' if len(str(evento.get('autor', ''))) > 15 else ''}</div>
+                        <div style='font-size:9px; background:#e2e8f0; color:#475569; padding:2px 6px; border-radius:8px; display:inline-block;'>
+                            ⏱️ {duracao_texto}
+                        </div>
+                        {current_badge}
+                        {arrow}
+                    </div>
+                    '''
+                
+                st.markdown(f"""
+<div style='overflow-x:auto; padding:10px 0 15px 0;'>
+    <div style='display:flex; flex-direction:row; gap:0; min-width:max-content;'>
+        {items_html}
     </div>
 </div>
-                    """, unsafe_allow_html=True)
+<p style='font-size:11px; color:#94a3b8; text-align:center; margin-top:5px;'>← Arraste para ver mais →</p>
+                """, unsafe_allow_html=True)
             else:
                 st.info("Nenhuma transição de status registrada.")
         
         with tab_todos:
             if historico:
+                # Monta HTML da timeline horizontal com todos eventos
+                items_html = ""
                 for i, evento in enumerate(historico):
-                    data_fmt = evento['data'].strftime('%d/%m/%Y às %H:%M') if evento['data'] else 'Data desconhecida'
+                    data_fmt = evento['data'].strftime('%d/%m/%Y %H:%M') if evento['data'] else 'N/A'
                     duracao_texto = ""
                     
                     if evento.get('duracao_dias', 0) > 0:
-                        duracao_texto = f"{evento['duracao_dias']} dia(s)"
+                        duracao_texto = f"{evento['duracao_dias']}d"
                     elif evento.get('duracao_horas', 0) > 0:
-                        duracao_texto = f"{evento['duracao_horas']} hora(s)"
+                        duracao_texto = f"{evento['duracao_horas']}h"
                     else:
-                        duracao_texto = "< 1 hora"
+                        duracao_texto = "<1h"
                     
                     is_current = (i == len(historico) - 1)
+                    arrow = "" if is_current else "<div style='position:absolute; right:-20px; top:50%; transform:translateY(-50%); font-size:20px; color:#cbd5e1;'>→</div>"
                     
-                    st.markdown(f"""
-<div style='display:flex; gap:12px; margin-bottom:12px; padding-left:10px; border-left:3px solid {evento['cor']};'>
-    <div style='background:{evento['cor']}20; border:2px solid {evento['cor']}; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;'>
-        {evento['icone']}
-    </div>
-    <div style='flex:1; background:#f8fafc; border-radius:8px; padding:12px;'>
-        <div style='font-size:11px; color:#64748b;'>{data_fmt}</div>
-        <div style='font-weight:600; font-size:13px; color:{evento['cor']}; margin:4px 0;'>
-            {evento['campo']}: {evento.get('para', 'N/A')}
-        </div>
-        <div style='font-size:12px; color:#475569;'>{evento['detalhes']}</div>
-        <div style='font-size:11px; color:#94a3b8; margin-top:5px;'>👤 {evento['autor']}</div>
+                    items_html += f'''
+                    <div style='flex:0 0 auto; width:180px; background:#f8fafc; border-radius:12px; padding:14px; border-top:4px solid {evento['cor']}; position:relative; margin-right:25px;'>
+                        <div style='display:flex; align-items:center; gap:8px; margin-bottom:8px;'>
+                            <div style='background:{evento['cor']}20; border:2px solid {evento['cor']}; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:12px;'>
+                                {evento['icone']}
+                            </div>
+                            <div style='font-size:10px; color:#64748b;'>{data_fmt}</div>
+                        </div>
+                        <div style='font-weight:500; font-size:11px; color:#475569; margin-bottom:2px;'>{evento['campo']}</div>
+                        <div style='font-weight:600; font-size:12px; color:{evento['cor']}; margin-bottom:4px; word-wrap:break-word;'>
+                            {str(evento.get('para', 'N/A'))[:25]}{'...' if len(str(evento.get('para', ''))) > 25 else ''}
+                        </div>
+                        <div style='font-size:10px; color:#64748b;'>👤 {evento['autor'][:15]}{'...' if len(str(evento.get('autor', ''))) > 15 else ''}</div>
+                        {arrow}
+                    </div>
+                    '''
+                
+                st.markdown(f"""
+<div style='overflow-x:auto; padding:10px 0 15px 0;'>
+    <div style='display:flex; flex-direction:row; gap:0; min-width:max-content;'>
+        {items_html}
     </div>
 </div>
-                    """, unsafe_allow_html=True)
+<p style='font-size:11px; color:#94a3b8; text-align:center; margin-top:5px;'>← Arraste para ver mais →</p>
+                """, unsafe_allow_html=True)
             else:
                 st.info("Nenhum evento registrado.")
         
