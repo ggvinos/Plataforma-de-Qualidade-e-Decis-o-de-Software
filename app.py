@@ -5457,6 +5457,8 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
                     st.markdown("##### 🚨 Cards Fora do Planejamento Original")
                     st.caption("Cards adicionados após o início da sprint comprometem a previsibilidade")
                     
+                    # Scroll container para listagem
+                    st.markdown('<div class="scroll-container" style="max-height: 400px;">', unsafe_allow_html=True)
                     # Categorizar motivos
                     for _, card in adicionados_depois.iterrows():
                         if card['tipo'] == 'HOTFIX':
@@ -5471,13 +5473,14 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
                         
                         card_popup = card_link_com_popup(card['ticket_id'])
                         st.markdown(f"""
-                        <div style="background: #f8fafc; border-left: 4px solid {cor_tag}; padding: 10px 15px; margin: 5px 0; border-radius: 4px;">
+                        <div class="card-lista" style="border-left-color: {cor_tag};">
                             <span style="background: {cor_tag}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{categoria}</span>
                             <span style="margin-left: 10px;">{card_popup}</span>
                             <span style="color: #64748b;"> - {card['titulo'][:60]}...</span>
                             <span style="float: right; color: #94a3b8; font-size: 12px;">{card['status']}</span>
                         </div>
                         """, unsafe_allow_html=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
                     
                 # Cards por origem do PB
                 if not com_link_pb.empty:
@@ -6906,30 +6909,34 @@ def aba_dev(df: pd.DataFrame):
                 with col_imp:
                     st.markdown("#### 🚫 Impedidos")
                     if not cards_impedidos_dev.empty:
+                        st.markdown('<div class="scroll-container" style="max-height: 350px;">', unsafe_allow_html=True)
                         for _, row in cards_impedidos_dev.iterrows():
                             card_popup = card_link_com_popup(row['ticket_id'])
                             st.markdown(f"""
-                            <div style="padding: 10px; margin: 5px 0; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.1); border-radius: 6px;">
+                            <div class="card-lista-vermelho">
                                 <strong>{card_popup}</strong>
                                 <span style="color: #64748b;"> - {row['titulo']}</span><br>
                                 <small style="color: #94a3b8;">👤 {row['desenvolvedor']} | 🧑‍🔬 {row['qa']} | {int(row['sp'])} SP</small>
                             </div>
                             """, unsafe_allow_html=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
                     else:
                         st.success("✅ Nenhum card impedido")
                 
                 with col_rep:
                     st.markdown("#### ❌ Reprovados")
                     if not cards_reprovados_dev.empty:
+                        st.markdown('<div class="scroll-container" style="max-height: 350px;">', unsafe_allow_html=True)
                         for _, row in cards_reprovados_dev.iterrows():
                             card_popup = card_link_com_popup(row['ticket_id'])
                             st.markdown(f"""
-                            <div style="padding: 10px; margin: 5px 0; border-left: 4px solid #dc2626; background: rgba(220, 38, 38, 0.1); border-radius: 6px;">
+                            <div class="card-lista-vermelho">
                                 <strong>{card_popup}</strong>
                                 <span style="color: #64748b;"> - {row['titulo']}</span><br>
                                 <small style="color: #94a3b8;">👤 {row['desenvolvedor']} | 🧑‍🔬 {row['qa']} | {int(row['sp'])} SP | 🐛 {int(row['bugs'])} bugs</small>
                             </div>
                             """, unsafe_allow_html=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
                     else:
                         st.success("✅ Nenhum card reprovado")
     
@@ -7042,16 +7049,18 @@ def aba_dev(df: pd.DataFrame):
                         st.markdown("---")
                         st.markdown("**🚨 Seus cards com problemas:**")
                         all_problemas_dev = pd.concat([cards_impedidos_dev_ind, cards_reprovados_dev_ind]) if not cards_reprovados_dev_ind.empty and not cards_impedidos_dev_ind.empty else (cards_impedidos_dev_ind if not cards_impedidos_dev_ind.empty else cards_reprovados_dev_ind)
+                        st.markdown('<div class="scroll-container" style="max-height: 300px;">', unsafe_allow_html=True)
                         for _, row in all_problemas_dev.iterrows():
                             status_icon = "🚫" if row['status_cat'] == 'blocked' else "❌"
                             status_name = "Impedido" if row['status_cat'] == 'blocked' else "Reprovado"
                             card_popup = card_link_com_popup(row['ticket_id'])
                             st.markdown(f"""
-                            <div style="padding: 8px; margin: 4px 0; border-left: 3px solid #ef4444; background: rgba(239, 68, 68, 0.1); border-radius: 4px;">
+                            <div class="card-lista-vermelho">
                                 <strong>{status_icon}</strong> {card_popup} - {row['titulo']}<br>
                                 <small style="color: #94a3b8;">🧑‍🔬 QA: {row['qa']} | {status_name} | {int(row['sp'])} SP</small>
                             </div>
                             """, unsafe_allow_html=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
             
             # ===== NOVA SEÇÃO: RESUMO DA SEMANA - DEV =====
             with st.expander("📅 Resumo da Semana", expanded=True):
@@ -8622,9 +8631,8 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
             st.markdown(f"##### 🔬 {len(df_minha_acao)} cards para você validar/agir")
             st.caption("Cards onde você é QA, Representante do Cliente ou Responsável")
             
-            # Scroll se muitos cards
-            scroll_style = "max-height: 450px; overflow-y: auto; padding-right: 5px;" if len(df_minha_acao) > 5 else ""
-            st.markdown(f'<div style="{scroll_style}">', unsafe_allow_html=True)
+            # Scroll com classe padronizada
+            st.markdown('<div class="scroll-container" style="max-height: 450px;">', unsafe_allow_html=True)
             
             for _, card in df_minha_acao.iterrows():
                 projeto = card.get('projeto', 'SD')
@@ -8645,7 +8653,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                 papel_texto = " • ".join(papeis) if papeis else "Validador"
                 
                 st.markdown(f"""
-                <div style="background: #ede9fe; border-left: 4px solid #8b5cf6; padding: 12px; margin: 8px 0; border-radius: 0 8px 8px 0;">
+                <div class="card-lista-roxo">
                     <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap;">
                         <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
                         <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
@@ -8668,6 +8676,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
             if not df_pendentes.empty:
                 st.markdown(f"##### 🔍 {len(df_pendentes)} cards pendentes de validação")
                 
+                st.markdown('<div class="scroll-container" style="max-height: 400px;">', unsafe_allow_html=True)
                 for _, card in df_pendentes.iterrows():
                     dias = (datetime.now() - pd.to_datetime(card['criado'])).days if pd.notna(card.get('criado')) else 0
                     cor = "#ef4444" if dias > 7 else "#f59e0b" if dias > 3 else "#22c55e"
@@ -8677,7 +8686,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                     tempo_atualizacao = formatar_tempo_relativo(card.get('atualizado')) if 'atualizado' in card else ""
                     
                     st.markdown(f"""
-                    <div style="background: #f8fafc; border-left: 4px solid {cor}; padding: 12px; margin: 8px 0; border-radius: 0 8px 8px 0;">
+                    <div class="card-lista" style="border-left-color: {cor};">
                         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
                             <span style="background: {tipo_cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">{tipo}</span>
                             {card_link_com_popup(card['ticket_id'], 'VALPROD')}
@@ -8687,6 +8696,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                         <div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: {card.get('status', 'N/A')} • Criado: {dias}d atrás</div>
                     </div>
                     """, unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.success("✅ Nenhum card pendente de validação em produção!")
         else:
@@ -8704,7 +8714,8 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
             # Ordena por data de criação (mais recente primeiro)
             df_concluidos_sorted = df_concluidos_lista.sort_values('criado', ascending=False) if 'criado' in df_concluidos_lista.columns else df_concluidos_lista
             
-            for _, card in df_concluidos_sorted.head(15).iterrows():
+            st.markdown('<div class="scroll-container" style="max-height: 400px;">', unsafe_allow_html=True)
+            for _, card in df_concluidos_sorted.head(30).iterrows():
                 projeto = card.get('projeto', 'SD')
                 tipo = card.get('tipo', 'TAREFA')
                 tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#6366f1" if tipo == "SUGESTÃO" else "#64748b"
@@ -8715,7 +8726,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                 projeto_cor = "#3b82f6" if projeto == "SD" else "#22c55e" if projeto == "QA" else "#f59e0b" if projeto == "PB" else "#8b5cf6"
                 
                 st.markdown(f"""
-                <div style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 12px; margin: 8px 0; border-radius: 0 8px 8px 0;">
+                <div class="card-lista-verde">
                     <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
                         <span style="background: {projeto_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
                         <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
@@ -8726,9 +8737,10 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
                     <div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: {status}</div>
                 </div>
                 """, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
             
-            if len(df_concluidos_lista) > 15:
-                st.caption(f"... e mais {len(df_concluidos_lista) - 15} cards concluídos")
+            if len(df_concluidos_lista) > 30:
+                st.caption(f"... e mais {len(df_concluidos_lista) - 30} cards concluídos")
         else:
             st.info("ℹ️ Nenhum card concluído encontrado no período selecionado.")
     
