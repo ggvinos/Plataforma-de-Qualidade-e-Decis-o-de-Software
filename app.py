@@ -5800,36 +5800,40 @@ def exibir_timeline_transicoes(historico: List[Dict], titulo: str = "📜 Timeli
                 {arrow}
                 '''
             
-            altura = 320
+            altura = 380
             
             # HTML completo com scroll posicionado no final (status atual)
             html_completo = f'''
             <style>
                 .timeline-container {{
                     overflow-x: auto;
-                    overflow-y: hidden;
+                    overflow-y: hidden !important;
                     padding: 20px 15px;
                     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
                     border-radius: 14px;
                     border: 1px solid #e2e8f0;
+                    max-height: 320px;
                 }}
                 .timeline-container::-webkit-scrollbar {{
-                    height: 8px;
+                    height: 10px;
                 }}
                 .timeline-container::-webkit-scrollbar-track {{
                     background: #e2e8f0;
                     border-radius: 4px;
+                    margin-right: 5px;
                 }}
                 .timeline-container::-webkit-scrollbar-thumb {{
                     background: #94a3b8;
-                    border-radius: 4px;
+                    border-radius: 6px;
+                    cursor: grab;
                 }}
                 .timeline-container::-webkit-scrollbar-thumb:hover {{
                     background: #64748b;
+                    cursor: grabbing;
                 }}
             </style>
             <div class="timeline-container" id="timeline-scroll">
-                <div style="display:flex; flex-direction:row; align-items:stretch; gap:10px; width:max-content;">
+                <div style="display:flex; flex-direction:row; align-items:stretch; gap:10px; width:max-content; height:fit-content;">
                     {cards_html}
                 </div>
             </div>
@@ -5847,7 +5851,7 @@ def exibir_timeline_transicoes(historico: List[Dict], titulo: str = "📜 Timeli
             </script>
             '''
             
-            components.html(html_completo, height=altura, scrolling=True)
+            components.html(html_completo, height=altura, scrolling=False)
         else:
             st.info("Nenhum evento registrado.")
         
