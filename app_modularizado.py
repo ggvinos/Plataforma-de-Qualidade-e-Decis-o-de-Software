@@ -1029,6 +1029,50 @@ def main():
             
             # Changelog (extraído para modulos/changelog.py)
             exibir_changelog()
+        
+        # ===== RENDERIZA AS 10 ABAS DO DASHBOARD =====
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+            "📊 Visão Geral",
+            "🔬 QA",
+            "👨‍💻 Dev",
+            "🎯 Suporte/Implantação",
+            "🏢 Clientes",
+            "📋 Governança",
+            "📦 Produto",
+            "📈 Histórico",
+            "🎯 Liderança",
+            "ℹ️ Sobre"
+        ])
+        
+        with tab1:
+            aba_visao_geral(df, ultima_atualizacao)
+        
+        with tab2:
+            aba_qa(df)
+        
+        with tab3:
+            aba_dev(df)
+        
+        with tab4:
+            aba_suporte_implantacao(df_todos)
+        
+        with tab5:
+            aba_clientes(df_todos)
+        
+        with tab6:
+            aba_governanca(df)
+        
+        with tab7:
+            aba_produto(df)
+        
+        with tab8:
+            aba_historico(df)
+        
+        with tab9:
+            aba_lideranca(df)
+        
+        with tab10:
+            aba_sobre()
 
 
 if __name__ == "__main__":
