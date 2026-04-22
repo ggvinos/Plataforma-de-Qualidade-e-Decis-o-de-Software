@@ -1045,34 +1045,64 @@ def main():
         ])
         
         with tab1:
-            aba_visao_geral(df, ultima_atualizacao)
+            try:
+                aba_visao_geral(df, ultima_atualizacao)
+            except Exception as e:
+                st.error(f"❌ Erro na Visão Geral: {str(e)}")
         
         with tab2:
-            aba_qa(df)
+            try:
+                aba_qa(df)
+            except Exception as e:
+                st.error(f"❌ Erro em QA: {str(e)}")
         
         with tab3:
-            aba_dev(df)
+            try:
+                aba_dev(df)
+            except Exception as e:
+                st.error(f"❌ Erro em Dev: {str(e)}")
         
         with tab4:
-            aba_suporte_implantacao(df_todos)
+            try:
+                aba_suporte_implantacao(df_todos)
+            except Exception as e:
+                st.error(f"❌ Erro em Suporte: {str(e)}")
         
         with tab5:
-            aba_clientes(df_todos)
+            try:
+                aba_clientes(df_todos)
+            except Exception as e:
+                st.error(f"❌ Erro em Clientes: {str(e)}")
         
         with tab6:
-            aba_governanca(df)
+            try:
+                aba_governanca(df)
+            except Exception as e:
+                st.error(f"❌ Erro em Governança: {str(e)}")
         
         with tab7:
-            aba_produto(df)
+            try:
+                aba_produto(df)
+            except Exception as e:
+                st.error(f"❌ Erro em Produto: {str(e)}")
         
         with tab8:
-            aba_historico(df)
+            try:
+                aba_historico(df)
+            except Exception as e:
+                st.error(f"❌ Erro em Histórico: {str(e)}")
         
         with tab9:
-            aba_lideranca(df)
+            try:
+                aba_lideranca(df)
+            except Exception as e:
+                st.error(f"❌ Erro em Liderança: {str(e)}")
         
         with tab10:
-            aba_sobre()
+            try:
+                aba_sobre()
+            except Exception as e:
+                st.error(f"❌ Erro em Sobre: {str(e)}")
 
 
 if __name__ == "__main__":
