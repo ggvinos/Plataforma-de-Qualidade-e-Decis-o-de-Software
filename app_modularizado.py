@@ -168,6 +168,15 @@ from modulos.calculos import (
     processar_issues,
 )
 
+from modulos.processamento import (
+    calcular_periodo_datas,
+    filtrar_df_por_consulta,
+    aplicar_filtros_widget,
+    preparar_df_com_metricas_filtro,
+    validar_filtros,
+    resetar_filtros,
+)
+
 # ==============================================================================
 # CONFIGURAÇÃO DA PÁGINA (DEVE SER PRIMEIRO)
 # ==============================================================================
@@ -611,61 +620,6 @@ def renderizar_widget(widget: Dict, df: pd.DataFrame, idx: int, total: int):
         st.markdown("---")
 
 
-def aplicar_filtros_widget(df: pd.DataFrame, filtros: Dict) -> pd.DataFrame:
-    """Aplica filtros ao DataFrame para um widget."""
-    df_filtrado = df.copy()
-    
-    # Filtro por período
-    if filtros.get('periodo'):
-        data_inicio, data_fim = calcular_periodo_datas(
-            filtros['periodo'],
-            filtros.get('data_inicio'),
-            filtros.get('data_fim')
-        )
-        if 'data_criacao' in df_filtrado.columns:
-            df_filtrado['data_criacao_dt'] = pd.to_datetime(df_filtrado['data_criacao'], errors='coerce')
-            df_filtrado['data_criacao_dt'] = df_filtrado['data_criacao_dt'].dt.tz_localize(None)
-            df_filtrado = df_filtrado[
-                (df_filtrado['data_criacao_dt'] >= data_inicio) & 
-                (df_filtrado['data_criacao_dt'] <= data_fim)
-            ]
-    
-    # Filtro por pessoa
-    if filtros.get('pessoa') and filtros['pessoa'] != 'Todos':
-        pessoa = filtros['pessoa']
-        papel = filtros.get('papel_pessoa', 'qualquer')
-        
-        if papel == 'responsavel':
-            df_filtrado = df_filtrado[df_filtrado['responsavel'].str.contains(pessoa, case=False, na=False)]
-        elif papel == 'qa':
-            df_filtrado = df_filtrado[df_filtrado['qa_responsavel'].str.contains(pessoa, case=False, na=False)]
-        elif papel == 'relator':
-            df_filtrado = df_filtrado[df_filtrado['relator'].str.contains(pessoa, case=False, na=False)]
-        else:
-            df_filtrado = df_filtrado[
-                df_filtrado['responsavel'].str.contains(pessoa, case=False, na=False) |
-                df_filtrado['qa_responsavel'].str.contains(pessoa, case=False, na=False) |
-                df_filtrado['relator'].str.contains(pessoa, case=False, na=False)
-            ]
-    
-    # Filtro por status
-    if filtros.get('status') and filtros['status'] != 'todos':
-        status_map = {
-            "concluido": ["done"],
-            "em_andamento": ["development"],
-            "em_validacao": ["testing"],
-            "aguardando_qa": ["waiting_qa"],
-            "code_review": ["code_review"],
-            "impedido": ["blocked"],
-            "reprovado": ["rejected"],
-            "backlog": ["backlog"],
-        }
-        categorias = status_map.get(filtros['status'], [])
-        if categorias:
-            df_filtrado = df_filtrado[df_filtrado['status_categoria'].isin(categorias)]
-    
-    return df_filtrado
-
 
 def renderizar_kpi_widget(tipo: str, df: pd.DataFrame):
     """Renderiza um widget KPI."""
@@ -863,88 +817,6 @@ def excluir_consulta(nome: str):
         _salvar_consultas_cookie()
 
 
-def calcular_periodo_datas(periodo: str, data_inicio_custom: datetime = None, data_fim_custom: datetime = None) -> Tuple[datetime, datetime]:
-    """Calcula as datas de início e fim baseado no período selecionado."""
-    hoje = datetime.now()
-    
-    if periodo == "sprint_atual":
-        # Aproxima para 2 semanas
-        return hoje - timedelta(days=14), hoje
-    elif periodo == "ultima_semana":
-        return hoje - timedelta(days=7), hoje
-    elif periodo == "ultimas_2_semanas":
-        return hoje - timedelta(days=14), hoje
-    elif periodo == "ultimo_mes":
-        return hoje - timedelta(days=30), hoje
-    elif periodo == "ultimos_3_meses":
-        return hoje - timedelta(days=90), hoje
-    elif periodo == "todo_periodo":
-        return hoje - timedelta(days=365*5), hoje  # 5 anos
-    elif periodo == "personalizado" and data_inicio_custom and data_fim_custom:
-        return data_inicio_custom, data_fim_custom
-    else:
-        return hoje - timedelta(days=30), hoje
-
-
-def filtrar_df_por_consulta(df: pd.DataFrame, tipo: str, filtros: Dict) -> pd.DataFrame:
-    """Filtra o DataFrame baseado nos filtros da consulta."""
-    df_filtrado = df.copy()
-    
-    # Filtro por período
-    if 'periodo' in filtros and filtros['periodo']:
-        data_inicio, data_fim = calcular_periodo_datas(
-            filtros['periodo'],
-            filtros.get('data_inicio'),
-            filtros.get('data_fim')
-        )
-        if 'data_criacao' in df_filtrado.columns:
-            df_filtrado['data_criacao_dt'] = pd.to_datetime(df_filtrado['data_criacao'], errors='coerce')
-            # Remove timezone info for comparison
-            df_filtrado['data_criacao_dt'] = df_filtrado['data_criacao_dt'].dt.tz_localize(None)
-            df_filtrado = df_filtrado[
-                (df_filtrado['data_criacao_dt'] >= data_inicio) & 
-                (df_filtrado['data_criacao_dt'] <= data_fim)
-            ]
-    
-    # Filtro por pessoa
-    if 'pessoa' in filtros and filtros['pessoa'] and filtros['pessoa'] != "Todos":
-        papel = filtros.get('papel_pessoa', 'qualquer')
-        pessoa = filtros['pessoa']
-        
-        if papel == 'responsavel':
-            df_filtrado = df_filtrado[df_filtrado['responsavel'].str.contains(pessoa, case=False, na=False)]
-        elif papel == 'qa':
-            df_filtrado = df_filtrado[df_filtrado['qa_responsavel'].str.contains(pessoa, case=False, na=False)]
-        elif papel == 'relator':
-            df_filtrado = df_filtrado[df_filtrado['relator'].str.contains(pessoa, case=False, na=False)]
-        else:  # qualquer
-            df_filtrado = df_filtrado[
-                df_filtrado['responsavel'].str.contains(pessoa, case=False, na=False) |
-                df_filtrado['qa_responsavel'].str.contains(pessoa, case=False, na=False) |
-                df_filtrado['relator'].str.contains(pessoa, case=False, na=False)
-            ]
-    
-    # Filtro por status
-    if 'status' in filtros and filtros['status'] and filtros['status'] != "todos":
-        status_map = {
-            "concluido": ["done"],
-            "em_andamento": ["development"],
-            "em_validacao": ["testing"],
-            "aguardando_qa": ["waiting_qa"],
-            "code_review": ["code_review"],
-            "impedido": ["blocked"],
-            "reprovado": ["rejected"],
-            "backlog": ["backlog"],
-        }
-        categorias = status_map.get(filtros['status'], [])
-        if categorias:
-            df_filtrado = df_filtrado[df_filtrado['status_categoria'].isin(categorias)]
-    
-    # Filtro por produto
-    if 'produto' in filtros and filtros['produto'] and filtros['produto'] != "Todos":
-        df_filtrado = df_filtrado[df_filtrado['produto'] == filtros['produto']]
-    
-    return df_filtrado
 
 
 def renderizar_resultado_consulta(df_filtrado: pd.DataFrame, tipo: str, filtros: Dict):

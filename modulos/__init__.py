@@ -76,6 +76,15 @@ from modulos.calculos import (
     processar_issues,
 )
 
+from modulos.processamento import (
+    calcular_periodo_datas,
+    filtrar_df_por_consulta,
+    aplicar_filtros_widget,
+    preparar_df_com_metricas_filtro,
+    validar_filtros,
+    resetar_filtros,
+)
+
 __all__ = [
     # config
     'configure_page',
@@ -132,5 +141,12 @@ __all__ = [
     'calcular_metricas_backlog',
     'processar_issue_unica',
     'processar_issues',
+    # processamento (Phase 5)
+    'calcular_periodo_datas',
+    'filtrar_df_por_consulta',
+    'aplicar_filtros_widget',
+    'preparar_df_com_metricas_filtro',
+    'validar_filtros',
+    'resetar_filtros',
 ]
 
