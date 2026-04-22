@@ -40,12 +40,34 @@ from modulos.calculos import (
     analisar_dev_detalhado, filtrar_qas_principais,
     calcular_concentracao_conhecimento, gerar_recomendacoes_rodizio,
     calcular_concentracao_pessoa, calcular_metricas_governanca,
-    calcular_metricas_qa, calcular_metricas_produto,
-    calcular_health_score, calcular_metricas_dev, calcular_metricas_backlog
+    calcular_metricas_qa, calcular_metricas_produto, calcular_health_score,
+    calcular_metricas_dev, calcular_metricas_backlog, processar_issues,
+    classificar_maturidade
+)
+from modulos.helpers import (
+    calcular_valor_metrica, calcular_dados_grafico, calcular_dados_tabela,
+    criar_card_metrica, gerar_html_card_ticket, formatar_tempo_relativo,
+    gerar_dados_tendencia, exportar_para_csv, exportar_para_excel
+)
+from modulos.widgets import (
+    mostrar_tooltip, mostrar_lista_tickets_completa, mostrar_lista_df_completa,
+    renderizar_resultado_consulta, renderizar_widget, renderizar_lista_com_scroll,
+    mostrar_card_ticket
+)
+from modulos.graficos import (
+    criar_grafico_funil_qa, criar_grafico_tendencia_fator_k,
+    criar_grafico_tendencia_qualidade, criar_grafico_tendencia_bugs,
+    criar_grafico_tendencia_health, criar_grafico_throughput,
+    criar_grafico_lead_time, criar_grafico_reprovacao,
+    criar_grafico_estagio_por_produto, criar_grafico_hotfix_por_produto,
+    criar_grafico_funil_personalizado, criar_grafico_aging_backlog,
+    criar_grafico_prioridade_backlog, criar_grafico_tipo_backlog,
+    criar_grafico_backlog_por_produto
 )
 from modulos.jira_api import (
+    gerar_icone_tabler, gerar_icone_tabler_html, gerar_badge_status,
+    obter_icone_evento, obter_icone_status,
     buscar_dados_jira_cached, buscar_card_especifico,
-    gerar_icone_tabler, gerar_badge_status, obter_icone_status,
     extrair_historico_transicoes, extrair_texto_adf
 )
 
