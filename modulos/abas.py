@@ -26,6 +26,7 @@ import pandas as pd
 from datetime import datetime
 import plotly.graph_objects as go
 import plotly.express as px
+import random
 
 from modulos.config import (
     JIRA_BASE_URL, CUSTOM_FIELDS, STATUS_FLOW, STATUS_NOMES, STATUS_CORES,
@@ -52,7 +53,7 @@ from modulos.helpers import (
 from modulos.widgets import (
     mostrar_tooltip, mostrar_lista_tickets_completa, mostrar_lista_df_completa,
     renderizar_resultado_consulta, renderizar_widget, renderizar_lista_com_scroll,
-    mostrar_card_ticket
+    mostrar_card_ticket, exibir_concentracao_time
 )
 from modulos.graficos import (
     criar_grafico_funil_qa, criar_grafico_tendencia_fator_k,

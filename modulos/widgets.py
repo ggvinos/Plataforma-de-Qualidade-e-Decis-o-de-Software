@@ -904,6 +904,82 @@ def renderizar_lista_com_scroll(df: pd.DataFrame, titulo: str = None, max_height
         st.caption(f"📌 Mais {total - limite_inicial} cards ocultos. Marque acima para ver todos.")
 
 
+def exibir_concentracao_time(df: pd.DataFrame, tipo: str = "dev"):
+    """
+    Exibe um resumo da concentração de conhecimento do time todo.
+    Para uso na visão geral das abas DEV e QA.
+    
+    Args:
+        df: DataFrame com os cards
+        tipo: "dev" ou "qa"
+    """
+    from modulos.calculos import calcular_concentracao_conhecimento
+    
+    concentracao = calcular_concentracao_conhecimento(df)
+    
+    # Filtra alertas pelo tipo
+    if tipo == "dev":
+        alertas = concentracao['alertas_dev']
+        indices_produto = concentracao['indices'].get('dev_produto', {})
+        indices_cliente = concentracao['indices'].get('dev_cliente', {})
+    else:
+        alertas = concentracao['alertas_qa']
+        indices_produto = concentracao['indices'].get('qa_produto', {})
+        indices_cliente = concentracao['indices'].get('qa_cliente', {})
+    
+    alertas_criticos = [a for a in alertas if a['tipo'] == 'critico']
+    alertas_atencao = [a for a in alertas if a['tipo'] == 'atencao']
+    
+    titulo_tipo = "DEV" if tipo == "dev" else "QA"
+    
+    with st.expander(f"🔄 Concentração de Conhecimento ({titulo_tipo})", expanded=False):
+        st.caption("Identifique riscos de conhecimento centralizado no time")
+        
+        # Cards resumo
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            cor = 'red' if len(alertas_criticos) > 0 else 'green'
+            criar_card_metrica(str(len(alertas_criticos)), "Críticos", cor, "≥80% concentração")
+        
+        with col2:
+            cor = 'yellow' if len(alertas_atencao) > 0 else 'green'
+            criar_card_metrica(str(len(alertas_atencao)), "Atenção", cor, "60-79% concentração")
+        
+        with col3:
+            total_areas = len(indices_produto) + len(indices_cliente)
+            areas_ok = sum(1 for d in indices_produto.values() if d['concentracao_pct'] < 60)
+            areas_ok += sum(1 for d in indices_cliente.values() if d['concentracao_pct'] < 60)
+            pct_ok = (areas_ok / total_areas * 100) if total_areas > 0 else 100
+            cor = 'green' if pct_ok >= 70 else 'yellow' if pct_ok >= 40 else 'red'
+            criar_card_metrica(f"{pct_ok:.0f}%", "Bem Distribuído", cor)
+        
+        # Lista de alertas se houver
+        if alertas_criticos or alertas_atencao:
+            st.markdown("---")
+            
+            if alertas_criticos:
+                st.markdown("**🚨 Concentração Crítica:**")
+                for a in alertas_criticos[:3]:  # Mostra top 3
+                    icone = "📦" if a['contexto'] == 'produto' else "🏢"
+                    st.error(f"{icone} **{a['pessoa']}** domina {a['pct']}% de '{a['nome']}'")
+                if len(alertas_criticos) > 3:
+                    st.caption(f"... e mais {len(alertas_criticos) - 3} alertas críticos")
+            
+            if alertas_atencao:
+                st.markdown("**⚠️ Pontos de Atenção:**")
+                for a in alertas_atencao[:3]:
+                    icone = "📦" if a['contexto'] == 'produto' else "🏢"
+                    st.warning(f"{icone} **{a['pessoa']}** tem {a['pct']}% de '{a['nome']}'")
+                if len(alertas_atencao) > 3:
+                    st.caption(f"... e mais {len(alertas_atencao) - 3} pontos de atenção")
+        else:
+            st.success("✅ Conhecimento bem distribuído no time!")
+        
+        st.markdown("---")
+        st.caption("💡 Veja análise completa na aba **Liderança** → seção 'Análise de Concentração'")
+
+
 # ==============================================================================
 # GRÁFICOS
 # ==============================================================================
