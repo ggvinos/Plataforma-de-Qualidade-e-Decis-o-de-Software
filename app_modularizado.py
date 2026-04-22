@@ -1030,79 +1030,121 @@ def main():
             # Changelog (extraído para modulos/changelog.py)
             exibir_changelog()
         
-        # ===== RENDERIZA AS 10 ABAS DO DASHBOARD =====
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
-            "📊 Visão Geral",
-            "🔬 QA",
-            "👨‍💻 Dev",
-            "🎯 Suporte/Implantação",
-            "🏢 Clientes",
-            "📋 Governança",
-            "📦 Produto",
-            "📈 Histórico",
-            "🎯 Liderança",
-            "ℹ️ Sobre"
-        ])
+        # ===== RENDERIZA AS ABAS DO DASHBOARD (CONDICIONAL POR PROJETO) =====
+        if projeto == "PB":
+            # Projeto PB: Aba de Backlog como foco principal
+            tab1, tab2, tab3, tab4, tab5 = st.tabs([
+                "📋 Backlog",
+                "📊 Visão Geral",
+                "📦 Produto",
+                "📈 Histórico",
+                "ℹ️ Sobre"
+            ])
+            
+            with tab1:
+                try:
+                    aba_backlog(df)
+                except Exception as e:
+                    st.error(f"❌ Erro no Backlog: {str(e)}")
+            
+            with tab2:
+                try:
+                    aba_visao_geral(df, ultima_atualizacao)
+                except Exception as e:
+                    st.error(f"❌ Erro na Visão Geral: {str(e)}")
+            
+            with tab3:
+                try:
+                    aba_produto(df)
+                except Exception as e:
+                    st.error(f"❌ Erro em Produto: {str(e)}")
+            
+            with tab4:
+                try:
+                    aba_historico(df)
+                except Exception as e:
+                    st.error(f"❌ Erro em Histórico: {str(e)}")
+            
+            with tab5:
+                try:
+                    aba_sobre()
+                except Exception as e:
+                    st.error(f"❌ Erro em Sobre: {str(e)}")
         
-        with tab1:
-            try:
-                aba_visao_geral(df, ultima_atualizacao)
-            except Exception as e:
-                st.error(f"❌ Erro na Visão Geral: {str(e)}")
-        
-        with tab2:
-            try:
-                aba_qa(df)
-            except Exception as e:
-                st.error(f"❌ Erro em QA: {str(e)}")
-        
-        with tab3:
-            try:
-                aba_dev(df)
-            except Exception as e:
-                st.error(f"❌ Erro em Dev: {str(e)}")
-        
-        with tab4:
-            try:
-                aba_suporte_implantacao(df_todos)
-            except Exception as e:
-                st.error(f"❌ Erro em Suporte: {str(e)}")
-        
-        with tab5:
-            try:
-                aba_clientes(df_todos)
-            except Exception as e:
-                st.error(f"❌ Erro em Clientes: {str(e)}")
-        
-        with tab6:
-            try:
-                aba_governanca(df)
-            except Exception as e:
-                st.error(f"❌ Erro em Governança: {str(e)}")
-        
-        with tab7:
-            try:
-                aba_produto(df)
-            except Exception as e:
-                st.error(f"❌ Erro em Produto: {str(e)}")
-        
-        with tab8:
-            try:
-                aba_historico(df)
-            except Exception as e:
-                st.error(f"❌ Erro em Histórico: {str(e)}")
-        
-        with tab9:
-            try:
-                aba_lideranca(df)
-            except Exception as e:
-                st.error(f"❌ Erro em Liderança: {str(e)}")
-        
-        with tab10:
-            try:
-                aba_sobre()
-            except Exception as e:
-                st.error(f"❌ Erro em Sobre: {str(e)}")
+        else:
+            # Projetos normais (SD, QA, DVG, etc): 10 abas padrão
+            tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+                "📊 Visão Geral",
+                "🔬 QA",
+                "👨‍💻 Dev",
+                "🎯 Suporte/Implantação",
+                "🏢 Clientes",
+                "📋 Governança",
+                "📦 Produto",
+                "📈 Histórico",
+                "🎯 Liderança",
+                "ℹ️ Sobre"
+            ])
+            
+            with tab1:
+                try:
+                    aba_visao_geral(df, ultima_atualizacao)
+                except Exception as e:
+                    st.error(f"❌ Erro na Visão Geral: {str(e)}")
+            
+            with tab2:
+                try:
+                    aba_qa(df)
+                except Exception as e:
+                    st.error(f"❌ Erro em QA: {str(e)}")
+            
+            with tab3:
+                try:
+                    aba_dev(df)
+                except Exception as e:
+                    st.error(f"❌ Erro em Dev: {str(e)}")
+            
+            with tab4:
+                try:
+                    aba_suporte_implantacao(df_todos)
+                except Exception as e:
+                    st.error(f"❌ Erro em Suporte: {str(e)}")
+            
+            with tab5:
+                try:
+                    aba_clientes(df_todos)
+                except Exception as e:
+                    st.error(f"❌ Erro em Clientes: {str(e)}")
+            
+            with tab6:
+                try:
+                    aba_governanca(df)
+                except Exception as e:
+                    st.error(f"❌ Erro em Governança: {str(e)}")
+            
+            with tab7:
+                try:
+                    aba_produto(df)
+                except Exception as e:
+                    st.error(f"❌ Erro em Produto: {str(e)}")
+            
+            with tab8:
+                try:
+                    aba_historico(df)
+                except Exception as e:
+                    st.error(f"❌ Erro em Histórico: {str(e)}")
+            
+            with tab9:
+                try:
+                    aba_lideranca(df)
+                except Exception as e:
+                    st.error(f"❌ Erro em Liderança: {str(e)}")
+            
+            with tab10:
+                try:
+                    aba_sobre()
+                except Exception as e:
+                    st.error(f"❌ Erro em Sobre: {str(e)}")
 
 
 if __name__ == "__main__":
