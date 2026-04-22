@@ -891,50 +891,182 @@ def calcular_metricas_dev(df: pd.DataFrame) -> Dict:
 
 
 def calcular_metricas_backlog(df: pd.DataFrame) -> Dict:
-    """
-    Calcula métricas de backlog (Product Backlog).
+    """Calcula métricas específicas para análise do Product Backlog."""
+    hoje = datetime.now()
     
-    Análise específica para project PB: aging, priorização, estimativa.
+    # Filtrar apenas itens no backlog (não concluídos e não em progresso avançado)
+    df_backlog = df[df['status_cat'].isin(['backlog'])]
     
-    Args:
-        df: DataFrame com cards do backlog
+    # Se não houver itens no backlog "puro", considerar todos não concluídos
+    if df_backlog.empty:
+        df_backlog = df[~df['status_cat'].isin(['done', 'deferred'])]
     
-    Returns:
-        Dict com métricas de backlog
-    """
-    if df.empty:
+    # REMOVER HOTFIX - não passa por produto, vai direto pra dev
+    df_backlog = df_backlog[df_backlog['tipo'] != 'HOTFIX']
+    
+    total_backlog = len(df_backlog)
+    
+    if total_backlog == 0:
         return {
-            "total": 0,
-            "nao_iniciado": 0,
-            "estimado": 0,
-            "aging_30": 0,
-            "health_score": 0,
+            "total_itens": 0,
+            "sp_pendentes": 0,
+            "idade_media": 0,
+            "idade_mediana": 0,
+            "pct_sem_sp": 0,
+            "pct_sem_responsavel": 0,
+            "cards_aging": pd.DataFrame(),
+            "por_prioridade": {},
+            "por_tipo": {},
+            "por_produto": pd.DataFrame(),
+            "score_saude": 100,
+            "status_saude": "🟢 Saudável",
+            "faixas_idade": {"0-15": 0, "16-30": 0, "31-60": 0, "61-90": 0, "90+": 0},
+            "cards_sem_sprint": pd.DataFrame(),
+            "cards_sem_responsavel": pd.DataFrame(),
+            "cards_sem_sp": pd.DataFrame(),
+            "cards_estagnados": pd.DataFrame(),
+            "mais_antigo": 0,
+            "df_backlog": df_backlog,
+            "recomendacoes": [],
         }
     
-    # Estágio no backlog (não iniciado)
-    nao_iniciado = len(df[df['status_cat'] == 'backlog'])
+    # Calcular idade em dias
+    df_backlog = df_backlog.copy()
+    df_backlog['idade_dias'] = df_backlog['criado'].apply(lambda x: (hoje - x).days if pd.notna(x) else 0)
+    df_backlog['dias_sem_update'] = df_backlog['atualizado'].apply(lambda x: (hoje - x).days if pd.notna(x) else 0)
     
-    # Estimados (com SP)
-    estimado = len(df[df['sp_preenchido']])
+    # Métricas básicas
+    sp_pendentes = int(df_backlog['sp'].sum())
+    idade_media = df_backlog['idade_dias'].mean()
+    idade_mediana = df_backlog['idade_dias'].median()
+    mais_antigo = df_backlog['idade_dias'].max()
     
-    # Aging (criado há 30+ dias e ainda não iniciado)
-    hoje = datetime.now()
-    aging_30 = len(df[(df['status_cat'] == 'backlog') & 
-                       ((hoje - df['criado']).dt.days >= 30)])
+    # Cards sem estimativa
+    sem_sp = df_backlog[df_backlog['sp'] == 0]
+    pct_sem_sp = len(sem_sp) / total_backlog * 100 if total_backlog > 0 else 0
     
-    # Health score simples
-    pct_estimado = (estimado / len(df) * 100) if len(df) > 0 else 0
-    pct_nao_envelhecido = ((len(df) - aging_30) / len(df) * 100) if len(df) > 0 else 0
-    health_score = round((pct_estimado + pct_nao_envelhecido) / 2, 1)
+    # Cards sem responsável
+    sem_responsavel = df_backlog[df_backlog['desenvolvedor'] == 'Não atribuído']
+    pct_sem_responsavel = len(sem_responsavel) / total_backlog * 100 if total_backlog > 0 else 0
+    
+    # Faixas de idade
+    faixas_idade = {
+        "0-15": len(df_backlog[df_backlog['idade_dias'] <= 15]),
+        "16-30": len(df_backlog[(df_backlog['idade_dias'] > 15) & (df_backlog['idade_dias'] <= 30)]),
+        "31-60": len(df_backlog[(df_backlog['idade_dias'] > 30) & (df_backlog['idade_dias'] <= 60)]),
+        "61-90": len(df_backlog[(df_backlog['idade_dias'] > 60) & (df_backlog['idade_dias'] <= 90)]),
+        "90+": len(df_backlog[df_backlog['idade_dias'] > 90]),
+    }
+    
+    # Cards aging (> 60 dias)
+    cards_aging = df_backlog[df_backlog['idade_dias'] > 60].sort_values('idade_dias', ascending=False)
+    
+    # Cards estagnados (sem update há mais de 30 dias)
+    cards_estagnados = df_backlog[df_backlog['dias_sem_update'] > 30].sort_values('dias_sem_update', ascending=False)
+    
+    # Cards sem sprint
+    cards_sem_sprint = df_backlog[df_backlog['sprint'] == 'Sem Sprint']
+    
+    # Distribuição por prioridade
+    por_prioridade = df_backlog['prioridade'].value_counts().to_dict()
+    
+    # Distribuição por tipo
+    por_tipo = df_backlog['tipo'].value_counts().to_dict()
+    
+    # Por produto
+    por_produto = df_backlog.groupby('produto').agg({
+        'ticket_id': 'count',
+        'sp': 'sum',
+        'idade_dias': 'mean'
+    }).reset_index()
+    por_produto.columns = ['Produto', 'Cards', 'SP', 'Idade Média']
+    por_produto['Idade Média'] = por_produto['Idade Média'].round(1)
+    
+    # Calcular score de saúde do backlog (0-100)
+    # Componentes:
+    # - Idade média (30%) - penaliza se > 30 dias
+    # - % sem SP (25%) - penaliza itens sem estimativa
+    # - Taxa de crescimento aprox (25%) - baseado em aging
+    # - Priorização (20%) - penaliza se muitos críticos
+    
+    score_idade = max(0, 30 - (idade_media / 3)) if idade_media <= 90 else 0
+    score_sp = max(0, 25 - (pct_sem_sp / 2))
+    score_aging = max(0, 25 - (faixas_idade["90+"] * 2))
+    
+    pct_criticos = por_prioridade.get('Highest', 0) + por_prioridade.get('High', 0) + por_prioridade.get('Alta', 0)
+    pct_criticos = (pct_criticos / total_backlog * 100) if total_backlog > 0 else 0
+    score_priorizacao = max(0, 20 - (pct_criticos / 2))
+    
+    score_saude = round(score_idade + score_sp + score_aging + score_priorizacao, 0)
+    
+    if score_saude >= 75:
+        status_saude = "🟢 Saudável"
+    elif score_saude >= 50:
+        status_saude = "🟡 Atenção"
+    elif score_saude >= 25:
+        status_saude = "🟠 Alerta"
+    else:
+        status_saude = "🔴 Crítico"
+    
+    # Gerar recomendações
+    recomendacoes = []
+    
+    if faixas_idade["90+"] > 0:
+        recomendacoes.append({
+            "tipo": "🗑️ Candidatos a Descarte",
+            "msg": f"{faixas_idade['90+']} itens estão há mais de 90 dias no backlog. Considere descartá-los.",
+            "criticidade": "alta"
+        })
+    
+    if pct_sem_sp > 30:
+        recomendacoes.append({
+            "tipo": "📝 Refinamento Necessário",
+            "msg": f"{pct_sem_sp:.0f}% do backlog não tem estimativa. Agende um grooming.",
+            "criticidade": "media"
+        })
+    
+    if pct_sem_responsavel > 40:
+        recomendacoes.append({
+            "tipo": "👤 Atribuir Responsáveis",
+            "msg": f"{pct_sem_responsavel:.0f}% dos itens não têm responsável definido.",
+            "criticidade": "media"
+        })
+    
+    if len(cards_estagnados) > 5:
+        recomendacoes.append({
+            "tipo": "⏸️ Cards Estagnados",
+            "msg": f"{len(cards_estagnados)} cards não são atualizados há mais de 30 dias.",
+            "criticidade": "media"
+        })
+    
+    if idade_media > 60:
+        recomendacoes.append({
+            "tipo": "⚠️ Backlog Envelhecido",
+            "msg": f"Idade média de {idade_media:.0f} dias. Revise a priorização.",
+            "criticidade": "alta"
+        })
     
     return {
-        "total": len(df),
-        "nao_iniciado": nao_iniciado,
-        "estimado": estimado,
-        "aging_30": aging_30,
-        "health_score": health_score,
-        "pct_estimado": round(pct_estimado, 1),
-        "pct_nao_envelhecido": round(pct_nao_envelhecido, 1),
+        "total_itens": total_backlog,
+        "sp_pendentes": sp_pendentes,
+        "idade_media": round(idade_media, 1),
+        "idade_mediana": round(idade_mediana, 1),
+        "pct_sem_sp": round(pct_sem_sp, 1),
+        "pct_sem_responsavel": round(pct_sem_responsavel, 1),
+        "cards_aging": cards_aging,
+        "por_prioridade": por_prioridade,
+        "por_tipo": por_tipo,
+        "por_produto": por_produto,
+        "score_saude": score_saude,
+        "status_saude": status_saude,
+        "faixas_idade": faixas_idade,
+        "cards_sem_sprint": cards_sem_sprint,
+        "cards_sem_responsavel": sem_responsavel,
+        "cards_sem_sp": sem_sp,
+        "cards_estagnados": cards_estagnados,
+        "mais_antigo": mais_antigo,
+        "df_backlog": df_backlog,
+        "recomendacoes": recomendacoes,
     }
 
 
