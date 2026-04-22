@@ -174,7 +174,6 @@ from modulos.helpers import (
     calcular_valor_metrica,
     calcular_dados_grafico,
     calcular_dados_tabela,
-    calcular_lista_cards,
     calcular_dados_heatmap,
     calcular_dados_funil,
     gerar_dados_tendencia,
