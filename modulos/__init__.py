@@ -55,6 +55,27 @@ from modulos.jira_api import (
     obter_icone_status,
 )
 
+from modulos.calculos import (
+    calcular_fator_k,
+    classificar_maturidade,
+    calcular_ddp,
+    calcular_fpy,
+    calcular_lead_time,
+    analisar_dev_detalhado,
+    filtrar_qas_principais,
+    calcular_concentracao_conhecimento,
+    gerar_recomendacoes_rodizio,
+    calcular_concentracao_pessoa,
+    calcular_metricas_governanca,
+    calcular_metricas_qa,
+    calcular_metricas_produto,
+    calcular_health_score,
+    calcular_metricas_dev,
+    calcular_metricas_backlog,
+    processar_issue_unica,
+    processar_issues,
+)
+
 __all__ = [
     # config
     'configure_page',
@@ -92,5 +113,24 @@ __all__ = [
     'gerar_badge_status',
     'obter_icone_evento',
     'obter_icone_status',
+    # calculos (Phase 4)
+    'calcular_fator_k',
+    'classificar_maturidade',
+    'calcular_ddp',
+    'calcular_fpy',
+    'calcular_lead_time',
+    'analisar_dev_detalhado',
+    'filtrar_qas_principais',
+    'calcular_concentracao_conhecimento',
+    'gerar_recomendacoes_rodizio',
+    'calcular_concentracao_pessoa',
+    'calcular_metricas_governanca',
+    'calcular_metricas_qa',
+    'calcular_metricas_produto',
+    'calcular_health_score',
+    'calcular_metricas_dev',
+    'calcular_metricas_backlog',
+    'processar_issue_unica',
+    'processar_issues',
 ]
 
