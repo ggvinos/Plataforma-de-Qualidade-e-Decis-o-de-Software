@@ -65,6 +65,12 @@ from modulos.auth import (
     get_cookie_manager,
 )
 
+from modulos.confirmation_call_auth import (
+    verificar_e_bloquear,
+    renderizar_logout_sidebar,
+    obter_usuario_autenticado,
+)
+
 from modulos.jira_api import (
     buscar_dados_jira_cached,
     buscar_card_especifico,
@@ -220,6 +226,12 @@ from modulos.changelog import exibir_changelog
 # ==============================================================================
 
 configure_page()
+
+# ==============================================================================
+# VERIFICAÇÃO DE AUTENTICAÇÃO (DEVE SER SEGUNDO - BLOQUEIA SEM LOGIN)
+# ==============================================================================
+
+verificar_e_bloquear()
 
 # CSS global para o popup (deve ser inserido uma vez na página)
 CARD_POPUP_CSS = """
@@ -756,7 +768,10 @@ def main():
         </div>
         """, unsafe_allow_html=True)
         
-        # Botão de Logout
+        # Renderiza informações de autenticação JWT
+        renderizar_logout_sidebar()
+        
+        # Botão de Logout (Email corporativo - legado)
         if st.button("🚪 Sair", use_container_width=True, key="btn_logout"):
             fazer_logout()
             st.rerun()
