@@ -192,6 +192,8 @@ from modulos.dashboards_personalizados import (
     renderizar_metrica_personalizada,
 )
 
+from modulos.changelog import exibir_changelog
+
 __all__ = [
     # config
     'configure_page',
@@ -345,5 +347,7 @@ __all__ = [
     'listar_dashboards_personalizados',
     'excluir_dashboard_personalizado',
     'renderizar_metrica_personalizada',
+    # changelog (Phase 8 - Cleanup)
+    'exibir_changelog',
 ]
 
