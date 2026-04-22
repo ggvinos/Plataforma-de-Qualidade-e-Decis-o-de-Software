@@ -85,6 +85,21 @@ from modulos.processamento import (
     resetar_filtros,
 )
 
+from modulos.abas import (
+    aba_clientes,
+    aba_visao_geral,
+    aba_qa,
+    aba_dev,
+    aba_governanca,
+    aba_produto,
+    aba_backlog,
+    aba_suporte_implantacao,
+    aba_historico,
+    aba_lideranca,
+    aba_sobre,
+    aba_dashboard_personalizado,
+)
+
 __all__ = [
     # config
     'configure_page',
@@ -148,5 +163,18 @@ __all__ = [
     'preparar_df_com_metricas_filtro',
     'validar_filtros',
     'resetar_filtros',
+    # abas (Phase 6)
+    'aba_clientes',
+    'aba_visao_geral',
+    'aba_qa',
+    'aba_dev',
+    'aba_governanca',
+    'aba_produto',
+    'aba_backlog',
+    'aba_suporte_implantacao',
+    'aba_historico',
+    'aba_lideranca',
+    'aba_sobre',
+    'aba_dashboard_personalizado',
 ]
 
