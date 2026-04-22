@@ -80,15 +80,30 @@ def autenticar_com_confirmation_call(
             verify=True  # Valida certificado SSL
         )
         
-        # Trata resposta
+        # Debug: Log resposta para troubleshooting
+        debug_info = {
+            "status": response.status_code,
+            "headers": dict(response.headers),
+            "content_length": len(response.content),
+            "content_type": response.headers.get("content-type", "unknown"),
+        }
+        
+        # Trata resposta baseado no status code
         if response.status_code == 200:
-            data = response.json()
-            token = data.get("token") or data.get("access_token")
+            try:
+                # Tenta fazer parse JSON
+                data = response.json()
+                token = data.get("token") or data.get("access_token")
+                
+                if not token:
+                    return False, None, "❌ Resposta inválida: token não encontrado na resposta"
+                
+                return True, token, f"✅ Autenticado com sucesso no ambiente {ambiente}"
             
-            if not token:
-                return False, None, "❌ Resposta inválida: token não encontrado na resposta"
-            
-            return True, token, f"✅ Autenticado com sucesso no ambiente {ambiente}"
+            except json.JSONDecodeError as e:
+                # Status 200 mas resposta não é JSON - retorna info de debug
+                texto_resposta = response.text[:200] if response.text else "[vazio]"
+                return False, None, f"❌ Servidor retornou sucesso (200) mas resposta não é JSON válida.\nResposta: {texto_resposta}\n\nContate o administrador do ConfirmationCall."
         
         elif response.status_code == 401:
             return False, None, "❌ Credenciais inválidas (Usuário ou Senha incorretos)"
@@ -97,28 +112,45 @@ def autenticar_com_confirmation_call(
             return False, None, "❌ Acesso negado. Usuário não tem permissão para este ambiente"
         
         elif response.status_code == 404:
-            return False, None, f"❌ Endpoint não encontrado no ambiente {ambiente}"
+            # Tenta extrair mais info
+            try:
+                erro_msg = response.json().get("message", "")
+                if erro_msg:
+                    return False, None, f"❌ Endpoint não encontrado no ambiente {ambiente}\nDetalhes: {erro_msg}"
+            except:
+                pass
+            return False, None, f"❌ Endpoint não encontrado no ambiente {ambiente}\nURL: {endpoint}"
         
         elif response.status_code == 500:
-            return False, None, f"❌ Erro no servidor do ConfirmationCall ({ambiente})"
+            try:
+                erro_msg = response.json().get("message", "Erro interno no servidor")
+                return False, None, f"❌ Erro no servidor ConfirmationCall ({ambiente}): {erro_msg}"
+            except:
+                return False, None, f"❌ Erro no servidor do ConfirmationCall ({ambiente})"
         
         else:
-            return False, None, f"❌ Erro na autenticação (Status: {response.status_code})"
+            # Tenta extrair info de erro se disponível
+            try:
+                erro_response = response.json()
+                erro_msg = erro_response.get("message") or erro_response.get("error") or str(erro_response)
+                return False, None, f"❌ Erro na autenticação (Status {response.status_code}): {erro_msg}"
+            except:
+                return False, None, f"❌ Erro na autenticação (Status: {response.status_code})\nVerifique se as credenciais estão corretas."
     
     except requests.exceptions.Timeout:
-        return False, None, f"⏱️ Timeout ao conectar com {ambiente} (excedeu {TIMEOUT_SEGUNDOS}s)"
+        return False, None, f"⏱️ Timeout ao conectar com {ambiente} (excedeu {TIMEOUT_SEGUNDOS}s)\nVerifique sua conexão de internet."
     
-    except requests.exceptions.ConnectionError:
-        return False, None, f"🌐 Erro de conexão com o servidor {ambiente}. Verifique sua internet."
+    except requests.exceptions.ConnectionError as e:
+        return False, None, f"🌐 Erro de conexão com o servidor {ambiente}.\nDetalhes: {str(e)}\nVerifique sua internet ou se há firewall bloqueando."
     
     except requests.exceptions.RequestException as e:
         return False, None, f"❌ Erro na requisição: {str(e)}"
     
-    except json.JSONDecodeError:
-        return False, None, "❌ Resposta inválida do servidor (não é JSON válido)"
+    except json.JSONDecodeError as e:
+        return False, None, f"❌ Resposta inválida do servidor (não é JSON válido)\nErro: {str(e)}"
     
     except Exception as e:
-        return False, None, f"❌ Erro inesperado: {str(e)}"
+        return False, None, f"❌ Erro inesperado: {str(e)}\nTipo: {type(e).__name__}"
 
 
 # ==============================================================================
@@ -259,6 +291,44 @@ def tela_login():
                         st.rerun()
                     else:
                         st.error(mensagem)
+                        
+                        # Expander com modo debug
+                        with st.expander("🔧 Informações de Debug"):
+                            st.markdown("""
+                            ### Dicas de Troubleshooting:
+                            
+                            **Se vê "Expecting value: line 1 column 1":**
+                            - Pode ser resposta vazia ou HTML de erro
+                            - Tente executar: `python3 test_cc_connection.py`
+                            - Isto mostrará exatamente o que a API está retornando
+                            
+                            **Se vê "Credenciais inválidas (401)":**
+                            - Verifique usuário e senha
+                            - Tente copiar/colar sem espaços
+                            - Confirme com admin que conta está ativa
+                            
+                            **Se vê "Timeout":**
+                            - Verifique sua internet
+                            - Tente outro ambiente (Produção/Homologação)
+                            - Pode ser bloqueio de firewall
+                            
+                            **Próximo passo:**
+                            1. Abra terminal
+                            2. Execute: `python3 test_cc_connection.py`
+                            3. Compartilhe o resultado com o admin
+                            """)
+                            
+                            st.code(f"""
+# Suas credenciais testadas:
+Usuário: {usuario}
+Ambiente: {ambiente}
+Endpoint: {ENDPOINTS.get(ambiente, 'Desconhecido')}
+
+# Para testar manualmente:
+curl -X POST {ENDPOINTS.get(ambiente, 'URL')} \\
+  -H "Content-Type: application/json" \\
+  -u "{usuario}:{senha}"
+                            """, language="bash")
         
         st.markdown("---")
         
