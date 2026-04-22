@@ -7890,9 +7890,10 @@ def exibir_historico_validacoes(df: pd.DataFrame, key_prefix: str = "qa"):
     
     limite = len(df_filtrado) if mostrar_todos else min(limite_inicial, len(df_filtrado))
     
-    # Renderiza lista de cards
-    html_lista = '<div class="scroll-container" style="max-height: 600px;">'
+    # Container com scroll
+    st.markdown('<div class="scroll-container" style="max-height: 600px;">', unsafe_allow_html=True)
     
+    # Renderiza cada card individualmente (evita problemas com caracteres especiais)
     for idx, (_, row) in enumerate(df_filtrado.head(limite).iterrows()):
         risco = row['risco_info']
         data_val = row['resolutiondate'].strftime('%d/%m/%Y') if pd.notna(row['resolutiondate']) else 'N/A'
@@ -7918,53 +7919,58 @@ def exibir_historico_validacoes(df: pd.DataFrame, key_prefix: str = "qa"):
         elif 'BUG' in tipo:
             tipo_badge = '<span style="background: #f97316; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">BUG</span>'
         else:
-            tipo_badge = f'<span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">{tipo[:12]}</span>'
+            tipo_label = tipo[:12] if len(tipo) > 12 else tipo
+            tipo_badge = '<span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">' + tipo_label + '</span>'
         
         # Link do card
         card_link = card_link_com_popup(row['ticket_id'])
         
-        # Fatores de risco resumidos
+        # Título sanitizado (remove caracteres problemáticos)
+        titulo_safe = str(row["titulo"])[:70].replace('"', '&quot;').replace("'", "&#39;").replace("<", "&lt;").replace(">", "&gt;")
+        if len(str(row["titulo"])) > 70:
+            titulo_safe += "..."
+        
+        # Fatores de risco resumidos (sanitizados)
         fatores_html = ""
         if risco['fatores']:
-            fatores_html = f'<div style="font-size: 11px; color: #64748b; margin-top: 4px;">{" • ".join(risco["fatores"][:3])}</div>'
+            fatores_safe = [f.replace('"', '&quot;').replace("'", "&#39;") for f in risco["fatores"][:3]]
+            fatores_html = '<div style="font-size: 11px; color: #64748b; margin-top: 4px;">' + " • ".join(fatores_safe) + '</div>'
         
-        html_lista += f'''
-        <div style="background: {bg_color}; border-left: 4px solid {border_color}; 
-                    padding: 12px 15px; margin: 8px 0; border-radius: 0 8px 8px 0;
-                    transition: all 0.2s ease;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
-                <div style="flex: 1; min-width: 200px;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                        {card_link}
-                        {tipo_badge}
-                        <span style="background: {risco["cor"]}20; color: {risco["cor"]}; 
-                                     padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;">
-                            {risco["nivel_texto"]} ({risco["score"]})
-                        </span>
-                    </div>
-                    <div style="color: #334155; font-size: 13px; margin: 4px 0;">
-                        {str(row["titulo"])[:70]}{"..." if len(str(row["titulo"])) > 70 else ""}
-                    </div>
-                    {fatores_html}
-                </div>
-                <div style="text-align: right; min-width: 180px;">
-                    <div style="font-size: 11px; color: #64748b;">
-                        📅 <b>{data_val}</b> • 🧑‍🔬 {row["qa"] if row["qa"] != "Não atribuído" else "N/A"}
-                    </div>
-                    <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
-                        👤 {row["desenvolvedor"] if row["desenvolvedor"] != "Não atribuído" else "N/A"} • 
-                        {row["sp"]} SP • 🐛 {int(row["bugs"])} bugs
-                    </div>
-                    <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">
-                        📦 {row.get("produto", "N/A")}
-                    </div>
-                </div>
-            </div>
-        </div>
-        '''
+        # QA e DEV sanitizados
+        qa_safe = row["qa"] if row["qa"] != "Não atribuído" else "N/A"
+        dev_safe = row["desenvolvedor"] if row["desenvolvedor"] != "Não atribuído" else "N/A"
+        produto_safe = str(row.get("produto", "N/A"))
+        
+        # Monta o HTML do card
+        card_html = '<div style="background: ' + bg_color + '; border-left: 4px solid ' + border_color + '; '
+        card_html += 'padding: 12px 15px; margin: 8px 0; border-radius: 0 8px 8px 0;">'
+        card_html += '<div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">'
+        
+        # Coluna esquerda
+        card_html += '<div style="flex: 1; min-width: 200px;">'
+        card_html += '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">'
+        card_html += card_link + ' ' + tipo_badge
+        card_html += ' <span style="background: ' + risco["cor"] + '20; color: ' + risco["cor"] + '; '
+        card_html += 'padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;">'
+        card_html += risco["nivel_texto"] + ' (' + str(risco["score"]) + ')</span>'
+        card_html += '</div>'
+        card_html += '<div style="color: #334155; font-size: 13px; margin: 4px 0;">' + titulo_safe + '</div>'
+        card_html += fatores_html
+        card_html += '</div>'
+        
+        # Coluna direita
+        card_html += '<div style="text-align: right; min-width: 180px;">'
+        card_html += '<div style="font-size: 11px; color: #64748b;">📅 <b>' + data_val + '</b> • 🧑‍🔬 ' + qa_safe + '</div>'
+        card_html += '<div style="font-size: 11px; color: #64748b; margin-top: 2px;">👤 ' + dev_safe + ' • '
+        card_html += str(row["sp"]) + ' SP • 🐛 ' + str(int(row["bugs"])) + ' bugs</div>'
+        card_html += '<div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">📦 ' + produto_safe + '</div>'
+        card_html += '</div>'
+        
+        card_html += '</div></div>'
+        
+        st.markdown(card_html, unsafe_allow_html=True)
     
-    html_lista += '</div>'
-    st.markdown(html_lista, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     
     # ===== ANÁLISE POR DIMENSÃO =====
     st.markdown("---")
