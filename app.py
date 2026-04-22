@@ -7548,19 +7548,132 @@ def mostrar_lista_df_completa(df: pd.DataFrame, titulo: str):
     mostrar_lista_tickets_completa(items, titulo)
 
 
+def calcular_score_risco_card(row: pd.Series) -> Dict:
+    """
+    Calcula score de risco de um card validado para análise de release.
+    
+    Fatores de risco considerados:
+    - Tipo de card (HOTFIX = alto risco)
+    - Quantidade de bugs encontrados
+    - Story Points (complexidade)
+    - Teve retrabalho (bugs > 0)
+    - Produto/Plataforma crítica
+    - Prioridade
+    - Lead time (muito rápido ou muito lento = risco)
+    
+    Retorna: Dict com score (0-100), nível, fatores
+    """
+    score = 0
+    fatores = []
+    
+    # 1. TIPO DE CARD (0-25 pontos)
+    tipo = str(row.get('tipo', '')).upper()
+    if 'HOTFIX' in tipo:
+        score += 25
+        fatores.append("🔥 HOTFIX - correção crítica")
+    elif 'BUG' in tipo:
+        score += 15
+        fatores.append("🐛 Correção de bug")
+    elif 'MELHORIA' in tipo or 'IMPROVEMENT' in tipo:
+        score += 5
+        fatores.append("✨ Melhoria")
+    # Tarefa normal = 0
+    
+    # 2. BUGS ENCONTRADOS (0-25 pontos)
+    bugs = int(row.get('bugs', 0))
+    if bugs >= 5:
+        score += 25
+        fatores.append(f"🚨 {bugs} bugs - muitos problemas")
+    elif bugs >= 3:
+        score += 15
+        fatores.append(f"⚠️ {bugs} bugs encontrados")
+    elif bugs >= 1:
+        score += 8
+        fatores.append(f"🐛 {bugs} bug(s)")
+    # 0 bugs = 0 pontos (bom!)
+    
+    # 3. COMPLEXIDADE/SP (0-20 pontos)
+    sp = int(row.get('sp', 0))
+    if sp >= 13:
+        score += 20
+        fatores.append(f"📊 {sp} SP - muito complexo")
+    elif sp >= 8:
+        score += 12
+        fatores.append(f"📊 {sp} SP - complexidade alta")
+    elif sp >= 5:
+        score += 6
+        fatores.append(f"📊 {sp} SP - complexidade média")
+    # SP baixo = 0 pontos
+    
+    # 4. PRIORIDADE (0-15 pontos)
+    prioridade = str(row.get('prioridade', '')).lower()
+    if any(p in prioridade for p in ['highest', 'muito alta', 'muito alto', 'crítica', 'critica']):
+        score += 15
+        fatores.append("🔴 Prioridade crítica")
+    elif any(p in prioridade for p in ['high', 'alta', 'alto']):
+        score += 8
+        fatores.append("🟠 Prioridade alta")
+    
+    # 5. LEAD TIME ANÔMALO (0-10 pontos)
+    lead_time = int(row.get('lead_time', 0))
+    if lead_time <= 1 and sp >= 5:
+        score += 10
+        fatores.append(f"⚡ Lead time muito curto ({lead_time}d) para {sp} SP")
+    elif lead_time >= 20:
+        score += 5
+        fatores.append(f"🐢 Lead time longo ({lead_time}d)")
+    
+    # 6. PRODUTO CRÍTICO (0-5 pontos) - ajustar conforme necessidade
+    produto = str(row.get('produto', '')).lower()
+    produtos_criticos = ['financeiro', 'faturamento', 'estoque', 'nfe', 'fiscal']
+    if any(p in produto for p in produtos_criticos):
+        score += 5
+        fatores.append(f"💼 Produto crítico: {row.get('produto', 'N/A')}")
+    
+    # Determina nível de risco
+    if score >= 60:
+        nivel = 'critico'
+        nivel_texto = '🔴 CRÍTICO'
+        cor = '#ef4444'
+        recomendacao = "Validação profunda recomendada antes do release"
+    elif score >= 40:
+        nivel = 'alto'
+        nivel_texto = '🟠 ALTO'
+        cor = '#f97316'
+        recomendacao = "Revisar com atenção antes do release"
+    elif score >= 20:
+        nivel = 'medio'
+        nivel_texto = '🟡 MÉDIO'
+        cor = '#eab308'
+        recomendacao = "Monitorar após release"
+    else:
+        nivel = 'baixo'
+        nivel_texto = '🟢 BAIXO'
+        cor = '#22c55e'
+        recomendacao = "OK para release"
+    
+    return {
+        'score': min(score, 100),
+        'nivel': nivel,
+        'nivel_texto': nivel_texto,
+        'cor': cor,
+        'fatores': fatores,
+        'recomendacao': recomendacao
+    }
+
+
 def exibir_historico_validacoes(df: pd.DataFrame, key_prefix: str = "qa"):
     """
-    Exibe histórico de cards validados com filtros de período e QA.
+    Exibe histórico de cards validados com análise de risco para release.
     
     Mostra:
-    - Data de validação
-    - Quantidade de bugs
-    - Quantidade de comentários
-    - Reprovações (ciclos de teste)
-    - QA responsável
+    - Listagem clicável de cards
+    - Score de risco calculado
+    - Filtros por período, QA, tipo, produto
+    - Análise de impacto na release
     """
     st.markdown("### ✅ Histórico de Cards Validados")
-    st.caption("Acompanhe os cards validados por período e QA")
+    st.caption("Análise de risco e qualidade dos cards validados para release")
     
     # Filtra apenas cards validados (status concluído)
     df_validados = df[df['status_cat'] == 'done'].copy()
@@ -7569,13 +7682,16 @@ def exibir_historico_validacoes(df: pd.DataFrame, key_prefix: str = "qa"):
         st.info("📭 Nenhum card validado no período selecionado.")
         return
     
-    # Lista de QAs disponíveis
+    # Lista de opções para filtros
     qas_disponiveis = ['Todos'] + sorted([q for q in df_validados['qa'].unique() if q and q != 'Não atribuído'])
+    tipos_disponiveis = ['Todos'] + sorted([t for t in df_validados['tipo'].unique() if t])
+    produtos_disponiveis = ['Todos'] + sorted([p for p in df_validados['produto'].unique() if p])
     
-    # Filtros
-    col_filtro1, col_filtro2, col_filtro3 = st.columns([1, 1, 1])
+    # ===== FILTROS =====
+    st.markdown("#### 🔍 Filtros")
+    col_f1, col_f2, col_f3, col_f4 = st.columns(4)
     
-    with col_filtro1:
+    with col_f1:
         periodo_opcoes = {
             "Sprint Atual": 14,
             "Últimos 7 dias": 7,
@@ -7585,29 +7701,57 @@ def exibir_historico_validacoes(df: pd.DataFrame, key_prefix: str = "qa"):
             "Todo o período": 9999
         }
         periodo_sel = st.selectbox(
-            "📅 Período de validação",
+            "📅 Período",
             list(periodo_opcoes.keys()),
             index=0,
             key=f"{key_prefix}_periodo_validacao"
         )
     
-    with col_filtro2:
+    with col_f2:
         qa_sel = st.selectbox(
-            "🧑‍🔬 Filtrar por QA",
+            "🧑‍🔬 QA",
             qas_disponiveis,
             index=0,
             key=f"{key_prefix}_qa_filtro_validacao"
         )
     
-    with col_filtro3:
+    with col_f3:
+        tipo_sel = st.selectbox(
+            "📋 Tipo",
+            tipos_disponiveis,
+            index=0,
+            key=f"{key_prefix}_tipo_filtro_validacao"
+        )
+    
+    with col_f4:
+        produto_sel = st.selectbox(
+            "📦 Produto",
+            produtos_disponiveis,
+            index=0,
+            key=f"{key_prefix}_produto_filtro_validacao"
+        )
+    
+    # Segunda linha de filtros
+    col_f5, col_f6 = st.columns(2)
+    
+    with col_f5:
+        filtro_risco = st.multiselect(
+            "⚠️ Filtrar por Risco",
+            ["🔴 Crítico", "🟠 Alto", "🟡 Médio", "🟢 Baixo"],
+            default=[],
+            key=f"{key_prefix}_risco_filtro",
+            placeholder="Todos os níveis"
+        )
+    
+    with col_f6:
         ordenacao = st.selectbox(
             "📊 Ordenar por",
-            ["Data (mais recente)", "Data (mais antigo)", "Bugs (mais)", "Bugs (menos)"],
+            ["Risco (maior)", "Risco (menor)", "Data (recente)", "Data (antigo)", "Bugs (mais)"],
             index=0,
             key=f"{key_prefix}_ordem_validacao"
         )
     
-    # Aplica filtro de período baseado em resolutiondate
+    # ===== APLICA FILTROS =====
     hoje = datetime.now()
     dias_filtro = periodo_opcoes[periodo_sel]
     
@@ -7620,120 +7764,293 @@ def exibir_historico_validacoes(df: pd.DataFrame, key_prefix: str = "qa"):
     else:
         df_filtrado = df_validados.copy()
     
-    # Aplica filtro de QA
     if qa_sel != 'Todos':
         df_filtrado = df_filtrado[df_filtrado['qa'] == qa_sel]
+    
+    if tipo_sel != 'Todos':
+        df_filtrado = df_filtrado[df_filtrado['tipo'] == tipo_sel]
+    
+    if produto_sel != 'Todos':
+        df_filtrado = df_filtrado[df_filtrado['produto'] == produto_sel]
     
     if df_filtrado.empty:
         st.warning("⚠️ Nenhum card encontrado para os filtros selecionados.")
         return
     
-    # Aplica ordenação
-    if ordenacao == "Data (mais recente)":
-        df_filtrado = df_filtrado.sort_values('resolutiondate', ascending=False)
-    elif ordenacao == "Data (mais antigo)":
-        df_filtrado = df_filtrado.sort_values('resolutiondate', ascending=True)
-    elif ordenacao == "Bugs (mais)":
-        df_filtrado = df_filtrado.sort_values('bugs', ascending=False)
-    else:
-        df_filtrado = df_filtrado.sort_values('bugs', ascending=True)
+    # ===== CALCULA RISCO PARA CADA CARD =====
+    df_filtrado['risco_info'] = df_filtrado.apply(calcular_score_risco_card, axis=1)
+    df_filtrado['risco_score'] = df_filtrado['risco_info'].apply(lambda x: x['score'])
+    df_filtrado['risco_nivel'] = df_filtrado['risco_info'].apply(lambda x: x['nivel'])
     
-    # KPIs resumidos
+    # Aplica filtro de risco
+    if filtro_risco:
+        niveis_map = {
+            "🔴 Crítico": "critico",
+            "🟠 Alto": "alto",
+            "🟡 Médio": "medio",
+            "🟢 Baixo": "baixo"
+        }
+        niveis_selecionados = [niveis_map[r] for r in filtro_risco]
+        df_filtrado = df_filtrado[df_filtrado['risco_nivel'].isin(niveis_selecionados)]
+    
+    if df_filtrado.empty:
+        st.warning("⚠️ Nenhum card encontrado para os filtros de risco selecionados.")
+        return
+    
+    # Aplica ordenação
+    if ordenacao == "Risco (maior)":
+        df_filtrado = df_filtrado.sort_values('risco_score', ascending=False)
+    elif ordenacao == "Risco (menor)":
+        df_filtrado = df_filtrado.sort_values('risco_score', ascending=True)
+    elif ordenacao == "Data (recente)":
+        df_filtrado = df_filtrado.sort_values('resolutiondate', ascending=False)
+    elif ordenacao == "Data (antigo)":
+        df_filtrado = df_filtrado.sort_values('resolutiondate', ascending=True)
+    else:
+        df_filtrado = df_filtrado.sort_values('bugs', ascending=False)
+    
+    # ===== KPIs DE ANÁLISE DE RELEASE =====
+    st.markdown("---")
+    st.markdown("#### 📊 Análise de Risco da Release")
+    
     total_validados = len(df_filtrado)
     total_bugs = int(df_filtrado['bugs'].sum())
-    total_comentarios = int(df_filtrado['comentarios'].sum()) if 'comentarios' in df_filtrado.columns else 0
+    cards_criticos = len(df_filtrado[df_filtrado['risco_nivel'] == 'critico'])
+    cards_alto = len(df_filtrado[df_filtrado['risco_nivel'] == 'alto'])
     cards_sem_bugs = len(df_filtrado[df_filtrado['bugs'] == 0])
     taxa_sem_bugs = cards_sem_bugs / total_validados * 100 if total_validados > 0 else 0
+    risco_medio = df_filtrado['risco_score'].mean()
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
         criar_card_metrica(str(total_validados), "Cards Validados", "green")
     
     with col2:
-        cor = 'green' if total_bugs < 5 else 'yellow' if total_bugs < 15 else 'red'
-        criar_card_metrica(str(total_bugs), "Bugs Encontrados", cor)
+        cor = 'red' if cards_criticos > 0 else 'green'
+        criar_card_metrica(str(cards_criticos), "🔴 Risco Crítico", cor, "Precisam revisão")
     
     with col3:
-        cor = 'green' if taxa_sem_bugs >= 70 else 'yellow' if taxa_sem_bugs >= 50 else 'red'
-        criar_card_metrica(f"{taxa_sem_bugs:.0f}%", "Sem Bugs", cor)
+        cor = 'yellow' if cards_alto > 0 else 'green'
+        criar_card_metrica(str(cards_alto), "🟠 Risco Alto", cor)
     
     with col4:
-        criar_card_metrica(str(total_comentarios), "Comentários", "blue")
+        cor = 'green' if total_bugs < 5 else 'yellow' if total_bugs < 15 else 'red'
+        criar_card_metrica(str(total_bugs), "🐛 Bugs Total", cor)
     
+    with col5:
+        cor = 'green' if risco_medio < 25 else 'yellow' if risco_medio < 45 else 'red'
+        criar_card_metrica(f"{risco_medio:.0f}", "Score Médio", cor, "0-100")
+    
+    # ===== INDICADOR DE GO/NO-GO =====
+    if cards_criticos >= 3 or risco_medio >= 50:
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); 
+                    border: 2px solid #ef4444; border-radius: 10px; padding: 15px; margin: 15px 0;">
+            <h4 style="color: #dc2626; margin: 0;">🛑 ATENÇÃO ANTES DO RELEASE</h4>
+            <p style="color: #7f1d1d; margin: 8px 0 0 0;">
+                Existem cards com risco elevado que precisam de validação adicional antes de subir para produção.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    elif cards_criticos > 0 or cards_alto >= 3:
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); 
+                    border: 2px solid #f59e0b; border-radius: 10px; padding: 15px; margin: 15px 0;">
+            <h4 style="color: #b45309; margin: 0;">⚠️ REVISAR ANTES DO RELEASE</h4>
+            <p style="color: #78350f; margin: 8px 0 0 0;">
+                Alguns cards requerem atenção especial. Verifique os itens de risco alto/crítico.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); 
+                    border: 2px solid #22c55e; border-radius: 10px; padding: 15px; margin: 15px 0;">
+            <h4 style="color: #16a34a; margin: 0;">✅ RELEASE OK</h4>
+            <p style="color: #166534; margin: 8px 0 0 0;">
+                Os cards validados apresentam risco controlado. Release pode prosseguir.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # ===== LISTAGEM DE CARDS COM RISCO =====
     st.markdown("---")
+    st.markdown("#### 📋 Cards Validados")
     
-    # Tabela detalhada
-    st.markdown("#### 📋 Detalhamento")
-    
-    # Prepara dados para exibição
-    dados_exibicao = []
-    for _, row in df_filtrado.iterrows():
-        data_val = row['resolutiondate'].strftime('%d/%m/%Y') if pd.notna(row['resolutiondate']) else 'N/A'
-        
-        # Estimativa de reprovações baseada em ciclos (se houver transições)
-        # Por agora, usa bugs > 0 como indicador de retrabalho
-        reprovacoes = "Sim" if row['bugs'] > 0 else "Não"
-        
-        dados_exibicao.append({
-            'Card': row['ticket_id'],
-            'Título': str(row['titulo'])[:50] + ('...' if len(str(row['titulo'])) > 50 else ''),
-            'Data Validação': data_val,
-            'QA': row['qa'] if row['qa'] != 'Não atribuído' else 'N/A',
-            'DEV': row['desenvolvedor'] if row['desenvolvedor'] != 'Não atribuído' else 'N/A',
-            'Bugs': int(row['bugs']),
-            'Comentários': int(row.get('comentarios', 0)),
-            'Retrabalho': reprovacoes,
-            'SP': int(row['sp'])
-        })
-    
-    df_display = pd.DataFrame(dados_exibicao)
-    
-    # Exibe com paginação se muitos cards
-    if len(df_display) > 20:
+    # Checkbox para ver todos
+    limite_inicial = 15
+    mostrar_todos = False
+    if len(df_filtrado) > limite_inicial:
         mostrar_todos = st.checkbox(
-            f"📋 Ver todos os {len(df_display)} cards validados",
+            f"📋 Ver todos os {len(df_filtrado)} cards",
             key=f"{key_prefix}_ver_todos_validados",
             value=False
         )
-        limite = len(df_display) if mostrar_todos else 20
-    else:
-        limite = len(df_display)
     
-    st.dataframe(
-        df_display.head(limite),
-        hide_index=True,
-        use_container_width=True,
-        column_config={
-            'Card': st.column_config.TextColumn('Card', width='small'),
-            'Bugs': st.column_config.NumberColumn('🐛 Bugs', format='%d'),
-            'Comentários': st.column_config.NumberColumn('💬 Coment.', format='%d'),
-            'SP': st.column_config.NumberColumn('SP', format='%d'),
-        }
-    )
+    limite = len(df_filtrado) if mostrar_todos else min(limite_inicial, len(df_filtrado))
     
-    # Resumo por QA (se filtro "Todos")
-    if qa_sel == 'Todos' and len(qas_disponiveis) > 2:
-        st.markdown("---")
-        st.markdown("#### 📊 Resumo por QA")
+    # Renderiza lista de cards
+    html_lista = '<div class="scroll-container" style="max-height: 600px;">'
+    
+    for idx, (_, row) in enumerate(df_filtrado.head(limite).iterrows()):
+        risco = row['risco_info']
+        data_val = row['resolutiondate'].strftime('%d/%m/%Y') if pd.notna(row['resolutiondate']) else 'N/A'
         
+        # Cor do card baseada no risco
+        if risco['nivel'] == 'critico':
+            bg_color = 'rgba(239, 68, 68, 0.08)'
+            border_color = '#ef4444'
+        elif risco['nivel'] == 'alto':
+            bg_color = 'rgba(249, 115, 22, 0.08)'
+            border_color = '#f97316'
+        elif risco['nivel'] == 'medio':
+            bg_color = 'rgba(234, 179, 8, 0.08)'
+            border_color = '#eab308'
+        else:
+            bg_color = 'rgba(34, 197, 94, 0.08)'
+            border_color = '#22c55e'
+        
+        # Tipo badge
+        tipo = str(row.get('tipo', 'TAREFA')).upper()
+        if 'HOTFIX' in tipo:
+            tipo_badge = '<span style="background: #ef4444; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">HOTFIX</span>'
+        elif 'BUG' in tipo:
+            tipo_badge = '<span style="background: #f97316; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">BUG</span>'
+        else:
+            tipo_badge = f'<span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">{tipo[:12]}</span>'
+        
+        # Link do card
+        card_link = card_link_com_popup(row['ticket_id'])
+        
+        # Fatores de risco resumidos
+        fatores_html = ""
+        if risco['fatores']:
+            fatores_html = f'<div style="font-size: 11px; color: #64748b; margin-top: 4px;">{" • ".join(risco["fatores"][:3])}</div>'
+        
+        html_lista += f'''
+        <div style="background: {bg_color}; border-left: 4px solid {border_color}; 
+                    padding: 12px 15px; margin: 8px 0; border-radius: 0 8px 8px 0;
+                    transition: all 0.2s ease;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
+                <div style="flex: 1; min-width: 200px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                        {card_link}
+                        {tipo_badge}
+                        <span style="background: {risco["cor"]}20; color: {risco["cor"]}; 
+                                     padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;">
+                            {risco["nivel_texto"]} ({risco["score"]})
+                        </span>
+                    </div>
+                    <div style="color: #334155; font-size: 13px; margin: 4px 0;">
+                        {str(row["titulo"])[:70]}{"..." if len(str(row["titulo"])) > 70 else ""}
+                    </div>
+                    {fatores_html}
+                </div>
+                <div style="text-align: right; min-width: 180px;">
+                    <div style="font-size: 11px; color: #64748b;">
+                        📅 <b>{data_val}</b> • 🧑‍🔬 {row["qa"] if row["qa"] != "Não atribuído" else "N/A"}
+                    </div>
+                    <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+                        👤 {row["desenvolvedor"] if row["desenvolvedor"] != "Não atribuído" else "N/A"} • 
+                        {row["sp"]} SP • 🐛 {int(row["bugs"])} bugs
+                    </div>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">
+                        📦 {row.get("produto", "N/A")}
+                    </div>
+                </div>
+            </div>
+        </div>
+        '''
+    
+    html_lista += '</div>'
+    st.markdown(html_lista, unsafe_allow_html=True)
+    
+    # ===== ANÁLISE POR DIMENSÃO =====
+    st.markdown("---")
+    st.markdown("#### 📈 Análise por Dimensão")
+    
+    tab_prod, tab_tipo, tab_qa = st.tabs(["📦 Por Produto", "📋 Por Tipo", "🧑‍🔬 Por QA"])
+    
+    with tab_prod:
+        resumo_prod = df_filtrado.groupby('produto').agg({
+            'ticket_id': 'count',
+            'bugs': 'sum',
+            'risco_score': 'mean'
+        }).reset_index()
+        resumo_prod.columns = ['Produto', 'Cards', 'Bugs', 'Risco Médio']
+        resumo_prod = resumo_prod.sort_values('Risco Médio', ascending=False)
+        
+        if not resumo_prod.empty:
+            # Mini cards de risco por produto
+            cols = st.columns(min(4, len(resumo_prod)))
+            for i, (_, row) in enumerate(resumo_prod.head(4).iterrows()):
+                with cols[i]:
+                    cor = 'red' if row['Risco Médio'] >= 45 else 'yellow' if row['Risco Médio'] >= 25 else 'green'
+                    criar_card_metrica(
+                        f"{row['Risco Médio']:.0f}",
+                        str(row['Produto'])[:15],
+                        cor,
+                        f"{int(row['Cards'])} cards, {int(row['Bugs'])} bugs"
+                    )
+    
+    with tab_tipo:
+        resumo_tipo = df_filtrado.groupby('tipo').agg({
+            'ticket_id': 'count',
+            'bugs': 'sum',
+            'risco_score': 'mean'
+        }).reset_index()
+        resumo_tipo.columns = ['Tipo', 'Cards', 'Bugs', 'Risco Médio']
+        resumo_tipo = resumo_tipo.sort_values('Risco Médio', ascending=False)
+        
+        if not resumo_tipo.empty:
+            st.dataframe(resumo_tipo, hide_index=True, use_container_width=True)
+    
+    with tab_qa:
         resumo_qa = df_filtrado[df_filtrado['qa'] != 'Não atribuído'].groupby('qa').agg({
             'ticket_id': 'count',
             'bugs': 'sum',
+            'risco_score': 'mean',
             'sp': 'sum'
         }).reset_index()
-        resumo_qa.columns = ['QA', 'Cards Validados', 'Bugs Encontrados', 'SP Total']
-        resumo_qa['Bugs/Card'] = (resumo_qa['Bugs Encontrados'] / resumo_qa['Cards Validados']).round(2)
-        resumo_qa = resumo_qa.sort_values('Cards Validados', ascending=False)
+        resumo_qa.columns = ['QA', 'Cards', 'Bugs', 'Risco Médio', 'SP Total']
+        resumo_qa['Bugs/Card'] = (resumo_qa['Bugs'] / resumo_qa['Cards']).round(2)
+        resumo_qa = resumo_qa.sort_values('Cards', ascending=False)
         
-        st.dataframe(
-            resumo_qa,
-            hide_index=True,
-            use_container_width=True,
-            column_config={
-                'Bugs/Card': st.column_config.NumberColumn('Bugs/Card', format='%.2f'),
-            }
-        )
+        if not resumo_qa.empty:
+            st.dataframe(resumo_qa, hide_index=True, use_container_width=True)
+    
+    # ===== CARDS QUE PRECISAM VALIDAÇÃO PROFUNDA =====
+    cards_atencao = df_filtrado[df_filtrado['risco_nivel'].isin(['critico', 'alto'])]
+    
+    if not cards_atencao.empty:
+        st.markdown("---")
+        st.markdown("#### 🔍 Cards que Precisam Validação Profunda")
+        st.caption("Estes cards têm risco elevado e devem ser revisados antes do release")
+        
+        for _, row in cards_atencao.iterrows():
+            risco = row['risco_info']
+            with st.expander(f"{risco['nivel_texto']} {row['ticket_id']} - {str(row['titulo'])[:50]}..."):
+                col1, col2 = st.columns([2, 1])
+                
+                with col1:
+                    st.markdown(f"**Título:** {row['titulo']}")
+                    st.markdown(f"**Tipo:** {row['tipo']} | **Produto:** {row.get('produto', 'N/A')}")
+                    st.markdown(f"**QA:** {row['qa']} | **DEV:** {row['desenvolvedor']}")
+                    
+                    st.markdown("**Fatores de Risco:**")
+                    for fator in risco['fatores']:
+                        st.markdown(f"- {fator}")
+                
+                with col2:
+                    st.markdown(f"**Score de Risco:** {risco['score']}/100")
+                    st.markdown(f"**Bugs encontrados:** {int(row['bugs'])}")
+                    st.markdown(f"**Story Points:** {row['sp']}")
+                    st.markdown(f"**Lead Time:** {row.get('lead_time', 'N/A')} dias")
+                    
+                    st.markdown("---")
+                    st.markdown(f"**💡 Recomendação:**")
+                    st.info(risco['recomendacao'])
 
 
 def renderizar_lista_com_scroll(df: pd.DataFrame, titulo: str = None, max_height: int = 400, 
