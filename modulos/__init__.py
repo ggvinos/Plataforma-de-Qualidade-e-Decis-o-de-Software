@@ -100,6 +100,98 @@ from modulos.abas import (
     aba_dashboard_personalizado,
 )
 
+# Phase 7: Módulos temáticos (blocos mentais)
+from modulos.cards import (
+    exibir_card_detalhado_v2,
+    exibir_detalhes_sd,
+    exibir_detalhes_qa,
+    exibir_detalhes_pb,
+    exibir_timeline_transicoes,
+    exibir_cards_vinculados,
+    filtrar_e_classificar_comentarios,
+    exibir_comentarios,
+    filtrar_comentarios_pb,
+    exibir_comentarios_pb,
+)
+
+from modulos.widgets import (
+    mostrar_tooltip,
+    renderizar_resultado_consulta,
+    renderizar_lista_com_scroll,
+    renderizar_widget,
+    renderizar_kpi_widget,
+    renderizar_grafico_widget,
+    renderizar_tabela_widget,
+    renderizar_lista_widget,
+    mostrar_header_nina,
+    mostrar_indicador_atualizacao,
+    mostrar_card_ticket,
+    mostrar_lista_tickets_completa,
+    mostrar_lista_df_completa,
+)
+
+from modulos.graficos import (
+    criar_grafico_funil_qa,
+    criar_grafico_tendencia_fator_k,
+    criar_grafico_tendencia_qualidade,
+    criar_grafico_tendencia_bugs,
+    criar_grafico_tendencia_health,
+    criar_grafico_throughput,
+    criar_grafico_lead_time,
+    criar_grafico_reprovacao,
+    criar_grafico_estagio_por_produto,
+    criar_grafico_hotfix_por_produto,
+    criar_grafico_funil_personalizado,
+    criar_grafico_aging_backlog,
+    criar_grafico_prioridade_backlog,
+    criar_grafico_tipo_backlog,
+    criar_grafico_backlog_por_produto,
+)
+
+from modulos.helpers import (
+    calcular_valor_metrica,
+    calcular_dados_grafico,
+    calcular_dados_tabela,
+    calcular_lista_cards,
+    calcular_dados_heatmap,
+    calcular_dados_funil,
+    gerar_dados_tendencia,
+    exportar_para_csv,
+    exportar_para_excel,
+    aplicar_estilos,
+    get_tooltip_help,
+    formatar_tempo_relativo,
+    criar_card_metrica,
+    gerar_html_card_ticket,
+)
+
+from modulos.consultas import (
+    inicializar_consultas_personalizadas,
+    entrar_modo_consulta,
+    sair_modo_consulta,
+    salvar_consulta,
+    listar_consultas_salvas,
+    excluir_consulta,
+    tela_consulta_personalizada,
+)
+
+from modulos.meu_dashboard import (
+    inicializar_meu_dashboard,
+    adicionar_widget,
+    remover_widget,
+    mover_widget_cima,
+    mover_widget_baixo,
+)
+
+from modulos.dashboards_personalizados import (
+    inicializar_dashboards_personalizados,
+    salvar_dashboard_personalizado,
+    carregar_dashboard_personalizado,
+    listar_dashboards_personalizados,
+    excluir_dashboard_personalizado,
+    renderizar_metrica_personalizada,
+)
+
 __all__ = [
     # config
     'configure_page',
@@ -176,5 +268,82 @@ __all__ = [
     'aba_lideranca',
     'aba_sobre',
     'aba_dashboard_personalizado',
+    # cards (Phase 7)
+    'exibir_card_detalhado_v2',
+    'exibir_detalhes_sd',
+    'exibir_detalhes_qa',
+    'exibir_detalhes_pb',
+    'exibir_timeline_transicoes',
+    'exibir_cards_vinculados',
+    'filtrar_e_classificar_comentarios',
+    'exibir_comentarios',
+    'filtrar_comentarios_pb',
+    'exibir_comentarios_pb',
+    # widgets (Phase 7)
+    'mostrar_tooltip',
+    'renderizar_resultado_consulta',
+    'renderizar_lista_com_scroll',
+    'renderizar_widget',
+    'renderizar_kpi_widget',
+    'renderizar_grafico_widget',
+    'renderizar_tabela_widget',
+    'renderizar_lista_widget',
+    'mostrar_header_nina',
+    'mostrar_indicador_atualizacao',
+    'mostrar_card_ticket',
+    'mostrar_lista_tickets_completa',
+    'mostrar_lista_df_completa',
+    # graficos (Phase 7)
+    'criar_grafico_funil_qa',
+    'criar_grafico_tendencia_fator_k',
+    'criar_grafico_tendencia_qualidade',
+    'criar_grafico_tendencia_bugs',
+    'criar_grafico_tendencia_health',
+    'criar_grafico_throughput',
+    'criar_grafico_lead_time',
+    'criar_grafico_reprovacao',
+    'criar_grafico_estagio_por_produto',
+    'criar_grafico_hotfix_por_produto',
+    'criar_grafico_funil_personalizado',
+    'criar_grafico_aging_backlog',
+    'criar_grafico_prioridade_backlog',
+    'criar_grafico_tipo_backlog',
+    'criar_grafico_backlog_por_produto',
+    # helpers (Phase 7)
+    'calcular_valor_metrica',
+    'calcular_dados_grafico',
+    'calcular_dados_tabela',
+    'calcular_lista_cards',
+    'calcular_dados_heatmap',
+    'calcular_dados_funil',
+    'gerar_dados_tendencia',
+    'exportar_para_csv',
+    'exportar_para_excel',
+    'aplicar_estilos',
+    'get_tooltip_help',
+    'formatar_tempo_relativo',
+    'criar_card_metrica',
+    'gerar_html_card_ticket',
+    # consultas (Phase 7)
+    'inicializar_consultas_personalizadas',
+    'entrar_modo_consulta',
+    'sair_modo_consulta',
+    'salvar_consulta',
+    'listar_consultas_salvas',
+    'excluir_consulta',
+    'tela_consulta_personalizada',
+    # meu_dashboard (Phase 7)
+    'inicializar_meu_dashboard',
+    'adicionar_widget',
+    'remover_widget',
+    'mover_widget_cima',
+    'mover_widget_baixo',
+    # dashboards_personalizados (Phase 7)
+    'inicializar_dashboards_personalizados',
+    'salvar_dashboard_personalizado',
+    'carregar_dashboard_personalizado',
+    'listar_dashboards_personalizados',
+    'excluir_dashboard_personalizado',
+    'renderizar_metrica_personalizada',
 ]
 
