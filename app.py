@@ -7548,6 +7548,194 @@ def mostrar_lista_df_completa(df: pd.DataFrame, titulo: str):
     mostrar_lista_tickets_completa(items, titulo)
 
 
+def exibir_historico_validacoes(df: pd.DataFrame, key_prefix: str = "qa"):
+    """
+    Exibe histórico de cards validados com filtros de período e QA.
+    
+    Mostra:
+    - Data de validação
+    - Quantidade de bugs
+    - Quantidade de comentários
+    - Reprovações (ciclos de teste)
+    - QA responsável
+    """
+    st.markdown("### ✅ Histórico de Cards Validados")
+    st.caption("Acompanhe os cards validados por período e QA")
+    
+    # Filtra apenas cards validados (status concluído)
+    df_validados = df[df['status_cat'] == 'done'].copy()
+    
+    if df_validados.empty:
+        st.info("📭 Nenhum card validado no período selecionado.")
+        return
+    
+    # Lista de QAs disponíveis
+    qas_disponiveis = ['Todos'] + sorted([q for q in df_validados['qa'].unique() if q and q != 'Não atribuído'])
+    
+    # Filtros
+    col_filtro1, col_filtro2, col_filtro3 = st.columns([1, 1, 1])
+    
+    with col_filtro1:
+        periodo_opcoes = {
+            "Sprint Atual": 14,
+            "Últimos 7 dias": 7,
+            "Últimos 15 dias": 15,
+            "Últimos 30 dias": 30,
+            "Últimos 60 dias": 60,
+            "Todo o período": 9999
+        }
+        periodo_sel = st.selectbox(
+            "📅 Período de validação",
+            list(periodo_opcoes.keys()),
+            index=0,
+            key=f"{key_prefix}_periodo_validacao"
+        )
+    
+    with col_filtro2:
+        qa_sel = st.selectbox(
+            "🧑‍🔬 Filtrar por QA",
+            qas_disponiveis,
+            index=0,
+            key=f"{key_prefix}_qa_filtro_validacao"
+        )
+    
+    with col_filtro3:
+        ordenacao = st.selectbox(
+            "📊 Ordenar por",
+            ["Data (mais recente)", "Data (mais antigo)", "Bugs (mais)", "Bugs (menos)"],
+            index=0,
+            key=f"{key_prefix}_ordem_validacao"
+        )
+    
+    # Aplica filtro de período baseado em resolutiondate
+    hoje = datetime.now()
+    dias_filtro = periodo_opcoes[periodo_sel]
+    
+    if dias_filtro < 9999:
+        data_corte = hoje - timedelta(days=dias_filtro)
+        df_filtrado = df_validados[
+            (df_validados['resolutiondate'].notna()) & 
+            (df_validados['resolutiondate'] >= data_corte)
+        ].copy()
+    else:
+        df_filtrado = df_validados.copy()
+    
+    # Aplica filtro de QA
+    if qa_sel != 'Todos':
+        df_filtrado = df_filtrado[df_filtrado['qa'] == qa_sel]
+    
+    if df_filtrado.empty:
+        st.warning("⚠️ Nenhum card encontrado para os filtros selecionados.")
+        return
+    
+    # Aplica ordenação
+    if ordenacao == "Data (mais recente)":
+        df_filtrado = df_filtrado.sort_values('resolutiondate', ascending=False)
+    elif ordenacao == "Data (mais antigo)":
+        df_filtrado = df_filtrado.sort_values('resolutiondate', ascending=True)
+    elif ordenacao == "Bugs (mais)":
+        df_filtrado = df_filtrado.sort_values('bugs', ascending=False)
+    else:
+        df_filtrado = df_filtrado.sort_values('bugs', ascending=True)
+    
+    # KPIs resumidos
+    total_validados = len(df_filtrado)
+    total_bugs = int(df_filtrado['bugs'].sum())
+    total_comentarios = int(df_filtrado['comentarios'].sum()) if 'comentarios' in df_filtrado.columns else 0
+    cards_sem_bugs = len(df_filtrado[df_filtrado['bugs'] == 0])
+    taxa_sem_bugs = cards_sem_bugs / total_validados * 100 if total_validados > 0 else 0
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        criar_card_metrica(str(total_validados), "Cards Validados", "green")
+    
+    with col2:
+        cor = 'green' if total_bugs < 5 else 'yellow' if total_bugs < 15 else 'red'
+        criar_card_metrica(str(total_bugs), "Bugs Encontrados", cor)
+    
+    with col3:
+        cor = 'green' if taxa_sem_bugs >= 70 else 'yellow' if taxa_sem_bugs >= 50 else 'red'
+        criar_card_metrica(f"{taxa_sem_bugs:.0f}%", "Sem Bugs", cor)
+    
+    with col4:
+        criar_card_metrica(str(total_comentarios), "Comentários", "blue")
+    
+    st.markdown("---")
+    
+    # Tabela detalhada
+    st.markdown("#### 📋 Detalhamento")
+    
+    # Prepara dados para exibição
+    dados_exibicao = []
+    for _, row in df_filtrado.iterrows():
+        data_val = row['resolutiondate'].strftime('%d/%m/%Y') if pd.notna(row['resolutiondate']) else 'N/A'
+        
+        # Estimativa de reprovações baseada em ciclos (se houver transições)
+        # Por agora, usa bugs > 0 como indicador de retrabalho
+        reprovacoes = "Sim" if row['bugs'] > 0 else "Não"
+        
+        dados_exibicao.append({
+            'Card': row['ticket_id'],
+            'Título': str(row['titulo'])[:50] + ('...' if len(str(row['titulo'])) > 50 else ''),
+            'Data Validação': data_val,
+            'QA': row['qa'] if row['qa'] != 'Não atribuído' else 'N/A',
+            'DEV': row['desenvolvedor'] if row['desenvolvedor'] != 'Não atribuído' else 'N/A',
+            'Bugs': int(row['bugs']),
+            'Comentários': int(row.get('comentarios', 0)),
+            'Retrabalho': reprovacoes,
+            'SP': int(row['sp'])
+        })
+    
+    df_display = pd.DataFrame(dados_exibicao)
+    
+    # Exibe com paginação se muitos cards
+    if len(df_display) > 20:
+        mostrar_todos = st.checkbox(
+            f"📋 Ver todos os {len(df_display)} cards validados",
+            key=f"{key_prefix}_ver_todos_validados",
+            value=False
+        )
+        limite = len(df_display) if mostrar_todos else 20
+    else:
+        limite = len(df_display)
+    
+    st.dataframe(
+        df_display.head(limite),
+        hide_index=True,
+        use_container_width=True,
+        column_config={
+            'Card': st.column_config.TextColumn('Card', width='small'),
+            'Bugs': st.column_config.NumberColumn('🐛 Bugs', format='%d'),
+            'Comentários': st.column_config.NumberColumn('💬 Coment.', format='%d'),
+            'SP': st.column_config.NumberColumn('SP', format='%d'),
+        }
+    )
+    
+    # Resumo por QA (se filtro "Todos")
+    if qa_sel == 'Todos' and len(qas_disponiveis) > 2:
+        st.markdown("---")
+        st.markdown("#### 📊 Resumo por QA")
+        
+        resumo_qa = df_filtrado[df_filtrado['qa'] != 'Não atribuído'].groupby('qa').agg({
+            'ticket_id': 'count',
+            'bugs': 'sum',
+            'sp': 'sum'
+        }).reset_index()
+        resumo_qa.columns = ['QA', 'Cards Validados', 'Bugs Encontrados', 'SP Total']
+        resumo_qa['Bugs/Card'] = (resumo_qa['Bugs Encontrados'] / resumo_qa['Cards Validados']).round(2)
+        resumo_qa = resumo_qa.sort_values('Cards Validados', ascending=False)
+        
+        st.dataframe(
+            resumo_qa,
+            hide_index=True,
+            use_container_width=True,
+            column_config={
+                'Bugs/Card': st.column_config.NumberColumn('Bugs/Card', format='%.2f'),
+            }
+        )
+
+
 def renderizar_lista_com_scroll(df: pd.DataFrame, titulo: str = None, max_height: int = 400, 
                                  cor_classe: str = "", mostrar_checkbox: bool = True,
                                  limite_inicial: int = 20, key_prefix: str = "lista",
@@ -9171,6 +9359,10 @@ def aba_qa(df: pd.DataFrame):
         with st.expander("🧪 Em Validação", expanded=False):
             em_teste = df[df['status_cat'] == 'testing'].sort_values('dias_em_status', ascending=False)
             mostrar_lista_df_completa(em_teste, "Em Validação")
+        
+        # ===== HISTÓRICO DE CARDS VALIDADOS =====
+        with st.expander("✅ Histórico de Cards Validados", expanded=True):
+            exibir_historico_validacoes(df, key_prefix="qa_geral")
     
     else:
         # ====== VISÃO INDIVIDUAL DO QA SELECIONADO ======
@@ -12919,6 +13111,10 @@ def aba_lideranca(df: pd.DataFrame):
             3. Considere pair programming para transferência de conhecimento
             4. Documente processos específicos de áreas concentradas
             """)
+    
+    # ===== HISTÓRICO DE CARDS VALIDADOS (LIDERANÇA) =====
+    with st.expander("✅ Histórico de Cards Validados", expanded=True):
+        exibir_historico_validacoes(df, key_prefix="lideranca")
     
     # Performance por Desenvolvedor
     with st.expander("👨‍💻 Performance por Desenvolvedor", expanded=False):
