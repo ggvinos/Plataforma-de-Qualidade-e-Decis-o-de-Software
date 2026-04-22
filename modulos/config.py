@@ -293,3 +293,279 @@ TOOLTIPS = {
         "fonte": "IEEE 982.1"
     },
 }
+
+# ==============================================================================
+# CATÁLOGO E CATEGORIAS DE MÉTRICAS (para dashboard personalizado)
+# ==============================================================================
+
+CATEGORIAS_METRICAS = [
+    "📊 Qualidade",
+    "🚀 Produtividade", 
+    "🐛 Bugs",
+    "🔬 QA",
+    "👨‍💻 Desenvolvimento",
+    "📋 Status",
+    "📦 Produto",
+    "🎯 Concentração",
+    "🏢 Clientes",
+]
+
+CATALOGO_METRICAS = {
+    # === MÉTRICAS DE QUALIDADE ===
+    "fator_k_geral": {
+        "nome": "Fator K (Geral)",
+        "categoria": "📊 Qualidade",
+        "descricao": "Razão entre Story Points e Bugs do projeto inteiro",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_fator_k_geral"
+    },
+    "fator_k_dev": {
+        "nome": "Fator K por Desenvolvedor",
+        "categoria": "📊 Qualidade",
+        "descricao": "Fator K individual de cada desenvolvedor",
+        "tipo": "tabela",
+        "parametros": ["desenvolvedor"],
+        "funcao": "calcular_fator_k_dev"
+    },
+    "fpy": {
+        "nome": "FPY - First Pass Yield",
+        "categoria": "📊 Qualidade",
+        "descricao": "% de cards aprovados na primeira validação",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_fpy"
+    },
+    "ddp": {
+        "nome": "DDP - Defect Detection",
+        "categoria": "📊 Qualidade",
+        "descricao": "% de defeitos encontrados antes da produção",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_ddp"
+    },
+    "health_score": {
+        "nome": "Health Score",
+        "categoria": "📊 Qualidade",
+        "descricao": "Pontuação de saúde da release (0-100)",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_health_score"
+    },
+    
+    # === MÉTRICAS DE PRODUTIVIDADE ===
+    "throughput_cards": {
+        "nome": "Throughput (Cards)",
+        "categoria": "🚀 Produtividade",
+        "descricao": "Quantidade de cards concluídos",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_throughput_cards"
+    },
+    "throughput_sp": {
+        "nome": "Throughput (Story Points)",
+        "categoria": "🚀 Produtividade",
+        "descricao": "Quantidade de SP entregues",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_throughput_sp"
+    },
+    "lead_time": {
+        "nome": "Lead Time Médio",
+        "categoria": "🚀 Produtividade",
+        "descricao": "Tempo médio do card (criação → conclusão)",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_lead_time"
+    },
+    "wip": {
+        "nome": "WIP - Work In Progress",
+        "categoria": "🚀 Produtividade",
+        "descricao": "Cards em andamento agora",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_wip"
+    },
+    "velocidade_media": {
+        "nome": "Velocidade Média",
+        "categoria": "🚀 Produtividade",
+        "descricao": "SP médio por card concluído",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_velocidade_media"
+    },
+    
+    # === MÉTRICAS DE BUGS ===
+    "total_bugs": {
+        "nome": "Total de Bugs",
+        "categoria": "🐛 Bugs",
+        "descricao": "Quantidade total de bugs encontrados",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_total_bugs"
+    },
+    "densidade_bugs": {
+        "nome": "Densidade de Bugs",
+        "categoria": "🐛 Bugs",
+        "descricao": "Bugs por Story Point",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_densidade_bugs"
+    },
+    "bugs_por_dev": {
+        "nome": "Bugs por Desenvolvedor",
+        "categoria": "🐛 Bugs",
+        "descricao": "Ranking de bugs por desenvolvedor",
+        "tipo": "grafico_barra",
+        "parametros": [],
+        "funcao": "calcular_bugs_por_dev"
+    },
+    
+    # === MÉTRICAS DE QA ===
+    "carga_qa": {
+        "nome": "Carga por QA",
+        "categoria": "🔬 QA",
+        "descricao": "Cards em validação por QA",
+        "tipo": "grafico_barra",
+        "parametros": ["qa"],
+        "funcao": "calcular_carga_qa"
+    },
+    "funil_qa": {
+        "nome": "Funil de QA",
+        "categoria": "🔬 QA",
+        "descricao": "Status do funil de validação",
+        "tipo": "grafico_funil",
+        "parametros": [],
+        "funcao": "calcular_funil_qa"
+    },
+    "aging_qa": {
+        "nome": "Aging QA",
+        "categoria": "🔬 QA",
+        "descricao": "Cards aguardando validação há muito tempo",
+        "tipo": "tabela",
+        "parametros": [],
+        "funcao": "calcular_aging_qa"
+    },
+    "taxa_reprovacao": {
+        "nome": "Taxa de Reprovação",
+        "categoria": "🔬 QA",
+        "descricao": "% de cards reprovados",
+        "tipo": "kpi",
+        "parametros": [],
+        "funcao": "calcular_taxa_reprovacao"
+    },
+    
+    # === MÉTRICAS DE DESENVOLVIMENTO ===
+    "ranking_devs": {
+        "nome": "Ranking de Desenvolvedores",
+        "categoria": "👨‍💻 Desenvolvimento",
+        "descricao": "Ranking por Fator K, SP e bugs",
+        "tipo": "tabela",
+        "parametros": [],
+        "funcao": "calcular_ranking_devs"
+    },
+    "code_review_fila": {
+        "nome": "Fila de Code Review",
+        "categoria": "👨‍💻 Desenvolvimento",
+        "descricao": "Cards aguardando code review",
+        "tipo": "lista_cards",
+        "parametros": [],
+        "funcao": "calcular_code_review_fila"
+    },
+    "cards_por_dev": {
+        "nome": "Cards por Desenvolvedor",
+        "categoria": "👨‍💻 Desenvolvimento",
+        "descricao": "Distribuição de cards por desenvolvedor",
+        "tipo": "grafico_pizza",
+        "parametros": [],
+        "funcao": "calcular_cards_por_dev"
+    },
+    
+    # === MÉTRICAS DE STATUS ===
+    "cards_por_status": {
+        "nome": "Cards por Status",
+        "categoria": "📋 Status",
+        "descricao": "Distribuição de cards por status",
+        "tipo": "grafico_barra",
+        "parametros": [],
+        "funcao": "calcular_cards_por_status"
+    },
+    "cards_aguardando_qa": {
+        "nome": "Aguardando QA",
+        "categoria": "📋 Status",
+        "descricao": "Cards aguardando validação",
+        "tipo": "lista_cards",
+        "parametros": [],
+        "funcao": "calcular_aguardando_qa"
+    },
+    "cards_impedidos": {
+        "nome": "Cards Impedidos",
+        "categoria": "📋 Status",
+        "descricao": "Cards com impedimentos",
+        "tipo": "lista_cards",
+        "parametros": [],
+        "funcao": "calcular_impedidos"
+    },
+    "cards_bloqueados": {
+        "nome": "Cards Bloqueados",
+        "categoria": "📋 Status",
+        "descricao": "Cards bloqueados",
+        "tipo": "lista_cards",
+        "parametros": [],
+        "funcao": "calcular_bloqueados"
+    },
+    
+    # === MÉTRICAS DE PRODUTO ===
+    "por_produto": {
+        "nome": "Cards por Produto",
+        "categoria": "📦 Produto",
+        "descricao": "Distribuição por produto",
+        "tipo": "grafico_pizza",
+        "parametros": [],
+        "funcao": "calcular_por_produto"
+    },
+    "hotfix_por_produto": {
+        "nome": "Hotfixes por Produto",
+        "categoria": "📦 Produto",
+        "descricao": "Hotfixes agrupados por produto",
+        "tipo": "grafico_barra",
+        "parametros": [],
+        "funcao": "calcular_hotfix_produto"
+    },
+    
+    # === MÉTRICAS DE CONCENTRAÇÃO ===
+    "concentracao_dev": {
+        "nome": "Concentração DEV",
+        "categoria": "🎯 Concentração",
+        "descricao": "Concentração de conhecimento por DEV",
+        "tipo": "heatmap",
+        "parametros": [],
+        "funcao": "calcular_concentracao_dev"
+    },
+    "concentracao_qa": {
+        "nome": "Concentração QA",
+        "categoria": "🎯 Concentração",
+        "descricao": "Concentração de conhecimento por QA",
+        "tipo": "heatmap",
+        "parametros": [],
+        "funcao": "calcular_concentracao_qa"
+    },
+    
+    # === MÉTRICAS DE CLIENTE ===
+    "top_clientes": {
+        "nome": "Top Clientes",
+        "categoria": "🏢 Clientes",
+        "descricao": "Clientes com mais cards",
+        "tipo": "grafico_barra",
+        "parametros": [],
+        "funcao": "calcular_top_clientes"
+    },
+    "clientes_bugs": {
+        "nome": "Bugs por Cliente",
+        "categoria": "🏢 Clientes",
+        "descricao": "Clientes com mais bugs reportados",
+        "tipo": "grafico_barra",
+        "parametros": [],
+        "funcao": "calcular_clientes_bugs"
+    },
+}

@@ -22,15 +22,17 @@ Version: 1.0 (Phase 6)
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import plotly.graph_objects as go
 import plotly.express as px
 import random
 
 from modulos.config import (
     JIRA_BASE_URL, CUSTOM_FIELDS, STATUS_FLOW, STATUS_NOMES, STATUS_CORES,
-    TOOLTIPS, REGRAS, PB_FUNIL_ETAPAS, TEMAS_NAO_CLIENTES, NINA_LOGO_SVG
+    TOOLTIPS, REGRAS, PB_FUNIL_ETAPAS, TEMAS_NAO_CLIENTES, NINA_LOGO_SVG,
+    CATEGORIAS_METRICAS, CATALOGO_METRICAS
 )
 from modulos.utils import (
     link_jira, card_link_com_popup, traduzir_link, 
@@ -48,12 +50,12 @@ from modulos.calculos import (
 from modulos.helpers import (
     calcular_valor_metrica, calcular_dados_grafico, calcular_dados_tabela,
     criar_card_metrica, gerar_html_card_ticket, formatar_tempo_relativo,
-    gerar_dados_tendencia, exportar_para_csv, exportar_para_excel
+    gerar_dados_tendencia, exportar_para_csv, exportar_para_excel, get_tooltip_help
 )
 from modulos.widgets import (
     mostrar_tooltip, mostrar_lista_tickets_completa, mostrar_lista_df_completa,
     renderizar_resultado_consulta, renderizar_widget, renderizar_lista_com_scroll,
-    mostrar_card_ticket, exibir_concentracao_time
+    mostrar_card_ticket, exibir_concentracao_time, renderizar_metrica_personalizada
 )
 from modulos.graficos import (
     criar_grafico_funil_qa, criar_grafico_tendencia_fator_k,
@@ -70,6 +72,11 @@ from modulos.jira_api import (
     obter_icone_evento, obter_icone_status,
     buscar_dados_jira_cached, buscar_card_especifico,
     extrair_historico_transicoes, extrair_texto_adf
+)
+from modulos.dashboards_personalizados import (
+    inicializar_dashboards_personalizados, listar_dashboards_personalizados,
+    salvar_dashboard_personalizado, carregar_dashboard_personalizado,
+    excluir_dashboard_personalizado, renderizar_metrica_personalizada
 )
 
 
