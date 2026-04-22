@@ -206,6 +206,8 @@ __all__ = [
     'TOOLTIPS',
     'REGRAS',
     'NINA_LOGO_SVG',
+    'CATEGORIAS_METRICAS',
+    'CATALOGO_METRICAS',
     # utils
     'link_jira',
     'traduzir_link',
