@@ -1268,6 +1268,24 @@ def processar_issues(issues: List[Dict]) -> pd.DataFrame:
             except:
                 pass
         
+        # Issue Links - detectar origem do PB
+        issuelinks = f.get('issuelinks', [])
+        origem_pb = None
+        tem_link_pb = False
+        for link in issuelinks:
+            # Link para card do PB (outward = implements)
+            outward = link.get('outwardIssue', {})
+            if outward.get('key', '').startswith('PB-'):
+                origem_pb = outward.get('key')
+                tem_link_pb = True
+                break
+            # Link reverso (inward = is implemented by)
+            inward = link.get('inwardIssue', {})
+            if inward.get('key', '').startswith('PB-'):
+                origem_pb = inward.get('key')
+                tem_link_pb = True
+                break
+        
         # Métricas
         dias_em_status = (hoje - atualizado).days
         lead_time = (resolutiondate - criado).days if resolutiondate else (hoje - criado).days
@@ -1347,6 +1365,8 @@ def processar_issues(issues: List[Dict]) -> pd.DataFrame:
             'importancia': importancia,
             'sla_status': sla_status,
             'sla_atrasado': sla_atrasado,
+            'origem_pb': origem_pb,
+            'tem_link_pb': tem_link_pb,
         })
     
     return pd.DataFrame(dados)

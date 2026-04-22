@@ -65,7 +65,7 @@ from modulos.graficos import (
     criar_grafico_estagio_por_produto, criar_grafico_hotfix_por_produto,
     criar_grafico_funil_personalizado, criar_grafico_aging_backlog,
     criar_grafico_prioridade_backlog, criar_grafico_tipo_backlog,
-    criar_grafico_backlog_por_produto
+    criar_grafico_backlog_por_produto, criar_grafico_concentracao
 )
 from modulos.jira_api import (
     gerar_icone_tabler, gerar_icone_tabler_html, gerar_badge_status,

@@ -45,6 +45,43 @@ from modulos.jira_api import (
 # FUNÇÕES DO MÓDULO
 # ==============================================================================
 
+def criar_grafico_concentracao(matriz: pd.DataFrame, titulo: str, tipo: str = "dev") -> go.Figure:
+    """Cria heatmap de concentração para visualização."""
+    if matriz.empty:
+        fig = go.Figure()
+        fig.add_annotation(text="Sem dados suficientes", xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False)
+        return fig
+    
+    # Calcula percentuais
+    matriz_pct = matriz.div(matriz.sum(axis=0), axis=1) * 100
+    matriz_pct = matriz_pct.fillna(0)
+    
+    # Define escala de cores baseado no tipo
+    colorscale = 'Blues' if tipo == "dev" else 'Purples'
+    
+    fig = go.Figure(data=go.Heatmap(
+        z=matriz_pct.values,
+        x=matriz_pct.columns.tolist(),
+        y=matriz_pct.index.tolist(),
+        colorscale=colorscale,
+        text=matriz.values,  # Mostra valores absolutos
+        texttemplate="%{text}",
+        textfont={"size": 11},
+        hovertemplate="<b>%{y}</b><br>%{x}: %{text} cards (%{z:.0f}%)<extra></extra>",
+        colorbar=dict(title="%", ticksuffix="%")
+    ))
+    
+    fig.update_layout(
+        title=titulo,
+        xaxis_title="",
+        yaxis_title="",
+        height=max(300, len(matriz) * 35 + 100),
+        margin=dict(l=20, r=20, t=50, b=20),
+    )
+    
+    return fig
+
+
 def criar_grafico_funil_personalizado(dados: Dict, titulo: str):
     """Cria um gráfico de funil simplificado."""
     try:
