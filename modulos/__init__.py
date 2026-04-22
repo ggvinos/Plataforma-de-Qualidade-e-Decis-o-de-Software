@@ -32,6 +32,29 @@ from modulos.utils import (
     verificar_credenciais,
 )
 
+from modulos.auth import (
+    verificar_login,
+    fazer_login,
+    fazer_logout,
+    mostrar_tela_login,
+    mostrar_tela_loading,
+    validar_email_corporativo,
+    extrair_nome_usuario,
+    get_cookie_manager,
+)
+
+from modulos.jira_api import (
+    buscar_dados_jira_cached,
+    buscar_card_especifico,
+    extrair_historico_transicoes,
+    extrair_texto_adf,
+    gerar_icone_tabler,
+    gerar_icone_tabler_html,
+    gerar_badge_status,
+    obter_icone_evento,
+    obter_icone_status,
+)
+
 __all__ = [
     # config
     'configure_page',
@@ -50,5 +73,24 @@ __all__ = [
     'avaliar_janela_validacao',
     'get_secrets',
     'verificar_credenciais',
+    # auth
+    'verificar_login',
+    'fazer_login',
+    'fazer_logout',
+    'mostrar_tela_login',
+    'mostrar_tela_loading',
+    'validar_email_corporativo',
+    'extrair_nome_usuario',
+    'get_cookie_manager',
+    # jira_api
+    'buscar_dados_jira_cached',
+    'buscar_card_especifico',
+    'extrair_historico_transicoes',
+    'extrair_texto_adf',
+    'gerar_icone_tabler',
+    'gerar_icone_tabler_html',
+    'gerar_badge_status',
+    'obter_icone_evento',
+    'obter_icone_status',
 ]
 
