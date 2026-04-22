@@ -17,6 +17,13 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Tuple
 import json
 
+# Import do SVG da logo
+try:
+    from modulos.config import NINA_LOGO_SVG
+except ImportError:
+    # Fallback se não conseguir importar
+    NINA_LOGO_SVG = ''
+
 # ==============================================================================
 # CONFIGURAÇÃO
 # ==============================================================================
@@ -90,20 +97,32 @@ def autenticar_com_confirmation_call(
         
         # Trata resposta baseado no status code
         if response.status_code == 200:
+            token = None
+            
             try:
-                # Tenta fazer parse JSON
+                # Tenta fazer parse JSON (formato 1)
                 data = response.json()
                 token = data.get("token") or data.get("access_token")
                 
-                if not token:
-                    return False, None, "❌ Resposta inválida: token não encontrado na resposta"
-                
-                return True, token, f"✅ Autenticado com sucesso no ambiente {ambiente}"
+                if token:
+                    return True, token, f"✅ Autenticado com sucesso no ambiente {ambiente}"
             
-            except json.JSONDecodeError as e:
-                # Status 200 mas resposta não é JSON - retorna info de debug
-                texto_resposta = response.text[:200] if response.text else "[vazio]"
-                return False, None, f"❌ Servidor retornou sucesso (200) mas resposta não é JSON válida.\nResposta: {texto_resposta}\n\nContate o administrador do ConfirmationCall."
+            except json.JSONDecodeError:
+                # Não é JSON, tenta como token puro (formato 2)
+                pass
+            
+            # Se não encontrou token em JSON, tenta considerar resposta como token puro
+            if not token:
+                resposta_texto = response.text.strip() if response.text else ""
+                
+                # Valida se parece com JWT (tem 3 partes separadas por pontos)
+                if resposta_texto and resposta_texto.count(".") == 2:
+                    # Parece ser um JWT válido
+                    token = resposta_texto
+                    return True, token, f"✅ Autenticado com sucesso no ambiente {ambiente}"
+                
+                # Nenhum formato válido
+                return False, None, f"❌ Servidor retornou sucesso (200) mas resposta não contém token válido.\nResposta: {resposta_texto[:200]}\n\nContate o administrador do ConfirmationCall."
         
         elif response.status_code == 401:
             return False, None, "❌ Credenciais inválidas (Usuário ou Senha incorretos)"
@@ -204,48 +223,109 @@ def limpar_autenticacao():
 def tela_login():
     """
     Exibe tela de login com campos para usuário, senha e seleção de ambiente.
-    Integra-se com a API do ConfirmationCall para autenticação.
+    Segue o design visual padrão da Nina com logo e favicon.
     """
     st.set_page_config(
-        page_title="Nina Dashboard - Login",
-        page_icon="🔐",
+        page_title="NinaDash - Autenticação",
+        page_icon="favicon.svg",
         layout="centered",
     )
     
     # Inicializa state
     inicializar_session_state()
     
-    # Layout
-    col1, col2, col3 = st.columns([1, 2, 1])
+    # CSS customizado para tela de login
+    st.markdown("""
+    <style>
+        /* Centro do conteúdo */
+        .login-container {
+            margin-top: 60px;
+            margin-bottom: 60px;
+        }
+        
+        /* Logo */
+        .login-logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        /* Título */
+        .login-title {
+            text-align: center;
+            color: #AF0C37;
+            font-size: 2.2em;
+            font-weight: 700;
+            margin: 0;
+            margin-bottom: 5px;
+        }
+        
+        /* Subtítulo */
+        .login-subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 0.95em;
+            margin: 5px 0 30px 0;
+            font-style: italic;
+        }
+        
+        /* Formulário */
+        .login-form {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 30px;
+            margin: 20px 0;
+        }
+        
+        /* Footer */
+        .login-footer {
+            text-align: center;
+            color: #999;
+            font-size: 0.85em;
+            margin-top: 40px;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Layout: Centralizado
+    col1, col2, col3 = st.columns([1, 2.5, 1])
     
     with col2:
-        st.markdown("---")
-        st.markdown(
-            """
-            <div style='text-align: center'>
-                <h1>🔐 Nina Dashboard</h1>
-                <p style='color: #666; margin-bottom: 30px'>
-                    Autenticação Segura com ConfirmationCall
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        # ==== LOGO DA NINA ====
+        st.markdown(f"""
+        <div class='login-logo'>
+            {NINA_LOGO_SVG}
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # ==== TÍTULO E SUBTÍTULO ====
+        st.markdown("""
+        <h1 class='login-title'>NinaDash</h1>
+        <p class='login-subtitle'>Transformando dados em decisões</p>
+        """, unsafe_allow_html=True)
+        
+        # Linha divisória
         st.markdown("---")
         
-        # Formulário de login
+        # ==== FORMULÁRIO DE LOGIN ====
         with st.form("form_login", clear_on_submit=False):
+            st.markdown("""
+            <h3 style='text-align: center; color: #333; margin-top: 0;'>Autenticação ConfirmationCall</h3>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("")  # Espaço
+            
             usuario = st.text_input(
                 "👤 Usuário",
-                placeholder="Seu usuário ConfirmationCall",
-                help="Usuário registrado no ConfirmationCall"
+                placeholder="nome.sobrenome@confirmationcall.com.br",
+                help="Seu usuário ConfirmationCall"
             )
             
             senha = st.text_input(
                 "🔑 Senha",
                 type="password",
                 placeholder="Sua senha",
-                help="Senha do ConfirmationCall"
+                help="Sua senha do ConfirmationCall"
             )
             
             ambiente = st.selectbox(
@@ -257,108 +337,89 @@ def tela_login():
             
             st.markdown("")  # Espaço
             
-            col_login, col_demo = st.columns(2)
+            # Botões
+            col_btn1, col_btn2 = st.columns(2)
             
-            with col_login:
+            with col_btn1:
                 btn_login = st.form_submit_button(
                     "🚀 Entrar",
                     use_container_width=True,
                     type="primary"
                 )
             
-            with col_demo:
+            with col_btn2:
                 st.form_submit_button(
-                    "ℹ️ Sobre",
+                    "❓ Ajuda",
                     use_container_width=True,
                     disabled=True
                 )
             
-            # Processa login
+            # ==== PROCESSA LOGIN ====
             if btn_login:
                 if not usuario or not senha:
-                    st.error("❌ Preencha todos os campos!")
+                    st.error("❌ Por favor, preencha todos os campos!")
                 else:
-                    with st.spinner(f"🔄 Conectando a {ambiente}..."):
+                    with st.spinner(f"🔄 Autenticando no {ambiente}..."):
                         sucesso, token, mensagem = autenticar_com_confirmation_call(
                             usuario, senha, ambiente
                         )
                     
                     if sucesso:
+                        # Login bem-sucedido
                         salvar_autenticacao(usuario, token, ambiente)
                         st.success(mensagem)
                         st.success(f"✨ Bem-vindo, {usuario}!")
                         st.balloons()
                         st.rerun()
                     else:
+                        # Erro no login
                         st.error(mensagem)
                         
-                        # Expander com modo debug
-                        with st.expander("🔧 Informações de Debug"):
+                        # Expander com troubleshooting
+                        with st.expander("🔧 Informações de Troubleshooting"):
                             st.markdown("""
-                            ### Dicas de Troubleshooting:
+                            ### Dicas de Resolução:
                             
-                            **Se vê "Expecting value: line 1 column 1":**
-                            - Pode ser resposta vazia ou HTML de erro
-                            - Tente executar: `python3 test_cc_connection.py`
-                            - Isto mostrará exatamente o que a API está retornando
+                            **❌ "Credenciais inválidas (401)":**
+                            - Verifique se usuário e senha estão corretos
+                            - Confirme que não há espaços extras
+                            - Tente novamente ou contacte admin
                             
-                            **Se vê "Credenciais inválidas (401)":**
-                            - Verifique usuário e senha
-                            - Tente copiar/colar sem espaços
-                            - Confirme com admin que conta está ativa
+                            **❌ "Acesso negado (403)":**
+                            - Seu usuário não tem permissão neste ambiente
+                            - Contacte administrador do ConfirmationCall
                             
-                            **Se vê "Timeout":**
-                            - Verifique sua internet
-                            - Tente outro ambiente (Produção/Homologação)
-                            - Pode ser bloqueio de firewall
+                            **❌ "Timeout ou Erro de Conexão":**
+                            - Verifique sua conexão de internet
+                            - Tente desativar VPN/proxy
+                            - Tente outro ambiente
                             
-                            **Próximo passo:**
-                            1. Abra terminal
-                            2. Execute: `python3 test_cc_connection.py`
-                            3. Compartilhe o resultado com o admin
+                            **🔍 Para Mais Informações:**
+                            Execute no terminal:
                             """)
-                            
-                            st.code(f"""
-# Suas credenciais testadas:
-Usuário: {usuario}
-Ambiente: {ambiente}
-Endpoint: {ENDPOINTS.get(ambiente, 'Desconhecido')}
-
-# Para testar manualmente:
-curl -X POST {ENDPOINTS.get(ambiente, 'URL')} \\
-  -H "Content-Type: application/json" \\
-  -u "{usuario}:{senha}"
-                            """, language="bash")
+                            st.code("python3 test_cc_dev.py", language="bash")
         
+        # Linha divisória
         st.markdown("---")
         
-        # Informações de segurança
+        # ==== INFORMAÇÕES DE SEGURANÇA ====
         with st.expander("🛡️ Informações de Segurança"):
-            st.markdown(
-                """
-                #### Como Funciona?
-                1. **Envio Seguro**: Credenciais são enviadas via HTTPS com SSL
-                2. **Basic Auth**: Autenticação básica no cabeçalho da requisição
-                3. **JWT Token**: Recebimento de token de autorização
-                4. **Session State**: Token armazenado apenas na sessão do navegador
-                5. **Sem Persistência Local**: Dados não salvos em disco
-                
-                #### Segurança
-                - ✅ Conexão HTTPS criptografada
-                - ✅ Validação de certificado SSL
-                - ✅ Timeout de conexão (10s)
-                - ✅ Sem armazenamento de senha
-                - ✅ Token JWT para autorização
-                
-                #### Ambiente
-                - **Desenvolvimento**: Testes e homologação
-                - **Homologação**: Pré-produção
-                - **Produção**: Ambiente de produção
-                """
-            )
+            st.markdown("""
+            #### ✅ Proteção Implementada
+            - **HTTPS/SSL**: Todas as comunicações criptografadas
+            - **Basic Auth**: Credenciais enviadas com segurança
+            - **JWT Token**: Autorização sem armazenar senha
+            - **Session State**: Token armazenado apenas na sessão
+            - **Sem Persistência**: Nenhum dado salvo localmente
+            
+            #### 🌐 Ambientes Disponíveis
+            - **Desenvolvimento**: Testes e integração
+            - **Homologação**: Pré-produção
+            - **Produção**: Ambiente de produção
+            """)
         
-        st.markdown("")
-        st.caption("© 2026 Nina Tecnologia - Dashboard de Inteligência QA")
+        # ==== FOOTER ====
+        st.markdown("<div class='login-footer'>© 2026 Nina Tecnologia<br/>Dashboard de Inteligência de QA</div>", unsafe_allow_html=True)
 
 
 # ==============================================================================
