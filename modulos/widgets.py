@@ -41,7 +41,7 @@ from modulos.jira_api import (
 )
 
 from modulos.processamento import aplicar_filtros_widget
-from modulos.utils import link_jira
+from modulos.helpers import criar_card_metrica, gerar_html_card_ticket, formatar_tempo_relativo
 
 
 # ==============================================================================
