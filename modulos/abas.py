@@ -2797,6 +2797,11 @@ def aba_lideranca(df: pd.DataFrame):
         dev_metricas = calcular_metricas_dev(df)
         st.dataframe(dev_metricas['stats'], hide_index=True, use_container_width=True)
     
+    
+    # ===== HISTÓRICO DE CARDS VALIDADOS (com lógica corrigida - Sprint Atual mostra todos) =====
+    with st.expander("✅ Histórico de Cards Validados", expanded=True):
+        exibir_historico_validacoes(df, key_prefix="lideranca")
+    
     # Exportação
     with st.expander("📥 Exportar Dados", expanded=False):
         col1, col2 = st.columns(2)
@@ -3301,6 +3306,10 @@ def aba_qa(df: pd.DataFrame):
         with st.expander("🧪 Em Validação", expanded=False):
             em_teste = df[df['status_cat'] == 'testing'].sort_values('dias_em_status', ascending=False)
             mostrar_lista_df_completa(em_teste, "Em Validação")
+        
+        # ===== HISTÓRICO DE CARDS VALIDADOS (com lógica corrigida - Sprint Atual mostra todos) =====
+        with st.expander("✅ Histórico de Cards Validados", expanded=True):
+            exibir_historico_validacoes(df, key_prefix="qa_geral")
     
     else:
         # ====== VISÃO INDIVIDUAL DO QA SELECIONADO ======
@@ -5372,6 +5381,167 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
                          color='count', color_continuous_scale='Blues')
             fig.update_layout(height=350, showlegend=False)
             st.plotly_chart(fig, use_container_width=True)
+
+
+# ==============================================================================
+# FUNÇÃO: HISTÓRICO DE CARDS VALIDADOS
+# ==============================================================================
+
+def exibir_historico_validacoes(df: pd.DataFrame, key_prefix: str = "qa"):
+    """
+    Exibe histórico de cards validados com filtros.
+    
+    Mostra:
+    - Listagem clicável de cards
+    - Filtros por período, QA, tipo, produto
+    - Análise dos cards validados
+    
+    Args:
+        df: DataFrame com dados dos cards
+        key_prefix: Prefixo para chaves de widgets (evita conflitos)
+    """
+    st.markdown("### ✅ Histórico de Cards Validados")
+    st.caption("Acompanhe todos os cards que passaram por validação")
+    
+    # Filtra apenas cards validados (status concluído)
+    df_validados = df[df['status_cat'] == 'done'].copy()
+    
+    if df_validados.empty:
+        st.info("📭 Nenhum card validado no período selecionado.")
+        return
+    
+    # Lista de opções para filtros
+    qas_disponiveis = ['Todos'] + sorted([q for q in df_validados['qa'].unique() if q and q != 'Não atribuído'])
+    tipos_disponiveis = ['Todos'] + sorted([t for t in df_validados['tipo'].unique() if t])
+    produtos_disponiveis = ['Todos'] + sorted([p for p in df_validados['produto'].unique() if p])
+    
+    # ===== FILTROS =====
+    st.markdown("#### 🔍 Filtros")
+    col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+    
+    with col_f1:
+        # ATUALIZAÇÃO: Sprint Atual agora é "Sprint Atual (todos)" com valor 0
+        # Isso mostra todos os cards validados da sprint sem filtro de data adicional
+        periodo_opcoes = {
+            "Sprint Atual (todos)": 0,  # Mostra todos os validados (df já filtrado pela sprint na sidebar)
+            "Últimos 7 dias": 7,
+            "Últimos 15 dias": 15,
+            "Últimos 30 dias": 30,
+            "Últimos 60 dias": 60,
+            "Todo o período": 9999
+        }
+        periodo_sel = st.selectbox(
+            "📅 Período",
+            list(periodo_opcoes.keys()),
+            index=0,
+            key=f"{key_prefix}_periodo_validacao"
+        )
+    
+    with col_f2:
+        qa_sel = st.selectbox(
+            "🧑‍🔬 QA",
+            qas_disponiveis,
+            index=0,
+            key=f"{key_prefix}_qa_filtro_validacao"
+        )
+    
+    with col_f3:
+        tipo_sel = st.selectbox(
+            "📋 Tipo",
+            tipos_disponiveis,
+            index=0,
+            key=f"{key_prefix}_tipo_filtro_validacao"
+        )
+    
+    with col_f4:
+        produto_sel = st.selectbox(
+            "📦 Produto",
+            produtos_disponiveis,
+            index=0,
+            key=f"{key_prefix}_produto_filtro_validacao"
+        )
+    
+    # ===== APLICA FILTROS =====
+    hoje = datetime.now()
+    dias_filtro = periodo_opcoes[periodo_sel]
+    
+    # LÓGICA CORRIGIDA (conforme HOTFIX recente):
+    # - dias_filtro = 0 significa "Sprint Atual (todos)" - SEM filtro de data (mostra todos)
+    # - dias_filtro > 0 e < 9999 significa filtrar por resolutiondate
+    # - dias_filtro = 9999 significa "Todo o período"
+    if dias_filtro == 0:
+        # Sprint Atual: mostra todos os validados (df já vem filtrado pela sprint na sidebar)
+        df_filtrado = df_validados.copy()
+    elif dias_filtro < 9999:
+        data_corte = hoje - timedelta(days=dias_filtro)
+        df_filtrado = df_validados[
+            (df_validados['resolutiondate'].notna()) & 
+            (df_validados['resolutiondate'] >= data_corte)
+        ].copy()
+    else:
+        df_filtrado = df_validados.copy()
+    
+    # Aplica filtros adicionais
+    if qa_sel != 'Todos':
+        df_filtrado = df_filtrado[df_filtrado['qa'] == qa_sel]
+    
+    if tipo_sel != 'Todos':
+        df_filtrado = df_filtrado[df_filtrado['tipo'] == tipo_sel]
+    
+    if produto_sel != 'Todos':
+        df_filtrado = df_filtrado[df_filtrado['produto'] == produto_sel]
+    
+    if df_filtrado.empty:
+        st.warning("⚠️ Nenhum card encontrado para os filtros selecionados.")
+        return
+    
+    # ===== KPIs =====
+    st.markdown("---")
+    st.markdown("#### 📊 Resumo dos Cards Validados")
+    
+    total_validados = len(df_filtrado)
+    total_bugs = int(df_filtrado['bugs'].sum()) if 'bugs' in df_filtrado.columns else 0
+    cards_sem_bugs = len(df_filtrado[df_filtrado['bugs'] == 0]) if 'bugs' in df_filtrado.columns else 0
+    taxa_sem_bugs = cards_sem_bugs / total_validados * 100 if total_validados > 0 else 0
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        criar_card_metrica(str(total_validados), "Cards Validados", "green", "Concluídos")
+    
+    with col2:
+        criar_card_metrica(str(total_bugs), "🐛 Bugs Total", "yellow" if total_bugs > 0 else "green")
+    
+    with col3:
+        cor = 'green' if taxa_sem_bugs > 80 else 'yellow' if taxa_sem_bugs > 60 else 'red'
+        criar_card_metrica(f"{taxa_sem_bugs:.0f}%", "Sem Bugs", cor)
+    
+    with col4:
+        dias_medio = (df_filtrado['atualizado'].max() - df_filtrado['criado'].min()).days if not df_filtrado.empty else 0
+        criar_card_metrica(str(dias_medio), "Dias", "blue", "Span do período")
+    
+    # ===== LISTAGEM DE CARDS =====
+    st.markdown("---")
+    st.markdown("#### 📋 Cards")
+    
+    df_filtrado_sorted = df_filtrado.sort_values('atualizado', ascending=False)
+    
+    for idx, (_, row) in enumerate(df_filtrado_sorted.head(20).iterrows()):
+        bugs_cor = '#ef4444' if row.get('bugs', 0) >= 2 else '#eab308' if row.get('bugs', 0) == 1 else '#22c55e'
+        card_link = card_link_com_popup(row['ticket_id'])
+        
+        bugs_info = f" | 🐛 {row.get('bugs', 0)} bugs" if 'bugs' in row else ""
+        qa_info = f" | 🧑‍🔬 {row.get('qa', 'N/A')}" if row.get('qa') != 'Não atribuído' else ""
+        
+        st.markdown(f"""
+        <div style="padding: 10px; margin: 5px 0; border-left: 3px solid {bugs_cor}; background: rgba(100,100,100,0.05); border-radius: 4px;">
+            <strong>{card_link}</strong> - {str(row.get('titulo', 'N/A'))[:60]}...<br>
+            <small style="color: #94a3b8;">👤 {row.get('desenvolvedor', 'N/A')} | {row.get('sp', '0')} SP{bugs_info}{qa_info}</small>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    if len(df_filtrado_sorted) > 20:
+        st.caption(f"📋 Mostrando 20 de {len(df_filtrado_sorted)} cards")
 
 
 
