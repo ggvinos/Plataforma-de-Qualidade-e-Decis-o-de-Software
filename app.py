@@ -7692,8 +7692,10 @@ def exibir_historico_validacoes(df: pd.DataFrame, key_prefix: str = "qa"):
     col_f1, col_f2, col_f3, col_f4 = st.columns(4)
     
     with col_f1:
+        # Sprint Atual = todos os validados do df (já filtrado pela sprint na sidebar)
+        # Outros = filtro por resolutiondate
         periodo_opcoes = {
-            "Sprint Atual": 14,
+            "Sprint Atual (todos)": 0,  # 0 = sem filtro de data adicional
             "Últimos 7 dias": 7,
             "Últimos 15 dias": 15,
             "Últimos 30 dias": 30,
@@ -7755,7 +7757,13 @@ def exibir_historico_validacoes(df: pd.DataFrame, key_prefix: str = "qa"):
     hoje = datetime.now()
     dias_filtro = periodo_opcoes[periodo_sel]
     
-    if dias_filtro < 9999:
+    # dias_filtro = 0 significa "Sprint Atual (todos)" - sem filtro de data
+    # dias_filtro > 0 significa filtrar por resolutiondate
+    # dias_filtro = 9999 significa "Todo o período"
+    if dias_filtro == 0:
+        # Sprint Atual: mostra todos os validados (df já vem filtrado pela sprint na sidebar)
+        df_filtrado = df_validados.copy()
+    elif dias_filtro < 9999:
         data_corte = hoje - timedelta(days=dias_filtro)
         df_filtrado = df_validados[
             (df_validados['resolutiondate'].notna()) & 
