@@ -1,81 +1,11 @@
 """
 ================================================================================
-JIRA DASHBOARD v8.82 - NINA TECNOLOGIA - VERSÃO COMPLETA E ENRIQUECIDA
+📊 NinaDash v8.82 — Dashboard de Inteligência e Qualidade
 ================================================================================
-📊 NinaDash — Dashboard de Inteligência e Métricas de QA
 
-🎯 Propósito: Transformar o QA de um processo sem visibilidade em um sistema 
-   de inteligência operacional baseado em dados.
+Orquestrador modularizado. Lógica em modulos/, funções em abas.py.
 
-MELHORIAS v8.82:
-- 🔧 FIX: Corrigido Meu Dashboard que não mostrava filtros corretamente
-- 👤 PESSOAS: Lista de pessoas agora carrega corretamente
-- ➕ ADICIONAR: Botão de adicionar widget agora funciona
-- 📊 DEBUG: Mostra quantidade de dados e pessoas encontradas
-- 🧹 SIMPLIFICADO: Interface mais limpa e direta
-
-MELHORIAS v8.81:
-- 🎨 MEU DASHBOARD: Tela totalmente nova para construir dashboards personalizados
-- ➕ ADICIONAR WIDGETS: Construtor no topo para adicionar métricas  
-- ⬆️⬇️ REORDENAR: Mova widgets para cima ou para baixo
-- 🗑️ REMOVER: Exclua widgets que não precisa mais
-- 📊 TEMPLATES: Visão Executiva, Foco DEV, Foco QA
-- 💾 PERSISTÊNCIA: Dashboard salvo em cookie
-- 🧹 SIDEBAR LIMPA: Apenas logo e botão voltar na tela do dashboard
-
-MELHORIAS v8.80:
-- 🎯 CONSULTA PERSONALIZADA: Tela separada para consultas avançadas
-- 🔍 FILTROS DINÂMICOS: Pessoa, status, período, produto personalizados
-- 📋 TIPOS DE CONSULTA: Cards, métricas, comparativos, tendências, bugs
-- 💾 CONSULTAS SALVAS: Salve suas consultas favoritas
-- 📅 PERÍODOS FLEXÍVEIS: Predefinidos ou datas personalizadas
-- ⬅️ BOTÃO NA SIDEBAR: Acesso rápido à ferramenta avançada
-
-MELHORIAS v8.78:
-- 🎨 DESIGN REFINADO: Melhor espaçamento entre elementos
-- ⬅️ BOTÃO VOLTAR NA SIDEBAR: Indica card ativo + volta fácil
-- Link de compartilhamento mais compacto e funcional
-- Visual mais limpo nas métricas do card
-- Expanders fechados por padrão para menos poluição visual
-
-MELHORIAS v8.6:
-- 📱 SIDEBAR REFATORADA: Busca de card em destaque no topo
-- 📤 COMPARTILHAMENTO FUNCIONAL: Link direto via query params
-- Layout reorganizado: Logo → Busca → Filtros → Rodapé NINA
-- URL persistente: ?card=SD-1234&projeto=SD
-
-MELHORIAS v8.5:
-- 🔍 BUSCA DE CARD INDIVIDUAL: Pesquise qualquer card pelo ID
-- Painel completo com todas as métricas do card
-- Fator K individual, janela de validação, aging, lead time
-- Flags de fluxo (criado/finalizado na sprint, fora período)
-- Timeline completa, resumo executivo automático
-
-MELHORIAS v8.4:
-- Aba Backlog exclusiva para projeto PB (Product Backlog)
-- Health Score do backlog, análise de aging, cards estagnados
-- Recomendações automáticas de ação
-
-MELHORIAS v8.0:
-- Header com logo Nina + subtítulo explicativo do objetivo
-- Tooltips/explicações em TODAS as métricas (FPY, DDP, Fator K, etc)
-- Seções colapsáveis em todas as abas (toggle open/close)
-- Listagens COMPLETAS (opção de ver todos os cards)
-- Aba Histórico enriquecida com múltiplos gráficos
-- Mais métricas em cada aba
-- Aba QA (sem "Gargalos" no nome)
-- Auto-load + Cache inteligente
-- Cards clicáveis com links Jira
-- Métricas Ellen: iniciado/finalizado sprint, fora período, hotfix/produto
-
-CAMPOS MAPEADOS JIRA NINA:
-- customfield_11257: Story Points (principal)
-- customfield_10016: Story Points (alternativo)
-- customfield_11157: Bugs Encontrados  
-- customfield_10020: Sprint
-- customfield_11290: Complexidade de Teste
-- customfield_10487: QA Responsável
-- customfield_10102: Produto
+👉 Histórico completo: veja MELHORIAS.md
 ================================================================================
 """
 
