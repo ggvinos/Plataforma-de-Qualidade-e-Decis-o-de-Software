@@ -18,6 +18,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any
+import random
 
 from modulos.config import (
     JIRA_BASE_URL, CUSTOM_FIELDS, STATUS_FLOW, STATUS_NOMES, STATUS_CORES,
@@ -36,7 +37,7 @@ from modulos.calculos import (
 )
 from modulos.jira_api import (
     buscar_dados_jira_cached, buscar_card_especifico,
-    gerar_icone_tabler, gerar_badge_status, obter_icone_status,
+    gerar_icone_tabler, gerar_icone_tabler_html, gerar_badge_status, obter_icone_status,
     extrair_historico_transicoes, extrair_texto_adf
 )
 
