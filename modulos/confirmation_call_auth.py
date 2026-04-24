@@ -30,12 +30,15 @@ except ImportError:
 # ==============================================================================
 
 ENDPOINTS = {
-    "Desenvolvimento": "https://api.develop.confirmationcall.com.br/api/user/loginjwt",
-    "Homologação": "https://api.homolog.confirmationcall.com.br/api/user/loginjwt",
     "Produção": "https://api.confirmationcall.com.br/api/user/loginjwt",
+    "Homologação": "https://api.homolog.confirmationcall.com.br/api/user/loginjwt",
+    "Desenvolvimento": "https://api.develop.confirmationcall.com.br/api/user/loginjwt",
 }
 
-TIMEOUT_SEGUNDOS = 10
+# Ordem de tentativa dos ambientes (mais provável primeiro)
+ORDEM_AMBIENTES = ["Produção", "Homologação", "Desenvolvimento"]
+
+TIMEOUT_SEGUNDOS = 5  # Timeout menor para tentar mais rápido
 
 # Configuração de Cookies para persistência
 COOKIE_AUTH_NAME = "ninadash_jwt_auth"
@@ -187,6 +190,45 @@ def autenticar_com_confirmation_call(
     
     except Exception as e:
         return False, None, f"❌ Erro inesperado: {str(e)}\nTipo: {type(e).__name__}"
+
+
+def autenticar_automatico(usuario: str, senha: str) -> Tuple[bool, Optional[str], str, str]:
+    """
+    Tenta autenticar em todos os ambientes automaticamente.
+    Ordem: Produção → Homologação → Desenvolvimento
+    
+    Args:
+        usuario: Nome de usuário
+        senha: Senha do usuário
+    
+    Returns:
+        (sucesso: bool, token_jwt: Optional[str], mensagem: str, ambiente: str)
+    """
+    if not usuario or not senha:
+        return False, None, "Usuário e senha são obrigatórios", ""
+    
+    erros = []
+    credenciais_invalidas_count = 0
+    
+    for ambiente in ORDEM_AMBIENTES:
+        sucesso, token, mensagem = autenticar_com_confirmation_call(usuario, senha, ambiente)
+        
+        if sucesso:
+            return True, token, f"✅ Autenticado com sucesso!", ambiente
+        
+        # Conta quantos ambientes retornaram credenciais inválidas
+        if "Credenciais inválidas" in mensagem or "401" in mensagem:
+            credenciais_invalidas_count += 1
+        
+        # Guarda o erro para mostrar depois se nenhum funcionar
+        erros.append(f"{ambiente}: {mensagem}")
+    
+    # Se TODOS os ambientes retornaram credenciais inválidas, é senha errada
+    if credenciais_invalidas_count == len(ORDEM_AMBIENTES):
+        return False, None, "❌ Usuário ou senha incorretos", ""
+    
+    # Nenhum ambiente funcionou (mistura de erros)
+    return False, None, "❌ Não foi possível conectar aos servidores.\nTente novamente mais tarde.", ""
 
 
 # ==============================================================================
@@ -342,8 +384,8 @@ def limpar_autenticacao():
 
 def tela_login():
     """
-    Exibe tela de login com campos para usuário, senha e seleção de ambiente.
-    Segue o design visual padrão da Nina com logo e favicon.
+    Exibe tela de login com campos para usuário e senha.
+    Tenta autenticar automaticamente em todos os ambientes (Produção → Homolog → Dev).
     """
     st.set_page_config(
         page_title="NinaDash - Autenticação",
@@ -380,11 +422,10 @@ def tela_login():
         msg_container = st.empty()
         msg_container.info("Insira suas credenciais para acessar o dashboard")
         
-        # Form para evitar rerun ao clicar no checkbox
+        # Form simplificado - sem seleção de ambiente
         with st.form("login_form", clear_on_submit=False):
             usuario = st.text_input("Usuário", placeholder="nome.sobrenome")
             senha = st.text_input("Senha", type="password", placeholder="Sua senha")
-            ambiente = st.selectbox("Ambiente", options=list(ENDPOINTS.keys()), index=2)
             lembrar = st.checkbox("Lembrar do acesso", value=True, help="Mantém você conectado por 30 dias")
             
             submitted = st.form_submit_button("Entrar", use_container_width=True, type="primary")
@@ -394,8 +435,10 @@ def tela_login():
             if not usuario or not senha:
                 msg_container.error("Preencha todos os campos!")
             else:
-                msg_container.info("Autenticando...")
-                sucesso, token, mensagem = autenticar_com_confirmation_call(usuario, senha, ambiente)
+                msg_container.info("🔄 Conectando...")
+                
+                # Tenta autenticar automaticamente em todos os ambientes
+                sucesso, token, mensagem, ambiente = autenticar_automatico(usuario, senha)
                 
                 if sucesso:
                     email = usuario if "@" in usuario else f"{usuario}@confirmationcall.com.br"
