@@ -259,11 +259,19 @@ def inicializar_session_state():
 def restaurar_sessao_do_cookie() -> bool:
     """
     Tenta restaurar a sessão a partir do cookie salvo.
+    O CookieManager é assíncrono - na primeira execução pode retornar None.
+    
     Retorna True se conseguiu restaurar, False caso contrário.
     """
     try:
         cookie_manager = get_cookie_manager()
+        
+        # O CookieManager precisa renderizar primeiro para ler cookies
+        # Na primeira execução, pode retornar None
         auth_data = cookie_manager.get(COOKIE_AUTH_NAME)
+        
+        # Debug: mostra no console se estamos recebendo dados
+        # print(f"[DEBUG] Cookie auth_data: {auth_data}")
         
         if auth_data:
             # Parse dos dados do cookie (formato JSON)
@@ -302,17 +310,30 @@ def verificar_autenticacao() -> bool:
     1. session_state (mais rápido, já autenticado nesta sessão)
     2. Cookie (persistência entre recarregamentos/abas)
     
+    NOTA: O CookieManager é assíncrono. Na primeira execução de uma nova aba,
+    pode precisar de um rerun para carregar os cookies corretamente.
+    
     Retorna True se autenticado, False caso contrário.
     """
     # 1. Primeiro verifica session_state (mais rápido)
     if st.session_state.get("authenticated", False) and st.session_state.get("jwt_token"):
         return True
     
-    # 2. Tenta restaurar do cookie (apenas uma vez por sessão para evitar loop)
-    if not st.session_state.get("cookie_checked", False):
-        st.session_state.cookie_checked = True
+    # 2. Tenta restaurar do cookie
+    # O CookieManager é assíncrono - na primeira execução pode retornar None
+    # Tentamos até 2 vezes com um rerun entre elas
+    cookie_attempts = st.session_state.get("cookie_check_attempts", 0)
+    
+    if cookie_attempts < 2:  # Tenta até 2 vezes
+        st.session_state.cookie_check_attempts = cookie_attempts + 1
+        
         if restaurar_sessao_do_cookie():
             return True
+        
+        # Se é a primeira tentativa e não conseguiu, força rerun
+        # para dar tempo ao JavaScript do CookieManager carregar
+        if cookie_attempts == 0:
+            st.rerun()
     
     return False
 
