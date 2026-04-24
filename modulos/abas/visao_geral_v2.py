@@ -907,6 +907,20 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
     
     # ==== 4. MÉTRICAS TÉCNICAS ====
     with st.expander("🔬 Métricas Técnicas", expanded=False):
+        # Explicação das métricas
+        st.markdown("""
+        <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;">
+            <div style="font-size: 13px; font-weight: 600; color: #0369a1; margin-bottom: 8px;">📚 O que cada métrica significa:</div>
+            <div style="font-size: 12px; color: #334155; line-height: 1.8;">
+                <b>FPY (First Pass Yield)</b> — % de cards aprovados na primeira tentativa de QA. Quanto maior, menos retrabalho.<br>
+                <b>DDP (Defect Detection Percentage)</b> — % de bugs encontrados pelo QA antes de ir para produção. Quanto maior, melhor a cobertura.<br>
+                <b>Lead Time</b> — Tempo médio (dias) desde criação até conclusão de um card. Quanto menor, mais ágil.<br>
+                <b>Health Score</b> — Nota geral de saúde do projeto (0-100). Considera FPY, DDP, Lead Time, WIP e gargalos.<br>
+                <b>FK (Fator K)</b> — Story Points entregues dividido por bugs. FK ≥ 3 = Maturidade | FK < 2 = Atenção
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
         fpy = calcular_fpy(df)
         ddp = calcular_ddp(df)
         lead = calcular_lead_time(df)
