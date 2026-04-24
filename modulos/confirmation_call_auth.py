@@ -46,13 +46,18 @@ COOKIE_EXPIRY_DAYS = 30
 
 
 # ==============================================================================
-# GERENCIADOR DE COOKIES (SINGLETON)
+# GERENCIADOR DE COOKIES (POR SESSÃO - NÃO COMPARTILHADO)
 # ==============================================================================
 
-@st.cache_resource(show_spinner=False)
 def get_cookie_manager():
-    """Retorna instância única do CookieManager."""
-    return stx.CookieManager(key="ninadash_jwt_cookie_manager")
+    """
+    Retorna instância do CookieManager única por sessão.
+    NÃO usar cache_resource pois isso compartilha entre usuários!
+    """
+    # Cria uma nova instância por sessão para evitar compartilhamento
+    if "cookie_manager_instance" not in st.session_state:
+        st.session_state.cookie_manager_instance = stx.CookieManager(key="ninadash_jwt_cm")
+    return st.session_state.cookie_manager_instance
 
 
 # ==============================================================================
