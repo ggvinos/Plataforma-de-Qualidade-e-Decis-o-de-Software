@@ -97,7 +97,7 @@ def aba_clientes(df_todos: pd.DataFrame):
         key="select_cliente_aba"
     )
     
-    st.markdown("---")
+    st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
     
     if cliente_selecionado == "👀 Visão Geral do Time":
         _renderizar_visao_geral(df_temas, clientes_unicos)
@@ -107,30 +107,51 @@ def aba_clientes(df_todos: pd.DataFrame):
 
 def _renderizar_visao_geral(df_temas: pd.DataFrame, clientes_unicos: list):
     """Renderiza a visão geral quando 'Ver Todos' está selecionado."""
-    # ===== VISÃO GERAL - KPIs GLOBAIS =====
-    with st.expander("📊 Indicadores Gerais de Clientes", expanded=False):
-        col1, col2, col3, col4, col5 = st.columns(5)
-        
-        total_cards = len(df_temas)
-        total_clientes = len(clientes_unicos)
-        total_dev_pago = df_temas['dev_pago'].sum() if 'dev_pago' in df_temas.columns else 0
-        total_sp = int(df_temas['sp'].sum()) if 'sp' in df_temas.columns else 0
-        total_concluidos = len(df_temas[df_temas['status_cat'] == 'done']) if 'status_cat' in df_temas.columns else 0
-        
-        with col1:
-            criar_card_metrica(str(total_clientes), "Clientes Ativos", "blue")
-        with col2:
-            criar_card_metrica(str(total_cards), "Total de Cards", "blue")
-        with col3:
-            pct_pago = int(total_dev_pago / total_cards * 100) if total_cards > 0 else 0
-            cor = 'green' if pct_pago >= 30 else 'yellow' if pct_pago >= 15 else 'red'
-            criar_card_metrica(f"{total_dev_pago} ({pct_pago}%)", "💰 Dev. Pago", cor)
-        with col4:
-            criar_card_metrica(str(total_sp), "Story Points", "blue")
-        with col5:
-            pct_concluido = int(total_concluidos / total_cards * 100) if total_cards > 0 else 0
-            cor = 'green' if pct_concluido >= 70 else 'yellow' if pct_concluido >= 40 else 'red'
-            criar_card_metrica(f"{pct_concluido}%", "Conclusão", cor)
+    
+    # Helper para mini-cards harmonizados
+    def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
+        bg = f"{cor}10" if cor != "#6b7280" else "white"
+        border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
+        return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 16px 12px; text-align: center; height: 95px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 28px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151; margin-top: 4px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+    
+    def cor_status_inv(valor, verde, amarelo):
+        if valor >= verde:
+            return "#22c55e"
+        elif valor >= amarelo:
+            return "#f59e0b"
+        return "#ef4444"
+    
+    # ===== INDICADORES GERAIS =====
+    st.markdown("##### 📊 Indicadores de Clientes")
+    
+    total_cards = len(df_temas)
+    total_clientes = len(clientes_unicos)
+    total_dev_pago = df_temas['dev_pago'].sum() if 'dev_pago' in df_temas.columns else 0
+    total_sp = int(df_temas['sp'].sum()) if 'sp' in df_temas.columns else 0
+    total_concluidos = len(df_temas[df_temas['status_cat'] == 'done']) if 'status_cat' in df_temas.columns else 0
+    pct_concluido = int(total_concluidos / total_cards * 100) if total_cards > 0 else 0
+    pct_pago = int(total_dev_pago / total_cards * 100) if total_cards > 0 else 0
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    with col1:
+        st.markdown(mini_card(str(total_clientes), "🏢 Clientes", "ativos", "#3b82f6"), unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(mini_card(str(total_cards), "📋 Total Cards", "no período", "#6b7280"), unsafe_allow_html=True)
+    
+    with col3:
+        cor = cor_status_inv(pct_pago, 30, 15)
+        st.markdown(mini_card(str(total_dev_pago), "💰 Dev. Pago", f"{pct_pago}%", cor), unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown(mini_card(str(total_sp), "📐 Story Points", "total", "#8b5cf6"), unsafe_allow_html=True)
+    
+    with col5:
+        cor = cor_status_inv(pct_concluido, 70, 40)
+        st.markdown(mini_card(f"{pct_concluido}%", "✅ Conclusão", f"{total_concluidos} cards", cor), unsafe_allow_html=True)
+    
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
     
     # ===== TOP CLIENTES =====
     with st.expander("📊 Top 15 Clientes por Volume de Cards", expanded=False):
@@ -318,33 +339,61 @@ def _renderizar_cliente_selecionado(df_temas: pd.DataFrame, cliente_selecionado:
         """, height=45)
     
     # ===== MÉTRICAS PRINCIPAIS =====
+    # Helper para mini-cards harmonizados
+    def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
+        bg = f"{cor}10" if cor != "#6b7280" else "white"
+        border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
+        return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 14px 10px; text-align: center; height: 85px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 9px; color: #6b7280;">{subtitulo}</div></div>'
+    
+    def cor_status_inv(valor, verde, amarelo):
+        if valor >= verde:
+            return "#22c55e"
+        elif valor >= amarelo:
+            return "#f59e0b"
+        return "#ef4444"
+    
+    def cor_status(valor, verde, amarelo):
+        if valor < verde:
+            return "#22c55e"
+        elif valor < amarelo:
+            return "#f59e0b"
+        return "#ef4444"
+    
     total_cards = len(df_cliente)
     total_concluidos = len(df_cliente[df_cliente['status_cat'] == 'done']) if 'status_cat' in df_cliente.columns else 0
     total_em_andamento = len(df_cliente[df_cliente['status_cat'] == 'progress']) if 'status_cat' in df_cliente.columns else 0
     total_sp = int(df_cliente['sp'].sum()) if 'sp' in df_cliente.columns else 0
     total_bugs = int(df_cliente['bugs'].sum()) if 'bugs' in df_cliente.columns else 0
     total_dev_pago = df_cliente['dev_pago'].sum() if 'dev_pago' in df_cliente.columns else 0
+    pct_concluido = int(total_concluidos / total_cards * 100) if total_cards > 0 else 0
+    pct_pago = int(total_dev_pago / total_cards * 100) if total_cards > 0 else 0
     
-    with st.expander("📊 Métricas do Cliente", expanded=False):
-        col1, col2, col3, col4, col5, col6 = st.columns(6)
-        
-        with col1:
-            criar_card_metrica(str(total_cards), "📋 Total Cards", "blue")
-        with col2:
-            pct = int(total_concluidos / total_cards * 100) if total_cards > 0 else 0
-            cor = 'green' if pct >= 70 else 'yellow' if pct >= 40 else 'red'
-            criar_card_metrica(f"{total_concluidos} ({pct}%)", "✅ Concluídos", cor)
-        with col3:
-            criar_card_metrica(str(total_em_andamento), "🔄 Em Andamento", "yellow")
-        with col4:
-            criar_card_metrica(str(total_sp), "📐 Story Points", "blue")
-        with col5:
-            cor = 'red' if total_bugs > 5 else 'yellow' if total_bugs > 0 else 'green'
-            criar_card_metrica(str(total_bugs), "🐛 Bugs", cor)
-        with col6:
-            pct_pago = int(total_dev_pago / total_cards * 100) if total_cards > 0 else 0
-            cor = 'green' if total_dev_pago > 0 else 'gray'
-            criar_card_metrica(f"{total_dev_pago} ({pct_pago}%)", "💰 Dev. Pago", cor)
+    st.markdown("##### 📊 Métricas do Cliente")
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    
+    with col1:
+        st.markdown(mini_card(str(total_cards), "📋 Cards", "total", "#3b82f6"), unsafe_allow_html=True)
+    
+    with col2:
+        cor = cor_status_inv(pct_concluido, 70, 40)
+        st.markdown(mini_card(f"{pct_concluido}%", "✅ Concluídos", f"{total_concluidos} cards", cor), unsafe_allow_html=True)
+    
+    with col3:
+        cor = "#f59e0b" if total_em_andamento > 0 else "#6b7280"
+        st.markdown(mini_card(str(total_em_andamento), "🔄 Andamento", "em progresso", cor), unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown(mini_card(str(total_sp), "📐 SP", "story points", "#8b5cf6"), unsafe_allow_html=True)
+    
+    with col5:
+        cor = cor_status(total_bugs, 1, 5)
+        st.markdown(mini_card(str(total_bugs), "🐛 Bugs", "encontrados", cor), unsafe_allow_html=True)
+    
+    with col6:
+        cor = "#22c55e" if total_dev_pago > 0 else "#6b7280"
+        st.markdown(mini_card(str(total_dev_pago), "💰 Dev Pago", f"{pct_pago}%", cor), unsafe_allow_html=True)
+    
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
     
     # ===== PROJETOS DO CLIENTE =====
     if 'projeto' in df_cliente.columns:

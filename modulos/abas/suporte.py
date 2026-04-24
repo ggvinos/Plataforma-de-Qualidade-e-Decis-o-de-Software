@@ -72,10 +72,11 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
     
     # ========== VISÃO GERAL (quando seleciona "Ver Todos") ==========
     if pessoa_selecionada == "👥 Ver Todos":
+        st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
         _renderizar_visao_geral(df_todos)
         return
     
-    st.markdown("---")
+    st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
     
     # ========== FILTRAR CARDS DA PESSOA ==========
     df_pessoa = df_todos[df_todos['relator'] == pessoa_selecionada].copy()
@@ -89,33 +90,45 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
 
 def _renderizar_visao_geral(df_todos: pd.DataFrame):
     """Renderiza a visão geral quando 'Ver Todos' está selecionado."""
-    st.markdown("---")
     
-    # ===== MÉTRICAS GERAIS DO TIME =====
-    st.markdown("#### 📊 Métricas Gerais do Time")
-    col1, col2, col3, col4, col5 = st.columns(5)
+    # Helper para mini-cards harmonizados
+    def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
+        bg = f"{cor}10" if cor != "#6b7280" else "white"
+        border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
+        return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 16px 12px; text-align: center; height: 95px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 28px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151; margin-top: 4px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+    
+    # ===== INDICADORES DO TIME =====
+    st.markdown("##### 📊 Indicadores do Time")
     
     total_cards = len(df_todos)
+    total_sd = len(df_todos[df_todos['projeto'] == 'SD']) if 'projeto' in df_todos.columns else 0
+    total_qa = len(df_todos[df_todos['projeto'] == 'QA']) if 'projeto' in df_todos.columns else 0
+    total_pb = len(df_todos[df_todos['projeto'] == 'PB']) if 'projeto' in df_todos.columns else 0
+    total_valprod = len(df_todos[df_todos['projeto'] == 'VALPROD']) if 'projeto' in df_todos.columns else 0
+    pessoas_unicas = df_todos['relator'].nunique()
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
-        total_sd = len(df_todos[df_todos['projeto'] == 'SD']) if 'projeto' in df_todos.columns else 0
-        st.metric("📋 SD", total_sd, delta=f"{(total_sd/total_cards*100):.0f}%" if total_cards > 0 else None)
+        pct_sd = f"{(total_sd/total_cards*100):.0f}%" if total_cards > 0 else "0%"
+        st.markdown(mini_card(str(total_sd), "📋 SD", pct_sd, "#3b82f6"), unsafe_allow_html=True)
     
     with col2:
-        total_qa = len(df_todos[df_todos['projeto'] == 'QA']) if 'projeto' in df_todos.columns else 0
-        st.metric("🔬 QA", total_qa, delta=f"{(total_qa/total_cards*100):.0f}%" if total_cards > 0 else None)
+        pct_qa = f"{(total_qa/total_cards*100):.0f}%" if total_cards > 0 else "0%"
+        st.markdown(mini_card(str(total_qa), "🔬 QA", pct_qa, "#22c55e"), unsafe_allow_html=True)
     
     with col3:
-        total_pb = len(df_todos[df_todos['projeto'] == 'PB']) if 'projeto' in df_todos.columns else 0
-        st.metric("📦 PB", total_pb, delta=f"{(total_pb/total_cards*100):.0f}%" if total_cards > 0 else None)
+        pct_pb = f"{(total_pb/total_cards*100):.0f}%" if total_cards > 0 else "0%"
+        st.markdown(mini_card(str(total_pb), "📦 PB", pct_pb, "#f59e0b"), unsafe_allow_html=True)
     
     with col4:
-        total_valprod = len(df_todos[df_todos['projeto'] == 'VALPROD']) if 'projeto' in df_todos.columns else 0
-        st.metric("✅ VALPROD", total_valprod, delta=f"{(total_valprod/total_cards*100):.0f}%" if total_cards > 0 else None)
+        pct_vp = f"{(total_valprod/total_cards*100):.0f}%" if total_cards > 0 else "0%"
+        st.markdown(mini_card(str(total_valprod), "✅ VALPROD", pct_vp, "#8b5cf6"), unsafe_allow_html=True)
     
     with col5:
-        pessoas_unicas = df_todos['relator'].nunique()
-        st.metric("👥 Pessoas", pessoas_unicas)
+        st.markdown(mini_card(str(pessoas_unicas), "👥 Pessoas", "no time", "#6b7280"), unsafe_allow_html=True)
+    
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
     
     # ===== GRÁFICO: CARDS POR PROJETO E STATUS - EM EXPANDER =====
     with st.expander("📊 Distribuição de Cards", expanded=False):
@@ -397,8 +410,15 @@ def _renderizar_visao_individual(df_todos: pd.DataFrame, df_pessoa: pd.DataFrame
 
 
 def _renderizar_metricas_pessoa(df_pessoa: pd.DataFrame):
-    """Renderiza as métricas por projeto da pessoa."""
-    col1, col2, col3, col4, col5 = st.columns(5)
+    """Renderiza as métricas por projeto da pessoa - Estilo harmonizado."""
+    
+    # Helper para mini-cards harmonizados
+    def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
+        bg = f"{cor}10" if cor != "#6b7280" else "white"
+        border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
+        return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 16px 12px; text-align: center; height: 95px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 28px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151; margin-top: 4px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+    
+    st.markdown("##### 📊 Meus Cards por Projeto")
     
     df_sd = df_pessoa[df_pessoa['projeto'] == 'SD'] if 'projeto' in df_pessoa.columns else pd.DataFrame()
     df_qa = df_pessoa[df_pessoa['projeto'] == 'QA'] if 'projeto' in df_pessoa.columns else pd.DataFrame()
@@ -410,27 +430,31 @@ def _renderizar_metricas_pessoa(df_pessoa: pd.DataFrame):
         'concluído|finalizado|done|aprovado|validado|resolvido|closed|encerrado', na=False)]
     total_concluidos = len(df_concluidos)
     
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
     with col1:
         total_sd = len(df_sd)
         em_andamento_sd = len(df_sd[df_sd['status'].str.lower().str.contains('andamento|desenvolvimento|revisão|validação', na=False)]) if not df_sd.empty else 0
-        st.metric("📋 SD", total_sd, delta=f"{em_andamento_sd} em andamento" if em_andamento_sd > 0 else None)
+        st.markdown(mini_card(str(total_sd), "📋 SD", f"{em_andamento_sd} em andamento", "#3b82f6"), unsafe_allow_html=True)
     
     with col2:
         total_qa = len(df_qa)
-        st.metric("🔬 QA", total_qa)
+        st.markdown(mini_card(str(total_qa), "🔬 QA", "cards", "#22c55e"), unsafe_allow_html=True)
     
     with col3:
         total_pb = len(df_pb)
         aguardando_pb = len(df_pb[df_pb['status'].str.lower().str.contains('aguardando', na=False)]) if not df_pb.empty else 0
-        st.metric("📦 PB", total_pb, delta=f"{aguardando_pb} aguardando" if aguardando_pb > 0 else None)
+        st.markdown(mini_card(str(total_pb), "📦 PB", f"{aguardando_pb} aguardando", "#f59e0b"), unsafe_allow_html=True)
     
     with col4:
-        # Pendentes de validação (não concluídos) no VALPROD
         pendentes_valprod = len(df_valprod[~df_valprod['status'].str.lower().str.contains('aprovado|validado|concluído', na=False)]) if not df_valprod.empty else 0
-        st.metric("🔍 Val. Prod", pendentes_valprod, delta="pendentes" if pendentes_valprod > 0 else None, delta_color="off")
+        cor = "#ef4444" if pendentes_valprod > 0 else "#8b5cf6"
+        st.markdown(mini_card(str(pendentes_valprod), "🔍 Val. Prod", "pendentes", cor), unsafe_allow_html=True)
     
     with col5:
-        st.metric("✅ Concluídos", total_concluidos)
+        st.markdown(mini_card(str(total_concluidos), "✅ Concluídos", "finalizados", "#22c55e"), unsafe_allow_html=True)
+    
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
 
 
 def _renderizar_cards_aguardando_minha_acao(df_todos: pd.DataFrame, df_pessoa: pd.DataFrame, pessoa_selecionada: str):

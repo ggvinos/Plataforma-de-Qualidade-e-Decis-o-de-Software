@@ -24,35 +24,123 @@ from datetime import datetime
 
 def aba_sobre():
     """Aba Sobre - Objetivo do Dashboard e Fontes das Métricas."""
-    st.markdown("### ℹ️ Sobre o NinaDash")
-    st.caption("Dashboard de Inteligência e Qualidade • Versão 8.82 • Arquitetura Modularizada")
     
-    # Sobre a NINA
-    with st.expander("🤖 NINA Tecnologia", expanded=False):
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, #AF0C37 0%, #8B0A2C 100%); padding: 24px; border-radius: 12px; margin-bottom: 16px;">
-            <h3 style="margin: 0 0 12px 0; color: #ffffff;">🤖 NINA Tecnologia</h3>
-            <p style="margin: 0 0 16px 0; color: #fecdd3; font-size: 15px; line-height: 1.6;">
-                A <b style="color: #fff;">NINA</b> é uma empresa de tecnologia especializada em <b style="color: #fff;">soluções digitais inovadoras</b>, 
-                com foco em desenvolvimento de software de alta qualidade. Nossa missão é transformar ideias em produtos 
-                digitais que geram valor real para nossos clientes.
-            </p>
-            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-                <div style="background: rgba(255,255,255,0.15); padding: 12px 16px; border-radius: 8px; flex: 1; min-width: 200px;">
-                    <p style="margin: 0; color: #fecdd3; font-size: 12px;">🎯 MISSÃO</p>
-                    <p style="margin: 4px 0 0 0; color: #fff; font-size: 14px; font-weight: 500;">Entregar software de qualidade com excelência operacional</p>
-                </div>
-                <div style="background: rgba(255,255,255,0.15); padding: 12px 16px; border-radius: 8px; flex: 1; min-width: 200px;">
-                    <p style="margin: 0; color: #fecdd3; font-size: 12px;">👁️ VISÃO</p>
-                    <p style="margin: 4px 0 0 0; color: #fff; font-size: 14px; font-weight: 500;">Ser referência em qualidade de software no Brasil</p>
-                </div>
-                <div style="background: rgba(255,255,255,0.15); padding: 12px 16px; border-radius: 8px; flex: 1; min-width: 200px;">
-                    <p style="margin: 0; color: #fecdd3; font-size: 12px;">💎 VALORES</p>
-                    <p style="margin: 4px 0 0 0; color: #fff; font-size: 14px; font-weight: 500;">Qualidade, Transparência, Inovação</p>
-                </div>
+    # ===== HERO BANNER NINA (SEMPRE VISÍVEL) =====
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #AF0C37 0%, #8B0A2C 100%); padding: 28px 32px; border-radius: 16px; margin-bottom: 24px;">
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+            <div>
+                <h2 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">NINA Tecnologia</h2>
+                <p style="margin: 4px 0 0 0; color: #fecdd3; font-size: 14px;">NinaDash • Dashboard de Inteligência e Qualidade • v8.82</p>
+            </div>
+            <span style="margin-left: auto; background: rgba(255,255,255,0.2); padding: 6px 14px; border-radius: 20px; color: #fff; font-size: 12px; font-weight: 600;">
+                Abril 2026
+            </span>
+        </div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <div style="background: rgba(255,255,255,0.15); padding: 10px 14px; border-radius: 8px; flex: 1; min-width: 180px;">
+                <p style="margin: 0; color: #fecdd3; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">🎯 Missão</p>
+                <p style="margin: 4px 0 0 0; color: #fff; font-size: 13px; font-weight: 500;">Entregar software de qualidade com excelência operacional</p>
+            </div>
+            <div style="background: rgba(255,255,255,0.15); padding: 10px 14px; border-radius: 8px; flex: 1; min-width: 180px;">
+                <p style="margin: 0; color: #fecdd3; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">👁️ Visão</p>
+                <p style="margin: 4px 0 0 0; color: #fff; font-size: 13px; font-weight: 500;">Ser referência em qualidade de software no Brasil</p>
+            </div>
+            <div style="background: rgba(255,255,255,0.15); padding: 10px 14px; border-radius: 8px; flex: 1; min-width: 180px;">
+                <p style="margin: 0; color: #fecdd3; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">💎 Valores</p>
+                <p style="margin: 4px 0 0 0; color: #fff; font-size: 13px; font-weight: 500;">Qualidade, Transparência, Inovação</p>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # ===== FEATURES PRINCIPAIS (SEMPRE VISÍVEIS) =====
+    st.markdown("##### ✨ Principais Funcionalidades")
+    
+    def feature_card(icone, titulo, desc, cor):
+        return f'''<div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; height: 140px; display: flex; flex-direction: column;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                <span style="background: {cor}15; padding: 8px; border-radius: 8px; font-size: 20px;">{icone}</span>
+                <span style="font-weight: 600; color: #1f2937; font-size: 14px;">{titulo}</span>
+            </div>
+            <p style="margin: 0; color: #64748b; font-size: 12px; line-height: 1.5; flex: 1;">{desc}</p>
+        </div>'''
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(feature_card("🏥", "Health Score", "Score composto para decisão Go/No-Go de release com base em 5 indicadores", "#22c55e"), unsafe_allow_html=True)
+    with col2:
+        st.markdown(feature_card("🏆", "Fator K", "Classificação de maturidade dos devs: Gold, Silver, Bronze baseado em SP/Bugs", "#f59e0b"), unsafe_allow_html=True)
+    with col3:
+        st.markdown(feature_card("⏰", "Janela Release", "Monitoramento de 3 dias úteis para validação segura antes do deploy", "#3b82f6"), unsafe_allow_html=True)
+    with col4:
+        st.markdown(feature_card("🔗", "Deep Links", "URLs compartilháveis para abas, pessoas e cards específicos", "#8b5cf6"), unsafe_allow_html=True)
+    
+    st.markdown("<div style='margin-top: 24px;'></div>", unsafe_allow_html=True)
+    
+    # ===== PERFIS DE USO (SEMPRE VISÍVEIS) =====
+    st.markdown("##### 👥 Quem Usa o NinaDash")
+    
+    def perfil_card(icone, nome, acoes):
+        acoes_html = "".join([f'<div style="font-size: 11px; color: #64748b; padding: 2px 0;">• {a}</div>' for a in acoes])
+        return f'''<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                <span style="font-size: 24px;">{icone}</span>
+                <span style="font-weight: 600; color: #1f2937; font-size: 13px;">{nome}</span>
+            </div>
+            {acoes_html}
+        </div>'''
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col1:
+        st.markdown(perfil_card("🔬", "QA", ["Priorizar cards", "Gestão de carga", "Janela release", "Funil validação"]), unsafe_allow_html=True)
+    with col2:
+        st.markdown(perfil_card("👨‍💻", "Dev", ["Fator K pessoal", "Selo maturidade", "Tempo de ciclo", "WIP e Review"]), unsafe_allow_html=True)
+    with col3:
+        st.markdown(perfil_card("🎯", "Tech Lead", ["Visão do time", "Concentração", "Performance", "Distribuição"]), unsafe_allow_html=True)
+    with col4:
+        st.markdown(perfil_card("👔", "Liderança", ["Go/No-Go", "Health Score", "Tendências", "Riscos"]), unsafe_allow_html=True)
+    with col5:
+        st.markdown(perfil_card("🏢", "Suporte", ["Meus cards", "Multi-projeto", "Validação prod", "Links rápidos"]), unsafe_allow_html=True)
+    
+    st.markdown("<div style='margin-top: 24px;'></div>", unsafe_allow_html=True)
+    
+    # ===== QUICK STATS (MENORES, MAIS ABAIXO) =====
+    def stat_card_mini(valor, titulo, icone):
+        return f'''<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 10px; text-align: center;">
+            <div style="font-size: 18px; margin-bottom: 2px;">{icone}</div>
+            <div style="font-size: 20px; font-weight: 700; color: #374151;">{valor}</div>
+            <div style="font-size: 10px; color: #64748b; margin-top: 2px;">{titulo}</div>
+        </div>'''
+    
+    st.markdown("###### 📊 Números do Sistema")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(stat_card_mini("16", "Métricas ISTQB", "📊"), unsafe_allow_html=True)
+    with col2:
+        st.markdown(stat_card_mini("5", "Projetos Jira", "📂"), unsafe_allow_html=True)
+    with col3:
+        st.markdown(stat_card_mini("11", "Abas", "📑"), unsafe_allow_html=True)
+    with col4:
+        st.markdown(stat_card_mini("16", "Módulos", "🧩"), unsafe_allow_html=True)
+    
+    st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+    
+    # ===== DOCUMENTAÇÃO DETALHADA (EXPANDERS) =====
+    st.markdown("##### 📚 Documentação Detalhada")
+    
+    # Sobre a NINA
+    with st.expander("Sobre a NINA Tecnologia", expanded=False):
+        st.markdown("""
+        A **NINA** é uma empresa de tecnologia especializada em **soluções digitais inovadoras**, 
+        com foco em desenvolvimento de software de alta qualidade.
+        
+        | Aspecto | Descrição |
+        |---------|-----------|
+        | **🎯 Missão** | Entregar software de qualidade com excelência operacional |
+        | **👁️ Visão** | Ser referência em qualidade de software no Brasil |
+        | **💎 Valores** | Qualidade, Transparência, Inovação |
+        """)
     
     # Objetivo do Dashboard
     with st.expander("🎯 Objetivo do Dashboard", expanded=False):
@@ -240,71 +328,6 @@ def aba_sobre():
         > O NinaDash ajuda a NINA a encontrar bugs mais cedo, **economizando recursos**.
         """)
     
-    # Tomada de Decisão
-    with st.expander("🧠 Tomada de Decisão por Perfil", expanded=False):
-        st.markdown("""
-        ### Como cada perfil utiliza o NinaDash
-        """)
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.markdown("""
-            #### 👥 QA
-            - Priorização de cards por risco
-            - Gestão de carga de trabalho
-            - Avaliação de janela de release
-            - Identificação de aging crítico
-            - Funil de validação
-            - Comparativo entre QAs
-            """)
-        
-        with col2:
-            st.markdown("""
-            #### 🧑‍💼 Liderança
-            - Decisão **Go/No-Go** de release
-            - Health Score da sprint
-            - Performance do time
-            - Identificação de gargalos
-            - Pontos de atenção
-            - Análise de tendências
-            """)
-        
-        with col3:
-            st.markdown("""
-            #### 👨‍💻 Desenvolvedores
-            - Feedback de qualidade (Fator K)
-            - Selo de maturidade
-            - Taxa de retrabalho
-            - Tempo de ciclo
-            - Cards pendentes
-            - WIP e Code Review
-            """)
-        
-        st.markdown("---")
-        
-        col4, col5 = st.columns(2)
-        
-        with col4:
-            st.markdown("""
-            #### 🎯 Suporte/Implantação
-            - **"Onde estão meus cards?"**
-            - Cards aguardando ação
-            - Validação em produção
-            - Visão consolidada multi-projeto
-            - Link compartilhável
-            """)
-        
-        with col5:
-            st.markdown("""
-            #### 🏢 Clientes/Comercial
-            - Análise por cliente/tema
-            - Desenvolvimento pago
-            - Bugs por cliente
-            - Métricas de entrega
-            - Visibilidade de demandas
-            """)
-    
     # Governança
     with st.expander("🏛️ Governança Técnica", expanded=False):
         current_year = datetime.now().year
@@ -383,15 +406,31 @@ def aba_sobre():
         Use o botão **📋 Copiar Link** presente em cada aba para gerar o link automaticamente.
         """)
     
-    # Footer
+    # ===== FOOTER RICO =====
     st.markdown("---")
+    
+    # Footer com cards informativos
+    col1, col2, col3 = st.columns(3)
+    
+    def footer_card(icone, titulo, valor, subtitulo):
+        return f'''<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; text-align: center;">
+            <div style="font-size: 20px; margin-bottom: 6px;">{icone}</div>
+            <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">{titulo}</div>
+            <div style="font-size: 16px; font-weight: 600; color: #1f2937; margin: 4px 0;">{valor}</div>
+            <div style="font-size: 11px; color: #64748b;">{subtitulo}</div>
+        </div>'''
+    
+    with col1:
+        st.markdown(footer_card("🛠️", "Versão", "8.82", "Abril 2026"), unsafe_allow_html=True)
+    with col2:
+        st.markdown(footer_card("👨‍💻", "Mantido por", "Vinícios Ferreira", "Time de Qualidade"), unsafe_allow_html=True)
+    with col3:
+        st.markdown(footer_card("🏢", "Desenvolvido para", "NINA Tecnologia", "Confirmation Call"), unsafe_allow_html=True)
+    
+    st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
+    
     st.markdown("""
-    <div style="text-align: center; padding: 20px; color: #64748b;">
-        <p style="margin: 0; font-size: 14px;">
-            <strong>NinaDash v8.82</strong> — Dashboard de Inteligência e Qualidade
-        </p>
-        <p style="margin: 8px 0 0 0; font-size: 12px;">
-            Desenvolvido com ❤️ pelo Time de Qualidade NINA • Abril 2026
-        </p>
+    <div style="text-align: center; padding: 16px; color: #94a3b8; font-size: 12px;">
+        Feito com ❤️ em Python + Streamlit • Métricas baseadas em ISTQB Foundation Level
     </div>
     """, unsafe_allow_html=True)

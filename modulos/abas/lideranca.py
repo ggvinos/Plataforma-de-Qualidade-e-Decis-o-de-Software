@@ -29,13 +29,34 @@ from modulos.calculos import (
     calcular_concentracao_conhecimento, calcular_metricas_dev
 )
 from modulos.helpers import (
-    criar_card_metrica, exportar_para_csv, exportar_para_excel
+    exportar_para_csv, exportar_para_excel
 )
 from modulos.widgets import (
     mostrar_tooltip, mostrar_lista_df_completa
 )
 from modulos.graficos import criar_grafico_concentracao
 from modulos._abas_legacy import exibir_historico_validacoes
+
+
+# Helper global para mini-cards harmonizados
+def _mini_card(valor, titulo, subtitulo, cor="#6b7280"):
+    bg = f"{cor}10" if cor != "#6b7280" else "white"
+    border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
+    return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 16px 12px; text-align: center; height: 95px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 28px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151; margin-top: 4px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+
+def _cor_status(valor, verde, amarelo):
+    if valor < verde:
+        return "#22c55e"
+    elif valor < amarelo:
+        return "#f59e0b"
+    return "#ef4444"
+
+def _cor_status_inv(valor, verde, amarelo):
+    if valor >= verde:
+        return "#22c55e"
+    elif valor >= amarelo:
+        return "#f59e0b"
+    return "#ef4444"
 
 
 def aba_lideranca(df: pd.DataFrame):
@@ -74,8 +95,9 @@ def aba_lideranca(df: pd.DataFrame):
     
     # Layout
     _renderizar_decisao_release(decisao, decisao_cor, decisao_msg, health, total_cards, pct_conclusao, fk, mat, dias_release)
-    _renderizar_pontos_atencao(df)
     _renderizar_esforco_time(df)
+    _renderizar_composicao_health(health)
+    _renderizar_pontos_atencao(df)
     _renderizar_interacao_qa_dev(df)
     _renderizar_concentracao_conhecimento(df)
     _renderizar_performance_dev(df)
@@ -85,50 +107,55 @@ def aba_lideranca(df: pd.DataFrame):
 
 def _renderizar_decisao_release(decisao, decisao_cor, decisao_msg, health, total_cards, pct_conclusao, fk, mat, dias_release):
     """Renderiza a seção de decisão Go/No-Go."""
-    with st.expander("🚦 Decisão de Release (Go/No-Go)", expanded=False):
-        col1, col2 = st.columns([1, 2])
+    
+    # ===== INDICADORES PRINCIPAIS (SEMPRE VISÍVEIS) =====
+    st.markdown("##### 🚦 Decisão de Release")
+    
+    # Badge de decisão
+    cores_badge = {"red": "#ef4444", "yellow": "#f59e0b", "green": "#22c55e"}
+    cor_hex = cores_badge.get(decisao_cor, "#6b7280")
+    st.markdown(f"""
+    <div style="background: {cor_hex}15; border: 2px solid {cor_hex}; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 20px; font-weight: 700; color: {cor_hex};">{decisao}</span>
+        <span style="font-size: 13px; color: #374151;">{decisao_msg}</span>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    with col1:
+        cor = _cor_status_inv(health['score'], 75, 50)
+        st.markdown(_mini_card(f"{health['score']:.0f}", "🏥 Health Score", health['status'], cor), unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(_mini_card(str(total_cards), "📋 Cards", "total sprint", "#3b82f6"), unsafe_allow_html=True)
+    
+    with col3:
+        cor = _cor_status_inv(pct_conclusao, 70, 40)
+        st.markdown(_mini_card(f"{pct_conclusao:.0f}%", "✅ Conclusão", "done/total", cor), unsafe_allow_html=True)
+    
+    with col4:
+        cor = _cor_status_inv(fk, 3, 2)
+        st.markdown(_mini_card(f"{fk:.1f}", "🏆 Fator K", mat['selo'], cor), unsafe_allow_html=True)
+    
+    with col5:
+        cor = _cor_status(dias_release, 3, 5) if dias_release else "#6b7280"
+        st.markdown(_mini_card(str(dias_release), "⏱️ Dias Release", "restantes", cor), unsafe_allow_html=True)
+    
+    st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
+
+
+def _renderizar_composicao_health(health: dict):
+    """Renderiza a composição do Health Score em expander separado."""
+    with st.expander("📊 Composição do Health Score", expanded=False):
+        nomes = {'conclusao': 'Conclusão', 'ddp': 'DDP', 'fpy': 'FPY', 'gargalos': 'Gargalos', 'lead_time': 'Lead Time'}
+        cols = st.columns(5)
         
-        with col1:
-            st.markdown(f"""
-            <div class="status-card status-{decisao_cor}" style="padding: 25px;">
-                <p style="font-size: 24px; margin: 0;">{decisao}</p>
-                <p class="card-label" style="margin-top: 10px;">{decisao_msg}</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            cor_health = 'green' if health['score'] >= 75 else 'yellow' if health['score'] >= 50 else 'red'
-            criar_card_metrica(f"{health['score']:.0f}", "Health Score", cor_health, health['status'])
-        
-        with col2:
-            col_a, col_b, col_c, col_d = st.columns(4)
-            
-            with col_a:
-                st.metric("Cards", total_cards)
-            with col_b:
-                st.metric("Concluídos", f"{pct_conclusao:.0f}%")
-            with col_c:
-                st.metric("Fator K", f"{fk:.1f}", mat['selo'])
-            with col_d:
-                st.metric("Dias até Release", dias_release)
-            
-            st.markdown("---")
-            
-            # Composição do Health Score
-            st.markdown("**📊 Composição do Health Score:**")
-            cols = st.columns(5)
-            nomes = {'conclusao': 'Conclusão', 'ddp': 'DDP', 'fpy': 'FPY', 'gargalos': 'Gargalos', 'lead_time': 'Lead Time'}
-            
-            for i, (key, det) in enumerate(health['detalhes'].items()):
-                with cols[i]:
-                    cor = '#22c55e' if det['score'] >= det['peso'] * 0.7 else '#f59e0b' if det['score'] >= det['peso'] * 0.4 else '#ef4444'
-                    st.markdown(f"""
-                    <div style="text-align: center; padding: 10px; background: {cor}20; border-radius: 8px;">
-                        <p style="font-size: 18px; font-weight: bold; margin: 0;">{det['score']:.0f}/{det['peso']}</p>
-                        <p style="font-size: 11px; margin: 3px 0 0 0;">{nomes.get(key, key)}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
+        for i, (key, det) in enumerate(health['detalhes'].items()):
+            with cols[i]:
+                pct = det['score'] / det['peso'] * 100 if det['peso'] > 0 else 0
+                cor = _cor_status_inv(pct, 70, 40)
+                st.markdown(_mini_card(f"{det['score']:.0f}/{det['peso']}", f"📊 {nomes.get(key, key)}", f"{pct:.0f}%", cor), unsafe_allow_html=True)
         
         mostrar_tooltip("health_score")
 
@@ -188,33 +215,41 @@ def _renderizar_pontos_atencao(df: pd.DataFrame):
 
 def _renderizar_esforco_time(df: pd.DataFrame):
     """Renderiza a seção de esforço do time."""
-    with st.expander("💪 Esforço do Time (DEV + QA)", expanded=False):
-        st.caption("Visualize a carga de trabalho e produtividade geral do time")
-        
-        # Métricas gerais do time
-        col1, col2, col3, col4 = st.columns(4)
-        
-        # Total de devs ativos
-        devs_ativos = df[df['desenvolvedor'] != 'Não atribuído']['desenvolvedor'].nunique()
-        qas_ativos = df[df['qa'] != 'Não atribuído']['qa'].nunique()
-        
-        with col1:
-            criar_card_metrica(str(devs_ativos), "DEVs Ativos", "blue", "Desenvolvendo")
-        
-        with col2:
-            criar_card_metrica(str(qas_ativos), "QAs Ativos", "purple", "Validando")
-        
-        with col3:
-            media_cards_dev = len(df) / devs_ativos if devs_ativos > 0 else 0
-            criar_card_metrica(f"{media_cards_dev:.1f}", "Cards/DEV", "blue", "Média por dev")
-        
-        with col4:
-            media_cards_qa = len(df) / qas_ativos if qas_ativos > 0 else 0
-            criar_card_metrica(f"{media_cards_qa:.1f}", "Cards/QA", "purple", "Média por QA")
-        
-        st.markdown("---")
-        
-        # Distribuição de esforço DEV vs QA
+    
+    # ===== INDICADORES DE ESFORÇO (SEMPRE VISÍVEIS) =====
+    st.markdown("##### 💪 Esforço do Time")
+    
+    devs_ativos = df[df['desenvolvedor'] != 'Não atribuído']['desenvolvedor'].nunique()
+    qas_ativos = df[df['qa'] != 'Não atribuído']['qa'].nunique()
+    media_cards_dev = len(df) / devs_ativos if devs_ativos > 0 else 0
+    media_cards_qa = len(df) / qas_ativos if qas_ativos > 0 else 0
+    throughput = len(df[df['status_cat'] == 'done'])
+    sp_entregues = int(df[df['status_cat'] == 'done']['sp'].sum())
+    
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    
+    with col1:
+        st.markdown(_mini_card(str(devs_ativos), "👨‍💻 DEVs", "ativos", "#3b82f6"), unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(_mini_card(str(qas_ativos), "🔬 QAs", "ativos", "#8b5cf6"), unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown(_mini_card(f"{media_cards_dev:.1f}", "📋 Cards/DEV", "média", "#6b7280"), unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown(_mini_card(f"{media_cards_qa:.1f}", "📋 Cards/QA", "média", "#6b7280"), unsafe_allow_html=True)
+    
+    with col5:
+        st.markdown(_mini_card(str(throughput), "✅ Throughput", "cards done", "#22c55e"), unsafe_allow_html=True)
+    
+    with col6:
+        st.markdown(_mini_card(str(sp_entregues), "📐 SP Entregues", "story points", "#22c55e"), unsafe_allow_html=True)
+    
+    st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
+    
+    # Detalhes em expander
+    with st.expander("📊 Distribuição de Carga DEV/QA", expanded=False):
         col1, col2 = st.columns(2)
         
         with col1:
@@ -252,33 +287,11 @@ def _renderizar_esforco_time(df: pd.DataFrame):
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Sem dados de QAs")
-        
-        # Produtividade e Throughput
-        st.markdown("---")
-        st.markdown("**📈 Produtividade do Time**")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        # Throughput (cards concluídos)
-        with col1:
-            throughput = len(df[df['status_cat'] == 'done'])
-            criar_card_metrica(str(throughput), "Throughput", "green", "Cards concluídos")
-        
-        # Story Points entregues
-        with col2:
-            sp_entregues = int(df[df['status_cat'] == 'done']['sp'].sum())
-            criar_card_metrica(str(sp_entregues), "SP Entregues", "green", "Story Points done")
-        
-        # Velocidade (SP/Dev)
-        devs_ativos = df[df['desenvolvedor'] != 'Não atribuído']['desenvolvedor'].nunique()
-        with col3:
-            velocidade = sp_entregues / devs_ativos if devs_ativos > 0 else 0
-            criar_card_metrica(f"{velocidade:.1f}", "Velocidade", "blue", "SP/DEV entregue")
 
 
 def _renderizar_interacao_qa_dev(df: pd.DataFrame):
     """Renderiza a seção de interação QA x DEV."""
-    with st.expander("🤝 Interação QA x DEV (Visão Liderança)", expanded=False):
+    with st.expander("🤝 Interação QA x DEV", expanded=False):
         st.caption("Acompanhe a colaboração entre QAs e Desenvolvedores")
         
         # Filtra apenas cards com QA e DEV atribuídos
@@ -315,21 +328,22 @@ def _renderizar_interacao_qa_dev(df: pd.DataFrame):
             
             with col1:
                 total_parcerias = len(matriz)
-                criar_card_metrica(str(total_parcerias), "Total Parcerias", "blue", "Combinações QA-DEV")
+                st.markdown(_mini_card(str(total_parcerias), "🤝 Parcerias", "QA-DEV", "#3b82f6"), unsafe_allow_html=True)
             
             with col2:
                 media_cards_parceria = matriz['Cards'].mean()
-                criar_card_metrica(f"{media_cards_parceria:.1f}", "Média Cards/Parceria", "green")
+                st.markdown(_mini_card(f"{media_cards_parceria:.1f}", "📋 Média", "cards/parceria", "#6b7280"), unsafe_allow_html=True)
             
             with col3:
                 parcerias_sem_bugs = len(matriz[matriz['Bugs'] == 0])
                 pct_sem_bugs = parcerias_sem_bugs / total_parcerias * 100 if total_parcerias > 0 else 0
-                criar_card_metrica(f"{pct_sem_bugs:.0f}%", "Parcerias Sem Bugs", "green")
+                cor = _cor_status_inv(pct_sem_bugs, 70, 40)
+                st.markdown(_mini_card(f"{pct_sem_bugs:.0f}%", "✅ Sem Bugs", "parcerias", cor), unsafe_allow_html=True)
             
             with col4:
                 fk_medio = matriz['FK'].mean()
-                cor = 'green' if fk_medio >= 3 else 'yellow' if fk_medio >= 2 else 'red'
-                criar_card_metrica(f"{fk_medio:.1f}", "FK Médio Parcerias", cor)
+                cor = _cor_status_inv(fk_medio, 3, 2)
+                st.markdown(_mini_card(f"{fk_medio:.1f}", "🏆 FK Médio", "parcerias", cor), unsafe_allow_html=True)
         else:
             st.info("💡 Sem dados de interação QA-DEV. Verifique se os cards têm QA e Desenvolvedor atribuídos.")
 
@@ -355,21 +369,23 @@ def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
         # Cards de resumo
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            cor = 'red' if total_criticos > 0 else 'green'
-            criar_card_metrica(str(total_criticos), "Alertas Críticos", cor, "≥80% concentração")
+            cor = "#ef4444" if total_criticos > 0 else "#22c55e"
+            st.markdown(_mini_card(str(total_criticos), "🚨 Críticos", "≥80% conc.", cor), unsafe_allow_html=True)
         with col2:
-            cor = 'yellow' if total_atencao > 0 else 'green'
-            criar_card_metrica(str(total_atencao), "Pontos de Atenção", cor, "60-79% concentração")
+            cor = "#f59e0b" if total_atencao > 0 else "#22c55e"
+            st.markdown(_mini_card(str(total_atencao), "⚠️ Atenção", "60-79% conc.", cor), unsafe_allow_html=True)
         with col3:
-            criar_card_metrica(str(total_recomendacoes), "Recomendações", "blue", "Sugestões de rodízio")
+            st.markdown(_mini_card(str(total_recomendacoes), "💡 Sugestões", "rodízio", "#3b82f6"), unsafe_allow_html=True)
         with col4:
             # Calcula score geral de distribuição
             total_indices = len(concentracao['indices'].get('dev_produto', {})) + len(concentracao['indices'].get('qa_produto', {}))
             indices_saudaveis = sum(1 for d in concentracao['indices'].get('dev_produto', {}).values() if d['concentracao_pct'] < 60)
             indices_saudaveis += sum(1 for d in concentracao['indices'].get('qa_produto', {}).values() if d['concentracao_pct'] < 60)
             score_distribuicao = (indices_saudaveis / total_indices * 100) if total_indices > 0 else 100
-            cor = 'green' if score_distribuicao >= 70 else 'yellow' if score_distribuicao >= 40 else 'red'
-            criar_card_metrica(f"{score_distribuicao:.0f}%", "Score Distribuição", cor, "Áreas bem distribuídas")
+            cor = _cor_status_inv(score_distribuicao, 70, 40)
+            st.markdown(_mini_card(f"{score_distribuicao:.0f}%", "📊 Distribuição", "saudável", cor), unsafe_allow_html=True)
+        
+        st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
         
         # Status geral
         if total_criticos == 0 and total_atencao == 0:

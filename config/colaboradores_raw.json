@@ -1,0 +1,616 @@
+{
+  "Adonis Marinos": {
+    "aparece_como": [
+      "QA",
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 15,
+    "como_dev": 7,
+    "como_qa": 8,
+    "como_relator": 8,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Aline Couto": {
+    "aparece_como": [
+      "QA",
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 7,
+    "como_dev": 5,
+    "como_qa": 2,
+    "como_relator": 4,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Augusto Oliveira": {
+    "aparece_como": [
+      "QA",
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 60,
+    "como_dev": 58,
+    "como_qa": 2,
+    "como_relator": 27,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Automation for Jira": {
+    "aparece_como": [
+      "RELATOR"
+    ],
+    "projetos": [
+      "VALPROD",
+      "SD"
+    ],
+    "total_cards": 0,
+    "como_dev": 0,
+    "como_qa": 0,
+    "como_relator": 344,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Carlos André Sabino": {
+    "aparece_como": [
+      "QA",
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 38,
+    "como_dev": 20,
+    "como_qa": 18,
+    "como_relator": 19,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Carlos Daniel de Souza Cordeiro": {
+    "aparece_como": [
+      "RELATOR",
+      "QA",
+      "DEV"
+    ],
+    "projetos": [
+      "VALPROD",
+      "QA",
+      "SD"
+    ],
+    "total_cards": 78,
+    "como_dev": 29,
+    "como_qa": 49,
+    "como_relator": 2,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Christopher Krauss de Carvalho": {
+    "aparece_como": [
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 83,
+    "como_dev": 83,
+    "como_qa": 0,
+    "como_relator": 5,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Cristian Yamamoto": {
+    "aparece_como": [
+      "DEV"
+    ],
+    "projetos": [
+      "SD"
+    ],
+    "total_cards": 15,
+    "como_dev": 15,
+    "como_qa": 0,
+    "como_relator": 0,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Daniel Marques": {
+    "aparece_como": [
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 10,
+    "como_dev": 10,
+    "como_qa": 0,
+    "como_relator": 8,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Eduardo Barbosa da Silva": {
+    "aparece_como": [
+      "QA",
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 32,
+    "como_dev": 18,
+    "como_qa": 14,
+    "como_relator": 33,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Eliane Medeiros Machado": {
+    "aparece_como": [
+      "RELATOR"
+    ],
+    "projetos": [
+      "PB"
+    ],
+    "total_cards": 0,
+    "como_dev": 0,
+    "como_qa": 0,
+    "como_relator": 1,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Elinton Dozol Machado": {
+    "aparece_como": [
+      "DEV"
+    ],
+    "projetos": [
+      "SD"
+    ],
+    "total_cards": 30,
+    "como_dev": 30,
+    "como_qa": 0,
+    "como_relator": 0,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Ellen Haderspeck Ferreira da Silva": {
+    "aparece_como": [
+      "QA",
+      "RELATOR",
+      "DEV"
+    ],
+    "projetos": [
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 243,
+    "como_dev": 241,
+    "como_qa": 2,
+    "como_relator": 14,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Gabriela Barreto de Souza": {
+    "aparece_como": [
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "PB",
+      "VALPROD"
+    ],
+    "total_cards": 1,
+    "como_dev": 1,
+    "como_qa": 0,
+    "como_relator": 6,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Irla Rafaela da Silva Fonseca": {
+    "aparece_como": [
+      "QA",
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 34,
+    "como_dev": 20,
+    "como_qa": 14,
+    "como_relator": 21,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Jean Mota Caitano dos Reis": {
+    "aparece_como": [
+      "QA",
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 14,
+    "como_dev": 4,
+    "como_qa": 10,
+    "como_relator": 9,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Jiliard Mai Peifer": {
+    "aparece_como": [
+      "QA",
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 24,
+    "como_dev": 9,
+    "como_qa": 15,
+    "como_relator": 13,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "João Pedro Greif de Souza": {
+    "aparece_como": [
+      "QA",
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 35,
+    "como_dev": 20,
+    "como_qa": 15,
+    "como_relator": 28,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "João Pedro Menegali Salvan Bitencourt": {
+    "aparece_como": [
+      "QA",
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 18,
+    "como_dev": 11,
+    "como_qa": 7,
+    "como_relator": 18,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Julia Mlanarczyki": {
+    "aparece_como": [
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "PB",
+      "VALPROD"
+    ],
+    "total_cards": 1,
+    "como_dev": 1,
+    "como_qa": 0,
+    "como_relator": 6,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Juliana Velloso": {
+    "aparece_como": [
+      "RELATOR"
+    ],
+    "projetos": [
+      "PB"
+    ],
+    "total_cards": 0,
+    "como_dev": 0,
+    "como_qa": 0,
+    "como_relator": 1,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Monique Rodrigues": {
+    "aparece_como": [
+      "RELATOR"
+    ],
+    "projetos": [
+      "PB"
+    ],
+    "total_cards": 0,
+    "como_dev": 0,
+    "como_qa": 0,
+    "como_relator": 2,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Nathan Lucio Martins": {
+    "aparece_como": [
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "PB",
+      "VALPROD"
+    ],
+    "total_cards": 1,
+    "como_dev": 1,
+    "como_qa": 0,
+    "como_relator": 4,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Rafael Teles Espindola": {
+    "aparece_como": [
+      "QA",
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 21,
+    "como_dev": 17,
+    "como_qa": 4,
+    "como_relator": 23,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Raniery Ricardo Gonçalves": {
+    "aparece_como": [
+      "RELATOR"
+    ],
+    "projetos": [
+      "PB"
+    ],
+    "total_cards": 0,
+    "como_dev": 0,
+    "como_qa": 0,
+    "como_relator": 6,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Suyan Moriel": {
+    "aparece_como": [
+      "DEV"
+    ],
+    "projetos": [
+      "SD"
+    ],
+    "total_cards": 35,
+    "como_dev": 35,
+    "como_qa": 0,
+    "como_relator": 0,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Vanessa Adriana de Freitas": {
+    "aparece_como": [
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "PB",
+      "VALPROD"
+    ],
+    "total_cards": 2,
+    "como_dev": 2,
+    "como_qa": 0,
+    "como_relator": 7,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Vinicios Ferreira": {
+    "aparece_como": [
+      "QA",
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "QA",
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 127,
+    "como_dev": 3,
+    "como_qa": 124,
+    "como_relator": 8,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Vinicius Alves da Silva Neto": {
+    "aparece_como": [
+      "QA",
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "QA",
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 134,
+    "como_dev": 2,
+    "como_qa": 132,
+    "como_relator": 15,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Vinicius Araujo": {
+    "aparece_como": [
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "VALPROD",
+      "SD"
+    ],
+    "total_cards": 2,
+    "como_dev": 2,
+    "como_qa": 0,
+    "como_relator": 1,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "Wagner Assunção Carvalho": {
+    "aparece_como": [
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 4,
+    "como_dev": 4,
+    "como_qa": 0,
+    "como_relator": 12,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "giovana.lopes": {
+    "aparece_como": [
+      "RELATOR"
+    ],
+    "projetos": [
+      "PB"
+    ],
+    "total_cards": 0,
+    "como_dev": 0,
+    "como_qa": 0,
+    "como_relator": 1,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "jamilly.silva": {
+    "aparece_como": [
+      "RELATOR"
+    ],
+    "projetos": [
+      "PB"
+    ],
+    "total_cards": 0,
+    "como_dev": 0,
+    "como_qa": 0,
+    "como_relator": 1,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "larissa.carneiro": {
+    "aparece_como": [
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 7,
+    "como_dev": 7,
+    "como_qa": 0,
+    "como_relator": 22,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  },
+  "wander.silva": {
+    "aparece_como": [
+      "QA",
+      "DEV",
+      "RELATOR"
+    ],
+    "projetos": [
+      "VALPROD",
+      "PB",
+      "SD"
+    ],
+    "total_cards": 22,
+    "como_dev": 12,
+    "como_qa": 10,
+    "como_relator": 20,
+    "time": "",
+    "perfil": "",
+    "ativo": true
+  }
+}

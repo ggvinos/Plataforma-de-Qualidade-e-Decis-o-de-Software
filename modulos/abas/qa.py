@@ -73,7 +73,7 @@ def aba_qa(df: pd.DataFrame):
     # SELETOR DE QA (NÃO atualiza query_params - apenas o botão Copiar Link faz isso)
     qa_sel = st.selectbox("🔍 Selecione o QA", opcoes_qa, index=indice_inicial, key="select_qa")
     
-    st.markdown("---")
+    st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
     
     if qa_sel == "👀 Visão Geral do Time":
         _renderizar_visao_geral_time(df, metricas_qa, qas)
@@ -123,64 +123,90 @@ def _renderizar_visao_geral_time(df: pd.DataFrame, metricas_qa: dict, qas: list)
 
 
 def _renderizar_kpis_qa(df: pd.DataFrame, metricas_qa: dict):
-    """Renderiza os KPIs principais de QA."""
-    with st.expander("📊 Indicadores de QA", expanded=False):
-        col1, col2, col3, col4, col5 = st.columns(5)
-        
-        with col1:
-            total_fila = metricas_qa['funil']['waiting_qa'] + metricas_qa['funil']['testing']
-            cor = 'green' if total_fila < 5 else 'yellow' if total_fila < 10 else 'red'
-            criar_card_metrica(str(total_fila), "Fila de QA", cor, f"({metricas_qa['funil']['waiting_qa']} aguardando)")
-        
-        with col2:
-            tempo = metricas_qa['tempo']['waiting']
-            cor = 'green' if tempo < 2 else 'yellow' if tempo < 5 else 'red'
-            criar_card_metrica(f"{tempo:.1f}d", "Tempo Médio Fila", cor)
-        
-        with col3:
-            aging = metricas_qa['aging']['total']
-            cor = 'green' if aging == 0 else 'yellow' if aging < 3 else 'red'
-            criar_card_metrica(str(aging), f"Cards Aging (>{REGRAS['dias_aging_alerta']}d)", cor)
-        
-        with col4:
-            taxa = metricas_qa['taxa_reprovacao']
-            cor = 'green' if taxa < 10 else 'yellow' if taxa < 20 else 'red'
-            criar_card_metrica(f"{taxa:.0f}%", "Taxa Reprovação", cor)
-        
-        with col5:
-            ddp = calcular_ddp(df)
-            cor = 'green' if ddp['valor'] >= 85 else 'yellow' if ddp['valor'] >= 70 else 'red'
-            criar_card_metrica(f"{ddp['valor']:.0f}%", "DDP", cor, "Detecção de Defeitos", "ddp")
-        
-        # Linha adicional para Impedidos e Reprovados
-        st.markdown("---")
-        col1, col2, col3, col4 = st.columns(4)
-        
-        # Cards impedidos
-        cards_impedidos = df[df['status_cat'] == 'blocked']
-        with col1:
-            cor = 'green' if len(cards_impedidos) == 0 else 'yellow' if len(cards_impedidos) < 3 else 'red'
-            criar_card_metrica(str(len(cards_impedidos)), "🚫 Impedidos", cor, "Bloqueados")
-        
-        # Cards reprovados
-        cards_reprovados = df[df['status_cat'] == 'rejected']
-        with col2:
-            cor = 'green' if len(cards_reprovados) == 0 else 'yellow' if len(cards_reprovados) < 3 else 'red'
-            criar_card_metrica(str(len(cards_reprovados)), "❌ Reprovados", cor, "Falha na validação")
-        
-        # Bug rate geral
-        with col3:
-            total_validados = len(df[df['status_cat'] == 'done'])
-            total_com_bugs = len(df[(df['status_cat'] == 'done') & (df['bugs'] > 0)])
-            bug_rate = total_com_bugs / total_validados * 100 if total_validados > 0 else 0
-            cor = 'green' if bug_rate < 20 else 'yellow' if bug_rate < 40 else 'red'
-            criar_card_metrica(f"{bug_rate:.0f}%", "Bug Rate", cor, f"{total_com_bugs} com bugs")
-        
-        # SP impedidos/reprovados
-        with col4:
-            sp_bloqueado = int(cards_impedidos['sp'].sum()) + int(cards_reprovados['sp'].sum())
-            cor = 'green' if sp_bloqueado == 0 else 'yellow' if sp_bloqueado < 10 else 'red'
-            criar_card_metrica(str(sp_bloqueado), "SP Travados", cor, "Impedidos + Reprovados")
+    """Renderiza os KPIs principais de QA - Estilo harmonizado."""
+    
+    # Helper para criar mini-cards harmonizados
+    def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
+        bg = f"{cor}10" if cor != "#6b7280" else "white"
+        border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
+        return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 16px 12px; text-align: center; height: 95px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 28px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151; margin-top: 4px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+    
+    # Cores do sistema
+    def cor_status(valor, verde, amarelo):
+        """Retorna cor baseado em thresholds (verde se < verde, amarelo se < amarelo, vermelho se >=)"""
+        if valor < verde:
+            return "#22c55e"
+        elif valor < amarelo:
+            return "#f59e0b"
+        return "#ef4444"
+    
+    def cor_status_inv(valor, verde, amarelo):
+        """Inverso - verde se >= verde, amarelo se >= amarelo"""
+        if valor >= verde:
+            return "#22c55e"
+        elif valor >= amarelo:
+            return "#f59e0b"
+        return "#ef4444"
+    
+    # ===== LINHA 1: KPIs Principais =====
+    st.markdown("##### 📊 Indicadores de QA")
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    with col1:
+        total_fila = metricas_qa['funil']['waiting_qa'] + metricas_qa['funil']['testing']
+        cor = cor_status(total_fila, 5, 10)
+        st.markdown(mini_card(str(total_fila), "Fila de QA", f"{metricas_qa['funil']['waiting_qa']} aguardando", cor), unsafe_allow_html=True)
+    
+    with col2:
+        tempo = metricas_qa['tempo']['waiting']
+        cor = cor_status(tempo, 2, 5)
+        st.markdown(mini_card(f"{tempo:.1f}d", "Tempo Médio", "na fila", cor), unsafe_allow_html=True)
+    
+    with col3:
+        aging = metricas_qa['aging']['total']
+        cor = cor_status(aging, 1, 3)
+        st.markdown(mini_card(str(aging), "Aging", f">{REGRAS['dias_aging_alerta']}d", cor), unsafe_allow_html=True)
+    
+    with col4:
+        taxa = metricas_qa['taxa_reprovacao']
+        cor = cor_status(taxa, 10, 20)
+        st.markdown(mini_card(f"{taxa:.0f}%", "Reprovação", "taxa", cor), unsafe_allow_html=True)
+    
+    with col5:
+        ddp = calcular_ddp(df)
+        cor = cor_status_inv(ddp['valor'], 85, 70)
+        st.markdown(mini_card(f"{ddp['valor']:.0f}%", "DDP", "detecção defeitos", cor), unsafe_allow_html=True)
+    
+    st.markdown("<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True)
+    
+    # ===== LINHA 2: Status de Cards =====
+    cards_impedidos = df[df['status_cat'] == 'blocked']
+    cards_reprovados = df[df['status_cat'] == 'rejected']
+    total_validados = len(df[df['status_cat'] == 'done'])
+    total_com_bugs = len(df[(df['status_cat'] == 'done') & (df['bugs'] > 0)])
+    bug_rate = total_com_bugs / total_validados * 100 if total_validados > 0 else 0
+    sp_bloqueado = int(cards_impedidos['sp'].sum()) + int(cards_reprovados['sp'].sum())
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        cor = cor_status(len(cards_impedidos), 1, 3)
+        st.markdown(mini_card(str(len(cards_impedidos)), "🚫 Impedidos", "bloqueados", cor), unsafe_allow_html=True)
+    
+    with col2:
+        cor = cor_status(len(cards_reprovados), 1, 3)
+        st.markdown(mini_card(str(len(cards_reprovados)), "❌ Reprovados", "falha validação", cor), unsafe_allow_html=True)
+    
+    with col3:
+        cor = cor_status(bug_rate, 20, 40)
+        st.markdown(mini_card(f"{bug_rate:.0f}%", "Bug Rate", f"{total_com_bugs} com bugs", cor), unsafe_allow_html=True)
+    
+    with col4:
+        cor = cor_status(sp_bloqueado, 1, 10)
+        st.markdown(mini_card(str(sp_bloqueado), "SP Travados", "imp. + repr.", cor), unsafe_allow_html=True)
+    
+    # Espaçamento antes da próxima seção
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
 
 
 def _renderizar_cards_impedidos_reprovados(df: pd.DataFrame):
@@ -623,74 +649,106 @@ def _renderizar_metricas_individuais(df: pd.DataFrame, qa_sel: str):
 
 
 def _renderizar_kpis_individuais(df: pd.DataFrame, df_qa: pd.DataFrame, qa_sel: str):
-    """Renderiza KPIs individuais do QA."""
-    with st.expander("📊 Indicadores Individuais", expanded=False):
-        validados = len(df_qa[df_qa['status_cat'] == 'done'])
-        em_fila = len(df_qa[df_qa['status_cat'].isin(['waiting_qa', 'testing'])])
-        bugs_encontrados = int(df_qa['bugs'].sum())
-        cards_sem_bugs = len(df_qa[(df_qa['status_cat'] == 'done') & (df_qa['bugs'] == 0)])
-        fpy_val = cards_sem_bugs / validados * 100 if validados > 0 else 0
-        sp_total = int(df_qa['sp'].sum())
-        lead_time_medio = df_qa['lead_time'].mean() if not df_qa.empty else 0
-        
-        col1, col2, col3, col4, col5 = st.columns(5)
-        
-        with col1:
-            criar_card_metrica(str(len(df_qa)), "Total Cards", "blue")
-        with col2:
-            criar_card_metrica(str(validados), "Validados", "green")
-        with col3:
-            criar_card_metrica(str(em_fila), "Em Fila", "yellow", "", "wip")
-        with col4:
-            criar_card_metrica(str(bugs_encontrados), "Bugs Encontrados", "purple")
-        with col5:
-            cor = 'green' if fpy_val >= 80 else 'yellow' if fpy_val >= 60 else 'red'
-            criar_card_metrica(f"{fpy_val:.0f}%", "FPY", cor, "", "fpy")
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Story Points Total", sp_total, help="Soma de todos os Story Points dos cards atribuídos a este QA")
-        with col2:
-            st.metric("Lead Time Médio", f"{lead_time_medio:.1f} dias", help=get_tooltip_help("lead_time"))
-        with col3:
-            aging_qa = len(df_qa[df_qa['dias_em_status'] > REGRAS['dias_aging_alerta']])
-            st.metric("Cards Aging", aging_qa, help="Cards parados há mais de 3 dias no mesmo status - requer atenção")
-        
-        # Linha de impedidos/reprovados do QA
-        st.markdown("---")
-        cards_impedidos_qa = df_qa[df_qa['status_cat'] == 'blocked']
-        cards_reprovados_qa = df_qa[df_qa['status_cat'] == 'rejected']
-        
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            cor = 'green' if len(cards_impedidos_qa) == 0 else 'yellow' if len(cards_impedidos_qa) < 2 else 'red'
-            criar_card_metrica(str(len(cards_impedidos_qa)), "🚫 Impedidos", cor)
-        with col2:
-            cor = 'green' if len(cards_reprovados_qa) == 0 else 'yellow' if len(cards_reprovados_qa) < 2 else 'red'
-            criar_card_metrica(str(len(cards_reprovados_qa)), "❌ Reprovados", cor)
-        with col3:
-            sp_travado = int(cards_impedidos_qa['sp'].sum()) + int(cards_reprovados_qa['sp'].sum())
-            cor = 'green' if sp_travado == 0 else 'yellow' if sp_travado < 5 else 'red'
-            criar_card_metrica(str(sp_travado), "SP Travados", cor)
-        with col4:
-            em_validacao = len(df_qa[df_qa['status_cat'] == 'testing'])
-            criar_card_metrica(str(em_validacao), "🧪 Validando", "blue")
-        
-        # Lista cards impedidos/reprovados se existirem
-        if len(cards_impedidos_qa) > 0 or len(cards_reprovados_qa) > 0:
-            st.markdown("---")
-            st.markdown("**🚨 Seus cards com problemas:**")
+    """Renderiza KPIs individuais do QA - Estilo harmonizado."""
+    
+    # Helper para criar mini-cards harmonizados
+    def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
+        bg = f"{cor}10" if cor != "#6b7280" else "white"
+        border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
+        return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 16px 12px; text-align: center; height: 95px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 28px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151; margin-top: 4px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+    
+    def cor_status(valor, verde, amarelo):
+        if valor < verde:
+            return "#22c55e"
+        elif valor < amarelo:
+            return "#f59e0b"
+        return "#ef4444"
+    
+    def cor_status_inv(valor, verde, amarelo):
+        if valor >= verde:
+            return "#22c55e"
+        elif valor >= amarelo:
+            return "#f59e0b"
+        return "#ef4444"
+    
+    # Cálculos
+    validados = len(df_qa[df_qa['status_cat'] == 'done'])
+    em_fila = len(df_qa[df_qa['status_cat'].isin(['waiting_qa', 'testing'])])
+    bugs_encontrados = int(df_qa['bugs'].sum())
+    cards_sem_bugs = len(df_qa[(df_qa['status_cat'] == 'done') & (df_qa['bugs'] == 0)])
+    fpy_val = cards_sem_bugs / validados * 100 if validados > 0 else 0
+    sp_total = int(df_qa['sp'].sum())
+    lead_time_medio = df_qa['lead_time'].mean() if not df_qa.empty else 0
+    aging_qa = len(df_qa[df_qa['dias_em_status'] > REGRAS['dias_aging_alerta']])
+    
+    # ===== LINHA 1: KPIs Principais =====
+    st.markdown("##### 📊 Indicadores Individuais")
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    with col1:
+        st.markdown(mini_card(str(len(df_qa)), "Total Cards", f"{sp_total} SP", "#3b82f6"), unsafe_allow_html=True)
+    
+    with col2:
+        cor = cor_status_inv(validados, 5, 2)
+        st.markdown(mini_card(str(validados), "Validados", "concluídos", cor), unsafe_allow_html=True)
+    
+    with col3:
+        cor = cor_status(em_fila, 3, 6)
+        st.markdown(mini_card(str(em_fila), "Em Fila", "aguardando", cor), unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown(mini_card(str(bugs_encontrados), "Bugs", "encontrados", "#8b5cf6"), unsafe_allow_html=True)
+    
+    with col5:
+        cor = cor_status_inv(fpy_val, 80, 60)
+        st.markdown(mini_card(f"{fpy_val:.0f}%", "FPY", "first pass yield", cor), unsafe_allow_html=True)
+    
+    st.markdown("<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True)
+    
+    # ===== LINHA 2: Métricas Secundárias =====
+    cards_impedidos_qa = df_qa[df_qa['status_cat'] == 'blocked']
+    cards_reprovados_qa = df_qa[df_qa['status_cat'] == 'rejected']
+    sp_travado = int(cards_impedidos_qa['sp'].sum()) + int(cards_reprovados_qa['sp'].sum())
+    em_validacao = len(df_qa[df_qa['status_cat'] == 'testing'])
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    with col1:
+        cor = "#22c55e" if lead_time_medio <= 3 else "#f59e0b" if lead_time_medio <= 7 else "#ef4444"
+        st.markdown(mini_card(f"{lead_time_medio:.1f}d", "Lead Time", "médio", cor), unsafe_allow_html=True)
+    
+    with col2:
+        cor = cor_status(aging_qa, 1, 3)
+        st.markdown(mini_card(str(aging_qa), "Aging", f">{REGRAS['dias_aging_alerta']}d", cor), unsafe_allow_html=True)
+    
+    with col3:
+        cor = cor_status(len(cards_impedidos_qa), 1, 2)
+        st.markdown(mini_card(str(len(cards_impedidos_qa)), "🚫 Impedidos", "bloqueados", cor), unsafe_allow_html=True)
+    
+    with col4:
+        cor = cor_status(len(cards_reprovados_qa), 1, 2)
+        st.markdown(mini_card(str(len(cards_reprovados_qa)), "❌ Reprovados", "falha", cor), unsafe_allow_html=True)
+    
+    with col5:
+        st.markdown(mini_card(str(em_validacao), "🧪 Validando", "em teste", "#3b82f6"), unsafe_allow_html=True)
+    
+    # Lista cards impedidos/reprovados se existirem
+    if len(cards_impedidos_qa) > 0 or len(cards_reprovados_qa) > 0:
+        st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
+        with st.expander(f"🚨 Cards com problemas ({len(cards_impedidos_qa) + len(cards_reprovados_qa)})", expanded=False):
             all_problemas = pd.concat([cards_impedidos_qa, cards_reprovados_qa]) if not cards_reprovados_qa.empty else cards_impedidos_qa
             for _, row in all_problemas.iterrows():
                 status_icon = "🚫" if row['status_cat'] == 'blocked' else "❌"
                 status_name = "Impedido" if row['status_cat'] == 'blocked' else "Reprovado"
                 card_link = card_link_com_popup(row['ticket_id'])
                 st.markdown(f"""
-                <div style="padding: 8px; margin: 4px 0; border-left: 3px solid #ef4444; background: rgba(239, 68, 68, 0.1); border-radius: 4px;">
+                <div style="padding: 10px 12px; margin: 6px 0; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.08); border-radius: 6px;">
                     <strong>{status_icon}</strong> {card_link} - {row['titulo']}<br>
-                    <small style="color: #94a3b8;">👤 DEV: {row['desenvolvedor']} | {status_name} | {int(row['sp'])} SP</small>
+                    <small style="color: #6b7280;">👤 DEV: {row['desenvolvedor']} | {status_name} | {int(row['sp'])} SP</small>
                 </div>
                 """, unsafe_allow_html=True)
+    
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
 
 
 def _renderizar_resumo_semana_qa(df_qa: pd.DataFrame, qa_sel: str):
@@ -755,21 +813,27 @@ def _renderizar_resumo_semana_qa(df_qa: pd.DataFrame, qa_sel: str):
             (df_qa['atualizado'] <= fim_sexta)
         ].copy() if 'atualizado' in df_qa.columns else pd.DataFrame()
         
-        # KPIs da Semana
+        # Helper para mini-cards harmonizados
+        def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
+            bg = f"{cor}10" if cor != "#6b7280" else "white"
+            border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
+            return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 16px 12px; text-align: center; height: 95px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 28px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151; margin-top: 4px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+        
+        # KPIs da Semana - Novo estilo
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            criar_card_metrica(str(len(df_semana)), "Cards Trabalhados", "blue", f"{semana_selecionada}")
+            st.markdown(mini_card(str(len(df_semana)), "Cards Trabalhados", semana_selecionada, "#3b82f6"), unsafe_allow_html=True)
         with col2:
-            criar_card_metrica(str(len(df_validados_semana)), "Validações", "green", "Concluídos")
+            st.markdown(mini_card(str(len(df_validados_semana)), "Validações", "concluídos", "#22c55e"), unsafe_allow_html=True)
         with col3:
             bugs_semana = int(df_validados_semana['bugs'].sum()) if not df_validados_semana.empty else 0
-            criar_card_metrica(str(bugs_semana), "Bugs Encontrados", "purple")
+            st.markdown(mini_card(str(bugs_semana), "Bugs", "encontrados", "#8b5cf6"), unsafe_allow_html=True)
         with col4:
             sp_semana = int(df_validados_semana['sp'].sum()) if not df_validados_semana.empty else 0
-            criar_card_metrica(str(sp_semana), "SP Entregues", "green")
+            st.markdown(mini_card(str(sp_semana), "SP Entregues", "story points", "#22c55e"), unsafe_allow_html=True)
         
-        st.markdown("---")
+        st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
         
         # Evolução da Semana
         _renderizar_evolucao_semana_qa(df_qa, inicio_semana, fim_sexta, segunda_semana)
@@ -1261,14 +1325,30 @@ def _renderizar_cards_validados_qa(df_qa: pd.DataFrame):
         cards_done = df_qa[df_qa['status_cat'] == 'done'].sort_values('lead_time', ascending=False)
         
         if not cards_done.empty:
+            # Container com scroll (classe global)
+            cards_html = '<div class="scroll-container" style="max-height: 350px;">'
+            
             for _, row in cards_done.iterrows():
-                bugs_cor = '#ef4444' if row['bugs'] >= 2 else '#eab308' if row['bugs'] == 1 else '#22c55e'
+                bugs = int(row['bugs'])
+                bugs_cor = '#ef4444' if bugs >= 2 else '#eab308' if bugs == 1 else '#22c55e'
                 card_link = card_link_com_popup(row['ticket_id'])
-                st.markdown(f"""
-                <div style="padding: 10px; margin: 5px 0; border-left: 3px solid {bugs_cor}; background: rgba(100,100,100,0.05); border-radius: 4px;">
-                    <strong>{card_link}</strong> - {row['titulo'][:50]}...<br>
-                    <small style="color: #94a3b8;">🐛 {row['bugs']} bugs | 👤 {row['desenvolvedor']} | {row['sp']} SP | ⏱️ {row['lead_time']:.1f}d</small>
-                </div>
-                """, unsafe_allow_html=True)
+                titulo = str(row['titulo'])[:50]
+                dev = str(row['desenvolvedor'])
+                sp = str(row['sp'])
+                lead_time = str(round(row['lead_time'], 1))
+                
+                cards_html += '<div style="padding: 10px; margin: 5px 0; border-left: 3px solid ' + bugs_cor + '; background: rgba(100,100,100,0.05); border-radius: 4px;">'
+                cards_html += '<div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">'
+                cards_html += card_link
+                cards_html += '<span style="color: #64748b;"> - ' + titulo + '...</span>'
+                cards_html += '</div>'
+                cards_html += '<small style="color: #94a3b8;">🐛 ' + str(bugs) + ' bugs | 👤 ' + dev + ' | ' + sp + ' SP | ⏱️ ' + lead_time + 'd</small>'
+                cards_html += '</div>'
+            
+            cards_html += '</div>'
+            st.markdown(cards_html, unsafe_allow_html=True)
+            
+            if len(cards_done) > 20:
+                st.caption(f"📋 {len(cards_done)} cards validados")
         else:
             st.info("Nenhum card validado ainda")

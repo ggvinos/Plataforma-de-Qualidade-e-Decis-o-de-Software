@@ -23,6 +23,7 @@ com imports existentes no app_modularizado.py.
 
 # Funções extraídas para arquivos separados
 from modulos.abas.visao_geral import aba_visao_geral
+from modulos.abas.visao_geral_v2 import aba_visao_geral_v2  # Nova versão orientada a decisão
 from modulos.abas.dev import aba_dev
 from modulos.abas.qa import aba_qa
 from modulos.abas.backlog import aba_backlog
@@ -33,6 +34,7 @@ from modulos.abas.lideranca import aba_lideranca
 from modulos.abas.produto import aba_produto
 from modulos.abas.sobre import aba_sobre
 from modulos.abas.suporte import aba_suporte_implantacao
+from modulos.abas.admin import aba_admin  # Painel Administrativo
 
 # Funções que permanecem no arquivo legacy (usadas por múltiplas abas)
 from modulos._abas_legacy import (
@@ -41,6 +43,8 @@ from modulos._abas_legacy import (
 
 __all__ = [
     'aba_visao_geral',
+    'aba_visao_geral_v2',
+    'aba_admin',
     'aba_backlog',
     'aba_clientes',
     'aba_dev',

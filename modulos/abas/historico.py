@@ -39,63 +39,51 @@ def aba_historico(df: pd.DataFrame):
     
     df_tendencia = gerar_dados_tendencia()
     
-    # Insights automáticos
-    with st.expander("💡 Insights Automáticos", expanded=False):
-        col1, col2, col3 = st.columns(3)
-        
-        ultimo_fk = df_tendencia['fator_k'].iloc[-1]
-        primeiro_fk = df_tendencia['fator_k'].iloc[0]
-        variacao_fk = ((ultimo_fk - primeiro_fk) / primeiro_fk) * 100 if primeiro_fk > 0 else 0
-        
-        with col1:
-            if variacao_fk > 0:
-                st.markdown(f"""
-                <div class="alert-success">
-                    <b>📈 Fator K em crescimento</b>
-                    <p>+{variacao_fk:.1f}% nas últimas sprints</p>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="alert-warning">
-                    <b>📉 Fator K em queda</b>
-                    <p>{variacao_fk:.1f}% nas últimas sprints</p>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        ultimo_fpy = df_tendencia['fpy'].iloc[-1]
-        with col2:
-            if ultimo_fpy >= 80:
-                st.markdown(f"""
-                <div class="alert-success">
-                    <b>✅ FPY acima da meta</b>
-                    <p>{ultimo_fpy:.1f}% (meta: 80%)</p>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="alert-info">
-                    <b>ℹ️ FPY abaixo da meta</b>
-                    <p>{ultimo_fpy:.1f}% ({80 - ultimo_fpy:.1f}% abaixo)</p>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        ultimo_lead = df_tendencia['lead_time_medio'].iloc[-1]
-        with col3:
-            if ultimo_lead <= 7:
-                st.markdown(f"""
-                <div class="alert-success">
-                    <b>⚡ Lead Time saudável</b>
-                    <p>{ultimo_lead:.1f} dias (meta: ≤7)</p>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="alert-warning">
-                    <b>⏱️ Lead Time alto</b>
-                    <p>{ultimo_lead:.1f} dias (meta: ≤7)</p>
-                </div>
-                """, unsafe_allow_html=True)
+    # Helper para mini-cards harmonizados
+    def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
+        bg = f"{cor}10" if cor != "#6b7280" else "white"
+        border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
+        return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 16px 12px; text-align: center; height: 95px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 28px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151; margin-top: 4px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+    
+    # ===== INSIGHTS AUTOMÁTICOS =====
+    st.markdown("##### 💡 Insights Automáticos")
+    
+    ultimo_fk = df_tendencia['fator_k'].iloc[-1]
+    primeiro_fk = df_tendencia['fator_k'].iloc[0]
+    variacao_fk = ((ultimo_fk - primeiro_fk) / primeiro_fk) * 100 if primeiro_fk > 0 else 0
+    ultimo_fpy = df_tendencia['fpy'].iloc[-1]
+    ultimo_lead = df_tendencia['lead_time_medio'].iloc[-1]
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if variacao_fk > 0:
+            cor = "#22c55e"
+            status = f"📈 +{variacao_fk:.1f}%"
+        else:
+            cor = "#f59e0b"
+            status = f"📉 {variacao_fk:.1f}%"
+        st.markdown(mini_card(f"{ultimo_fk:.1f}", "🏆 Fator K", status, cor), unsafe_allow_html=True)
+    
+    with col2:
+        if ultimo_fpy >= 80:
+            cor = "#22c55e"
+            status = "✅ Acima meta"
+        else:
+            cor = "#f59e0b"
+            status = f"⚠️ {80 - ultimo_fpy:.1f}% abaixo"
+        st.markdown(mini_card(f"{ultimo_fpy:.0f}%", "📊 FPY", status, cor), unsafe_allow_html=True)
+    
+    with col3:
+        if ultimo_lead <= 7:
+            cor = "#22c55e"
+            status = "⚡ Saudável"
+        else:
+            cor = "#ef4444"
+            status = f"⏱️ Meta: ≤7d"
+        st.markdown(mini_card(f"{ultimo_lead:.1f}d", "⏱️ Lead Time", status, cor), unsafe_allow_html=True)
+    
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
     
     # Gráficos de evolução
     with st.expander("🏆 Evolução do Fator K (Maturidade)", expanded=False):

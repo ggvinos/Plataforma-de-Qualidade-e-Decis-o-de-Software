@@ -18,7 +18,6 @@ import streamlit as st
 import pandas as pd
 
 from modulos.calculos import calcular_fator_k, calcular_metricas_produto
-from modulos.helpers import criar_card_metrica
 from modulos.widgets import mostrar_lista_df_completa
 from modulos.graficos import (
     criar_grafico_hotfix_por_produto,
@@ -33,28 +32,54 @@ def aba_produto(df: pd.DataFrame):
     
     metricas_prod = calcular_metricas_produto(df)
     
-    # KPIs novas métricas Ellen
-    with st.expander("🎯 Indicadores de Fluxo da Sprint", expanded=False):
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            total_finalizados = metricas_prod['total_finalizados_mesma_sprint']
-            total_done = len(df[df['status_cat'] == 'done'])
-            pct = total_finalizados / total_done * 100 if total_done > 0 else 0
-            cor = 'green' if pct >= 70 else 'yellow' if pct >= 40 else 'red'
-            criar_card_metrica(f"{total_finalizados}", "Iniciados e Finalizados na Sprint", cor, f"{pct:.0f}% dos concluídos")
-        
-        with col2:
-            total_fora = metricas_prod['total_adicionados_fora']
-            cor = 'green' if total_fora < 3 else 'yellow' if total_fora < 6 else 'red'
-            criar_card_metrica(str(total_fora), "Cards Adicionados Fora do Período", cor, "Adicionados após início da sprint")
-        
-        with col3:
-            total_hotfix = len(df[df['tipo'] == 'HOTFIX'])
-            cor = 'green' if total_hotfix < 5 else 'yellow' if total_hotfix < 10 else 'red'
-            criar_card_metrica(str(total_hotfix), "Total de Hotfixes", cor)
-        
-        st.caption("💡 **Dica:** Cards adicionados fora do período comprometem o planejamento da sprint")
+    # Helper para mini-cards harmonizados
+    def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
+        bg = f"{cor}10" if cor != "#6b7280" else "white"
+        border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
+        return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 16px 12px; text-align: center; height: 95px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 28px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151; margin-top: 4px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+    
+    def cor_status(valor, verde, amarelo):
+        if valor < verde:
+            return "#22c55e"
+        elif valor < amarelo:
+            return "#f59e0b"
+        return "#ef4444"
+    
+    def cor_status_inv(valor, verde, amarelo):
+        if valor >= verde:
+            return "#22c55e"
+        elif valor >= amarelo:
+            return "#f59e0b"
+        return "#ef4444"
+    
+    # ===== INDICADORES DE FLUXO =====
+    st.markdown("##### 🎯 Indicadores de Fluxo da Sprint")
+    
+    total_finalizados = metricas_prod['total_finalizados_mesma_sprint']
+    total_done = len(df[df['status_cat'] == 'done'])
+    pct = total_finalizados / total_done * 100 if total_done > 0 else 0
+    total_fora = metricas_prod['total_adicionados_fora']
+    total_hotfix = len(df[df['tipo'] == 'HOTFIX'])
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        cor = cor_status_inv(pct, 70, 40)
+        st.markdown(mini_card(str(total_finalizados), "✅ Iniciados/Finalizados", f"{pct:.0f}% dos done", cor), unsafe_allow_html=True)
+    
+    with col2:
+        cor = cor_status(total_fora, 3, 6)
+        st.markdown(mini_card(str(total_fora), "⚠️ Fora do Período", "adicionados depois", cor), unsafe_allow_html=True)
+    
+    with col3:
+        cor = cor_status(total_hotfix, 5, 10)
+        st.markdown(mini_card(str(total_hotfix), "🔥 Hotfixes", "emergências", cor), unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown(mini_card(str(total_done), "📦 Concluídos", "total done", "#3b82f6"), unsafe_allow_html=True)
+    
+    st.caption("💡 Cards adicionados fora do período comprometem o planejamento da sprint")
+    st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
     
     # Cards adicionados fora do período - COM LISTAGEM COMPLETA
     with st.expander("⚠️ Cards Adicionados Fora do Período", expanded=False):

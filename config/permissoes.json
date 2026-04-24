@@ -1,0 +1,143 @@
+{
+  "ADMIN": {
+    "descricao": "Super Administrador - Acesso total + Painel Admin",
+    "abas": [
+      "visao_geral",
+      "qa",
+      "dev",
+      "suporte",
+      "clientes",
+      "governanca",
+      "produto",
+      "historico",
+      "lideranca",
+      "sobre",
+      "admin"
+    ]
+  },
+  "LIDERANÇA": {
+    "descricao": "Líderes de equipe - Visualização completa",
+    "abas": [
+      "visao_geral",
+      "qa",
+      "dev",
+      "suporte",
+      "clientes",
+      "governanca",
+      "produto",
+      "historico",
+      "lideranca",
+      "sobre"
+    ]
+  },
+  "DEV": {
+    "descricao": "Desenvolvedores - Visualização completa",
+    "abas": [
+      "visao_geral",
+      "qa",
+      "dev",
+      "suporte",
+      "clientes",
+      "governanca",
+      "produto",
+      "historico",
+      "lideranca",
+      "sobre"
+    ]
+  },
+  "QA": {
+    "descricao": "Quality Assurance - Visualização completa",
+    "abas": [
+      "visao_geral",
+      "qa",
+      "dev",
+      "suporte",
+      "clientes",
+      "governanca",
+      "produto",
+      "historico",
+      "lideranca",
+      "sobre"
+    ]
+  },
+  "SUPORTE": {
+    "descricao": "Suporte Técnico - Foco em atendimento",
+    "abas": [
+      "visao_geral",
+      "suporte",
+      "clientes",
+      "produto",
+      "historico",
+      "sobre"
+    ]
+  },
+  "IMPLANTAÇÃO": {
+    "descricao": "Implantação - Foco em deploy e clientes",
+    "abas": [
+      "visao_geral",
+      "suporte",
+      "clientes",
+      "governanca",
+      "historico",
+      "sobre"
+    ]
+  },
+  "PRODUTO": {
+    "descricao": "Product Management - Visão executiva",
+    "abas": [
+      "visao_geral",
+      "qa",
+      "dev",
+      "suporte",
+      "clientes",
+      "governanca",
+      "produto",
+      "historico",
+      "sobre"
+    ]
+  },
+  "CS": {
+    "descricao": "Customer Success - Foco em clientes",
+    "abas": [
+      "visao_geral",
+      "suporte",
+      "clientes",
+      "produto",
+      "historico",
+      "sobre"
+    ]
+  },
+  "COMERCIAL": {
+    "descricao": "Comercial - Visão limitada",
+    "abas": [
+      "visao_geral",
+      "clientes",
+      "sobre"
+    ]
+  },
+  "VIEWER": {
+    "descricao": "Visualização básica",
+    "abas": [
+      "visao_geral",
+      "sobre"
+    ]
+  },
+  "_meta": {
+    "descricao": "Configuração de permissões de abas por perfil de acesso",
+    "atualizado": "2026-04-24T15:21:13.062661",
+    "abas_disponiveis": [
+      "visao_geral",
+      "qa",
+      "dev",
+      "suporte",
+      "clientes",
+      "governanca",
+      "produto",
+      "historico",
+      "lideranca",
+      "backlog",
+      "sobre",
+      "admin"
+    ]
+  }
+}

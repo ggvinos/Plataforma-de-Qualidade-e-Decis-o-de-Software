@@ -65,6 +65,14 @@ from modulos.confirmation_call_auth import (
     get_cookie_manager,
 )
 
+from modulos.permissoes_usuario import (
+    obter_permissoes_usuario,
+    get_info_usuario_logado,
+    usuario_eh_admin,
+    verificar_acesso_aba,
+    registrar_acesso,
+)
+
 # Constante para nome do cookie de consultas
 COOKIE_CONSULTAS_NAME = "ninadash_consultas_salvas"
 
@@ -113,6 +121,7 @@ from modulos.processamento import (
 from modulos.abas import (
     aba_clientes,
     aba_visao_geral,
+    aba_visao_geral_v2,
     aba_qa,
     aba_dev,
     aba_governanca,
@@ -122,6 +131,7 @@ from modulos.abas import (
     aba_historico,
     aba_lideranca,
     aba_sobre,
+    aba_admin,
 )
 
 # Phase 7: Novos módulos temáticos (blocos mentais)
@@ -200,6 +210,47 @@ from modulos.consultas import (
 from modulos.changelog import exibir_changelog
 
 # ==============================================================================
+# FUNÇÃO AUXILIAR DE VERIFICAÇÃO DE ACESSO
+# ==============================================================================
+
+def renderizar_aba_com_permissao(nome_aba: str, funcao_aba, *args, **kwargs):
+    """
+    Renderiza uma aba apenas se o usuário tiver permissão.
+    Se não tiver, mostra mensagem de acesso negado.
+    
+    Args:
+        nome_aba: Nome interno da aba (ex: "qa", "dev", "admin")
+        funcao_aba: Função que renderiza a aba
+        *args, **kwargs: Argumentos para a função da aba
+    """
+    permissoes = st.session_state.get("user_permissions", {})
+    abas_permitidas = permissoes.get("abas_permitidas", ["visao_geral", "sobre"])
+    
+    if nome_aba in abas_permitidas:
+        try:
+            funcao_aba(*args, **kwargs)
+        except Exception as e:
+            st.error(f"❌ Erro na aba {nome_aba}: {str(e)}")
+    else:
+        st.markdown(f"""
+        <div style="
+            text-align: center;
+            padding: 60px 20px;
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border-radius: 12px;
+            border: 2px solid #fca5a5;
+            margin: 20px 0;
+        ">
+            <span style="font-size: 48px; display: block; margin-bottom: 16px;">🔒</span>
+            <h3 style="color: #dc2626; margin: 0 0 8px 0;">Acesso Restrito</h3>
+            <p style="color: #991b1b; margin: 0;">
+                Você não tem permissão para acessar esta aba.<br>
+                Entre em contato com um administrador.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+# ==============================================================================
 # CONFIGURAÇÃO DA PÁGINA (DEVE SER PRIMEIRO)
 # ==============================================================================
 
@@ -210,6 +261,30 @@ configure_page()
 # ==============================================================================
 
 verificar_e_bloquear()
+
+# ==============================================================================
+# CARREGAMENTO DE PERMISSÕES DO USUÁRIO
+# ==============================================================================
+
+# Obtém permissões do usuário após autenticação
+user_email = st.session_state.get("user_email", "") or st.session_state.get("usuario_autenticado", "")
+if user_email:
+    # Registra o acesso na primeira vez
+    if "acesso_registrado" not in st.session_state:
+        registrar_acesso(user_email)
+        st.session_state.acesso_registrado = True
+    
+    # Sempre atualiza as permissões para refletir mudanças no admin
+    st.session_state.user_permissions = get_info_usuario_logado(user_email)
+else:
+    st.session_state.user_permissions = None
+
+# Mostra aviso se usuário não está mapeado
+if st.session_state.get("user_permissions") and not st.session_state.user_permissions.get("is_mapeado", True):
+    st.warning("""
+    ⚠️ **Perfil não mapeado** - Seu acesso está limitado às abas Visão Geral e Sobre.  
+    Entre em contato com um administrador para configurar seu perfil de acesso.
+    """)
 
 # ==============================================================================
 # LOADING VISUAL DURANTE INICIALIZAÇÃO
@@ -1033,48 +1108,37 @@ def main():
         
         # ===== RENDERIZA AS ABAS DO DASHBOARD (CONDICIONAL POR PROJETO) =====
         if projeto == "PB":
-            # Projeto PB: Aba de Backlog como foco principal
-            tab1, tab2, tab3, tab4, tab5 = st.tabs([
+            # Projeto PB: Aba de Backlog como foco principal (6 abas incluindo Admin)
+            tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
                 "📋 Backlog",
                 "📊 Visão Geral",
                 "📦 Produto",
                 "📈 Histórico",
-                "ℹ️ Sobre"
+                "ℹ️ Sobre",
+                "⚙️ Admin"
             ])
             
             with tab1:
-                try:
-                    aba_backlog(df)
-                except Exception as e:
-                    st.error(f"❌ Erro no Backlog: {str(e)}")
+                renderizar_aba_com_permissao("backlog", aba_backlog, df)
             
             with tab2:
-                try:
-                    aba_visao_geral(df, ultima_atualizacao)
-                except Exception as e:
-                    st.error(f"❌ Erro na Visão Geral: {str(e)}")
+                renderizar_aba_com_permissao("visao_geral", aba_visao_geral_v2, df, ultima_atualizacao)
             
             with tab3:
-                try:
-                    aba_produto(df)
-                except Exception as e:
-                    st.error(f"❌ Erro em Produto: {str(e)}")
+                renderizar_aba_com_permissao("produto", aba_produto, df)
             
             with tab4:
-                try:
-                    aba_historico(df)
-                except Exception as e:
-                    st.error(f"❌ Erro em Histórico: {str(e)}")
+                renderizar_aba_com_permissao("historico", aba_historico, df)
             
             with tab5:
-                try:
-                    aba_sobre()
-                except Exception as e:
-                    st.error(f"❌ Erro em Sobre: {str(e)}")
+                renderizar_aba_com_permissao("sobre", aba_sobre)
+            
+            with tab6:
+                renderizar_aba_com_permissao("admin", aba_admin)
         
         else:
-            # Projetos normais (SD, QA, DVG, etc): 10 abas padrão
-            tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+            # Projetos normais (SD, QA, DVG, etc): 11 abas padrão (incluindo Admin)
+            tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
                 "📊 Visão Geral",
                 "🔬 QA",
                 "👨‍💻 Dev",
@@ -1084,68 +1148,42 @@ def main():
                 "📦 Produto",
                 "📈 Histórico",
                 "🎯 Liderança",
-                "ℹ️ Sobre"
+                "ℹ️ Sobre",
+                "⚙️ Admin"
             ])
             
             with tab1:
-                try:
-                    aba_visao_geral(df, ultima_atualizacao)
-                except Exception as e:
-                    st.error(f"❌ Erro na Visão Geral: {str(e)}")
+                renderizar_aba_com_permissao("visao_geral", aba_visao_geral_v2, df, ultima_atualizacao)
             
             with tab2:
-                try:
-                    aba_qa(df)
-                except Exception as e:
-                    st.error(f"❌ Erro em QA: {str(e)}")
+                renderizar_aba_com_permissao("qa", aba_qa, df)
             
             with tab3:
-                try:
-                    aba_dev(df)
-                except Exception as e:
-                    st.error(f"❌ Erro em Dev: {str(e)}")
+                renderizar_aba_com_permissao("dev", aba_dev, df)
             
             with tab4:
-                try:
-                    aba_suporte_implantacao(df_todos)
-                except Exception as e:
-                    st.error(f"❌ Erro em Suporte: {str(e)}")
+                renderizar_aba_com_permissao("suporte", aba_suporte_implantacao, df_todos)
             
             with tab5:
-                try:
-                    aba_clientes(df_todos)
-                except Exception as e:
-                    st.error(f"❌ Erro em Clientes: {str(e)}")
+                renderizar_aba_com_permissao("clientes", aba_clientes, df_todos)
             
             with tab6:
-                try:
-                    aba_governanca(df)
-                except Exception as e:
-                    st.error(f"❌ Erro em Governança: {str(e)}")
+                renderizar_aba_com_permissao("governanca", aba_governanca, df)
             
             with tab7:
-                try:
-                    aba_produto(df)
-                except Exception as e:
-                    st.error(f"❌ Erro em Produto: {str(e)}")
+                renderizar_aba_com_permissao("produto", aba_produto, df)
             
             with tab8:
-                try:
-                    aba_historico(df)
-                except Exception as e:
-                    st.error(f"❌ Erro em Histórico: {str(e)}")
+                renderizar_aba_com_permissao("historico", aba_historico, df)
             
             with tab9:
-                try:
-                    aba_lideranca(df)
-                except Exception as e:
-                    st.error(f"❌ Erro em Liderança: {str(e)}")
+                renderizar_aba_com_permissao("lideranca", aba_lideranca, df)
             
             with tab10:
-                try:
-                    aba_sobre()
-                except Exception as e:
-                    st.error(f"❌ Erro em Sobre: {str(e)}")
+                renderizar_aba_com_permissao("sobre", aba_sobre)
+            
+            with tab11:
+                renderizar_aba_com_permissao("admin", aba_admin)
 
 
 if __name__ == "__main__":

@@ -426,6 +426,22 @@ def renderizar_logout_sidebar():
     # Extrai apenas o nome (primeira parte antes do @)
     nome_usuario = usuario_email.split("@")[0].replace(".", " ").title() if "@" in usuario_email else usuario_email
     
+    # Tenta obter o perfil do usuário
+    perfil_info = st.session_state.get("user_permissions", {})
+    perfil = perfil_info.get("perfil", "Pendente") if perfil_info else "Pendente"
+    is_mapeado = perfil_info.get("is_mapeado", False) if perfil_info else False
+    
+    # Define cor e texto do perfil
+    if not is_mapeado or perfil == "NAO_MAPEADO":
+        perfil_texto = "⏳ Perfil Pendente"
+        perfil_cor = "#f59e0b"
+    elif perfil == "ADMIN":
+        perfil_texto = f"👑 {perfil}"
+        perfil_cor = "#ef4444"
+    else:
+        perfil_texto = perfil
+        perfil_cor = "#22c55e"
+    
     # Card com informações do usuário (UX: similar a aba de perfil)
     st.markdown(f"""
     <div style="
@@ -437,7 +453,8 @@ def renderizar_logout_sidebar():
     ">
         <div style="font-size: 12px; color: #666; margin-bottom: 8px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Usuário</div>
         <div style="font-size: 16px; color: #AF0C37; font-weight: 600; margin-bottom: 4px;">{nome_usuario}</div>
-        <div style="font-size: 12px; color: #999; word-break: break-all;">{usuario_email}</div>
+        <div style="font-size: 12px; color: #999; word-break: break-all; margin-bottom: 8px;">{usuario_email}</div>
+        <div style="font-size: 11px; color: {perfil_cor}; font-weight: 600; padding: 3px 8px; background: {perfil_cor}15; border-radius: 4px; display: inline-block;">{perfil_texto}</div>
     </div>
     """, unsafe_allow_html=True)
     

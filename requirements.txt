@@ -28,6 +28,9 @@ python-dotenv>=1.0.0
 # Excel/OpenPyXL
 openpyxl>=3.1.0
 
+# Normalização de strings (remover acentos)
+unidecode>=1.3.0
+
 # ================================================================================
 # DESENVOLVIMENTO E TESTES
 # ================================================================================

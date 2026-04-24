@@ -4942,26 +4942,42 @@ def exibir_historico_validacoes(df: pd.DataFrame, key_prefix: str = "qa"):
     st.markdown("---")
     st.markdown("#### 📊 Resumo dos Cards Validados")
     
+    # Helper para mini-cards harmonizados
+    def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
+        bg = f"{cor}10" if cor != "#6b7280" else "white"
+        border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
+        return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 16px 12px; text-align: center; height: 95px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 28px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151; margin-top: 4px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+    
+    def cor_status_inv(valor, verde, amarelo):
+        if valor >= verde:
+            return "#22c55e"
+        elif valor >= amarelo:
+            return "#f59e0b"
+        return "#ef4444"
+    
     total_validados = len(df_filtrado)
     total_bugs = int(df_filtrado['bugs'].sum()) if 'bugs' in df_filtrado.columns else 0
     cards_sem_bugs = len(df_filtrado[df_filtrado['bugs'] == 0]) if 'bugs' in df_filtrado.columns else 0
     taxa_sem_bugs = cards_sem_bugs / total_validados * 100 if total_validados > 0 else 0
+    dias_medio = (df_filtrado['atualizado'].max() - df_filtrado['criado'].min()).days if not df_filtrado.empty else 0
     
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        criar_card_metrica(str(total_validados), "Cards Validados", "green", "Concluídos")
+        st.markdown(mini_card(str(total_validados), "✅ Validados", "concluídos", "#22c55e"), unsafe_allow_html=True)
     
     with col2:
-        criar_card_metrica(str(total_bugs), "🐛 Bugs Total", "yellow" if total_bugs > 0 else "green")
+        cor = "#f59e0b" if total_bugs > 0 else "#22c55e"
+        st.markdown(mini_card(str(total_bugs), "🐛 Bugs Total", "encontrados", cor), unsafe_allow_html=True)
     
     with col3:
-        cor = 'green' if taxa_sem_bugs > 80 else 'yellow' if taxa_sem_bugs > 60 else 'red'
-        criar_card_metrica(f"{taxa_sem_bugs:.0f}%", "Sem Bugs", cor)
+        cor = cor_status_inv(taxa_sem_bugs, 80, 60)
+        st.markdown(mini_card(f"{taxa_sem_bugs:.0f}%", "🟢 Sem Bugs", f"{cards_sem_bugs} cards", cor), unsafe_allow_html=True)
     
     with col4:
-        dias_medio = (df_filtrado['atualizado'].max() - df_filtrado['criado'].min()).days if not df_filtrado.empty else 0
-        criar_card_metrica(str(dias_medio), "Dias", "blue", "Span do período")
+        st.markdown(mini_card(str(dias_medio), "📅 Dias", "span período", "#3b82f6"), unsafe_allow_html=True)
+    
+    st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
     
     # ===== LISTAGEM DE CARDS =====
     st.markdown("---")
@@ -4969,22 +4985,33 @@ def exibir_historico_validacoes(df: pd.DataFrame, key_prefix: str = "qa"):
     
     df_filtrado_sorted = df_filtrado.sort_values('atualizado', ascending=False)
     
-    for idx, (_, row) in enumerate(df_filtrado_sorted.head(20).iterrows()):
-        bugs_cor = '#ef4444' if row.get('bugs', 0) >= 2 else '#eab308' if row.get('bugs', 0) == 1 else '#22c55e'
-        card_link = card_link_com_popup(row['ticket_id'])
-        
-        bugs_info = f" | 🐛 {row.get('bugs', 0)} bugs" if 'bugs' in row else ""
-        qa_info = f" | 🧑‍🔬 {row.get('qa', 'N/A')}" if row.get('qa') != 'Não atribuído' else ""
-        
-        st.markdown(f"""
-        <div style="padding: 10px; margin: 5px 0; border-left: 3px solid {bugs_cor}; background: rgba(100,100,100,0.05); border-radius: 4px;">
-            <strong>{card_link}</strong> - {str(row.get('titulo', 'N/A'))[:60]}...<br>
-            <small style="color: #94a3b8;">👤 {row.get('desenvolvedor', 'N/A')} | {row.get('sp', '0')} SP{bugs_info}{qa_info}</small>
-        </div>
-        """, unsafe_allow_html=True)
+    # Container com scroll (classe global)
+    cards_html = '<div class="scroll-container" style="max-height: 350px;">'
     
-    if len(df_filtrado_sorted) > 20:
-        st.caption(f"📋 Mostrando 20 de {len(df_filtrado_sorted)} cards")
+    for idx, (_, row) in enumerate(df_filtrado_sorted.head(50).iterrows()):
+        bugs = int(row.get('bugs', 0))
+        bugs_cor = '#ef4444' if bugs >= 2 else '#eab308' if bugs == 1 else '#22c55e'
+        card_link = card_link_com_popup(row['ticket_id'])
+        titulo = str(row.get('titulo', 'N/A'))[:60]
+        dev = str(row.get('desenvolvedor', 'N/A'))
+        sp = str(row.get('sp', '0'))
+        qa = str(row.get('qa', ''))
+        
+        cards_html += '<div style="padding: 10px; margin: 5px 0; border-left: 3px solid ' + bugs_cor + '; background: rgba(100,100,100,0.05); border-radius: 4px;">'
+        cards_html += '<div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">'
+        cards_html += card_link
+        cards_html += '<span style="color: #64748b;"> - ' + titulo + '...</span>'
+        cards_html += '</div>'
+        cards_html += '<small style="color: #94a3b8;">👤 ' + dev + ' | ' + sp + ' SP | 🐛 ' + str(bugs) + ' bugs'
+        if qa and qa != 'Não atribuído':
+            cards_html += ' | 🧑‍🔬 ' + qa
+        cards_html += '</small></div>'
+    
+    cards_html += '</div>'
+    st.markdown(cards_html, unsafe_allow_html=True)
+    
+    if len(df_filtrado_sorted) > 50:
+        st.caption(f"📋 Mostrando 50 de {len(df_filtrado_sorted)} cards")
 
 
 
