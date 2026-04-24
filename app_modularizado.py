@@ -215,40 +215,55 @@ from modulos.changelog import exibir_changelog
 
 def renderizar_aba_com_permissao(nome_aba: str, funcao_aba, *args, **kwargs):
     """
-    Renderiza uma aba apenas se o usuário tiver permissão.
-    Se não tiver, mostra mensagem de acesso negado.
+    Renderiza uma aba (a verificação de permissão já foi feita na construção das abas).
     
     Args:
         nome_aba: Nome interno da aba (ex: "qa", "dev", "admin")
         funcao_aba: Função que renderiza a aba
         *args, **kwargs: Argumentos para a função da aba
     """
+    try:
+        funcao_aba(*args, **kwargs)
+    except Exception as e:
+        st.error(f"❌ Erro na aba {nome_aba}: {str(e)}")
+
+
+def construir_abas_permitidas(projeto: str) -> list:
+    """
+    Constrói a lista de abas baseado nas permissões do usuário.
+    Retorna lista de tuplas: (nome_display, nome_interno, funcao_aba)
+    """
     permissoes = st.session_state.get("user_permissions", {})
     abas_permitidas = permissoes.get("abas_permitidas", ["visao_geral", "sobre"])
     
-    if nome_aba in abas_permitidas:
-        try:
-            funcao_aba(*args, **kwargs)
-        except Exception as e:
-            st.error(f"❌ Erro na aba {nome_aba}: {str(e)}")
+    if projeto == "PB":
+        # Todas as abas possíveis para PB
+        todas_abas = [
+            ("📋 Backlog", "backlog", aba_backlog),
+            ("📊 Visão Geral", "visao_geral", aba_visao_geral_v2),
+            ("📦 Produto", "produto", aba_produto),
+            ("📈 Histórico", "historico", aba_historico),
+            ("ℹ️ Sobre", "sobre", aba_sobre),
+            ("⚙️ Admin", "admin", aba_admin),
+        ]
     else:
-        st.markdown(f"""
-        <div style="
-            text-align: center;
-            padding: 60px 20px;
-            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-            border-radius: 12px;
-            border: 2px solid #fca5a5;
-            margin: 20px 0;
-        ">
-            <span style="font-size: 48px; display: block; margin-bottom: 16px;">🔒</span>
-            <h3 style="color: #dc2626; margin: 0 0 8px 0;">Acesso Restrito</h3>
-            <p style="color: #991b1b; margin: 0;">
-                Você não tem permissão para acessar esta aba.<br>
-                Entre em contato com um administrador.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+        # Todas as abas possíveis para SD/QA/DVG
+        todas_abas = [
+            ("📊 Visão Geral", "visao_geral", aba_visao_geral_v2),
+            ("🔬 QA", "qa", aba_qa),
+            ("👨‍💻 Dev", "dev", aba_dev),
+            ("🎯 Suporte/Implantação", "suporte", aba_suporte_implantacao),
+            ("🏢 Clientes", "clientes", aba_clientes),
+            ("📋 Governança", "governanca", aba_governanca),
+            ("📦 Produto", "produto", aba_produto),
+            ("📈 Histórico", "historico", aba_historico),
+            ("🎯 Liderança", "lideranca", aba_lideranca),
+            ("ℹ️ Sobre", "sobre", aba_sobre),
+            ("⚙️ Admin", "admin", aba_admin),
+        ]
+    
+    # Filtra apenas as abas que o usuário tem permissão
+    return [(nome, interno, func) for nome, interno, func in todas_abas if interno in abas_permitidas]
 
 # ==============================================================================
 # CONFIGURAÇÃO DA PÁGINA (DEVE SER PRIMEIRO)
@@ -1107,84 +1122,38 @@ def main():
             # Changelog (extraído para modulos/changelog.py)
             exibir_changelog()
         
-        # ===== RENDERIZA AS ABAS DO DASHBOARD (CONDICIONAL POR PROJETO) =====
-        if projeto == "PB":
-            # Projeto PB: Aba de Backlog como foco principal (6 abas incluindo Admin)
-            tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-                "📋 Backlog",
-                "📊 Visão Geral",
-                "📦 Produto",
-                "📈 Histórico",
-                "ℹ️ Sobre",
-                "⚙️ Admin"
-            ])
-            
-            with tab1:
-                renderizar_aba_com_permissao("backlog", aba_backlog, df)
-            
-            with tab2:
-                renderizar_aba_com_permissao("visao_geral", aba_visao_geral_v2, df, ultima_atualizacao)
-            
-            with tab3:
-                renderizar_aba_com_permissao("produto", aba_produto, df)
-            
-            with tab4:
-                renderizar_aba_com_permissao("historico", aba_historico, df)
-            
-            with tab5:
-                renderizar_aba_com_permissao("sobre", aba_sobre)
-            
-            with tab6:
-                renderizar_aba_com_permissao("admin", aba_admin)
+        # ===== RENDERIZA AS ABAS DO DASHBOARD (DINÂMICO POR PERMISSÕES) =====
+        # Constrói apenas as abas que o usuário tem permissão para ver
+        abas_permitidas = construir_abas_permitidas(projeto)
         
+        if not abas_permitidas:
+            st.warning("⚠️ Você não tem acesso a nenhuma aba. Entre em contato com um administrador.")
         else:
-            # Projetos normais (SD, QA, DVG, etc): 11 abas padrão (incluindo Admin)
-            tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
-                "📊 Visão Geral",
-                "🔬 QA",
-                "👨‍💻 Dev",
-                "🎯 Suporte/Implantação",
-                "🏢 Clientes",
-                "📋 Governança",
-                "📦 Produto",
-                "📈 Histórico",
-                "🎯 Liderança",
-                "ℹ️ Sobre",
-                "⚙️ Admin"
-            ])
+            # Cria as abas dinamicamente
+            nomes_abas = [aba[0] for aba in abas_permitidas]
+            tabs = st.tabs(nomes_abas)
             
-            with tab1:
-                renderizar_aba_com_permissao("visao_geral", aba_visao_geral_v2, df, ultima_atualizacao)
+            # Mapeamento de abas que precisam de argumentos especiais
+            args_especiais = {
+                "backlog": (df,),
+                "visao_geral": (df, ultima_atualizacao),
+                "qa": (df,),
+                "dev": (df,),
+                "suporte": (df_todos,),  # Usa df_todos para suporte
+                "clientes": (df_todos,),  # Usa df_todos para clientes
+                "governanca": (df,),
+                "produto": (df,),
+                "historico": (df,),
+                "lideranca": (df,),
+                "sobre": (),
+                "admin": (),
+            }
             
-            with tab2:
-                renderizar_aba_com_permissao("qa", aba_qa, df)
-            
-            with tab3:
-                renderizar_aba_com_permissao("dev", aba_dev, df)
-            
-            with tab4:
-                renderizar_aba_com_permissao("suporte", aba_suporte_implantacao, df_todos)
-            
-            with tab5:
-                renderizar_aba_com_permissao("clientes", aba_clientes, df_todos)
-            
-            with tab6:
-                renderizar_aba_com_permissao("governanca", aba_governanca, df)
-            
-            with tab7:
-                renderizar_aba_com_permissao("produto", aba_produto, df)
-            
-            with tab8:
-                renderizar_aba_com_permissao("historico", aba_historico, df)
-            
-            with tab9:
-                renderizar_aba_com_permissao("lideranca", aba_lideranca, df)
-            
-            with tab10:
-                renderizar_aba_com_permissao("sobre", aba_sobre)
-            
-            with tab11:
-                renderizar_aba_com_permissao("admin", aba_admin)
+            # Renderiza cada aba com seus argumentos
+            for i, (nome_display, nome_interno, funcao_aba) in enumerate(abas_permitidas):
+                with tabs[i]:
+                    args = args_especiais.get(nome_interno, ())
+                    renderizar_aba_com_permissao(nome_interno, funcao_aba, *args)
 
 
 if __name__ == "__main__":

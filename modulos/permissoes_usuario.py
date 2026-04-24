@@ -148,33 +148,59 @@ def buscar_colaborador_por_email(email: str, colaboradores: Dict) -> Optional[Di
     """
     Busca colaborador pelo email normalizado.
     
+    Estratégias de busca (em ordem):
+    1. Match exato de email
+    2. Match exato de nome (username convertido)
+    3. Match parcial de nome (username dentro do nome cadastrado)
+    
     Retorna os dados do colaborador se encontrado, None caso contrário.
     """
     email_normalizado = normalizar_email(email)
     username = extrair_username(email)
+    username_como_nome = normalizar_nome_para_busca(username_para_nome(username))
     
+    # PRIORIDADE 1: Match exato de email cadastrado
     for nome, dados in colaboradores.items():
-        # Verifica se o email está cadastrado
         email_cadastrado = dados.get("email", "")
         if email_cadastrado:
             email_cad_normalizado = normalizar_email(email_cadastrado)
             if email_cad_normalizado == email_normalizado:
                 return {"nome_chave": nome, **dados}
-        
-        # Verifica se o nome corresponde ao username
-        # Ex: "Vinicios Ferreira" vs "vinicios.ferreira"
+    
+    # PRIORIDADE 2: Match exato de nome
+    for nome, dados in colaboradores.items():
         nome_normalizado = normalizar_nome_para_busca(nome)
-        username_como_nome = normalizar_nome_para_busca(username_para_nome(username))
-        
         if nome_normalizado == username_como_nome:
             return {"nome_chave": nome, **dados}
         
-        # Verifica também se o nome do cadastro corresponde
+        # Verifica também pelo campo nome dentro dos dados
         nome_cadastro = dados.get("nome", "")
         if nome_cadastro:
             nome_cadastro_normalizado = normalizar_nome_para_busca(nome_cadastro)
             if nome_cadastro_normalizado == username_como_nome:
                 return {"nome_chave": nome, **dados}
+    
+    # PRIORIDADE 3: Match parcial - username como prefixo do nome cadastrado
+    # Ex: "vinicius.alves" -> "vinicius alves" deve casar com "Vinicius Alves da Silva Neto"
+    partes_username = username_como_nome.split()
+    if len(partes_username) >= 2:  # Precisa ter pelo menos nome e sobrenome
+        for nome, dados in colaboradores.items():
+            nome_normalizado = normalizar_nome_para_busca(nome)
+            partes_nome = nome_normalizado.split()
+            
+            # Verifica se as partes do username estão no início do nome cadastrado
+            if len(partes_nome) >= len(partes_username):
+                if partes_nome[:len(partes_username)] == partes_username:
+                    return {"nome_chave": nome, **dados}
+            
+            # Verifica também pelo campo nome dentro dos dados
+            nome_cadastro = dados.get("nome", "")
+            if nome_cadastro:
+                nome_cadastro_normalizado = normalizar_nome_para_busca(nome_cadastro)
+                partes_nome_cadastro = nome_cadastro_normalizado.split()
+                if len(partes_nome_cadastro) >= len(partes_username):
+                    if partes_nome_cadastro[:len(partes_username)] == partes_username:
+                        return {"nome_chave": nome, **dados}
     
     return None
 
