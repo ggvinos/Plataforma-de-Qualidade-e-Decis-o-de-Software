@@ -23,7 +23,7 @@ from datetime import datetime
 import plotly.express as px
 
 from modulos.config import NINADASH_URL
-from modulos.helpers import criar_card_metrica, formatar_tempo_relativo
+from modulos.helpers import criar_card_metrica, formatar_tempo_relativo, obter_contexto_periodo
 from modulos.utils import card_link_com_popup
 
 
@@ -41,8 +41,10 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
     Args:
         df_todos: DataFrame com cards de TODOS os projetos (SD, QA, PB, VALPROD)
     """
+    ctx = obter_contexto_periodo()
+    
     st.markdown("### 🎯 Suporte e Implantação")
-    st.caption("Acompanhe seus cards em todos os projetos: SD, QA, PB e VALPROD")
+    st.caption(f"Acompanhe seus cards em todos os projetos: SD, QA, PB e VALPROD • **{ctx['emoji']} {ctx['titulo']}**")
     
     if df_todos is None or df_todos.empty:
         st.warning("⚠️ Nenhum card encontrado nos projetos.")

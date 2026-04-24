@@ -34,7 +34,7 @@ from modulos.calculos import (
     calcular_fator_k,
     classificar_maturidade,
 )
-from modulos.helpers import criar_card_metrica, get_tooltip_help
+from modulos.helpers import criar_card_metrica, get_tooltip_help, obter_contexto_periodo
 from modulos.utils import card_link_com_popup
 from modulos.widgets import (
     mostrar_tooltip,
@@ -45,8 +45,10 @@ from modulos.widgets import (
 
 def aba_dev(df: pd.DataFrame):
     """Aba de Dev - Performance, Ranking e Análise por Desenvolvedor."""
+    ctx = obter_contexto_periodo()
+    
     st.markdown("### 👨‍💻 Painel de Desenvolvimento")
-    st.caption("Performance individual, ranking e métricas de maturidade do time de desenvolvimento")
+    st.caption(f"Performance individual, ranking e métricas de maturidade • **{ctx['emoji']} {ctx['titulo']}**")
     
     devs = [d for d in df['desenvolvedor'].unique() if d != 'Não atribuído']
     

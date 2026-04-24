@@ -22,7 +22,7 @@ import plotly.express as px
 
 from modulos.config import TEMAS_NAO_CLIENTES
 from modulos.calculos import calcular_metricas_backlog
-from modulos.helpers import criar_card_metrica
+from modulos.helpers import criar_card_metrica, obter_contexto_periodo
 from modulos.utils import link_jira, card_link_com_popup
 from modulos.widgets import mostrar_lista_df_completa
 from modulos.graficos import (
@@ -35,8 +35,10 @@ from modulos.graficos import (
 
 def aba_backlog(df: pd.DataFrame):
     """Aba de análise do Product Backlog (PB)."""
+    ctx = obter_contexto_periodo()
+    
     st.markdown("### 📋 Product Backlog - Análise de Gargalos")
-    st.caption("Visualize a saúde do backlog, identifique itens estagnados e tome decisões de priorização")
+    st.caption(f"Visualize a saúde do backlog e identifique itens estagnados • **{ctx['emoji']} {ctx['titulo']}**")
     
     metricas = calcular_metricas_backlog(df)
     

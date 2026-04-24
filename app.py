@@ -872,6 +872,10 @@ def main():
                 index=indice_filtro_padrao
             )
             
+            # Armazena o filtro no session_state para as abas usarem
+            st.session_state['filtro_periodo'] = filtro_sprint
+            st.session_state['projeto_selecionado'] = projeto
+            
             # Nota: Filtro de Produto será adicionado após carregar os dados
             # Ferramentas Avançadas também será adicionado após Produto
             

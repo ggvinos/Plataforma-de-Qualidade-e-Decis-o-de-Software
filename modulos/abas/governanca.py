@@ -18,12 +18,15 @@ import pandas as pd
 
 from modulos.calculos import calcular_metricas_governanca
 from modulos.widgets import mostrar_lista_tickets_completa
+from modulos.helpers import obter_contexto_periodo
 
 
 def aba_governanca(df: pd.DataFrame):
     """Aba de Governança de Dados."""
+    ctx = obter_contexto_periodo()
+    
     st.markdown("### 📋 Governança de Dados")
-    st.caption("Monitore o preenchimento dos campos obrigatórios para garantir métricas confiáveis")
+    st.caption(f"Monitore o preenchimento dos campos obrigatórios • **{ctx['emoji']} {ctx['titulo']}**")
     
     gov = calcular_metricas_governanca(df)
     

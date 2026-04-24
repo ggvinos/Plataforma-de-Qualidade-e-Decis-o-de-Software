@@ -38,7 +38,7 @@ from modulos.calculos import (
     classificar_maturidade,
     calcular_metricas_qa,
 )
-from modulos.helpers import criar_card_metrica
+from modulos.helpers import criar_card_metrica, obter_contexto_periodo
 from modulos.utils import card_link_com_popup
 from modulos.widgets import mostrar_tooltip, mostrar_lista_df_completa
 
@@ -711,15 +711,28 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
     6. Detalhes (colapsado)
     """
     
+    # ==== CONTEXTO DE PERÍODO ====
+    ctx = obter_contexto_periodo()
+    
     # ==== HEADER COMPACTO ====
     agora = datetime.now()
     diff = (agora - ultima_atualizacao).total_seconds() / 60
     tempo_texto = "agora" if diff < 1 else f"há {int(diff)}min" if diff < 60 else f"há {int(diff/60)}h"
     
     # Header com botão de atualização integrado
-    col_titulo, col_spacer, col_refresh = st.columns([3, 2, 1])
+    col_titulo, col_periodo, col_refresh = st.columns([2, 2, 1])
     with col_titulo:
         st.markdown('<div style="font-size: 18px; font-weight: 700; color: #1f2937; padding-top: 4px;">🎯 Central de Decisão</div>', unsafe_allow_html=True)
+    with col_periodo:
+        # Badge mostrando o período selecionado
+        cor_badge = "#3b82f6" if ctx["eh_sprint"] else "#6b7280" if ctx["eh_todo_periodo"] else "#f59e0b"
+        st.markdown(f'''
+        <div style="display: flex; align-items: center; justify-content: center; padding-top: 4px;">
+            <span style="background: {cor_badge}15; color: {cor_badge}; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 500; border: 1px solid {cor_badge}40;">
+                {ctx["emoji"]} {ctx["titulo"]}
+            </span>
+        </div>
+        ''', unsafe_allow_html=True)
     with col_refresh:
         if st.button(f"🔄 Atualizar", help=f"Última atualização: {tempo_texto}", type="secondary", use_container_width=True):
             st.cache_data.clear()
@@ -821,12 +834,13 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
     # Gargalos
     gargalos = identificar_gargalos(df)
     
-    # ==== BANNER DA SPRINT - COMPACTO ====
+    # ==== BANNER DO PERÍODO - ADAPTATIVO ====
     badge_status = ""
     badge_cor = "#6b7280"
     info_tempo = ""
     
-    if dias_restantes is not None:
+    # Quando é Sprint Ativa, mostra informações de tempo
+    if ctx["eh_sprint"] and dias_restantes is not None:
         if dias_restantes < 0:
             badge_cor = "#dc2626"
             badge_status = f'<span style="background: {badge_cor}; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-left: 8px;">ATRASADA {abs(dias_restantes)}d</span>'
@@ -845,10 +859,21 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
                 info_tempo = f'<span style="color: #6b7280;">Dia {dias_passados} de {dias_total}</span>'
             else:
                 info_tempo = f'<span style="color: #6b7280;">{dias_restantes} dias restantes</span>'
-    else:
+        titulo_banner = f"🚀 {sprint_atual}"
+    elif ctx["eh_sprint"]:
+        # Sprint ativa mas sem datas definidas
         info_tempo = '<span style="color: #9ca3af;">Datas não definidas</span>'
+        titulo_banner = f"🚀 {sprint_atual}"
+    elif ctx["eh_todo_periodo"]:
+        # Todo o período - mostra total de cards
+        info_tempo = f'<span style="color: #6b7280;">{total} cards no total</span>'
+        titulo_banner = f"📆 {ctx['titulo']}"
+    else:
+        # Últimos 30/90 dias
+        info_tempo = f'<span style="color: #6b7280;">{total} cards criados</span>'
+        titulo_banner = f"{ctx['emoji']} {ctx['titulo']}"
     
-    banner_html = f'<div style="background: #f9fafb; border: 1px solid #e5e7eb; padding: 8px 14px; border-radius: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;"><div style="display: flex; align-items: center;"><span style="font-size: 13px; font-weight: 600; color: #374151;">🚀 {sprint_atual}</span>{badge_status}</div><span style="font-size: 12px;">{info_tempo}</span></div>'
+    banner_html = f'<div style="background: #f9fafb; border: 1px solid #e5e7eb; padding: 8px 14px; border-radius: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;"><div style="display: flex; align-items: center;"><span style="font-size: 13px; font-weight: 600; color: #374151;">{titulo_banner}</span>{badge_status}</div><span style="font-size: 12px;">{info_tempo}</span></div>'
     st.markdown(banner_html, unsafe_allow_html=True)
     
     # Governança para verificações

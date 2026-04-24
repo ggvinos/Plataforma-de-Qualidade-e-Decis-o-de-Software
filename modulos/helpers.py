@@ -46,6 +46,57 @@ from modulos.jira_api import (
 # FUNÇÕES DO MÓDULO
 # ==============================================================================
 
+def obter_contexto_periodo() -> dict:
+    """
+    Retorna informações sobre o período selecionado na sidebar.
+    
+    Returns:
+        dict com:
+        - filtro: str - Nome do filtro ("Todo o período", "Sprint Ativa", etc)
+        - titulo: str - Texto para usar em títulos ("da Sprint Ativa", "dos Últimos 30 dias", etc)
+        - descricao: str - Texto descritivo completo
+        - eh_sprint: bool - Se é filtro de sprint ativa
+        - eh_todo_periodo: bool - Se é todo o período
+    """
+    filtro = st.session_state.get('filtro_periodo', 'Sprint Ativa')
+    projeto = st.session_state.get('projeto_selecionado', 'SD')
+    
+    contexto = {
+        "filtro": filtro,
+        "projeto": projeto,
+        "eh_sprint": filtro == "Sprint Ativa",
+        "eh_todo_periodo": filtro == "Todo o período",
+    }
+    
+    if filtro == "Todo o período":
+        contexto["titulo"] = "Todo o Período"
+        contexto["titulo_curto"] = "Histórico"
+        contexto["descricao"] = "Todos os cards do projeto, sem filtro de período"
+        contexto["emoji"] = "📆"
+    elif filtro == "Sprint Ativa":
+        contexto["titulo"] = "Sprint Ativa"
+        contexto["titulo_curto"] = "Sprint"
+        contexto["descricao"] = "Cards da sprint atualmente em andamento"
+        contexto["emoji"] = "🏃"
+    elif filtro == "Últimos 30 dias":
+        contexto["titulo"] = "Últimos 30 dias"
+        contexto["titulo_curto"] = "30 dias"
+        contexto["descricao"] = "Cards criados nos últimos 30 dias"
+        contexto["emoji"] = "📅"
+    elif filtro == "Últimos 90 dias":
+        contexto["titulo"] = "Últimos 90 dias"
+        contexto["titulo_curto"] = "90 dias"
+        contexto["descricao"] = "Cards criados nos últimos 90 dias"
+        contexto["emoji"] = "🗓️"
+    else:
+        contexto["titulo"] = filtro
+        contexto["titulo_curto"] = filtro
+        contexto["descricao"] = f"Período: {filtro}"
+        contexto["emoji"] = "📊"
+    
+    return contexto
+
+
 def calcular_valor_metrica(metrica_key: str, df: pd.DataFrame):
     """Calcula o valor de uma métrica KPI."""
     try:

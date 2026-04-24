@@ -19,6 +19,7 @@ import pandas as pd
 
 from modulos.calculos import calcular_fator_k, calcular_metricas_produto
 from modulos.widgets import mostrar_lista_df_completa
+from modulos.helpers import obter_contexto_periodo
 from modulos.graficos import (
     criar_grafico_hotfix_por_produto,
     criar_grafico_estagio_por_produto,
@@ -27,8 +28,10 @@ from modulos.graficos import (
 
 def aba_produto(df: pd.DataFrame):
     """Aba de métricas por Produto (métricas Ellen)."""
+    ctx = obter_contexto_periodo()
+    
     st.markdown("### 📦 Métricas por Produto")
-    st.caption("Visualize métricas segmentadas por produto - inclui métricas de fluxo da sprint")
+    st.caption(f"Visualize métricas segmentadas por produto • **{ctx['emoji']} {ctx['titulo']}**")
     
     metricas_prod = calcular_metricas_produto(df)
     

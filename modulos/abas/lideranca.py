@@ -29,7 +29,7 @@ from modulos.calculos import (
     calcular_concentracao_conhecimento, calcular_metricas_dev
 )
 from modulos.helpers import (
-    exportar_para_csv, exportar_para_excel
+    exportar_para_csv, exportar_para_excel, obter_contexto_periodo
 )
 from modulos.widgets import (
     mostrar_tooltip, mostrar_lista_df_completa
@@ -61,8 +61,10 @@ def _cor_status_inv(valor, verde, amarelo):
 
 def aba_lideranca(df: pd.DataFrame):
     """Aba de Liderança com decisões estratégicas."""
+    ctx = obter_contexto_periodo()
+    
     st.markdown("### 🎯 Painel de Liderança")
-    st.caption("Visão executiva para tomada de decisão - Go/No-Go de release")
+    st.caption(f"Visão executiva para tomada de decisão - Go/No-Go de release • **{ctx['emoji']} {ctx['titulo']}**")
     
     # Health Score
     health = calcular_health_score(df)

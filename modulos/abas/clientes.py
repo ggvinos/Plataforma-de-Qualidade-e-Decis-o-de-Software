@@ -25,13 +25,15 @@ import html as html_lib
 from modulos.config import (
     JIRA_BASE_URL, STATUS_NOMES, STATUS_CORES, TEMAS_NAO_CLIENTES, NINADASH_URL
 )
-from modulos.helpers import criar_card_metrica, formatar_tempo_relativo
+from modulos.helpers import criar_card_metrica, formatar_tempo_relativo, obter_contexto_periodo
 
 
 def aba_clientes(df_todos: pd.DataFrame):
     """Aba de análise por Clientes/Temas (usa todos os projetos, ignora filtro de projeto)."""
+    ctx = obter_contexto_periodo()
+    
     st.markdown("### 🏢 Análise por Cliente/Tema")
-    st.caption("Visualize métricas, responsáveis e histórico de cards por cliente")
+    st.caption(f"Visualize métricas, responsáveis e histórico de cards por cliente • **{ctx['emoji']} {ctx['titulo']}**")
     
     # ===== AVISO SOBRE OS DADOS =====
     st.info("📊 **Esta aba mostra dados de TODOS os projetos** (SD, QA, PB, VALPROD) independentemente do filtro da barra lateral.")

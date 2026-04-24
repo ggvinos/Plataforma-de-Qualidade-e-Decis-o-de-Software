@@ -41,7 +41,7 @@ from modulos.calculos import (
     calcular_fpy,
     calcular_lead_time,
 )
-from modulos.helpers import criar_card_metrica, get_tooltip_help, formatar_tempo_relativo
+from modulos.helpers import criar_card_metrica, get_tooltip_help, formatar_tempo_relativo, obter_contexto_periodo
 from modulos.graficos import criar_grafico_funil_qa
 from modulos.utils import card_link_com_popup
 from modulos.widgets import (
@@ -55,8 +55,10 @@ from modulos._abas_legacy import exibir_historico_validacoes
 
 def aba_qa(df: pd.DataFrame):
     """Aba de QA (análise de validação, gargalos e comparativo entre QAs)."""
+    ctx = obter_contexto_periodo()
+    
     st.markdown("### 🔬 Análise de QA")
-    st.caption("Monitore o funil de validação, identifique gargalos e compare a performance dos QAs")
+    st.caption(f"Monitore o funil de validação, identifique gargalos e compare a performance dos QAs • **{ctx['emoji']} {ctx['titulo']}**")
     
     metricas_qa = calcular_metricas_qa(df)
     qas = [q for q in df['qa'].unique() if q != 'Não atribuído']
