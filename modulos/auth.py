@@ -18,10 +18,13 @@ COOKIE_AUTH_NAME = "ninadash_auth_v2"
 COOKIE_EXPIRY_DAYS = 30
 
 
-@st.cache_resource(show_spinner=False)
 def get_cookie_manager():
-    """Retorna instância única do CookieManager."""
-    return stx.CookieManager(key="ninadash_cookie_manager")
+    """
+    Retorna instância do CookieManager.
+    Usa key fixa para garantir consistência na leitura de cookies.
+    NÃO usar cache_resource - compartilha entre usuários!
+    """
+    return stx.CookieManager(key="ninadash_cookie_mgr")
 
 
 # ==============================================================================

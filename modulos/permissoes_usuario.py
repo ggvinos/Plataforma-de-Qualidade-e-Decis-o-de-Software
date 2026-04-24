@@ -151,7 +151,8 @@ def buscar_colaborador_por_email(email: str, colaboradores: Dict) -> Optional[Di
     Estratégias de busca (em ordem):
     1. Match exato de email
     2. Match exato de nome (username convertido)
-    3. Match parcial de nome (username dentro do nome cadastrado)
+    3. Match parcial - todas as partes do username contidas no nome
+       Ex: "joao.souza" casa com "João Pedro Greif de Souza"
     
     Retorna os dados do colaborador se encontrado, None caso contrário.
     """
@@ -180,27 +181,26 @@ def buscar_colaborador_por_email(email: str, colaboradores: Dict) -> Optional[Di
             if nome_cadastro_normalizado == username_como_nome:
                 return {"nome_chave": nome, **dados}
     
-    # PRIORIDADE 3: Match parcial - username como prefixo do nome cadastrado
-    # Ex: "vinicius.alves" -> "vinicius alves" deve casar com "Vinicius Alves da Silva Neto"
+    # PRIORIDADE 3: Match flexível - TODAS as partes do username contidas no nome
+    # Ex: "joao.souza" -> ["joao", "souza"] deve casar com "João Pedro Greif de Souza"
+    # porque "joao" e "souza" estão ambos no nome cadastrado
     partes_username = username_como_nome.split()
     if len(partes_username) >= 2:  # Precisa ter pelo menos nome e sobrenome
         for nome, dados in colaboradores.items():
             nome_normalizado = normalizar_nome_para_busca(nome)
-            partes_nome = nome_normalizado.split()
+            partes_nome = set(nome_normalizado.split())  # Usa set para busca rápida
             
-            # Verifica se as partes do username estão no início do nome cadastrado
-            if len(partes_nome) >= len(partes_username):
-                if partes_nome[:len(partes_username)] == partes_username:
-                    return {"nome_chave": nome, **dados}
+            # Verifica se TODAS as partes do username estão contidas no nome
+            if all(parte in partes_nome for parte in partes_username):
+                return {"nome_chave": nome, **dados}
             
             # Verifica também pelo campo nome dentro dos dados
             nome_cadastro = dados.get("nome", "")
             if nome_cadastro:
                 nome_cadastro_normalizado = normalizar_nome_para_busca(nome_cadastro)
-                partes_nome_cadastro = nome_cadastro_normalizado.split()
-                if len(partes_nome_cadastro) >= len(partes_username):
-                    if partes_nome_cadastro[:len(partes_username)] == partes_username:
-                        return {"nome_chave": nome, **dados}
+                partes_nome_cadastro = set(nome_cadastro_normalizado.split())
+                if all(parte in partes_nome_cadastro for parte in partes_username):
+                    return {"nome_chave": nome, **dados}
     
     return None
 

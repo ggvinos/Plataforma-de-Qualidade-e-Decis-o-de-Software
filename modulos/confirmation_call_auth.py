@@ -51,13 +51,13 @@ COOKIE_EXPIRY_DAYS = 30
 
 def get_cookie_manager():
     """
-    Retorna instância do CookieManager única por sessão.
-    NÃO usar cache_resource pois isso compartilha entre usuários!
+    Retorna instância do CookieManager.
+    Usa uma key única fixa para garantir que cookies sejam lidos corretamente
+    entre diferentes sessões/abas do mesmo navegador.
     """
-    # Cria uma nova instância por sessão para evitar compartilhamento
-    if "cookie_manager_instance" not in st.session_state:
-        st.session_state.cookie_manager_instance = stx.CookieManager(key="ninadash_jwt_cm")
-    return st.session_state.cookie_manager_instance
+    # Usa key fixa para garantir consistência na leitura de cookies
+    # O CookieManager precisa ser recriado a cada chamada para ler cookies atualizados
+    return stx.CookieManager(key="ninadash_cookie_mgr")
 
 
 # ==============================================================================
