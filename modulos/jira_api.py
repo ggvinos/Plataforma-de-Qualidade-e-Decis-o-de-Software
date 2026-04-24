@@ -64,7 +64,7 @@ def buscar_dados_jira_cached(projeto: str, jql: str) -> Tuple[Optional[List[Dict
                 headers=headers, 
                 params=params, 
                 auth=(secrets["email"], secrets["token"]),
-                timeout=30
+                timeout=60
             )
             response.raise_for_status()
             data = response.json()
@@ -123,7 +123,7 @@ def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[Lis
             headers=headers,
             params=params,
             auth=(secrets["email"], secrets["token"]),
-            timeout=30
+            timeout=60
         )
         
         if response.status_code == 404:
@@ -212,7 +212,7 @@ def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[Lis
                     headers=headers,
                     params=linked_params,
                     auth=(secrets["email"], secrets["token"]),
-                    timeout=10
+                    timeout=30
                 )
                 
                 if linked_response.status_code == 200:
@@ -273,7 +273,7 @@ def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[Lis
                 comments_url,
                 headers=headers,
                 auth=(secrets["email"], secrets["token"]),
-                timeout=15
+                timeout=30
             )
             if comments_response.status_code == 200:
                 comments_data = comments_response.json()

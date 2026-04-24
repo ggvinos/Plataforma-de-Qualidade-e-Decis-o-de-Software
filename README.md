@@ -1,103 +1,106 @@
-# 🎯 NinaDash - Dashboard de Métricas de QA
+# 🎯 NinaDash - Dashboard de Inteligência e Qualidade de Software
 
-Dashboard de métricas ISTQB/CTFL para tomada de decisão em projetos de software.
+Dashboard de métricas ISTQB/CTFL para tomada de decisão em projetos de software, integrado com Jira e ConfirmationCall.
 
-## 🚀 Deploy no Streamlit Community Cloud
+## 📁 Estrutura do Projeto
 
-### Pré-requisitos
-- Conta no [GitHub](https://github.com)
-- Conta no [Streamlit Cloud](https://share.streamlit.io)
-
-### Passo a passo
-
-#### 1. Criar repositório no GitHub (privado)
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git branch -M main
-git remote add origin https://github.com/SEU-USUARIO/nina-dashboard.git
-git push -u origin main
+```
+NinaDash/
+├── app_modularizado.py      # 🚀 Aplicação principal (use este)
+├── app.py                   # Versão legada (backup)
+├── requirements.txt         # Dependências Python
+├── favicon.svg              # Ícone do app
+├── README.md                # Este arquivo
+├── .env                     # Variáveis de ambiente (não commitar)
+├── .gitignore               # Arquivos ignorados pelo Git
+│
+├── modulos/                 # 📦 Módulos da aplicação
+│   ├── __init__.py          # Inicializador do pacote
+│   ├── config.py            # Configurações, constantes, visual
+│   ├── auth.py              # Autenticação básica (legado)
+│   ├── confirmation_call_auth.py  # 🔐 Autenticação JWT ConfirmationCall
+│   ├── jira_api.py          # Integração com API do Jira
+│   ├── calculos.py          # Métricas: Fator K, DDP, FPY, Lead Time
+│   ├── processamento.py     # Processamento de dados e filtros
+│   ├── abas.py              # Componentes das abas do dashboard
+│   ├── cards.py             # Visualização de cards/tickets
+│   ├── widgets.py           # Componentes visuais reutilizáveis
+│   ├── graficos.py          # Gráficos Plotly (funil, tendências)
+│   ├── helpers.py           # Funções auxiliares
+│   ├── consultas.py         # Sistema de consultas personalizadas
+│   ├── utils.py             # Utilitários gerais
+│   └── changelog.py         # Histórico de versões
+│
+├── docs/                    # 📚 Documentação
+│   ├── DEPLOY.md            # Guia de deploy
+│   ├── MELHORIAS.md         # Histórico de melhorias
+│   ├── DOCUMENTACAO_*.md    # Documentação técnica
+│   └── ...                  # Outros documentos
+│
+├── tests/                   # 🧪 Testes
+│   └── test_*.py            # Arquivos de teste
+│
+├── backups/                 # 📦 Versões anteriores
+│   └── app_v*.py            # Backups de versões
+│
+├── Desing/                  # 🎨 Assets visuais
+│   └── *.svg                # Logos e ícones
+│
+└── .streamlit/              # ⚙️ Configurações Streamlit
+    ├── config.toml          # Configurações do tema
+    └── secrets.toml         # Credenciais (não commitar!)
 ```
 
-#### 2. Configurar Streamlit Cloud
+## 🚀 Início Rápido
 
-1. Acesse [share.streamlit.io](https://share.streamlit.io)
-2. Clique em **"New app"**
-3. Conecte seu repositório GitHub
-4. Configure:
-   - **Repository**: seu-usuario/nina-dashboard
-   - **Branch**: main
-   - **Main file path**: app.py
-
-#### 3. Configurar Secrets (IMPORTANTE!)
-
-1. Nas configurações do app, vá em **"Secrets"**
-2. Cole o conteúdo abaixo (substitua com suas credenciais):
-
-```toml
-[jira]
-base_url = "https://ninatecnologia.atlassian.net"
-email = "seu-email@empresa.com"
-token = "SEU_TOKEN_DO_JIRA_AQUI"
-
-[auth]
-emails_autorizados = "email1@empresa.com,email2@empresa.com"
-```
-
-3. Clique em **"Save"**
-4. Faça redeploy do app
-
-## 🔧 Desenvolvimento Local
-
-### Instalar dependências
+### 1. Instalar dependências
 ```bash
 pip install -r requirements.txt
 ```
 
-### Configurar credenciais
+### 2. Configurar credenciais
 ```bash
-# Copie o arquivo de exemplo
+# Copie e edite o arquivo de secrets
 cp .streamlit/secrets.toml.example .streamlit/secrets.toml
-
-# Edite com suas credenciais
-nano .streamlit/secrets.toml
 ```
 
-### Executar
+### 3. Executar
 ```bash
-streamlit run app.py
-# ou
-python -m streamlit run app.py
+streamlit run app_modularizado.py
 ```
 
 Acesse: http://localhost:8501
 
-## 📁 Estrutura
+## 🔐 Autenticação
 
-```
-├── app.py                    # Aplicação principal
-├── requirements.txt          # Dependências Python
-├── .gitignore               # Arquivos ignorados pelo Git
-├── .streamlit/
-│   ├── config.toml          # Configurações do Streamlit
-│   ├── secrets.toml         # Credenciais (NÃO COMMITAR!)
-│   └── secrets.toml.example # Template de credenciais
-└── Desing/                  # Assets visuais
-    └── *.svg                # Logos
-```
+O NinaDash usa autenticação JWT via ConfirmationCall:
 
-## 🔐 Segurança
-
-- ✅ Credenciais protegidas via `st.secrets`
-- ✅ `.streamlit/secrets.toml` no `.gitignore`
-- ✅ Autenticação por email
-- ✅ Repositório privado recomendado
+- **Desenvolvimento**: api.develop.confirmationcall.com.br
+- **Homologação**: api.homolog.confirmationcall.com.br  
+- **Produção**: api.confirmationcall.com.br
 
 ## 📊 Métricas Disponíveis
 
-- **Fator K** - Maturidade do código
-- **DDP** - Defect Detection Percentage
+| Métrica | Descrição |
+|---------|-----------|
+| **Fator K** | Maturidade do código (bugs encontrados em QA vs produção) |
+| **DDP** | Defect Detection Percentage |
+| **FPY** | First Pass Yield |
+| **Lead Time** | Tempo médio de entrega |
+| **Throughput** | Capacidade de entrega |
+| **Health Score** | Saúde geral do projeto |
+
+## 🛠️ Tecnologias
+
+- **Python 3.10+**
+- **Streamlit** - Framework web
+- **Plotly** - Gráficos interativos
+- **Pandas** - Processamento de dados
+- **Requests** - Integração com APIs
+
+## 📝 Licença
+
+© 2026 Nina Tecnologia - Todos os direitos reservados.
 - **FPY** - First Pass Yield
 - **MTTR** - Mean Time To Repair
 - **Lead Time** - Tempo de entrega

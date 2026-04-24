@@ -26,5 +26,6 @@ Thumbs.db
 *.log
 logs/
 
-# Backups (comentar se quiser versionar)
-# app_*_backup.py
+# Backups e testes (não versionar)
+backups/
+tests/

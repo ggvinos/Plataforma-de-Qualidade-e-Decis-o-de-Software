@@ -55,21 +55,18 @@ from modulos.utils import (
 )
 
 from modulos.auth import (
-    verificar_login,
-    fazer_login,
     fazer_logout,
-    mostrar_tela_login,
-    mostrar_tela_loading,
-    validar_email_corporativo,
-    extrair_nome_usuario,
-    get_cookie_manager,
 )
 
 from modulos.confirmation_call_auth import (
     verificar_e_bloquear,
     renderizar_logout_sidebar,
     obter_usuario_autenticado,
+    get_cookie_manager,
 )
+
+# Constante para nome do cookie de consultas
+COOKIE_CONSULTAS_NAME = "ninadash_consultas_salvas"
 
 from modulos.jira_api import (
     buscar_dados_jira_cached,
@@ -125,7 +122,6 @@ from modulos.abas import (
     aba_historico,
     aba_lideranca,
     aba_sobre,
-    aba_dashboard_personalizado,
 )
 
 # Phase 7: Novos módulos temáticos (blocos mentais)
@@ -199,24 +195,6 @@ from modulos.consultas import (
     salvar_consulta,
     listar_consultas_salvas,
     excluir_consulta,
-    tela_consulta_personalizada,
-)
-
-from modulos.meu_dashboard import (
-    inicializar_meu_dashboard,
-    adicionar_widget,
-    remover_widget,
-    mover_widget_cima,
-    mover_widget_baixo,
-)
-
-from modulos.dashboards_personalizados import (
-    inicializar_dashboards_personalizados,
-    salvar_dashboard_personalizado,
-    carregar_dashboard_personalizado,
-    listar_dashboards_personalizados,
-    excluir_dashboard_personalizado,
-    renderizar_metrica_personalizada,
 )
 
 from modulos.changelog import exibir_changelog
@@ -232,6 +210,46 @@ configure_page()
 # ==============================================================================
 
 verificar_e_bloquear()
+
+# ==============================================================================
+# LOADING VISUAL DURANTE INICIALIZAÇÃO
+# ==============================================================================
+
+# Mostra loading visual na primeira vez que o app é carregado após login
+if "app_initialized" not in st.session_state:
+    st.session_state.app_initialized = False
+
+if not st.session_state.app_initialized:
+    # Mostra loading visual compacto
+    col1, col2, col3 = st.columns([0.2, 3.6, 0.2], gap="small")
+    with col2:
+        st.markdown("""
+        <div style="
+            text-align: center;
+            padding: 40px 20px;
+            background: white;
+            border-radius: 8px;
+            margin: 100px 0;
+        ">
+            <div style="font-size: 48px; margin-bottom: 20px; animation: spin 2s linear infinite;">⏳</div>
+            <p style="color: #AF0C37; font-weight: bold; font-size: 18px; margin: 0 0 10px 0;">
+                Carregando Dashboard
+            </p>
+            <p style="color: #666; font-size: 14px; margin: 0;">
+                Sincronizando dados do Jira...
+            </p>
+        </div>
+        <style>
+            @keyframes spin {{
+                from {{ transform: rotate(0deg); }}
+                to {{ transform: rotate(360deg); }}
+            }}
+        </style>
+        """, unsafe_allow_html=True)
+    
+    # Marca como inicializado
+    st.session_state.app_initialized = True
+    st.rerun()
 
 # CSS global para o popup (deve ser inserido uma vez na página)
 CARD_POPUP_CSS = """
@@ -315,19 +333,6 @@ def _salvar_consultas_cookie():
         )
     except Exception as e:
         pass  # Silently fail cookie save
-
-
-def salvar_dashboard_personalizado(nome: str, metricas: List[str], config: Dict = None):
-    """Salva um dashboard personalizado."""
-    inicializar_dashboards_personalizados()
-    
-    st.session_state.dashboards_personalizados[nome] = {
-        "nome": nome,
-        "metricas": metricas,
-        "config": config or {},
-        "criado_em": datetime.now().isoformat(),
-        "atualizado_em": datetime.now().isoformat()
-    }
 
 
 def calcular_lista_cards(metrica_key: str, df: pd.DataFrame):
@@ -603,13 +608,8 @@ def main():
     </style>
     """, unsafe_allow_html=True)
     
-    # ========== VERIFICAR LOGIN (via session_state ou cookie) ==========
-    if not verificar_login():
-        # Mostra tela de login
-        mostrar_tela_login()
-        return
-    
-    # ========== USUÁRIO LOGADO - DASHBOARD ==========
+    # ========== USUÁRIO LOGADO - DASHBOARD =====
+    # (verificar_e_bloquear() já foi chamado no topo do script)
     aplicar_estilos()
     
     # CSS global para popup de cards (permite escolher NinaDash ou Jira)
@@ -645,88 +645,6 @@ def main():
     if 'projeto_buscado' not in st.session_state:
         st.session_state.projeto_buscado = "SD"
     
-    # Inicializa modo Meu Dashboard
-    if 'modo_consulta_personalizada' not in st.session_state:
-        st.session_state.modo_consulta_personalizada = False
-    
-    # Verifica se veio via query param para Meu Dashboard
-    if query_params.get("tela", None) == "meu_dashboard":
-        st.session_state.modo_consulta_personalizada = True
-    
-    # ===============================================================
-    # MODO MEU DASHBOARD - TELA SEPARADA COM SIDEBAR LIMPA
-    # ===============================================================
-    if st.session_state.modo_consulta_personalizada:
-        # SIDEBAR MINIMALISTA - apenas logo, usuário e voltar
-        with st.sidebar:
-            # Logo
-            st.markdown('''
-            <div style="text-align: center; padding: 10px 0 5px 0;">
-                <svg width="70" height="70" viewBox="0 0 187 187" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M173.709 89.2107C172.209 86.6048 169.414 84.838 166.225 84.838C163.036 84.838 160.241 86.5649 158.741 89.1627H151.683C149.465 58.8237 124.495 35 94.0216 35C63.5489 35 38.5862 58.8237 36.3678 89.1627H29.1759C27.6759 86.5649 24.8734 84.798 21.6682 84.798C18.463 84.798 15.6605 86.5806 14.1605 89.2031C13.4184 90.4899 13 92.001 13 93.6C13 95.1987 13.4184 96.7017 14.1605 97.997C15.6605 100.619 18.463 102.306 21.6682 102.306C24.8734 102.306 27.6838 100.435 29.1759 97.8369H36.3678C38.5862 128.168 63.5489 152 94.0216 152C124.495 152 149.465 128.176 151.675 97.8369H158.686C160.178 100.435 162.996 102.354 166.217 102.354C169.438 102.354 172.256 100.611 173.749 97.9648C174.475 96.6856 174.885 95.2148 174.885 93.6319C174.885 92.049 174.451 90.5222 173.701 89.2188L173.709 89.2107ZM111.145 125.554C107.971 131.518 101.758 135.459 94.5981 135.459C87.4374 135.459 81.2248 131.566 78.0509 125.602C77.1666 123.947 78.3667 122.092 80.2219 122.092H108.982C110.837 122.092 112.029 123.891 111.153 125.554H111.145ZM140.528 94.1277C140.528 103.825 132.76 111.691 123.184 111.691H65.4432C55.8675 111.691 48.0991 103.825 48.0991 94.1277V93.7199C48.0991 84.0223 55.8675 76.1557 65.4432 76.1557H123.184C132.76 76.1557 140.528 84.0223 140.528 93.7199V94.1277Z" fill="#AF0C37"/>
-                <path d="M76.5809 105.311C82.9686 105.311 88.1466 100.068 88.1466 93.5996C88.1466 87.1312 82.9686 81.8875 76.5809 81.8875C70.1936 81.8875 65.0156 87.1312 65.0156 93.5996C65.0156 100.068 70.1936 105.311 76.5809 105.311Z" fill="#AF0C37"/>
-                <path d="M111.437 105.311C117.824 105.311 123.002 100.068 123.002 93.5996C123.002 87.1312 117.824 81.8875 111.437 81.8875C105.049 81.8875 99.8712 87.1312 99.8712 93.5996C99.8712 100.068 105.049 105.311 111.437 105.311Z" fill="#AF0C37"/>
-                </svg>
-            </div>
-            <div style="text-align: center; margin-bottom: 5px;">
-                <h2 style="color: #AF0C37; margin: 0; font-size: 1.8em;">NinaDash</h2>
-                <p style="color: #666; font-size: 0.85em; margin: 2px 0 0 0; font-style: italic;">
-                    Meu Dashboard
-                </p>
-            </div>
-            ''', unsafe_allow_html=True)
-            
-            # Usuário logado
-            user_nome = st.session_state.get("user_nome", "Usuário")
-            st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #AF0C37 0%, #8F0A2E 100%); 
-                        padding: 10px; border-radius: 8px; margin: 10px 0; text-align: center;">
-                <p style="margin: 0; color: white; font-size: 13px;">👤 {user_nome}</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown("---")
-            
-            # Botão voltar (grande e em destaque)
-            if st.button("⬅️ Voltar ao Dashboard", type="primary", use_container_width=True, key="btn_voltar_meu_dashboard"):
-                st.session_state.modo_consulta_personalizada = False
-                st.query_params.clear()
-                st.rerun()
-            
-            st.markdown("---")
-            
-            # Rodapé minimalista
-            st.markdown("""
-            <div style="text-align: center; padding: 10px 0; color: #999; font-size: 0.75em;">
-                📌 N9 • Qualidade e Decisão
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # CARREGA DADOS DE TODOS OS PROJETOS
-        with st.spinner("🔄 Carregando dados de todos os projetos..."):
-            todos_dfs = []
-            
-            for proj in ["SD", "QA", "PB"]:
-                try:
-                    jql_proj = f'project = {proj} ORDER BY created DESC'
-                    issues_proj, _ = buscar_dados_jira_cached(proj, jql_proj)
-                    if issues_proj:
-                        df_proj = processar_issues(issues_proj)
-                        df_proj['projeto'] = proj
-                        todos_dfs.append(df_proj)
-                except:
-                    pass
-            
-            if todos_dfs:
-                df_todos = pd.concat(todos_dfs, ignore_index=True)
-            else:
-                st.error("❌ Não foi possível carregar dados")
-                st.stop()
-        
-        # RENDERIZA A TELA MEU DASHBOARD
-        tela_consulta_personalizada(df_todos)
-        return  # Sai da função main() - não renderiza mais nada
-    
     # ===============================================================
     # MODO NORMAL - SIDEBAR COMPLETA COM FILTROS
     # ===============================================================
@@ -756,28 +674,11 @@ def main():
         </div>
         ''', unsafe_allow_html=True)
         
-        # ===== USUÁRIO LOGADO =====
-        user_nome = st.session_state.get("user_nome", "Usuário")
-        user_email = st.session_state.get("user_email", "")
-        
-        st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #AF0C37 0%, #8F0A2E 100%); 
-                    padding: 12px; border-radius: 8px; margin: 10px 0; text-align: center;">
-            <p style="margin: 0; color: white; font-size: 14px; font-weight: 500;">👤 {user_nome}</p>
-            <p style="margin: 4px 0 0 0; color: #fecdd3; font-size: 11px;">{user_email}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
         # Renderiza informações de autenticação JWT
         renderizar_logout_sidebar()
         
-        # Botão de Logout (Email corporativo - legado)
-        if st.button("🚪 Sair", use_container_width=True, key="btn_logout"):
-            fazer_logout()
-            st.rerun()
-        
         if not verificar_credenciais():
-            st.error("⚠️ Credenciais não configuradas!")
+            st.error("⚠️ Credenciais Jira não configuradas!")
             st.markdown("""
             Configure em `.streamlit/secrets.toml`:
             ```toml
@@ -921,12 +822,84 @@ def main():
         else:
             jql = f'project = {projeto} AND created >= -90d ORDER BY created DESC'
         
-        # AUTO-LOAD
-        with st.spinner("🔄 Carregando dados do Jira..."):
-            issues, ultima_atualizacao = buscar_dados_jira_cached(projeto, jql)
+        # ===== LOADING VISUAL APRIMORADO =====
+        # Placeholder para loading animado
+        loading_placeholder = st.empty()
         
+        # Mostra loading ANTES de iniciar a busca
+        with loading_placeholder.container():
+            st.markdown("""
+            <style>
+            @keyframes pulse {
+                0% { opacity: 0.6; transform: scale(0.98); }
+                50% { opacity: 1; transform: scale(1); }
+                100% { opacity: 0.6; transform: scale(0.98); }
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            .loading-container {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 80px 20px;
+                animation: pulse 2s ease-in-out infinite;
+            }
+            .loading-spinner {
+                width: 60px;
+                height: 60px;
+                border: 4px solid #f3f3f3;
+                border-top: 4px solid #AF0C37;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin-bottom: 20px;
+            }
+            .loading-text {
+                color: #666;
+                font-size: 1.1em;
+                margin-top: 10px;
+            }
+            .loading-subtext {
+                color: #999;
+                font-size: 0.9em;
+                margin-top: 5px;
+            }
+            </style>
+            <div class="loading-container">
+                <div class="loading-spinner"></div>
+                <div style="color: #AF0C37; font-size: 1.5em; font-weight: bold;">Carregando NinaDash</div>
+                <div class="loading-text">🔄 Conectando ao Jira...</div>
+                <div class="loading-subtext">Buscando dados do projeto """ + projeto + """</div>
+                <div style="color: #aaa; font-size: 0.8em; margin-top: 15px;">Isso pode levar alguns segundos...</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # AUTO-LOAD - busca os dados (loading fica visível até terminar)
+        issues, ultima_atualizacao = buscar_dados_jira_cached(projeto, jql)
+        
+        # Remove o loading APÓS carregar os dados
+        loading_placeholder.empty()
+        
+        # ===== TRATAMENTO DE ERRO COM BOTÃO TENTAR NOVAMENTE =====
         if issues is None:
-            st.error("❌ Não foi possível carregar dados do Jira")
+            st.markdown("""
+            <div style="text-align: center; padding: 60px 20px;">
+                <div style="font-size: 4em; margin-bottom: 20px;">⚠️</div>
+                <h2 style="color: #dc2626; margin-bottom: 10px;">Não foi possível conectar ao Jira</h2>
+                <p style="color: #666; margin-bottom: 5px;">O servidor demorou muito para responder (timeout).</p>
+                <p style="color: #888; font-size: 0.9em;">Isso pode acontecer quando há muitos dados ou a conexão está lenta.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                if st.button("🔄 Tentar Novamente", use_container_width=True, type="primary"):
+                    st.cache_data.clear()
+                    st.rerun()
+            
+            st.info("💡 **Dica:** Tente selecionar um período menor (ex: Sprint Ativa ou Últimos 30 dias)")
             st.stop()
         
         if len(issues) == 0:
@@ -934,6 +907,29 @@ def main():
             st.stop()
         
         df = processar_issues(issues)
+        
+        # ===== AVISO INFORMATIVO (dispensável) =====
+        if 'aviso_fechado' not in st.session_state:
+            st.session_state.aviso_fechado = False
+        
+        if not st.session_state.aviso_fechado:
+            aviso_col1, aviso_col2 = st.columns([0.95, 0.05])
+            with aviso_col1:
+                st.markdown("""
+                <div style="background: linear-gradient(90deg, #d1fae5 0%, #ecfdf5 100%); 
+                            border-left: 4px solid #10b981; 
+                            padding: 8px 12px; 
+                            border-radius: 0 8px 8px 0; 
+                            font-size: 0.85em;">
+                    <span style="color: #065f46;">
+                        📊 <strong>Dados sincronizados com o Jira!</strong> Métricas calculadas em tempo real a partir dos cards do projeto.
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
+            with aviso_col2:
+                if st.button("✕", key="fechar_aviso", help="Fechar aviso"):
+                    st.session_state.aviso_fechado = True
+                    st.rerun()
         
         # Adiciona coluna de projeto ao df principal
         df['projeto'] = projeto
@@ -1021,16 +1017,6 @@ def main():
             
             if filtro_produto != 'Todos':
                 df = df[df['produto'] == filtro_produto]
-            
-            # ===== SEÇÃO DE FERRAMENTAS AVANÇADAS (após todos os filtros) =====
-            st.markdown("---")
-            st.markdown("##### 🔍 Ferramentas Avançadas")
-            
-            if st.button("🎨 Meu Dashboard", use_container_width=True, key="btn_meu_dashboard", 
-                        help="Monte seu dashboard personalizado com widgets"):
-                st.session_state.modo_consulta_personalizada = True
-                st.query_params["tela"] = "meu_dashboard"
-                st.rerun()
             
             # ===== RODAPÉ DA SIDEBAR (sempre no final) =====
             st.markdown("---")

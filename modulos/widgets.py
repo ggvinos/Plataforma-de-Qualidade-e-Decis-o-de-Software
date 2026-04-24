@@ -32,7 +32,8 @@ from modulos.calculos import (
     analisar_dev_detalhado, filtrar_qas_principais,
     calcular_concentracao_conhecimento, gerar_recomendacoes_rodizio,
     calcular_metricas_governanca, calcular_metricas_qa, calcular_metricas_produto,
-    calcular_health_score, calcular_metricas_dev, calcular_metricas_backlog
+    calcular_health_score, calcular_metricas_dev, calcular_metricas_backlog,
+    calcular_concentracao_pessoa
 )
 from modulos.jira_api import (
     buscar_dados_jira_cached, buscar_card_especifico,
@@ -272,7 +273,6 @@ CATALOGO_WIDGETS = {
 
 # Nome do cookie para consultas salvas
 COOKIE_CONSULTAS_NAME = "ninadash_consultas_salvas"
-COOKIE_DASHBOARD_NAME = "ninadash_meu_dashboard"
 
 
 
@@ -978,6 +978,57 @@ def exibir_concentracao_time(df: pd.DataFrame, tipo: str = "dev"):
         
         st.markdown("---")
         st.caption("💡 Veja análise completa na aba **Liderança** → seção 'Análise de Concentração'")
+
+
+def exibir_concentracao_simplificada(df: pd.DataFrame, pessoa: str, tipo: str = "dev", expanded: bool = False):
+    """
+    Exibe um card simplificado com a concentração de conhecimento de uma pessoa.
+    Para uso nas abas DEV e QA.
+    
+    Args:
+        df: DataFrame com os cards
+        pessoa: Nome da pessoa
+        tipo: "dev" ou "qa"
+        expanded: Se o expander deve estar aberto por padrão
+    """
+    concentracao = calcular_concentracao_pessoa(df, pessoa, tipo)
+    
+    if concentracao['total_cards'] == 0:
+        return
+    
+    titulo_emoji = "📦" if tipo == "dev" else "🔬"
+    
+    with st.expander(f"{titulo_emoji} Áreas de Atuação", expanded=expanded):
+        # Produtos
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**📦 Por Produto:**")
+            produtos = concentracao['produtos'][:5]  # Top 5
+            if produtos:
+                for p in produtos:
+                    cor = '🔴' if p['pct'] >= 80 else '🟡' if p['pct'] >= 60 else '🟢'
+                    st.markdown(f"{cor} **{p['nome']}**: {p['cards']} cards ({p['pct']}%)")
+            else:
+                st.info("Sem dados de produto")
+        
+        with col2:
+            st.markdown("**🏢 Por Cliente:**")
+            clientes = [c for c in concentracao['clientes'][:5] if c['nome'] not in ['Sem cliente', 'Interno/Plataforma']]
+            if clientes:
+                for c in clientes:
+                    cor = '🔴' if c['pct'] >= 80 else '🟡' if c['pct'] >= 60 else '🟢'
+                    st.markdown(f"{cor} **{c['nome']}**: {c['cards']} cards ({c['pct']}%)")
+            else:
+                st.info("Sem dados de cliente específico")
+        
+        # Alertas de concentração
+        if concentracao['alertas']:
+            st.markdown("---")
+            st.markdown("**⚠️ Pontos de atenção (concentração ≥60%):**")
+            for alerta in concentracao['alertas']:
+                icone = "📦" if alerta['tipo'] == 'produto' else "🏢"
+                st.warning(f"{icone} Alta concentração em **{alerta['nome']}** ({alerta['pct']}% dos cards)")
 
 
 # ==============================================================================

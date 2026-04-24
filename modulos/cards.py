@@ -13,6 +13,7 @@ Version: 1.0 (Phase 7)
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
@@ -21,7 +22,7 @@ from typing import Dict, List, Optional, Tuple, Any
 
 from modulos.config import (
     JIRA_BASE_URL, CUSTOM_FIELDS, STATUS_FLOW, STATUS_NOMES, STATUS_CORES,
-    TOOLTIPS, REGRAS, PB_FUNIL_ETAPAS, TEMAS_NAO_CLIENTES
+    TOOLTIPS, REGRAS, PB_FUNIL_ETAPAS, TEMAS_NAO_CLIENTES, NINADASH_URL
 )
 from modulos.utils import (
     link_jira, card_link_com_popup, traduzir_link,
@@ -32,7 +33,8 @@ from modulos.calculos import (
     analisar_dev_detalhado, filtrar_qas_principais,
     calcular_concentracao_conhecimento, gerar_recomendacoes_rodizio,
     calcular_metricas_governanca, calcular_metricas_qa, calcular_metricas_produto,
-    calcular_health_score, calcular_metricas_dev, calcular_metricas_backlog
+    calcular_health_score, calcular_metricas_dev, calcular_metricas_backlog,
+    classificar_maturidade
 )
 from modulos.jira_api import (
     buscar_dados_jira_cached, buscar_card_especifico,

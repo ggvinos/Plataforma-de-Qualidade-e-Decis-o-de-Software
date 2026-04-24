@@ -2,7 +2,7 @@
 🔐 CONFIRMATION CALL AUTH - Autenticação com API JWT
 
 Integração com API do ConfirmationCall usando Basic Auth para obtenção de JWT.
-Gerencia estado de autenticação em session_state com persistência em cookies.
+Gerencia estado de autenticação em session_state + COOKIES para persistência.
 
 Endpoints:
 - Develop: https://api.develop.confirmationcall.com.br/api/user/loginjwt
@@ -16,12 +16,13 @@ from requests.auth import HTTPBasicAuth
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Tuple
 import json
+import time
+import extra_streamlit_components as stx
 
 # Import do SVG da logo
 try:
     from modulos.config import NINA_LOGO_SVG
 except ImportError:
-    # Fallback se não conseguir importar
     NINA_LOGO_SVG = ''
 
 # ==============================================================================
@@ -35,8 +36,20 @@ ENDPOINTS = {
 }
 
 TIMEOUT_SEGUNDOS = 10
-COOKIE_JWT_NAME = "ninadash_jwt_token"
+
+# Configuração de Cookies para persistência
+COOKIE_AUTH_NAME = "ninadash_jwt_auth"
 COOKIE_EXPIRY_DAYS = 30
+
+
+# ==============================================================================
+# GERENCIADOR DE COOKIES (SINGLETON)
+# ==============================================================================
+
+@st.cache_resource(show_spinner=False)
+def get_cookie_manager():
+    """Retorna instância única do CookieManager."""
+    return stx.CookieManager(key="ninadash_jwt_cookie_manager")
 
 
 # ==============================================================================
@@ -52,7 +65,7 @@ def autenticar_com_confirmation_call(
     Autentica usuário com a API do ConfirmationCall usando Basic Auth.
     
     Args:
-        usuario: Nome de usuário
+        usuario: Nome de usuário (pode ser nome.sobrenome ou nome.sobrenome@confirmationcall.com.br)
         senha: Senha do usuário
         ambiente: "Desenvolvimento", "Homologação" ou "Produção"
     
@@ -61,10 +74,14 @@ def autenticar_com_confirmation_call(
     """
     
     if ambiente not in ENDPOINTS:
-        return False, None, f"❌ Ambiente inválido. Escolha entre: {', '.join(ENDPOINTS.keys())}"
+        return False, None, f"Ambiente inválido. Escolha entre: {', '.join(ENDPOINTS.keys())}"
     
     if not usuario or not senha:
-        return False, None, "❌ Usuário e senha são obrigatórios"
+        return False, None, "Usuário e senha são obrigatórios"
+    
+    # Se o usuário não tiver domínio, adiciona @confirmationcall.com.br
+    if "@" not in usuario:
+        usuario = f"{usuario}@confirmationcall.com.br"
     
     try:
         endpoint = ENDPOINTS[ambiente]
@@ -173,7 +190,7 @@ def autenticar_com_confirmation_call(
 
 
 # ==============================================================================
-# GERENCIAMENTO DE STATE
+# GERENCIAMENTO DE STATE + COOKIES
 # ==============================================================================
 
 def inicializar_session_state():
@@ -188,32 +205,135 @@ def inicializar_session_state():
         st.session_state.ambiente_autenticacao = None
     if "tempo_autenticacao" not in st.session_state:
         st.session_state.tempo_autenticacao = None
+    if "cookie_checked" not in st.session_state:
+        st.session_state.cookie_checked = False
+
+
+def restaurar_sessao_do_cookie() -> bool:
+    """
+    Tenta restaurar a sessão a partir do cookie salvo.
+    Retorna True se conseguiu restaurar, False caso contrário.
+    """
+    try:
+        cookie_manager = get_cookie_manager()
+        auth_data = cookie_manager.get(COOKIE_AUTH_NAME)
+        
+        if auth_data:
+            # Parse dos dados do cookie (formato JSON)
+            if isinstance(auth_data, str):
+                data = json.loads(auth_data)
+            else:
+                data = auth_data
+            
+            # Verifica se tem os campos necessários
+            if data.get("token") and data.get("usuario"):
+                # Restaura sessão
+                st.session_state.authenticated = True
+                st.session_state.jwt_token = data["token"]
+                st.session_state.usuario_autenticado = data["usuario"]
+                st.session_state.ambiente_autenticacao = data.get("ambiente", "Produção")
+                st.session_state.tempo_autenticacao = datetime.now()
+                
+                # Para compatibilidade com auth.py
+                st.session_state.logged_in = True
+                st.session_state.user_email = data["usuario"]
+                nome_usuario = data["usuario"].split("@")[0].replace(".", " ").title()
+                st.session_state.user_nome = nome_usuario
+                
+                return True
+    except Exception as e:
+        # Se falhar ao ler cookie, ignora silenciosamente
+        pass
+    
+    return False
 
 
 def verificar_autenticacao() -> bool:
     """
     Verifica se o usuário está autenticado.
+    Ordem de verificação:
+    1. session_state (mais rápido, já autenticado nesta sessão)
+    2. Cookie (persistência entre recarregamentos/abas)
+    
     Retorna True se autenticado, False caso contrário.
     """
-    return st.session_state.get("authenticated", False) and st.session_state.get("jwt_token")
+    # 1. Primeiro verifica session_state (mais rápido)
+    if st.session_state.get("authenticated", False) and st.session_state.get("jwt_token"):
+        return True
+    
+    # 2. Tenta restaurar do cookie (apenas uma vez por sessão para evitar loop)
+    if not st.session_state.get("cookie_checked", False):
+        st.session_state.cookie_checked = True
+        if restaurar_sessao_do_cookie():
+            return True
+    
+    return False
 
 
-def salvar_autenticacao(usuario: str, token: str, ambiente: str):
-    """Salva informações de autenticação no session_state."""
+def salvar_autenticacao(usuario: str, token: str, ambiente: str, lembrar: bool = True):
+    """
+    Salva informações de autenticação no session_state e opcionalmente no cookie.
+    
+    Args:
+        usuario: Email do usuário
+        token: Token JWT
+        ambiente: Ambiente de autenticação
+        lembrar: Se True, salva cookie para persistência (padrão: True)
+    """
+    # Salva em session_state
     st.session_state.authenticated = True
     st.session_state.jwt_token = token
     st.session_state.usuario_autenticado = usuario
     st.session_state.ambiente_autenticacao = ambiente
     st.session_state.tempo_autenticacao = datetime.now()
+    
+    # Para compatibilidade com auth.py
+    st.session_state.logged_in = True
+    st.session_state.user_email = usuario
+    nome_usuario = usuario.split("@")[0].replace(".", " ").title() if "@" in usuario else usuario
+    st.session_state.user_nome = nome_usuario
+    
+    # Salva no cookie para persistência
+    if lembrar:
+        try:
+            cookie_manager = get_cookie_manager()
+            auth_data = json.dumps({
+                "token": token,
+                "usuario": usuario,
+                "ambiente": ambiente,
+                "salvo_em": datetime.now().isoformat()
+            })
+            cookie_manager.set(
+                COOKIE_AUTH_NAME,
+                auth_data,
+                expires_at=datetime.now() + timedelta(days=COOKIE_EXPIRY_DAYS)
+            )
+        except Exception as e:
+            # Se falhar ao salvar cookie, login ainda funciona na sessão
+            pass
 
 
 def limpar_autenticacao():
-    """Limpa informações de autenticação do session_state."""
+    """Limpa informações de autenticação do session_state e cookie."""
+    # Limpa session_state
     st.session_state.authenticated = False
     st.session_state.jwt_token = None
     st.session_state.usuario_autenticado = None
     st.session_state.ambiente_autenticacao = None
     st.session_state.tempo_autenticacao = None
+    st.session_state.cookie_checked = False
+    
+    # Limpa compatibilidade com auth.py
+    st.session_state.logged_in = False
+    st.session_state.user_email = None
+    st.session_state.user_nome = None
+    
+    # Remove cookie
+    try:
+        cookie_manager = get_cookie_manager()
+        cookie_manager.delete(COOKIE_AUTH_NAME)
+    except Exception:
+        pass
 
 
 # ==============================================================================
@@ -231,195 +351,62 @@ def tela_login():
         layout="centered",
     )
     
-    # Inicializa state
     inicializar_session_state()
     
-    # CSS customizado para tela de login
+    # CSS para esconder "Press enter to submit" e estilizar
     st.markdown("""
     <style>
-        /* Centro do conteúdo */
-        .login-container {
-            margin-top: 60px;
-            margin-bottom: 60px;
-        }
-        
-        /* Logo */
-        .login-logo {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        /* Título */
-        .login-title {
-            text-align: center;
-            color: #AF0C37;
-            font-size: 2.2em;
-            font-weight: 700;
-            margin: 0;
-            margin-bottom: 5px;
-        }
-        
-        /* Subtítulo */
-        .login-subtitle {
-            text-align: center;
-            color: #666;
-            font-size: 0.95em;
-            margin: 5px 0 30px 0;
-            font-style: italic;
-        }
-        
-        /* Formulário */
-        .login-form {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 30px;
-            margin: 20px 0;
-        }
-        
-        /* Footer */
-        .login-footer {
-            text-align: center;
-            color: #999;
-            font-size: 0.85em;
-            margin-top: 40px;
-        }
+        .nina-red { color: #AF0C37; font-weight: 700; }
+        .login-header { text-align: center; margin-bottom: 20px; }
+        .login-header svg { max-width: 100px; height: auto; }
+        .login-title { text-align: center; font-size: 1.2em; color: #333; margin: 0 0 5px 0; font-weight: 600; }
+        .login-subtitle { text-align: center; color: #666; font-size: 0.85em; margin: 0 0 20px 0; }
+        .login-footer { text-align: center; color: #999; font-size: 0.75em; margin-top: 20px; }
     </style>
     """, unsafe_allow_html=True)
     
-    # Layout: Centralizado
-    col1, col2, col3 = st.columns([1, 2.5, 1])
+    # Centraliza conteúdo usando colunas
+    col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
-        # ==== LOGO DA NINA ====
-        st.markdown(f"""
-        <div class='login-logo'>
-            {NINA_LOGO_SVG}
-        </div>
-        """, unsafe_allow_html=True)
+        # Logo
+        st.markdown(f"<div class='login-header'>{NINA_LOGO_SVG}</div>", unsafe_allow_html=True)
         
-        # ==== TÍTULO E SUBTÍTULO ====
-        st.markdown("""
-        <h1 class='login-title'>NinaDash</h1>
-        <p class='login-subtitle'>Transformando dados em decisões</p>
-        """, unsafe_allow_html=True)
+        # Título e subtítulo
+        st.markdown("<p class='login-title'>Bem-vindo ao <span class='nina-red'>NinaDash</span></p>", unsafe_allow_html=True)
+        st.markdown("<p class='login-subtitle'>Plataforma de Qualidade e Decisão de Software</p>", unsafe_allow_html=True)
         
-        # Linha divisória
-        st.markdown("---")
+        # Container fixo para mensagens - usa info como placeholder para manter tamanho
+        msg_container = st.empty()
+        msg_container.info("Insira suas credenciais para acessar o dashboard")
         
-        # ==== FORMULÁRIO DE LOGIN ====
-        with st.form("form_login", clear_on_submit=False):
-            st.markdown("""
-            <h3 style='text-align: center; color: #333; margin-top: 0;'>Autenticação ConfirmationCall</h3>
-            """, unsafe_allow_html=True)
+        # Form para evitar rerun ao clicar no checkbox
+        with st.form("login_form", clear_on_submit=False):
+            usuario = st.text_input("Usuário", placeholder="nome.sobrenome")
+            senha = st.text_input("Senha", type="password", placeholder="Sua senha")
+            ambiente = st.selectbox("Ambiente", options=list(ENDPOINTS.keys()), index=2)
+            lembrar = st.checkbox("Lembrar do acesso", value=True, help="Mantém você conectado por 30 dias")
             
-            st.markdown("")  # Espaço
-            
-            usuario = st.text_input(
-                "👤 Usuário",
-                placeholder="nome.sobrenome@confirmationcall.com.br",
-                help="Seu usuário ConfirmationCall"
-            )
-            
-            senha = st.text_input(
-                "🔑 Senha",
-                type="password",
-                placeholder="Sua senha",
-                help="Sua senha do ConfirmationCall"
-            )
-            
-            ambiente = st.selectbox(
-                "🌐 Ambiente",
-                options=list(ENDPOINTS.keys()),
-                index=2,  # Produção por padrão
-                help="Selecione o ambiente para autenticação"
-            )
-            
-            st.markdown("")  # Espaço
-            
-            # Botões
-            col_btn1, col_btn2 = st.columns(2)
-            
-            with col_btn1:
-                btn_login = st.form_submit_button(
-                    "🚀 Entrar",
-                    use_container_width=True,
-                    type="primary"
-                )
-            
-            with col_btn2:
-                st.form_submit_button(
-                    "❓ Ajuda",
-                    use_container_width=True,
-                    disabled=True
-                )
-            
-            # ==== PROCESSA LOGIN ====
-            if btn_login:
-                if not usuario or not senha:
-                    st.error("❌ Por favor, preencha todos os campos!")
+            submitted = st.form_submit_button("Entrar", use_container_width=True, type="primary")
+        
+        # Processa fora do form para usar o container fixo
+        if submitted:
+            if not usuario or not senha:
+                msg_container.error("Preencha todos os campos!")
+            else:
+                msg_container.info("Autenticando...")
+                sucesso, token, mensagem = autenticar_com_confirmation_call(usuario, senha, ambiente)
+                
+                if sucesso:
+                    email = usuario if "@" in usuario else f"{usuario}@confirmationcall.com.br"
+                    salvar_autenticacao(email, token, ambiente, lembrar=lembrar)
+                    msg_container.success("Bem-vindo!")
+                    st.rerun()
                 else:
-                    with st.spinner(f"🔄 Autenticando no {ambiente}..."):
-                        sucesso, token, mensagem = autenticar_com_confirmation_call(
-                            usuario, senha, ambiente
-                        )
-                    
-                    if sucesso:
-                        # Login bem-sucedido
-                        salvar_autenticacao(usuario, token, ambiente)
-                        st.success(mensagem)
-                        st.success(f"✨ Bem-vindo, {usuario}!")
-                        st.balloons()
-                        st.rerun()
-                    else:
-                        # Erro no login
-                        st.error(mensagem)
-                        
-                        # Expander com troubleshooting
-                        with st.expander("🔧 Informações de Troubleshooting"):
-                            st.markdown("""
-                            ### Dicas de Resolução:
-                            
-                            **❌ "Credenciais inválidas (401)":**
-                            - Verifique se usuário e senha estão corretos
-                            - Confirme que não há espaços extras
-                            - Tente novamente ou contacte admin
-                            
-                            **❌ "Acesso negado (403)":**
-                            - Seu usuário não tem permissão neste ambiente
-                            - Contacte administrador do ConfirmationCall
-                            
-                            **❌ "Timeout ou Erro de Conexão":**
-                            - Verifique sua conexão de internet
-                            - Tente desativar VPN/proxy
-                            - Tente outro ambiente
-                            
-                            **🔍 Para Mais Informações:**
-                            Execute no terminal:
-                            """)
-                            st.code("python3 test_cc_dev.py", language="bash")
+                    msg_container.error(mensagem)
         
-        # Linha divisória
-        st.markdown("---")
-        
-        # ==== INFORMAÇÕES DE SEGURANÇA ====
-        with st.expander("🛡️ Informações de Segurança"):
-            st.markdown("""
-            #### ✅ Proteção Implementada
-            - **HTTPS/SSL**: Todas as comunicações criptografadas
-            - **Basic Auth**: Credenciais enviadas com segurança
-            - **JWT Token**: Autorização sem armazenar senha
-            - **Session State**: Token armazenado apenas na sessão
-            - **Sem Persistência**: Nenhum dado salvo localmente
-            
-            #### 🌐 Ambientes Disponíveis
-            - **Desenvolvimento**: Testes e integração
-            - **Homologação**: Pré-produção
-            - **Produção**: Ambiente de produção
-            """)
-        
-        # ==== FOOTER ====
-        st.markdown("<div class='login-footer'>© 2026 Nina Tecnologia<br/>Dashboard de Inteligência de QA</div>", unsafe_allow_html=True)
+        # Footer
+        st.markdown("<div class='login-footer'>© 2026 Nina Tecnologia • Dashboard de Inteligência de QA</div>", unsafe_allow_html=True)
 
 
 # ==============================================================================
@@ -428,33 +415,36 @@ def tela_login():
 
 def renderizar_logout_sidebar():
     """
-    Renderiza botão de logout na sidebar com informações do usuário autenticado.
+    Renderiza informações do usuário em um card e botão de logout na sidebar.
     Deve ser chamado dentro de st.sidebar.
     """
     if not verificar_autenticacao():
         return
     
-    st.markdown("---")
+    usuario_email = st.session_state.get("usuario_autenticado", "usuário@confirmationcall.com.br")
     
-    usuario = st.session_state.get("usuario_autenticado", "Usuário")
-    ambiente = st.session_state.get("ambiente_autenticacao", "")
+    # Extrai apenas o nome (primeira parte antes do @)
+    nome_usuario = usuario_email.split("@")[0].replace(".", " ").title() if "@" in usuario_email else usuario_email
     
-    st.markdown(f"### 👤 {usuario}")
-    st.caption(f"🌐 {ambiente}")
+    # Card com informações do usuário (UX: similar a aba de perfil)
+    st.markdown(f"""
+    <div style="
+        background: linear-gradient(135deg, #f8f9fa 0%, #f0f1f5 100%);
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 10px 0;
+    ">
+        <div style="font-size: 12px; color: #666; margin-bottom: 8px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Usuário</div>
+        <div style="font-size: 16px; color: #AF0C37; font-weight: 600; margin-bottom: 4px;">{nome_usuario}</div>
+        <div style="font-size: 12px; color: #999; word-break: break-all;">{usuario_email}</div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("🔓 Sair", use_container_width=True):
-            limpar_autenticacao()
-            st.success("✅ Desconectado com sucesso")
-            st.rerun()
-    
-    with col2:
-        if st.button("🔄 Renovar", use_container_width=True, help="Renovar token JWT"):
-            st.info("ℹ️ Função de renovação em desenvolvimento")
-    
-    st.markdown("---")
+    # Botão de sair
+    if st.button("Sair", use_container_width=True, key="btn_logout_sidebar"):
+        limpar_autenticacao()
+        st.rerun()
 
 
 # ==============================================================================

@@ -894,12 +894,25 @@ def calcular_metricas_backlog(df: pd.DataFrame) -> Dict:
     """Calcula métricas específicas para análise do Product Backlog."""
     hoje = datetime.now()
     
-    # Filtrar apenas itens no backlog (não concluídos e não em progresso avançado)
-    df_backlog = df[df['status_cat'].isin(['backlog'])]
+    # Categorias de status que representam "backlog" (não concluído, não em dev ativo)
+    # Inclui status específicos do projeto PB
+    categorias_backlog = [
+        'backlog', 
+        'pb_revisao_produto', 
+        'pb_roteiro', 
+        'pb_ux', 
+        'pb_esforco', 
+        'pb_aguarda_dev',
+        'pb_aguardando_resposta',
+        'unknown'  # Inclui unknown para capturar itens não mapeados
+    ]
     
-    # Se não houver itens no backlog "puro", considerar todos não concluídos
+    # Filtrar itens no backlog (status de backlog ou PB)
+    df_backlog = df[df['status_cat'].isin(categorias_backlog)]
+    
+    # Se não houver itens, considerar todos não concluídos
     if df_backlog.empty:
-        df_backlog = df[~df['status_cat'].isin(['done', 'deferred'])]
+        df_backlog = df[~df['status_cat'].isin(['done', 'deferred', 'valprod_aprovado'])]
     
     # REMOVER HOTFIX - não passa por produto, vai direto pra dev
     df_backlog = df_backlog[df_backlog['tipo'] != 'HOTFIX']

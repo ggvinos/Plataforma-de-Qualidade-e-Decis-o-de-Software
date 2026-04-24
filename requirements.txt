@@ -28,6 +28,14 @@ python-dotenv>=1.0.0
 # Excel/OpenPyXL
 openpyxl>=3.1.0
 
+# ================================================================================
+# DESENVOLVIMENTO E TESTES
+# ================================================================================
+
+# Framework de testes
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
 # Carregar variáveis de ambiente do arquivo .env
 python-dotenv>=1.0.0
 
