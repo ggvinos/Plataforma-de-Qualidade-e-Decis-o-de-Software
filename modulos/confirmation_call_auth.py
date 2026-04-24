@@ -46,18 +46,78 @@ COOKIE_EXPIRY_DAYS = 30
 
 
 # ==============================================================================
-# GERENCIADOR DE COOKIES (POR SESSÃO - NÃO COMPARTILHADO)
+# GERENCIADOR DE COOKIES (USANDO JAVASCRIPT NATIVO)
 # ==============================================================================
+
+def _injetar_js_cookie():
+    """
+    Injeta JavaScript para ler cookies de forma síncrona.
+    Retorna o valor do cookie de autenticação se existir.
+    """
+    import streamlit.components.v1 as components
+    
+    # JavaScript para ler o cookie e enviar para o Streamlit
+    js_code = f"""
+    <script>
+    (function() {{
+        function getCookie(name) {{
+            const value = "; " + document.cookie;
+            const parts = value.split("; " + name + "=");
+            if (parts.length === 2) {{
+                return decodeURIComponent(parts.pop().split(";").shift());
+            }}
+            return null;
+        }}
+        
+        const cookieValue = getCookie("{COOKIE_AUTH_NAME}");
+        if (cookieValue && window.parent) {{
+            // Armazena no sessionStorage para persistir durante o rerun
+            sessionStorage.setItem("ninadash_auth_cookie", cookieValue);
+        }}
+    }})();
+    </script>
+    """
+    components.html(js_code, height=0, width=0)
+
+
+def _salvar_cookie_js(dados: str, dias: int = 30):
+    """Salva cookie usando JavaScript."""
+    import streamlit.components.v1 as components
+    
+    js_code = f"""
+    <script>
+    (function() {{
+        const d = new Date();
+        d.setTime(d.getTime() + ({dias} * 24 * 60 * 60 * 1000));
+        const expires = "expires=" + d.toUTCString();
+        document.cookie = "{COOKIE_AUTH_NAME}=" + encodeURIComponent(`{dados}`) + ";" + expires + ";path=/;SameSite=Lax";
+    }})();
+    </script>
+    """
+    components.html(js_code, height=0, width=0)
+
+
+def _remover_cookie_js():
+    """Remove cookie usando JavaScript."""
+    import streamlit.components.v1 as components
+    
+    js_code = f"""
+    <script>
+    (function() {{
+        document.cookie = "{COOKIE_AUTH_NAME}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;";
+        sessionStorage.removeItem("ninadash_auth_cookie");
+    }})();
+    </script>
+    """
+    components.html(js_code, height=0, width=0)
+
 
 def get_cookie_manager():
     """
     Retorna instância do CookieManager.
-    Usa uma key única fixa para garantir que cookies sejam lidos corretamente
-    entre diferentes sessões/abas do mesmo navegador.
+    Usa uma key única fixa para garantir que cookies sejam lidos corretamente.
     """
-    # Usa key fixa para garantir consistência na leitura de cookies
-    # O CookieManager precisa ser recriado a cada chamada para ler cookies atualizados
-    return stx.CookieManager(key="ninadash_cookie_mgr")
+    return stx.CookieManager(key="ninadash_auth_cm")
 
 
 # ==============================================================================
@@ -266,12 +326,12 @@ def restaurar_sessao_do_cookie() -> bool:
     try:
         cookie_manager = get_cookie_manager()
         
-        # O CookieManager precisa renderizar primeiro para ler cookies
-        # Na primeira execução, pode retornar None
-        auth_data = cookie_manager.get(COOKIE_AUTH_NAME)
+        # IMPORTANTE: Renderiza o componente para garantir que o JS carregou
+        # Isso é necessário para o CookieManager funcionar corretamente
+        cookies = cookie_manager.get_all()
         
-        # Debug: mostra no console se estamos recebendo dados
-        # print(f"[DEBUG] Cookie auth_data: {auth_data}")
+        # Tenta obter o cookie de autenticação
+        auth_data = cookies.get(COOKIE_AUTH_NAME) if cookies else None
         
         if auth_data:
             # Parse dos dados do cookie (formato JSON)
@@ -321,20 +381,40 @@ def verificar_autenticacao() -> bool:
     
     # 2. Tenta restaurar do cookie
     # O CookieManager é assíncrono - na primeira execução pode retornar None
-    # Tentamos até 2 vezes com um rerun entre elas
+    # Tentamos até 3 vezes com rerun entre elas
     cookie_attempts = st.session_state.get("cookie_check_attempts", 0)
     
-    if cookie_attempts < 2:  # Tenta até 2 vezes
+    if cookie_attempts < 3:  # Tenta até 3 vezes
         st.session_state.cookie_check_attempts = cookie_attempts + 1
         
         if restaurar_sessao_do_cookie():
+            # Reset contador para próxima sessão
+            st.session_state.cookie_check_attempts = 0
             return True
         
-        # Se é a primeira tentativa e não conseguiu, força rerun
-        # para dar tempo ao JavaScript do CookieManager carregar
-        if cookie_attempts == 0:
+        # Se não conseguiu, força rerun para dar tempo ao JS carregar
+        # Mostra indicador de carregamento apenas nas primeiras tentativas
+        if cookie_attempts < 2:
+            st.markdown("""
+            <div style="display: flex; justify-content: center; align-items: center; height: 100vh;">
+                <div style="text-align: center;">
+                    <div style="font-size: 48px; animation: spin 1s linear infinite;">⏳</div>
+                    <p style="color: #666; margin-top: 10px;">Verificando sessão...</p>
+                </div>
+            </div>
+            <style>
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+            </style>
+            """, unsafe_allow_html=True)
+            import time
+            time.sleep(0.3)  # Pequeno delay para o JS carregar
             st.rerun()
     
+    # Reset contador se chegou no máximo de tentativas
+    st.session_state.cookie_check_attempts = 0
     return False
 
 
@@ -354,6 +434,7 @@ def salvar_autenticacao(usuario: str, token: str, ambiente: str, lembrar: bool =
     st.session_state.usuario_autenticado = usuario
     st.session_state.ambiente_autenticacao = ambiente
     st.session_state.tempo_autenticacao = datetime.now()
+    st.session_state.cookie_check_attempts = 0  # Reset contador
     
     # Para compatibilidade com auth.py
     st.session_state.logged_in = True
@@ -363,22 +444,26 @@ def salvar_autenticacao(usuario: str, token: str, ambiente: str, lembrar: bool =
     
     # Salva no cookie para persistência
     if lembrar:
+        auth_data = json.dumps({
+            "token": token,
+            "usuario": usuario,
+            "ambiente": ambiente,
+            "salvo_em": datetime.now().isoformat()
+        })
+        
+        # Método 1: CookieManager (componente streamlit)
         try:
             cookie_manager = get_cookie_manager()
-            auth_data = json.dumps({
-                "token": token,
-                "usuario": usuario,
-                "ambiente": ambiente,
-                "salvo_em": datetime.now().isoformat()
-            })
             cookie_manager.set(
                 COOKIE_AUTH_NAME,
                 auth_data,
                 expires_at=datetime.now() + timedelta(days=COOKIE_EXPIRY_DAYS)
             )
-        except Exception as e:
-            # Se falhar ao salvar cookie, login ainda funciona na sessão
+        except Exception:
             pass
+        
+        # Método 2: JavaScript direto (backup mais confiável)
+        _salvar_cookie_js(auth_data, COOKIE_EXPIRY_DAYS)
 
 
 def limpar_autenticacao():
@@ -390,18 +475,28 @@ def limpar_autenticacao():
     st.session_state.ambiente_autenticacao = None
     st.session_state.tempo_autenticacao = None
     st.session_state.cookie_checked = False
+    st.session_state.cookie_check_attempts = 0  # Reset contador
+    
+    # Limpa permissões do usuário
+    if "user_permissions" in st.session_state:
+        del st.session_state.user_permissions
+    if "acesso_registrado" in st.session_state:
+        del st.session_state.acesso_registrado
     
     # Limpa compatibilidade com auth.py
     st.session_state.logged_in = False
     st.session_state.user_email = None
     st.session_state.user_nome = None
     
-    # Remove cookie
+    # Remove cookie usando CookieManager
     try:
         cookie_manager = get_cookie_manager()
         cookie_manager.delete(COOKIE_AUTH_NAME)
     except Exception:
         pass
+    
+    # Remove cookie também via JavaScript (backup)
+    _remover_cookie_js()
 
 
 # ==============================================================================
