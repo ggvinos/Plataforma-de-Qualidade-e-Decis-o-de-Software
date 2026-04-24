@@ -121,7 +121,7 @@ from modulos.processamento import (
 from modulos.abas import (
     aba_clientes,
     aba_visao_geral,
-    aba_visao_geral_v2,
+    aba_visao_geral_v2,  # Nova versão orientada a decisão
     aba_qa,
     aba_dev,
     aba_governanca,
@@ -131,7 +131,7 @@ from modulos.abas import (
     aba_historico,
     aba_lideranca,
     aba_sobre,
-    aba_admin,
+    aba_admin,  # Painel Administrativo
 )
 
 # Phase 7: Novos módulos temáticos (blocos mentais)
@@ -282,6 +282,7 @@ verificar_e_bloquear()
 # ==============================================================================
 
 # Obtém permissões do usuário após autenticação
+# Sempre recarrega para garantir dados atualizados (é rápido)
 user_email = st.session_state.get("user_email", "") or st.session_state.get("usuario_autenticado", "")
 if user_email:
     # Registra o acesso na primeira vez
