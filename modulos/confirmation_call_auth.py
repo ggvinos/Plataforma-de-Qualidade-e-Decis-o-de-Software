@@ -607,13 +607,78 @@ def verificar_e_bloquear():
     """
     Middleware que bloqueia acesso ao dashboard se não autenticado.
     Deve ser chamado no início do app.py APÓS st.set_page_config().
+    
+    Usa um contador de tentativas para aguardar o CookieManager carregar,
+    evitando o "flash" da tela de login enquanto o cookie está sendo lido.
     """
     inicializar_session_state()
     
-    # Se não autenticado, mostra tela de login e interrompe execução
-    if not verificar_autenticacao():
-        tela_login()
-        st.stop()
+    # Contador de tentativas de leitura do cookie
+    if "cookie_check_attempts" not in st.session_state:
+        st.session_state.cookie_check_attempts = 0
+    
+    # Máximo de tentativas antes de mostrar login (evita loop infinito)
+    MAX_ATTEMPTS = 2
+    
+    # Se já está autenticado em session_state, prossegue
+    if st.session_state.get("authenticated", False) and st.session_state.get("jwt_token"):
+        return
+    
+    # Tenta restaurar do cookie
+    if restaurar_sessao_do_cookie():
+        return
+    
+    # Se ainda não tentou o máximo de vezes, aguarda e tenta novamente
+    # Isso dá tempo para o CookieManager carregar
+    if st.session_state.cookie_check_attempts < MAX_ATTEMPTS:
+        st.session_state.cookie_check_attempts += 1
+        
+        # Mostra tela de loading discreta enquanto verifica cookie
+        placeholder = st.empty()
+        with placeholder.container():
+            st.markdown("""
+            <style>
+                .loading-container {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100vh;
+                    background: #fafafa;
+                }
+                .loading-spinner {
+                    width: 40px;
+                    height: 40px;
+                    border: 3px solid #f3f3f3;
+                    border-top: 3px solid #AF0C37;
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                }
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+                .loading-text {
+                    margin-top: 16px;
+                    color: #666;
+                    font-size: 14px;
+                }
+            </style>
+            <div class="loading-container">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Verificando sessão...</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Aguarda brevemente e tenta novamente
+        import time
+        time.sleep(0.3)
+        st.rerun()
+    
+    # Esgotou tentativas - mostra tela de login
+    st.session_state.cookie_check_attempts = 0  # Reset para próxima vez
+    tela_login()
+    st.stop()
 
 
 # ==============================================================================
