@@ -370,34 +370,16 @@ def verificar_autenticacao() -> bool:
     1. session_state (mais rápido, já autenticado nesta sessão)
     2. Cookie (persistência entre recarregamentos/abas)
     
-    NOTA: O CookieManager é assíncrono. Na primeira execução de uma nova aba,
-    pode precisar de um rerun para carregar os cookies corretamente.
-    
     Retorna True se autenticado, False caso contrário.
     """
     # 1. Primeiro verifica session_state (mais rápido)
     if st.session_state.get("authenticated", False) and st.session_state.get("jwt_token"):
         return True
     
-    # 2. Tenta restaurar do cookie
-    # O CookieManager é assíncrono - na primeira execução pode retornar None
-    # Tentamos até 2 vezes com rerun entre elas
-    cookie_attempts = st.session_state.get("cookie_check_attempts", 0)
+    # 2. Tenta restaurar do cookie (sem rerun - deixa o login processar)
+    if restaurar_sessao_do_cookie():
+        return True
     
-    if cookie_attempts < 2:  # Tenta até 2 vezes
-        st.session_state.cookie_check_attempts = cookie_attempts + 1
-        
-        if restaurar_sessao_do_cookie():
-            # Reset contador para próxima sessão
-            st.session_state.cookie_check_attempts = 0
-            return True
-        
-        # Se é a primeira tentativa, força rerun para dar tempo ao JS carregar
-        if cookie_attempts == 0:
-            st.rerun()
-    
-    # Reset contador se chegou no máximo de tentativas
-    st.session_state.cookie_check_attempts = 0
     return False
 
 
@@ -537,13 +519,23 @@ def tela_login():
             else:
                 msg_container.info("🔄 Conectando...")
                 
+                # Debug: mostra que estamos tentando autenticar
+                st.toast(f"Autenticando {usuario}...")
+                
                 # Tenta autenticar automaticamente em todos os ambientes
                 sucesso, token, mensagem, ambiente = autenticar_automatico(usuario, senha)
+                
+                # Debug: mostra resultado
+                st.toast(f"Resultado: {sucesso} - {ambiente}")
                 
                 if sucesso:
                     email = usuario if "@" in usuario else f"{usuario}@confirmationcall.com.br"
                     salvar_autenticacao(email, token, ambiente, lembrar=lembrar)
-                    msg_container.success("Bem-vindo!")
+                    msg_container.success(f"✅ Bem-vindo! Redirecionando...")
+                    
+                    # Força atualização imediata
+                    import time
+                    time.sleep(0.5)
                     st.rerun()
                 else:
                     msg_container.error(mensagem)
