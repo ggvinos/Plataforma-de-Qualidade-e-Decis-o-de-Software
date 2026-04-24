@@ -381,10 +381,10 @@ def verificar_autenticacao() -> bool:
     
     # 2. Tenta restaurar do cookie
     # O CookieManager é assíncrono - na primeira execução pode retornar None
-    # Tentamos até 3 vezes com rerun entre elas
+    # Tentamos até 2 vezes com rerun entre elas
     cookie_attempts = st.session_state.get("cookie_check_attempts", 0)
     
-    if cookie_attempts < 3:  # Tenta até 3 vezes
+    if cookie_attempts < 2:  # Tenta até 2 vezes
         st.session_state.cookie_check_attempts = cookie_attempts + 1
         
         if restaurar_sessao_do_cookie():
@@ -392,25 +392,8 @@ def verificar_autenticacao() -> bool:
             st.session_state.cookie_check_attempts = 0
             return True
         
-        # Se não conseguiu, força rerun para dar tempo ao JS carregar
-        # Mostra indicador de carregamento apenas nas primeiras tentativas
-        if cookie_attempts < 2:
-            st.markdown("""
-            <div style="display: flex; justify-content: center; align-items: center; height: 100vh;">
-                <div style="text-align: center;">
-                    <div style="font-size: 48px; animation: spin 1s linear infinite;">⏳</div>
-                    <p style="color: #666; margin-top: 10px;">Verificando sessão...</p>
-                </div>
-            </div>
-            <style>
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-            </style>
-            """, unsafe_allow_html=True)
-            import time
-            time.sleep(0.3)  # Pequeno delay para o JS carregar
+        # Se é a primeira tentativa, força rerun para dar tempo ao JS carregar
+        if cookie_attempts == 0:
             st.rerun()
     
     # Reset contador se chegou no máximo de tentativas
@@ -507,13 +490,9 @@ def tela_login():
     """
     Exibe tela de login com campos para usuário e senha.
     Tenta autenticar automaticamente em todos os ambientes (Produção → Homolog → Dev).
-    """
-    st.set_page_config(
-        page_title="NinaDash - Autenticação",
-        page_icon="favicon.svg",
-        layout="centered",
-    )
     
+    NOTA: NÃO chama st.set_page_config() porque já foi chamado pelo app principal.
+    """
     inicializar_session_state()
     
     # CSS para esconder "Press enter to submit" e estilizar
