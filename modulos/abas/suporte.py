@@ -42,12 +42,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
         df_todos: DataFrame com cards de TODOS os projetos (SD, QA, PB, VALPROD)
     """
     st.markdown("### 🎯 Suporte e Implantação")
-    
-    # Info box sobre consistência
-    st.info(
-        "📌 **Consistência garantida:** Esta aba usa os **mesmos critérios de status** da Visão Geral. "
-        "Quando você vê '3 cards em Desenvolvimento' aqui, é o mesmo número que aparece na Visão Geral."
-    )
+    st.caption("Acompanhe seus cards em todos os projetos: SD, QA, PB e VALPROD")
     
     if df_todos is None or df_todos.empty:
         st.warning("⚠️ Nenhum card encontrado nos projetos.")
@@ -450,7 +445,7 @@ def _renderizar_metricas_pessoa(df_pessoa: pd.DataFrame):
         border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
         return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 16px 12px; text-align: center; height: 95px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 28px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151; margin-top: 4px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
     
-    st.markdown("##### 📊 Meus Cards por Status (Consistente com Visão Geral)")
+    st.markdown("##### 📊 Meus Cards por Status")
     
     # Usa status_cat para consistência com outras abas
     has_status_cat = 'status_cat' in df_pessoa.columns
@@ -583,7 +578,7 @@ def _renderizar_cards_aguardando_minha_acao(df_todos: pd.DataFrame, df_pessoa: p
     cor_titulo = "#ef4444" if total_acao > 0 else "#22c55e"
     icone = "⚠️" if total_acao > 0 else "✅"
     
-    with st.expander(f"{icone} Cards Aguardando MINHA Ação ({total_acao})", expanded=total_acao > 0):
+    with st.expander(f"{icone} O que você precisa fazer ({total_acao})", expanded=total_acao > 0):
         if total_acao == 0:
             st.success("✅ Nenhum card aguardando sua ação no momento!")
             return
@@ -1005,7 +1000,7 @@ def _renderizar_tooltip_sobre():
         
         | Seção | O que mostra |
         |-------|--------------|
-        | **⚠️ Cards Aguardando MINHA Ação** | Cards onde VOCÊ precisa agir (validar, corrigir, aprovar) |
+        | **⚠️ O que você precisa fazer** | Cards onde você precisa agir (validar, corrigir, aprovar) |
         | **🔍 Cards para Validar em Produção** | Cards do VALPROD que você precisa testar em produção |
         | **✅ Cards Concluídos** | Cards finalizados com sucesso |
         | **📊 Onde estão meus cards?** | Visão geral por status (mesmo critério da Visão Geral) |
@@ -1013,7 +1008,7 @@ def _renderizar_tooltip_sobre():
         
         ### 🎯 Dicas de Uso:
         - Selecione seu nome para ver **seus cards específicos**
-        - A seção "**Cards Aguardando MINHA Ação**" mostra exatamente o que você precisa fazer
+        - A seção "**O que você precisa fazer**" mostra suas pendências
         - Cards com **👉 VALIDAR** = você é o QA responsável
         - Cards com **👉 CORRIGIR** = voltou para você (foi reprovado)
         - Cards com **👉 APROVAR** = você é representante do cliente
