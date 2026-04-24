@@ -889,7 +889,7 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
         mat = classificar_maturidade(fk)
         
         def mini_tech_card(valor, titulo, meta, cor):
-            return f'<div style="background: white; border: 1px solid {cor}40; border-radius: 8px; padding: 10px 6px; text-align: center; height: 75px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 18px; font-weight: 700; color: {cor};">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151;">{titulo}</div><div style="font-size: 11px; color: #9ca3af;">{meta}</div></div>'
+            return f'<div style="background: white; border: 1px solid {cor}40; border-radius: 8px; padding: 10px 6px; text-align: center; height: 75px; display: flex; flex-direction: column; justify-content: center; margin-bottom: 12px;"><div style="font-size: 18px; font-weight: 700; color: {cor};">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151;">{titulo}</div><div style="font-size: 11px; color: #9ca3af;">{meta}</div></div>'
         
         col1, col2, col3, col4, col5 = st.columns(5)
         
@@ -914,12 +914,15 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
     with st.expander("📋 Distribuição por Status", expanded=False):
         status_counts = df.groupby('status_cat').size().to_dict()
         
+        # Legenda do fluxo
+        st.markdown('<div style="background: #f8fafc; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;"><div style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">📌 Fluxo de trabalho:</div><div style="font-size: 12px; color: #6b7280; line-height: 1.6;">🟣 <b>Desenvolvimento</b> → 🩷 <b>Code Review</b> (revisão de código) → 🟠 <b>Aguardando QA</b> (na fila) → 🔵 <b>Em Teste</b> (QA testando) → 🟢 <b>Concluído</b></div></div>', unsafe_allow_html=True)
+        
         etapas = [
-            ('development', 'Dev', '#8b5cf6'),
-            ('code_review', 'CR', '#ec4899'),
-            ('waiting_qa', 'Fila QA', '#f59e0b'),
-            ('testing', 'Test', '#3b82f6'),
-            ('done', 'Done', '#22c55e'),
+            ('development', 'Desenvolvimento', '#8b5cf6'),
+            ('code_review', 'Code Review', '#ec4899'),
+            ('waiting_qa', 'Aguardando QA', '#f59e0b'),
+            ('testing', 'Em Teste', '#3b82f6'),
+            ('done', 'Concluído', '#22c55e'),
         ]
         
         cols = st.columns(len(etapas))
@@ -928,11 +931,11 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
             pct = (count / total * 100) if total > 0 else 0
             
             with cols[i]:
-                html = f'<div style="text-align: center; padding: 12px 8px; background: {cor}10; border-radius: 8px; border: 1px solid {cor}40;"><div style="font-size: 22px; font-weight: 700; color: {cor};">{count}</div><div style="font-size: 12px; color: {cor}; font-weight: 600;">{nome}</div><div style="font-size: 11px; color: #9ca3af;">{pct:.0f}%</div></div>'
+                html = f'<div style="text-align: center; padding: 12px 8px; background: {cor}10; border-radius: 8px; border: 1px solid {cor}40; margin-bottom: 12px;"><div style="font-size: 22px; font-weight: 700; color: {cor};">{count}</div><div style="font-size: 12px; color: {cor}; font-weight: 600;">{nome}</div><div style="font-size: 11px; color: #9ca3af;">{pct:.0f}%</div></div>'
                 st.markdown(html, unsafe_allow_html=True)
         
-        st.markdown("---")
-        status_selecionado = st.selectbox("Ver cards de:", options=[s[1] for s in etapas], index=0, key="status_filter")
+        st.markdown('<div style="font-size: 13px; font-weight: 600; color: #374151; margin: 8px 0;">🔍 Filtrar cards por etapa:</div>', unsafe_allow_html=True)
+        status_selecionado = st.selectbox("Selecione a etapa:", options=[s[1] for s in etapas], index=0, key="status_filter", label_visibility="collapsed")
         
         status_key = next((s[0] for s in etapas if s[1] == status_selecionado), None)
         if status_key:
@@ -961,7 +964,7 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
                 n_hotfix = len(hotfixes)
                 
                 def mini_plan_card(valor, titulo, meta, cor):
-                    return f'<div style="background: white; border: 1px solid {cor}40; border-radius: 8px; padding: 10px 6px; text-align: center; height: 75px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 18px; font-weight: 700; color: {cor};">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151;">{titulo}</div><div style="font-size: 11px; color: #9ca3af;">{meta}</div></div>'
+                    return f'<div style="background: white; border: 1px solid {cor}40; border-radius: 8px; padding: 10px 6px; text-align: center; height: 75px; display: flex; flex-direction: column; justify-content: center; margin-bottom: 12px;"><div style="font-size: 18px; font-weight: 700; color: {cor};">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151;">{titulo}</div><div style="font-size: 11px; color: #9ca3af;">{meta}</div></div>'
                 
                 cor_entrega = "#22c55e" if pct_conclusao >= 80 else "#f59e0b" if pct_conclusao >= 60 else "#ef4444"
                 cor_fora = "#22c55e" if n_fora <= 3 else "#f59e0b" if n_fora <= 6 else "#ef4444"

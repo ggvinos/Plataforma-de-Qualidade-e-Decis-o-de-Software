@@ -933,51 +933,48 @@ def exibir_concentracao_time(df: pd.DataFrame, tipo: str = "dev"):
     titulo_tipo = "DEV" if tipo == "dev" else "QA"
     
     with st.expander(f"🔄 Concentração de Conhecimento ({titulo_tipo})", expanded=False):
-        st.caption("Identifique riscos de conhecimento centralizado no time")
+        st.markdown('<div style="font-size: 13px; color: #6b7280; margin-bottom: 12px;">Identifique riscos de conhecimento centralizado no time</div>', unsafe_allow_html=True)
         
-        # Cards resumo
+        # Cards resumo com novo design
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            cor = 'red' if len(alertas_criticos) > 0 else 'green'
-            criar_card_metrica(str(len(alertas_criticos)), "Críticos", cor, "≥80% concentração")
+            cor = "#EF4444" if len(alertas_criticos) > 0 else "#22C55E"
+            st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(alertas_criticos)}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">🚨 Críticos</div><div style="font-size: 11px; color: #9ca3af;">≥80% concentração</div></div>', unsafe_allow_html=True)
         
         with col2:
-            cor = 'yellow' if len(alertas_atencao) > 0 else 'green'
-            criar_card_metrica(str(len(alertas_atencao)), "Atenção", cor, "60-79% concentração")
+            cor = "#F59E0B" if len(alertas_atencao) > 0 else "#22C55E"
+            st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(alertas_atencao)}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">⚠️ Atenção</div><div style="font-size: 11px; color: #9ca3af;">60-79% concentração</div></div>', unsafe_allow_html=True)
         
         with col3:
             total_areas = len(indices_produto) + len(indices_cliente)
             areas_ok = sum(1 for d in indices_produto.values() if d['concentracao_pct'] < 60)
             areas_ok += sum(1 for d in indices_cliente.values() if d['concentracao_pct'] < 60)
             pct_ok = (areas_ok / total_areas * 100) if total_areas > 0 else 100
-            cor = 'green' if pct_ok >= 70 else 'yellow' if pct_ok >= 40 else 'red'
-            criar_card_metrica(f"{pct_ok:.0f}%", "Bem Distribuído", cor)
+            cor = "#22C55E" if pct_ok >= 70 else "#F59E0B" if pct_ok >= 40 else "#EF4444"
+            st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{pct_ok:.0f}%</div><div style="font-size: 13px; color: #374151; font-weight: 600;">✅ Bem Distribuído</div></div>', unsafe_allow_html=True)
         
         # Lista de alertas se houver
         if alertas_criticos or alertas_atencao:
-            st.markdown("---")
-            
             if alertas_criticos:
-                st.markdown("**🚨 Concentração Crítica:**")
+                st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin: 16px 0 8px 0;">🚨 Concentração Crítica</div>', unsafe_allow_html=True)
                 for a in alertas_criticos[:3]:  # Mostra top 3
                     icone = "📦" if a['contexto'] == 'produto' else "🏢"
-                    st.error(f"{icone} **{a['pessoa']}** domina {a['pct']}% de '{a['nome']}'")
+                    st.markdown(f'<div style="background: #FEF2F2; border-left: 3px solid #EF4444; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;"><div style="font-size: 13px; color: #374151;"><b>{a["pessoa"]}</b> domina <span style="color: #EF4444; font-weight: 700;">{a["pct"]}%</span> de \'{a["nome"]}\'</div><div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">{icone} {a["contexto"].capitalize()}</div></div>', unsafe_allow_html=True)
                 if len(alertas_criticos) > 3:
-                    st.caption(f"... e mais {len(alertas_criticos) - 3} alertas críticos")
+                    st.markdown(f'<div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">... e mais {len(alertas_criticos) - 3} alertas críticos</div>', unsafe_allow_html=True)
             
             if alertas_atencao:
-                st.markdown("**⚠️ Pontos de Atenção:**")
+                st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin: 16px 0 8px 0;">⚠️ Pontos de Atenção</div>', unsafe_allow_html=True)
                 for a in alertas_atencao[:3]:
                     icone = "📦" if a['contexto'] == 'produto' else "🏢"
-                    st.warning(f"{icone} **{a['pessoa']}** tem {a['pct']}% de '{a['nome']}'")
+                    st.markdown(f'<div style="background: #FFFBEB; border-left: 3px solid #F59E0B; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;"><div style="font-size: 13px; color: #374151;"><b>{a["pessoa"]}</b> tem <span style="color: #F59E0B; font-weight: 700;">{a["pct"]}%</span> de \'{a["nome"]}\'</div><div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">{icone} {a["contexto"].capitalize()}</div></div>', unsafe_allow_html=True)
                 if len(alertas_atencao) > 3:
-                    st.caption(f"... e mais {len(alertas_atencao) - 3} pontos de atenção")
+                    st.markdown(f'<div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">... e mais {len(alertas_atencao) - 3} pontos de atenção</div>', unsafe_allow_html=True)
         else:
-            st.success("✅ Conhecimento bem distribuído no time!")
+            st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Conhecimento bem distribuído no time!</div></div>', unsafe_allow_html=True)
         
-        st.markdown("---")
-        st.caption("💡 Veja análise completa na aba **Liderança** → seção 'Análise de Concentração'")
+        st.markdown('<div style="background: #F8FAFC; border-radius: 8px; padding: 12px; margin-top: 16px;"><div style="font-size: 12px; color: #6b7280;">💡 Veja análise completa na aba <b>Liderança</b> → seção \'Análise de Concentração\'</div></div>', unsafe_allow_html=True)
 
 
 def exibir_concentracao_simplificada(df: pd.DataFrame, pessoa: str, tipo: str = "dev", expanded: bool = False):

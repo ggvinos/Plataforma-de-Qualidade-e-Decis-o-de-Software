@@ -99,6 +99,7 @@ def aba_lideranca(df: pd.DataFrame):
     _renderizar_composicao_health(health)
     _renderizar_pontos_atencao(df)
     _renderizar_interacao_qa_dev(df)
+    _renderizar_analise_tech_lead(df)
     _renderizar_concentracao_conhecimento(df)
     _renderizar_performance_dev(df)
     _renderizar_historico_validacoes_lideranca(df)
@@ -705,6 +706,111 @@ def _renderizar_performance_dev(df: pd.DataFrame):
     with st.expander("👨‍💻 Performance por Desenvolvedor", expanded=False):
         dev_metricas = calcular_metricas_dev(df)
         st.dataframe(dev_metricas['stats'], hide_index=True, use_container_width=True)
+
+
+def _renderizar_analise_tech_lead(df: pd.DataFrame):
+    """Renderiza análise específica para Tech Lead - WIP, Code Review, Velocidade."""
+    with st.expander("🎯 Análise para Tech Lead", expanded=False):
+        st.markdown('<div style="font-size: 13px; color: #6b7280; margin-bottom: 12px;">Visão gerencial do time de desenvolvimento: carga, WIP e velocidade</div>', unsafe_allow_html=True)
+        
+        col_tl1, col_tl2 = st.columns(2)
+        
+        with col_tl1:
+            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">📊 Distribuição de Story Points por Dev</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">Quem está assumindo mais complexidade</div>', unsafe_allow_html=True)
+            sp_por_dev = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor')['sp'].sum().reset_index()
+            sp_por_dev = sp_por_dev.sort_values('sp', ascending=False).head(8)
+            
+            if not sp_por_dev.empty and sp_por_dev['sp'].sum() > 0:
+                fig_sp = px.pie(sp_por_dev, names='desenvolvedor', values='sp', 
+                               color_discrete_sequence=px.colors.sequential.RdBu)
+                fig_sp.update_layout(height=350)
+                fig_sp.update_traces(textposition='inside', textinfo='percent+label')
+                st.plotly_chart(fig_sp, use_container_width=True)
+            else:
+                st.info("Sem dados de SP")
+        
+        with col_tl2:
+            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">🚀 Status de Entrega por Dev</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">Progresso: Concluído vs Em andamento</div>', unsafe_allow_html=True)
+            
+            status_dev = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor').apply(
+                lambda x: pd.Series({
+                    'Concluídos': len(x[x['status_cat'] == 'done']),
+                    'Em Andamento': len(x[x['status_cat'].isin(['development', 'code_review', 'testing', 'waiting_qa'])])
+                })
+            ).reset_index()
+            
+            if not status_dev.empty:
+                status_dev = status_dev.head(8)
+                fig_status = px.bar(status_dev, x='desenvolvedor', y=['Concluídos', 'Em Andamento'],
+                                    barmode='stack', 
+                                    color_discrete_map={'Concluídos': '#22c55e', 'Em Andamento': '#3b82f6'})
+                fig_status.update_layout(height=350, xaxis_title="", legend=dict(orientation="h", y=1.1))
+                st.plotly_chart(fig_status, use_container_width=True)
+        
+        # WIP e Velocidade
+        col_tl3, col_tl4 = st.columns(2)
+        
+        with col_tl3:
+            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">⏳ Work-In-Progress (WIP) por Dev</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">Quantos cards cada dev está trabalhando agora</div>', unsafe_allow_html=True)
+            
+            wip_devs = df[(df['desenvolvedor'] != 'Não atribuído') & 
+                          (df['status_cat'].isin(['development', 'code_review']))].groupby('desenvolvedor').size().reset_index(name='WIP')
+            wip_devs = wip_devs.sort_values('WIP', ascending=False)
+            
+            if not wip_devs.empty:
+                fig_wip = px.bar(wip_devs, x='desenvolvedor', y='WIP', 
+                                 color='WIP', color_continuous_scale=['#22c55e', '#eab308', '#ef4444'],
+                                 text='WIP')
+                fig_wip.add_hline(y=3, line_dash="dash", annotation_text="WIP Ideal ≤ 3", line_color="#eab308")
+                fig_wip.update_layout(height=350, showlegend=False, xaxis_title="")
+                fig_wip.update_traces(textposition='outside')
+                st.plotly_chart(fig_wip, use_container_width=True)
+            else:
+                st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum dev com WIP no momento</div></div>', unsafe_allow_html=True)
+        
+        with col_tl4:
+            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">📈 Velocidade do Time (SP/Card)</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">Eficiência: média de Story Points por card entregue</div>', unsafe_allow_html=True)
+            
+            cards_done = df[df['status_cat'] == 'done']
+            if not cards_done.empty:
+                vel_dev = cards_done.groupby('desenvolvedor').agg({
+                    'sp': ['sum', 'count']
+                })
+                vel_dev.columns = ['SP Total', 'Cards']
+                vel_dev['SP/Card'] = (vel_dev['SP Total'] / vel_dev['Cards']).round(1)
+                vel_dev = vel_dev.reset_index().sort_values('SP/Card', ascending=False).head(6)
+                
+                fig_vel = px.bar(vel_dev, x='desenvolvedor', y='SP/Card',
+                                 color='SP/Card', color_continuous_scale=['#f97316', '#22c55e'],
+                                 text='SP/Card')
+                fig_vel.add_hline(y=vel_dev['SP/Card'].mean(), line_dash="dash", annotation_text=f"Média: {vel_dev['SP/Card'].mean():.1f}")
+                fig_vel.update_layout(height=350, showlegend=False, xaxis_title="")
+                fig_vel.update_traces(textposition='outside')
+                st.plotly_chart(fig_vel, use_container_width=True)
+            else:
+                st.info("Sem cards concluídos para análise")
+        
+        # Cards Críticos
+        st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin: 16px 0 8px 0;">🔴 Cards Críticos (Alta Prioridade em Dev)</div>', unsafe_allow_html=True)
+        
+        criticos_dev = df[(df['prioridade'].isin(['Alta', 'Muito Alta', 'Muito alto', 'Alto'])) & 
+                          (df['status_cat'].isin(['development', 'code_review', 'backlog']))]
+        
+        if not criticos_dev.empty:
+            col1, col2 = st.columns(2)
+            for i, (_, row) in enumerate(criticos_dev.head(6).iterrows()):
+                with col1 if i % 2 == 0 else col2:
+                    titulo = str(row['titulo'])[:45] + "..." if len(str(row['titulo'])) > 45 else str(row['titulo'])
+                    st.markdown(f'<div style="background: #FEF2F2; border-left: 3px solid #EF4444; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;"><div style="font-size: 13px; font-weight: 600; color: #374151;">{row["ticket_id"]}</div><div style="font-size: 12px; color: #6b7280; margin-top: 4px;">{titulo}</div><div style="font-size: 11px; color: #9ca3af; margin-top: 6px;">⚠️ {row["prioridade"]} · 👤 {row["desenvolvedor"]} · {row["sp"]} SP</div></div>', unsafe_allow_html=True)
+            
+            if len(criticos_dev) > 6:
+                st.markdown(f'<div style="background: #FEF2F2; border-radius: 8px; padding: 10px; text-align: center; margin-top: 8px;"><span style="font-size: 13px; color: #EF4444; font-weight: 600;">⚠️ {len(criticos_dev)} cards de alta prioridade ainda em desenvolvimento!</span></div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum card crítico pendente</div></div>', unsafe_allow_html=True)
 
 
 def _renderizar_historico_validacoes_lideranca(df: pd.DataFrame):

@@ -230,8 +230,8 @@ def _renderizar_ranking_geral(df: pd.DataFrame, devs: list):
     # Análise do Time
     _renderizar_analise_time(df)
     
-    # Análise para Tech Lead
-    _renderizar_analise_tech_lead(df)
+    # Code Reviews Pendentes
+    _renderizar_code_reviews_pendentes(df)
     
     # Cards Impedidos e Reprovados
     _renderizar_cards_impedidos_reprovados(df)
@@ -243,7 +243,7 @@ def _renderizar_analise_time(df: pd.DataFrame):
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("**📋 Cards por Desenvolvedor**")
+            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">📋 Cards por Desenvolvedor</div>', unsafe_allow_html=True)
             cards_por_dev = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor').size().reset_index(name='cards')
             if not cards_por_dev.empty:
                 cards_por_dev = cards_por_dev.nlargest(8, 'cards')
@@ -255,7 +255,7 @@ def _renderizar_analise_time(df: pd.DataFrame):
                 st.info("Sem dados de cards por desenvolvedor")
         
         with col2:
-            st.markdown("**🐛 Taxa de Bugs por Card**")
+            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">🐛 Taxa de Bugs por Card</div>', unsafe_allow_html=True)
             taxa_bugs = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor').agg({
                 'bugs': 'sum', 'ticket_id': 'count'
             }).reset_index()
@@ -268,161 +268,71 @@ def _renderizar_analise_time(df: pd.DataFrame):
                 fig_taxa.update_layout(height=350, showlegend=False, xaxis_title="", yaxis_title="Bugs/Card")
                 st.plotly_chart(fig_taxa, use_container_width=True)
             else:
-                st.success("✅ Sem bugs registrados!")
+                st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Sem bugs registrados!</div></div>', unsafe_allow_html=True)
         
-        # Métricas gerais do time
-        col3, col4, col5 = st.columns(3)
+        # Métricas gerais do time com novo design
+        st.markdown('<div style="margin-top: 16px;"></div>', unsafe_allow_html=True)
+        col3, col4, col5, col6 = st.columns(4)
+        
+        total_cards = len(df)
+        em_andamento = len(df[df['status_cat'] == 'development'])
+        total_bugs = int(df['bugs'].sum())
+        media_bugs = total_bugs / len(df) if len(df) > 0 else 0
+        cards_zero_bugs = len(df[df['bugs'] == 0])
+        pct_zero_bugs = cards_zero_bugs / len(df) * 100 if len(df) > 0 else 0
+        lead_medio = df['lead_time'].mean() if not df.empty else 0
         
         with col3:
-            st.metric("Total de Cards", len(df))
-            em_andamento = len(df[df['status_cat'] == 'development'])
-            st.metric("Em Desenvolvimento", em_andamento)
-        
+            st.markdown(f'<div style="background: #3b82f610; border: 1px solid #3b82f640; border-radius: 8px; padding: 12px; text-align: center;"><div style="font-size: 22px; font-weight: 700; color: #3b82f6;">{total_cards}</div><div style="font-size: 12px; color: #374151; font-weight: 600;">Total Cards</div></div>', unsafe_allow_html=True)
         with col4:
-            total_bugs = df['bugs'].sum()
-            st.metric("Total de Bugs", int(total_bugs))
-            media_bugs = total_bugs / len(df) if len(df) > 0 else 0
-            st.metric("Média de Bugs/Card", f"{media_bugs:.2f}")
-        
+            cor = "#f59e0b" if em_andamento > 15 else "#22c55e"
+            st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center;"><div style="font-size: 22px; font-weight: 700; color: {cor};">{em_andamento}</div><div style="font-size: 12px; color: #374151; font-weight: 600;">Em Desenvolvimento</div></div>', unsafe_allow_html=True)
         with col5:
-            cards_zero_bugs = len(df[df['bugs'] == 0])
-            pct_zero_bugs = cards_zero_bugs / len(df) * 100 if len(df) > 0 else 0
-            st.metric("Cards sem Bugs", f"{cards_zero_bugs} ({pct_zero_bugs:.0f}%)", help=get_tooltip_help("fpy"))
-            lead_medio = df['lead_time'].mean() if not df.empty else 0
-            st.metric("Lead Time Médio", f"{lead_medio:.1f} dias", help=get_tooltip_help("lead_time"))
+            cor = "#22c55e" if pct_zero_bugs >= 70 else "#f59e0b" if pct_zero_bugs >= 50 else "#ef4444"
+            st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center;"><div style="font-size: 22px; font-weight: 700; color: {cor};">{pct_zero_bugs:.0f}%</div><div style="font-size: 12px; color: #374151; font-weight: 600;">Cards sem Bugs</div></div>', unsafe_allow_html=True)
+        with col6:
+            cor = "#22c55e" if lead_medio <= 7 else "#f59e0b" if lead_medio <= 14 else "#ef4444"
+            st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center;"><div style="font-size: 22px; font-weight: 700; color: {cor};">{lead_medio:.1f}d</div><div style="font-size: 12px; color: #374151; font-weight: 600;">Lead Time Médio</div></div>', unsafe_allow_html=True)
 
 
-def _renderizar_analise_tech_lead(df: pd.DataFrame):
-    """Renderiza análise específica para Tech Lead."""
-    with st.expander("🎯 Análise para Tech Lead", expanded=False):
-        col_tl1, col_tl2 = st.columns(2)
+def _renderizar_code_reviews_pendentes(df: pd.DataFrame):
+    """Renderiza seção de code reviews pendentes - relevante para devs."""
+    code_review = df[df['status_cat'] == 'code_review']
+    
+    with st.expander(f"👀 Code Reviews Pendentes ({len(code_review)})", expanded=False):
+        st.markdown('<div style="font-size: 13px; color: #6b7280; margin-bottom: 12px;">Cards aguardando revisão de código - ajude um colega!</div>', unsafe_allow_html=True)
         
-        with col_tl1:
-            st.markdown("**📊 Distribuição de Story Points por Dev**")
-            st.caption("Quem está assumindo mais complexidade")
-            sp_por_dev = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor')['sp'].sum().reset_index()
-            sp_por_dev = sp_por_dev.sort_values('sp', ascending=False).head(8)
+        if not code_review.empty:
+            # KPIs
+            col1, col2, col3 = st.columns(3)
+            cr_urgente = len(code_review[code_review['dias_em_status'] > 2])
+            sp_em_cr = int(code_review['sp'].sum())
             
-            if not sp_por_dev.empty and sp_por_dev['sp'].sum() > 0:
-                fig_sp = px.pie(sp_por_dev, names='desenvolvedor', values='sp', 
-                               color_discrete_sequence=px.colors.sequential.RdBu)
-                fig_sp.update_layout(height=350)
-                fig_sp.update_traces(textposition='inside', textinfo='percent+label')
-                st.plotly_chart(fig_sp, use_container_width=True)
-            else:
-                st.info("Sem dados de SP")
-        
-        with col_tl2:
-            st.markdown("**🚀 Status de Entrega por Dev**")
-            st.caption("Progresso: Concluído vs Em andamento")
+            with col1:
+                cor = "#ef4444" if cr_urgente > 0 else "#22c55e"
+                st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(code_review)}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">Aguardando CR</div></div>', unsafe_allow_html=True)
+            with col2:
+                cor = "#ef4444" if cr_urgente > 2 else "#f59e0b" if cr_urgente > 0 else "#22c55e"
+                st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{cr_urgente}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">🔥 Urgentes (+2d)</div></div>', unsafe_allow_html=True)
+            with col3:
+                st.markdown(f'<div style="background: #3b82f610; border: 1px solid #3b82f640; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: #3b82f6;">{sp_em_cr}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">SP em Fila</div></div>', unsafe_allow_html=True)
             
-            status_dev = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor').apply(
-                lambda x: pd.Series({
-                    'Concluídos': len(x[x['status_cat'] == 'done']),
-                    'Em Andamento': len(x[x['status_cat'].isin(['development', 'code_review', 'testing', 'waiting_qa'])])
-                })
-            ).reset_index()
+            # Lista de cards
+            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin: 12px 0 8px 0;">📋 Cards aguardando review:</div>', unsafe_allow_html=True)
             
-            if not status_dev.empty:
-                status_dev = status_dev.head(8)
-                fig_status = px.bar(status_dev, x='desenvolvedor', y=['Concluídos', 'Em Andamento'],
-                                    barmode='stack', 
-                                    color_discrete_map={'Concluídos': '#22c55e', 'Em Andamento': '#3b82f6'})
-                fig_status.update_layout(height=350, xaxis_title="", legend=dict(orientation="h", y=1.1))
-                st.plotly_chart(fig_status, use_container_width=True)
-        
-        # WIP e Code Review
-        col_tl3, col_tl4 = st.columns(2)
-        
-        with col_tl3:
-            st.markdown("**⏳ Work-In-Progress (WIP) por Dev**")
-            st.caption("Quantos cards cada dev está trabalhando agora")
+            code_review_sorted = code_review.sort_values('dias_em_status', ascending=False)
+            for _, row in code_review_sorted.head(8).iterrows():
+                dias = row['dias_em_status']
+                cor = '#ef4444' if dias > 2 else '#f59e0b' if dias > 1 else '#22c55e'
+                urgente = "🔥 " if dias > 2 else ""
+                card_link = card_link_com_popup(row['ticket_id'])
+                titulo = str(row['titulo'])[:50] + "..." if len(str(row['titulo'])) > 50 else str(row['titulo'])
+                st.markdown(f'<div style="background: white; border-left: 3px solid {cor}; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;"><div style="font-size: 13px; font-weight: 600; color: #374151;">{urgente}{card_link}</div><div style="font-size: 12px; color: #6b7280; margin-top: 4px;">{titulo}</div><div style="font-size: 11px; color: #9ca3af; margin-top: 6px;">👤 {row["desenvolvedor"]} · {row["sp"]} SP · <span style="color: {cor};">📅 {dias}d em CR</span></div></div>', unsafe_allow_html=True)
             
-            wip_devs = df[(df['desenvolvedor'] != 'Não atribuído') & 
-                          (df['status_cat'].isin(['development', 'code_review']))].groupby('desenvolvedor').size().reset_index(name='WIP')
-            wip_devs = wip_devs.sort_values('WIP', ascending=False)
-            
-            if not wip_devs.empty:
-                fig_wip = px.bar(wip_devs, x='desenvolvedor', y='WIP', 
-                                 color='WIP', color_continuous_scale=['#22c55e', '#eab308', '#ef4444'],
-                                 text='WIP')
-                fig_wip.add_hline(y=3, line_dash="dash", annotation_text="WIP Ideal ≤ 3", line_color="#eab308")
-                fig_wip.update_layout(height=350, showlegend=False, xaxis_title="")
-                fig_wip.update_traces(textposition='outside')
-                st.plotly_chart(fig_wip, use_container_width=True)
-            else:
-                st.success("✅ Nenhum dev com WIP no momento")
-        
-        with col_tl4:
-            st.markdown("**🔍 Fila de Code Review**")
-            st.caption("Cards aguardando revisão de código")
-            
-            code_review = df[df['status_cat'] == 'code_review']
-            
-            if not code_review.empty:
-                for _, row in code_review.head(5).iterrows():
-                    dias = row['dias_em_status']
-                    cor = '#ef4444' if dias > 3 else '#eab308' if dias > 1 else '#22c55e'
-                    card_link = card_link_com_popup(row['ticket_id'])
-                    st.markdown(f"""
-                    <div style="padding: 8px; margin: 4px 0; border-left: 3px solid {cor}; background: rgba(99, 102, 241, 0.1); border-radius: 4px;">
-                        <strong>{card_link}</strong> - {row['titulo']}<br>
-                        <small style="color: #94a3b8;">📅 {dias} dia(s) em CR | 👤 {row['desenvolvedor']}</small>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                if len(code_review) > 5:
-                    st.caption(f"... e mais {len(code_review) - 5} cards em Code Review")
-            else:
-                st.success("✅ Nenhum card aguardando Code Review")
-        
-        # Velocidade e Cards Críticos
-        col_tl5, col_tl6 = st.columns(2)
-        
-        with col_tl5:
-            st.markdown("**📈 Velocidade do Time (SP/Card)**")
-            st.caption("Eficiência: média de Story Points por card entregue")
-            
-            cards_done = df[df['status_cat'] == 'done']
-            if not cards_done.empty:
-                vel_dev = cards_done.groupby('desenvolvedor').agg({
-                    'sp': ['sum', 'count']
-                })
-                vel_dev.columns = ['SP Total', 'Cards']
-                vel_dev['SP/Card'] = (vel_dev['SP Total'] / vel_dev['Cards']).round(1)
-                vel_dev = vel_dev.reset_index().sort_values('SP/Card', ascending=False).head(6)
-                
-                fig_vel = px.bar(vel_dev, x='desenvolvedor', y='SP/Card',
-                                 color='SP/Card', color_continuous_scale=['#f97316', '#22c55e'],
-                                 text='SP/Card')
-                fig_vel.add_hline(y=vel_dev['SP/Card'].mean(), line_dash="dash", annotation_text=f"Média: {vel_dev['SP/Card'].mean():.1f}")
-                fig_vel.update_layout(height=350, showlegend=False, xaxis_title="")
-                fig_vel.update_traces(textposition='outside')
-                st.plotly_chart(fig_vel, use_container_width=True)
-            else:
-                st.info("Sem cards concluídos para análise")
-        
-        with col_tl6:
-            st.markdown("**🔴 Cards Críticos (Alta Prioridade em Dev)**")
-            st.caption("Cards urgentes ainda em desenvolvimento")
-            
-            criticos_dev = df[(df['prioridade'].isin(['Alta', 'Muito Alta', 'Muito alto', 'Alto'])) & 
-                              (df['status_cat'].isin(['development', 'code_review', 'backlog']))]
-            
-            if not criticos_dev.empty:
-                for _, row in criticos_dev.head(5).iterrows():
-                    card_link = card_link_com_popup(row['ticket_id'])
-                    st.markdown(f"""
-                    <div style="padding: 8px; margin: 4px 0; border-left: 3px solid #ef4444; background: rgba(239, 68, 68, 0.1); border-radius: 4px;">
-                        <strong>{card_link}</strong> - {row['titulo']}<br>
-                        <small style="color: #fca5a5;">⚠️ {row['prioridade']} | 👤 {row['desenvolvedor']} | {row['sp']} SP</small>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                if len(criticos_dev) > 5:
-                    st.warning(f"⚠️ {len(criticos_dev)} cards de alta prioridade ainda em desenvolvimento!")
-            else:
-                st.success("✅ Nenhum card crítico pendente")
+            if len(code_review) > 8:
+                st.markdown(f'<div style="font-size: 12px; color: #9ca3af; margin-top: 8px;">... e mais {len(code_review) - 8} cards em Code Review</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum card aguardando Code Review!</div></div>', unsafe_allow_html=True)
 
 
 def _renderizar_cards_impedidos_reprovados(df: pd.DataFrame):
@@ -432,69 +342,69 @@ def _renderizar_cards_impedidos_reprovados(df: pd.DataFrame):
     
     if len(cards_impedidos_dev) > 0 or len(cards_reprovados_dev) > 0:
         with st.expander("🚨 Cards Impedidos e Reprovados", expanded=False):
+            # KPIs com novo design
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                cor = 'green' if len(cards_impedidos_dev) == 0 else 'yellow' if len(cards_impedidos_dev) < 3 else 'red'
-                criar_card_metrica(str(len(cards_impedidos_dev)), "🚫 Impedidos", cor, "Bloqueados")
+                cor = "#22c55e" if len(cards_impedidos_dev) == 0 else "#f59e0b" if len(cards_impedidos_dev) < 3 else "#ef4444"
+                st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(cards_impedidos_dev)}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">🚫 Impedidos</div></div>', unsafe_allow_html=True)
             
             with col2:
-                cor = 'green' if len(cards_reprovados_dev) == 0 else 'yellow' if len(cards_reprovados_dev) < 3 else 'red'
-                criar_card_metrica(str(len(cards_reprovados_dev)), "❌ Reprovados", cor, "Falha validação")
+                cor = "#22c55e" if len(cards_reprovados_dev) == 0 else "#f59e0b" if len(cards_reprovados_dev) < 3 else "#ef4444"
+                st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(cards_reprovados_dev)}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">❌ Reprovados</div></div>', unsafe_allow_html=True)
             
             with col3:
                 sp_impedido = int(cards_impedidos_dev['sp'].sum())
-                cor = 'green' if sp_impedido == 0 else 'yellow' if sp_impedido < 10 else 'red'
-                criar_card_metrica(str(sp_impedido), "SP Impedidos", cor)
+                cor = "#22c55e" if sp_impedido == 0 else "#f59e0b" if sp_impedido < 10 else "#ef4444"
+                st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{sp_impedido}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">SP Impedidos</div></div>', unsafe_allow_html=True)
             
             with col4:
                 sp_reprovado = int(cards_reprovados_dev['sp'].sum())
-                cor = 'green' if sp_reprovado == 0 else 'yellow' if sp_reprovado < 10 else 'red'
-                criar_card_metrica(str(sp_reprovado), "SP Reprovados", cor)
+                cor = "#22c55e" if sp_reprovado == 0 else "#f59e0b" if sp_reprovado < 10 else "#ef4444"
+                st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{sp_reprovado}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">SP Reprovados</div></div>', unsafe_allow_html=True)
             
-            st.markdown("---")
             col_imp, col_rep = st.columns(2)
             
             with col_imp:
-                st.markdown("#### 🚫 Impedidos")
+                st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">🚫 Cards Impedidos</div>', unsafe_allow_html=True)
                 if not cards_impedidos_dev.empty:
-                    html_imp_dev = '<div class="scroll-container" style="max-height: 350px;">'
+                    html_imp_dev = '<div style="max-height: 350px; overflow-y: auto;">'
                     for _, row in cards_impedidos_dev.iterrows():
                         card_link = card_link_com_popup(row['ticket_id'])
-                        titulo = str(row['titulo'])
+                        titulo = str(row['titulo'])[:50] + "..." if len(str(row['titulo'])) > 50 else str(row['titulo'])
                         dev = str(row['desenvolvedor'])
                         qa = str(row['qa'])
                         sp = int(row['sp'])
-                        html_imp_dev += '<div class="card-lista-vermelho">'
-                        html_imp_dev += '<strong>' + card_link + '</strong>'
-                        html_imp_dev += '<span style="color: #64748b;"> - ' + titulo + '</span><br>'
-                        html_imp_dev += '<small style="color: #94a3b8;">👤 ' + dev + ' | 🧑‍🔬 ' + qa + ' | ' + str(sp) + ' SP</small>'
+                        html_imp_dev += f'<div style="background: #FEF2F2; border-left: 3px solid #EF4444; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;">'
+                        html_imp_dev += f'<div style="font-size: 13px; font-weight: 600; color: #374151;">{card_link}</div>'
+                        html_imp_dev += f'<div style="font-size: 12px; color: #6b7280; margin-top: 4px;">{titulo}</div>'
+                        html_imp_dev += f'<div style="font-size: 11px; color: #9ca3af; margin-top: 6px;">👤 {dev} · 🧑‍🔬 {qa} · {sp} SP</div>'
                         html_imp_dev += '</div>'
                     html_imp_dev += '</div>'
                     st.markdown(html_imp_dev, unsafe_allow_html=True)
                 else:
-                    st.success("✅ Nenhum card impedido")
+                    st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum card impedido</div></div>', unsafe_allow_html=True)
             
             with col_rep:
-                st.markdown("#### ❌ Reprovados")
+                st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">❌ Cards Reprovados</div>', unsafe_allow_html=True)
                 if not cards_reprovados_dev.empty:
-                    html_rep_dev = '<div class="scroll-container" style="max-height: 350px;">'
+                    html_rep_dev = '<div style="max-height: 350px; overflow-y: auto;">'
                     for _, row in cards_reprovados_dev.iterrows():
                         card_link = card_link_com_popup(row['ticket_id'])
-                        titulo = str(row['titulo'])
+                        titulo = str(row['titulo'])[:50] + "..." if len(str(row['titulo'])) > 50 else str(row['titulo'])
                         dev = str(row['desenvolvedor'])
                         qa = str(row['qa'])
                         sp = int(row['sp'])
                         bugs = int(row['bugs'])
-                        html_rep_dev += '<div class="card-lista-vermelho">'
-                        html_rep_dev += '<strong>' + card_link + '</strong>'
-                        html_rep_dev += '<span style="color: #64748b;"> - ' + titulo + '</span><br>'
-                        html_rep_dev += '<small style="color: #94a3b8;">👤 ' + dev + ' | 🧑‍🔬 ' + qa + ' | ' + str(sp) + ' SP | 🐛 ' + str(bugs) + ' bugs</small>'
+                        html_rep_dev += f'<div style="background: #FEF2F2; border-left: 3px solid #DC2626; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;">'
+                        html_rep_dev += f'<div style="font-size: 13px; font-weight: 600; color: #374151;">{card_link}</div>'
+                        html_rep_dev += f'<div style="font-size: 12px; color: #6b7280; margin-top: 4px;">{titulo}</div>'
+                        html_rep_dev += f'<div style="font-size: 11px; color: #9ca3af; margin-top: 6px;">👤 {dev} · 🧑‍🔬 {qa} · {sp} SP · <span style="color: #EF4444;">🐛 {bugs}</span></div>'
                         html_rep_dev += '</div>'
                     html_rep_dev += '</div>'
                     st.markdown(html_rep_dev, unsafe_allow_html=True)
                 else:
-                    st.success("✅ Nenhum card reprovado")
+                    st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum card reprovado</div></div>', unsafe_allow_html=True)
 
 
 def _renderizar_metricas_individuais(df: pd.DataFrame, dev_sel: str):

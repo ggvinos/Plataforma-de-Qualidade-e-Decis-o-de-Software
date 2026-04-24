@@ -216,48 +216,57 @@ def _renderizar_cards_impedidos_reprovados(df: pd.DataFrame):
     
     if len(cards_impedidos) > 0 or len(cards_reprovados) > 0:
         with st.expander("🚨 Cards Impedidos e Reprovados", expanded=False):
+            # KPIs no topo
+            col_kpi1, col_kpi2 = st.columns(2)
+            with col_kpi1:
+                cor = "#ef4444" if len(cards_impedidos) > 0 else "#22c55e"
+                st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(cards_impedidos)}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">🚫 Impedidos</div></div>', unsafe_allow_html=True)
+            with col_kpi2:
+                cor = "#ef4444" if len(cards_reprovados) > 0 else "#22c55e"
+                st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(cards_reprovados)}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">❌ Reprovados</div></div>', unsafe_allow_html=True)
+            
             col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown("#### 🚫 Impedidos")
+                st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">🚫 Cards Impedidos</div>', unsafe_allow_html=True)
                 if not cards_impedidos.empty:
-                    html_impedidos = '<div class="scroll-container" style="max-height: 350px;">'
+                    html_impedidos = '<div style="max-height: 350px; overflow-y: auto;">'
                     for _, row in cards_impedidos.iterrows():
                         card_link = card_link_com_popup(row['ticket_id'])
-                        titulo = str(row['titulo'])
+                        titulo = str(row['titulo'])[:50] + "..." if len(str(row['titulo'])) > 50 else str(row['titulo'])
                         dev = str(row['desenvolvedor'])
                         qa = str(row['qa'])
                         sp = int(row['sp'])
-                        html_impedidos += '<div class="card-lista-vermelho">'
-                        html_impedidos += '<strong>' + card_link + '</strong>'
-                        html_impedidos += '<span style="color: #64748b;"> - ' + titulo + '</span><br>'
-                        html_impedidos += '<small style="color: #94a3b8;">👤 DEV: ' + dev + ' | 🧑‍🔬 QA: ' + qa + ' | ' + str(sp) + ' SP</small>'
+                        html_impedidos += f'<div style="background: #FEF2F2; border-left: 3px solid #EF4444; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;">'
+                        html_impedidos += f'<div style="font-size: 13px; font-weight: 600; color: #374151;">{card_link}</div>'
+                        html_impedidos += f'<div style="font-size: 12px; color: #6b7280; margin-top: 4px;">{titulo}</div>'
+                        html_impedidos += f'<div style="font-size: 11px; color: #9ca3af; margin-top: 6px;">👤 {dev} · 🧑‍🔬 {qa} · {sp} SP</div>'
                         html_impedidos += '</div>'
                     html_impedidos += '</div>'
                     st.markdown(html_impedidos, unsafe_allow_html=True)
                 else:
-                    st.success("✅ Nenhum card impedido")
+                    st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum card impedido</div></div>', unsafe_allow_html=True)
             
             with col2:
-                st.markdown("#### ❌ Reprovados")
+                st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">❌ Cards Reprovados</div>', unsafe_allow_html=True)
                 if not cards_reprovados.empty:
-                    html_reprovados = '<div class="scroll-container" style="max-height: 350px;">'
+                    html_reprovados = '<div style="max-height: 350px; overflow-y: auto;">'
                     for _, row in cards_reprovados.iterrows():
                         card_link = card_link_com_popup(row['ticket_id'])
-                        titulo = str(row['titulo'])
+                        titulo = str(row['titulo'])[:50] + "..." if len(str(row['titulo'])) > 50 else str(row['titulo'])
                         dev = str(row['desenvolvedor'])
                         qa = str(row['qa'])
                         sp = int(row['sp'])
                         bugs = int(row['bugs'])
-                        html_reprovados += '<div class="card-lista-vermelho">'
-                        html_reprovados += '<strong>' + card_link + '</strong>'
-                        html_reprovados += '<span style="color: #64748b;"> - ' + titulo + '</span><br>'
-                        html_reprovados += '<small style="color: #94a3b8;">👤 DEV: ' + dev + ' | 🧑‍🔬 QA: ' + qa + ' | ' + str(sp) + ' SP | 🐛 ' + str(bugs) + ' bugs</small>'
+                        html_reprovados += f'<div style="background: #FEF2F2; border-left: 3px solid #DC2626; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;">'
+                        html_reprovados += f'<div style="font-size: 13px; font-weight: 600; color: #374151;">{card_link}</div>'
+                        html_reprovados += f'<div style="font-size: 12px; color: #6b7280; margin-top: 4px;">{titulo}</div>'
+                        html_reprovados += f'<div style="font-size: 11px; color: #9ca3af; margin-top: 6px;">👤 {dev} · 🧑‍🔬 {qa} · {sp} SP · <span style="color: #EF4444;">🐛 {bugs}</span></div>'
                         html_reprovados += '</div>'
                     html_reprovados += '</div>'
                     st.markdown(html_reprovados, unsafe_allow_html=True)
                 else:
-                    st.success("✅ Nenhum card reprovado")
+                    st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum card reprovado</div></div>', unsafe_allow_html=True)
 
 
 def _renderizar_funil_e_carga(metricas_qa: dict):
@@ -484,17 +493,27 @@ def _renderizar_analise_bugs(df: pd.DataFrame):
 def _renderizar_janela_validacao(df: pd.DataFrame):
     """Renderiza a janela de validação (análise de risco)."""
     with st.expander("🕐 Janela de Validação (Análise de Risco)", expanded=False):
-        st.markdown("""
-        <div class="alert-info">
-            <b>📋 Regras de Janela de Validação</b>
-            <p>A janela considera a <b>complexidade de teste</b> do card para determinar se há tempo suficiente:</p>
-            <ul style="margin: 5px 0 0 20px;">
-                <li><b>Alta:</b> 3+ dias necessários</li>
-                <li><b>Média:</b> 2 dias necessários</li>
-                <li><b>Baixa:</b> 1 dia é suficiente</li>
-            </ul>
+        # Info box com novo design
+        st.markdown('''
+        <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 14px 16px; margin-bottom: 16px;">
+            <div style="font-size: 14px; font-weight: 600; color: #1E40AF; margin-bottom: 8px;">📋 Regras de Janela de Validação</div>
+            <div style="font-size: 13px; color: #374151; line-height: 1.6;">A janela considera a <b>complexidade de teste</b> do card para determinar se há tempo suficiente:</div>
+            <div style="display: flex; gap: 16px; margin-top: 10px;">
+                <div style="background: white; border-radius: 6px; padding: 8px 12px; flex: 1; text-align: center;">
+                    <div style="font-size: 12px; color: #EF4444; font-weight: 600;">🔴 Alta</div>
+                    <div style="font-size: 11px; color: #6b7280;">3+ dias</div>
+                </div>
+                <div style="background: white; border-radius: 6px; padding: 8px 12px; flex: 1; text-align: center;">
+                    <div style="font-size: 12px; color: #F59E0B; font-weight: 600;">🟡 Média</div>
+                    <div style="font-size: 11px; color: #6b7280;">2 dias</div>
+                </div>
+                <div style="background: white; border-radius: 6px; padding: 8px 12px; flex: 1; text-align: center;">
+                    <div style="font-size: 12px; color: #22C55E; font-weight: 600;">🟢 Baixa</div>
+                    <div style="font-size: 11px; color: #6b7280;">1 dia</div>
+                </div>
+            </div>
         </div>
-        """, unsafe_allow_html=True)
+        ''', unsafe_allow_html=True)
         
         cards_qa = df[df['status_cat'].isin(['waiting_qa', 'testing'])]
         
@@ -503,23 +522,25 @@ def _renderizar_janela_validacao(df: pd.DataFrame):
             em_risco = cards_qa[cards_qa['janela_status'] == 'risco']
             dentro_janela = cards_qa[cards_qa['janela_status'] == 'ok']
             
+            # KPIs com novo design
             col1, col2, col3 = st.columns(3)
             with col1:
-                cor = 'red' if len(fora_janela) > 0 else 'green'
-                criar_card_metrica(str(len(fora_janela)), "🚨 Fora da Janela", cor)
+                cor = "#EF4444" if len(fora_janela) > 0 else "#22C55E"
+                st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(fora_janela)}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">🚨 Fora da Janela</div></div>', unsafe_allow_html=True)
             with col2:
-                cor = 'yellow' if len(em_risco) > 0 else 'green'
-                criar_card_metrica(str(len(em_risco)), "⚠️ Em Risco", cor)
+                cor = "#F59E0B" if len(em_risco) > 0 else "#22C55E"
+                st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(em_risco)}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">⚠️ Em Risco</div></div>', unsafe_allow_html=True)
             with col3:
-                criar_card_metrica(str(len(dentro_janela)), "✅ Dentro da Janela", "green")
+                cor = "#22C55E"
+                st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(dentro_janela)}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">✅ Dentro da Janela</div></div>', unsafe_allow_html=True)
             
             if not fora_janela.empty:
-                st.markdown("### 🚨 Cards FORA da Janela")
+                st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin: 16px 0 8px 0;">🚨 Cards FORA da Janela</div>', unsafe_allow_html=True)
                 df_fora = fora_janela[['ticket_id', 'titulo', 'complexidade', 'dias_ate_release', 'desenvolvedor', 'sp']].copy()
                 df_fora.columns = ['Ticket', 'Título', 'Complexidade', 'Dias Disponíveis', 'Dev', 'SP']
                 st.dataframe(df_fora, hide_index=True, use_container_width=True)
         else:
-            st.success("✅ Nenhum card aguardando validação!")
+            st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum card aguardando validação!</div></div>', unsafe_allow_html=True)
 
 
 def _renderizar_cards_aging(metricas_qa: dict):
