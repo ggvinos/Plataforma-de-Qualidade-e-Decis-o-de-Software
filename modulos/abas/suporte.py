@@ -36,11 +36,18 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
     - Visão de cards em TODOS os projetos
     - Foco: "Onde estão meus cards?" + "O que precisa de validação/resposta?"
     
+    IMPORTANTE: Usa status_cat para consistência com a Visão Geral.
+    
     Args:
         df_todos: DataFrame com cards de TODOS os projetos (SD, QA, PB, VALPROD)
     """
     st.markdown("### 🎯 Suporte e Implantação")
-    st.caption("Acompanhe seus cards em todos os projetos: SD, QA, PB e VALPROD • *Os filtros de Projeto/Período da sidebar afetam outras abas*")
+    
+    # Info box sobre consistência
+    st.info(
+        "📌 **Consistência garantida:** Esta aba usa os **mesmos critérios de status** da Visão Geral. "
+        "Quando você vê '3 cards em Desenvolvimento' aqui, é o mesmo número que aparece na Visão Geral."
+    )
     
     if df_todos is None or df_todos.empty:
         st.warning("⚠️ Nenhum card encontrado nos projetos.")
@@ -212,13 +219,31 @@ def _renderizar_visao_geral(df_todos: pd.DataFrame):
                         """, unsafe_allow_html=True)
     
     # ===== CARDS AGUARDANDO AÇÃO (VISÃO GERAL) - EM EXPANDER =====
+    has_status_cat = 'status_cat' in df_todos.columns
     
-    # Conta totais para exibir no título do expander
-    df_aguard_resp = df_todos[df_todos['status'].str.lower().str.contains('aguardando', na=False)]
-    df_valprod_pend = df_todos[(df_todos['projeto'] == 'VALPROD') & 
-                               (~df_todos['status'].str.lower().str.contains('aprovado|validado|concluído', na=False))]
-    df_pb_aguard = df_todos[(df_todos['projeto'] == 'PB') & 
-                            (df_todos['status'].str.lower().str.contains('aguardando|roteiro|ux', na=False))]
+    # Conta totais usando status_cat para consistência
+    if has_status_cat:
+        # Aguardando QA + Bloqueados = precisam de ação
+        df_aguard_qa = df_todos[df_todos['status_cat'] == 'waiting_qa']
+        df_bloqueados = df_todos[df_todos['status_cat'].isin(['blocked', 'rejected'])]
+        df_aguard_resp = pd.concat([df_aguard_qa, df_bloqueados]).drop_duplicates(subset=['ticket_id']) if 'ticket_id' in df_todos.columns else pd.concat([df_aguard_qa, df_bloqueados])
+        
+        # VALPROD pendentes
+        df_valprod_pend = df_todos[(df_todos['projeto'] == 'VALPROD') & 
+                                   (~df_todos['status_cat'].isin(['done', 'valprod_aprovado']))]
+        
+        # PB aguardando
+        df_pb_aguard = df_todos[(df_todos['projeto'] == 'PB') & 
+                                (df_todos['status_cat'].isin(['pb_revisao_produto', 'pb_roteiro', 'pb_ux', 
+                                                               'pb_esforco', 'pb_aguarda_dev', 'pb_aguardando_resposta']))]
+    else:
+        # Fallback para string matching
+        df_aguard_resp = df_todos[df_todos['status'].str.lower().str.contains('aguardando', na=False)]
+        df_valprod_pend = df_todos[(df_todos['projeto'] == 'VALPROD') & 
+                                   (~df_todos['status'].str.lower().str.contains('aprovado|validado|concluído', na=False))]
+        df_pb_aguard = df_todos[(df_todos['projeto'] == 'PB') & 
+                                (df_todos['status'].str.lower().str.contains('aguardando|roteiro|ux', na=False))]
+    
     total_aguardando = len(df_aguard_resp) + len(df_valprod_pend) + len(df_pb_aguard)
     
     with st.expander(f"⏳ Cards Aguardando Ação ({total_aguardando})", expanded=False):
@@ -410,7 +435,14 @@ def _renderizar_visao_individual(df_todos: pd.DataFrame, df_pessoa: pd.DataFrame
 
 
 def _renderizar_metricas_pessoa(df_pessoa: pd.DataFrame):
-    """Renderiza as métricas por projeto da pessoa - Estilo harmonizado."""
+    """Renderiza as métricas por projeto da pessoa - Estilo harmonizado.
+    
+    IMPORTANTE: Usa status_cat para consistência com a Visão Geral.
+    - Em Desenvolvimento: status_cat in ['development', 'code_review']
+    - Aguardando QA: status_cat == 'waiting_qa'
+    - Em Validação: status_cat == 'testing'
+    - Concluído: status_cat == 'done'
+    """
     
     # Helper para mini-cards harmonizados
     def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
@@ -418,130 +450,228 @@ def _renderizar_metricas_pessoa(df_pessoa: pd.DataFrame):
         border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
         return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 16px 12px; text-align: center; height: 95px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 28px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151; margin-top: 4px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
     
-    st.markdown("##### 📊 Meus Cards por Projeto")
+    st.markdown("##### 📊 Meus Cards por Status (Consistente com Visão Geral)")
     
-    df_sd = df_pessoa[df_pessoa['projeto'] == 'SD'] if 'projeto' in df_pessoa.columns else pd.DataFrame()
-    df_qa = df_pessoa[df_pessoa['projeto'] == 'QA'] if 'projeto' in df_pessoa.columns else pd.DataFrame()
-    df_pb = df_pessoa[df_pessoa['projeto'] == 'PB'] if 'projeto' in df_pessoa.columns else pd.DataFrame()
+    # Usa status_cat para consistência com outras abas
+    has_status_cat = 'status_cat' in df_pessoa.columns
+    
+    if has_status_cat:
+        # Em Desenvolvimento = development + code_review (igual Visão Geral)
+        em_dev = len(df_pessoa[df_pessoa['status_cat'].isin(['development', 'code_review'])])
+        
+        # Aguardando QA = waiting_qa
+        aguardando_qa = len(df_pessoa[df_pessoa['status_cat'] == 'waiting_qa'])
+        
+        # Em Validação/Teste = testing
+        em_teste = len(df_pessoa[df_pessoa['status_cat'] == 'testing'])
+        
+        # Concluídos = done (único critério confiável)
+        concluidos = len(df_pessoa[df_pessoa['status_cat'] == 'done'])
+        
+        # Bloqueados = blocked + rejected
+        bloqueados = len(df_pessoa[df_pessoa['status_cat'].isin(['blocked', 'rejected'])])
+    else:
+        # Fallback para string matching se status_cat não existir
+        em_dev = len(df_pessoa[df_pessoa['status'].str.lower().str.contains('andamento|revisão', na=False)])
+        aguardando_qa = len(df_pessoa[df_pessoa['status'].str.upper().str.contains('AGUARDANDO VALIDAÇÃO', na=False)])
+        em_teste = len(df_pessoa[df_pessoa['status'].str.upper().str.contains('EM VALIDAÇÃO', na=False)])
+        concluidos = len(df_pessoa[df_pessoa['status'].str.lower().str.contains('concluído', na=False)])
+        bloqueados = len(df_pessoa[df_pessoa['status'].str.lower().str.contains('impedido|reprovado', na=False)])
+    
+    # Calcula pendentes de validação em produção
     df_valprod = df_pessoa[df_pessoa['projeto'] == 'VALPROD'] if 'projeto' in df_pessoa.columns else pd.DataFrame()
-    
-    # Calcula total de concluídos em todos os projetos
-    df_concluidos = df_pessoa[df_pessoa['status'].str.lower().str.contains(
-        'concluído|finalizado|done|aprovado|validado|resolvido|closed|encerrado', na=False)]
-    total_concluidos = len(df_concluidos)
+    if has_status_cat and not df_valprod.empty:
+        pendentes_valprod = len(df_valprod[~df_valprod['status_cat'].isin(['done', 'valprod_aprovado'])])
+    elif not df_valprod.empty:
+        pendentes_valprod = len(df_valprod[~df_valprod['status'].str.lower().str.contains('aprovado|validado|concluído', na=False)])
+    else:
+        pendentes_valprod = 0
     
     col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
-        total_sd = len(df_sd)
-        em_andamento_sd = len(df_sd[df_sd['status'].str.lower().str.contains('andamento|desenvolvimento|revisão|validação', na=False)]) if not df_sd.empty else 0
-        st.markdown(mini_card(str(total_sd), "📋 SD", f"{em_andamento_sd} em andamento", "#3b82f6"), unsafe_allow_html=True)
+        cor = "#3b82f6" if em_dev > 0 else "#6b7280"
+        st.markdown(mini_card(str(em_dev), "💻 Em Dev", "desenvolvimento", cor), unsafe_allow_html=True)
     
     with col2:
-        total_qa = len(df_qa)
-        st.markdown(mini_card(str(total_qa), "🔬 QA", "cards", "#22c55e"), unsafe_allow_html=True)
+        cor = "#f59e0b" if aguardando_qa > 0 else "#6b7280"
+        st.markdown(mini_card(str(aguardando_qa), "⏳ Aguard. QA", "na fila", cor), unsafe_allow_html=True)
     
     with col3:
-        total_pb = len(df_pb)
-        aguardando_pb = len(df_pb[df_pb['status'].str.lower().str.contains('aguardando', na=False)]) if not df_pb.empty else 0
-        st.markdown(mini_card(str(total_pb), "📦 PB", f"{aguardando_pb} aguardando", "#f59e0b"), unsafe_allow_html=True)
+        cor = "#06b6d4" if em_teste > 0 else "#6b7280"
+        st.markdown(mini_card(str(em_teste), "🧪 Em Teste", "validando", cor), unsafe_allow_html=True)
     
     with col4:
-        pendentes_valprod = len(df_valprod[~df_valprod['status'].str.lower().str.contains('aprovado|validado|concluído', na=False)]) if not df_valprod.empty else 0
         cor = "#ef4444" if pendentes_valprod > 0 else "#8b5cf6"
         st.markdown(mini_card(str(pendentes_valprod), "🔍 Val. Prod", "pendentes", cor), unsafe_allow_html=True)
     
     with col5:
-        st.markdown(mini_card(str(total_concluidos), "✅ Concluídos", "finalizados", "#22c55e"), unsafe_allow_html=True)
+        st.markdown(mini_card(str(concluidos), "✅ Concluídos", "finalizados", "#22c55e"), unsafe_allow_html=True)
+    
+    # Linha 2: Detalhamento se houver bloqueados ou por projeto
+    if bloqueados > 0:
+        st.markdown("<div style='margin-top: 12px;'></div>", unsafe_allow_html=True)
+        col_extra1, col_extra2, col_extra3, col_extra4, col_extra5 = st.columns(5)
+        with col_extra1:
+            st.markdown(mini_card(str(bloqueados), "🚫 Bloqueados", "impeditivos", "#ef4444"), unsafe_allow_html=True)
     
     st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
 
 
 def _renderizar_cards_aguardando_minha_acao(df_todos: pd.DataFrame, df_pessoa: pd.DataFrame, pessoa_selecionada: str):
-    """Renderiza os cards aguardando ação da pessoa."""
-    df_minha_acao = pd.DataFrame()
+    """Renderiza os cards aguardando ação da pessoa.
     
-    # QA responsável
+    MELHORIAS IMPLEMENTADAS:
+    1. Usa status_cat para consistência com Visão Geral
+    2. Separa claramente os papéis: QA, Desenvolvedor, Representante
+    3. Mostra apenas cards em status que REALMENTE precisam de ação
+    """
+    has_status_cat = 'status_cat' in df_todos.columns
+    
+    # ===== SEÇÃO 1: Cards para EU VALIDAR (sou QA responsável) =====
+    df_validar_qa = pd.DataFrame()
     if 'qa' in df_todos.columns:
-        df_qa_resp = df_todos[
-            (df_todos['qa'] == pessoa_selecionada) & 
-            (df_todos['status'].str.lower().str.contains('aguardando validação|validação|testing|em teste|em qa', na=False, regex=True))
-        ]
-        df_minha_acao = pd.concat([df_minha_acao, df_qa_resp])
+        if has_status_cat:
+            # Cards onde sou QA e estão aguardando minha validação ou em validação
+            df_validar_qa = df_todos[
+                (df_todos['qa'] == pessoa_selecionada) & 
+                (df_todos['status_cat'].isin(['waiting_qa', 'testing']))
+            ]
+        else:
+            df_validar_qa = df_todos[
+                (df_todos['qa'] == pessoa_selecionada) & 
+                (df_todos['status'].str.lower().str.contains('aguardando validação|validação|testing|em teste|em qa', na=False, regex=True))
+            ]
     
-    # Representante do cliente
+    # ===== SEÇÃO 2: Cards para EU DESENVOLVER (sou desenvolvedor e card voltou) =====
+    df_voltar_dev = pd.DataFrame()
+    if 'responsavel' in df_todos.columns or 'desenvolvedor' in df_todos.columns:
+        col_dev = 'desenvolvedor' if 'desenvolvedor' in df_todos.columns else 'responsavel'
+        if has_status_cat:
+            # Cards reprovados ou que voltaram para mim
+            df_voltar_dev = df_todos[
+                (df_todos[col_dev] == pessoa_selecionada) & 
+                (df_todos['status_cat'].isin(['rejected', 'blocked']))
+            ]
+        else:
+            df_voltar_dev = df_todos[
+                (df_todos[col_dev] == pessoa_selecionada) & 
+                (df_todos['status'].str.lower().str.contains('reprovado|impedido|bloqueado|rejeitado', na=False, regex=True))
+            ]
+    
+    # ===== SEÇÃO 3: Cards como Representante do Cliente =====
+    df_rep_cliente = pd.DataFrame()
     if 'representante_cliente' in df_todos.columns:
-        df_rep_cliente = df_todos[
-            (df_todos['representante_cliente'] == pessoa_selecionada) & 
-            (df_todos['status'].str.lower().str.contains('aguardando|validação|teste|cliente', na=False, regex=True))
-        ]
-        df_minha_acao = pd.concat([df_minha_acao, df_rep_cliente])
+        if has_status_cat:
+            df_rep_cliente = df_todos[
+                (df_todos['representante_cliente'] == pessoa_selecionada) & 
+                (df_todos['status_cat'].isin(['testing', 'waiting_qa', 'valprod_pendente', 'valprod_validando']))
+            ]
+        else:
+            df_rep_cliente = df_todos[
+                (df_todos['representante_cliente'] == pessoa_selecionada) & 
+                (df_todos['status'].str.lower().str.contains('aguardando|validação|teste|cliente', na=False, regex=True))
+            ]
     
-    # Responsável pelo card
-    if 'responsavel' in df_todos.columns:
-        df_responsavel = df_todos[
-            (df_todos['responsavel'] == pessoa_selecionada) & 
-            (df_todos['status'].str.lower().str.contains('aguardando|validação|pendente', na=False, regex=True))
-        ]
-        df_minha_acao = pd.concat([df_minha_acao, df_responsavel])
-    
-    # Remove duplicados
+    # Combina e remove duplicados
+    df_minha_acao = pd.concat([df_validar_qa, df_voltar_dev, df_rep_cliente])
     if not df_minha_acao.empty:
         df_minha_acao = df_minha_acao.drop_duplicates(subset=['ticket_id'])
     
-    if not df_minha_acao.empty:
-        with st.expander(f"🔬 Cards Aguardando Minha Ação ({len(df_minha_acao)})", expanded=False):
-            st.markdown(f"##### 🔬 {len(df_minha_acao)} cards para você validar/agir")
-            st.caption("Cards onde você é QA, Representante do Cliente ou Responsável")
+    # ===== RENDERIZAÇÃO =====
+    total_acao = len(df_minha_acao)
+    cor_titulo = "#ef4444" if total_acao > 0 else "#22c55e"
+    icone = "⚠️" if total_acao > 0 else "✅"
+    
+    with st.expander(f"{icone} Cards Aguardando MINHA Ação ({total_acao})", expanded=total_acao > 0):
+        if total_acao == 0:
+            st.success("✅ Nenhum card aguardando sua ação no momento!")
+            return
+        
+        # Mostra resumo por papel
+        n_qa = len(df_validar_qa)
+        n_voltar = len(df_voltar_dev)
+        n_rep = len(df_rep_cliente)
+        
+        cols_resumo = st.columns(3)
+        with cols_resumo[0]:
+            st.metric("🔬 Para Validar (QA)", n_qa)
+        with cols_resumo[1]:
+            st.metric("🔄 Voltaram (Correção)", n_voltar)
+        with cols_resumo[2]:
+            st.metric("👤 Rep. Cliente", n_rep)
+        
+        st.markdown("---")
+        
+        # Construir HTML completo em string única
+        html_minha_acao = '<div class="scroll-container" style="max-height: 450px;">'
+        
+        for _, card in df_minha_acao.iterrows():
+            projeto = str(card.get('projeto', 'SD'))
+            tipo = str(card.get('tipo', 'TAREFA'))
+            tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#6366f1" if tipo == "SUGESTÃO" else "#64748b"
+            titulo = str(card.get('titulo', card.get('resumo', '')))[:70]
+            tempo_atualizacao = formatar_tempo_relativo(card.get('atualizado')) if 'atualizado' in card else ""
+            relator = str(card.get('relator', 'N/A'))
+            status_card = str(card.get('status', ''))
             
-            # Construir HTML completo em string única
-            html_minha_acao = '<div class="scroll-container" style="max-height: 450px;">'
+            # Identificar papel da pessoa
+            papeis = []
+            acao_necessaria = ""
+            cor_papel = "#8b5cf6"
+            if card.get('qa') == pessoa_selecionada and card['ticket_id'] in df_validar_qa['ticket_id'].values if not df_validar_qa.empty else False:
+                papeis.append("QA")
+                acao_necessaria = "👉 VALIDAR"
+                cor_papel = "#06b6d4"
+            if card['ticket_id'] in df_voltar_dev['ticket_id'].values if not df_voltar_dev.empty else False:
+                papeis.append("Dev")
+                acao_necessaria = "👉 CORRIGIR"
+                cor_papel = "#ef4444"
+            if card.get('representante_cliente') == pessoa_selecionada:
+                papeis.append("Rep. Cliente")
+                acao_necessaria = "👉 APROVAR"
+                cor_papel = "#f59e0b"
             
-            for _, card in df_minha_acao.iterrows():
-                projeto = str(card.get('projeto', 'SD'))
-                tipo = str(card.get('tipo', 'TAREFA'))
-                tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#6366f1" if tipo == "SUGESTÃO" else "#64748b"
-                titulo = str(card.get('titulo', card.get('resumo', '')))[:70]
-                tempo_atualizacao = formatar_tempo_relativo(card.get('atualizado')) if 'atualizado' in card else ""
-                relator = str(card.get('relator', 'N/A'))
-                status_card = str(card.get('status', ''))
-                
-                # Identificar papel da pessoa
-                papeis = []
-                if card.get('qa') == pessoa_selecionada:
-                    papeis.append("QA")
-                if card.get('representante_cliente') == pessoa_selecionada:
-                    papeis.append("Rep. Cliente")
-                if card.get('responsavel') == pessoa_selecionada:
-                    papeis.append("Responsável")
-                papel_texto = " • ".join(papeis) if papeis else "Validador"
-                
-                card_link = card_link_com_popup(card['ticket_id'], projeto)
-                sufixo = '...' if len(str(card.get('titulo', ''))) > 70 else ''
-                
-                html_minha_acao += '<div class="card-lista-roxo">'
-                html_minha_acao += '<div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap;">'
-                html_minha_acao += '<span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">' + projeto + '</span>'
-                html_minha_acao += '<span style="background: ' + tipo_cor + '; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">' + tipo + '</span>'
-                html_minha_acao += '<span style="background: #8b5cf6; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">' + papel_texto + '</span>'
-                html_minha_acao += card_link
-                html_minha_acao += '<span style="color: #7c3aed; font-size: 0.75em; margin-left: auto;">🕐 ' + tempo_atualizacao + '</span>'
-                html_minha_acao += '</div>'
-                html_minha_acao += '<div style="color: #5b21b6; font-size: 0.9em; line-height: 1.4;">' + titulo + sufixo + '</div>'
-                html_minha_acao += '<div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Aberto por: ' + relator + ' • Status: ' + status_card + '</div>'
-                html_minha_acao += '</div>'
+            papel_texto = " • ".join(papeis) if papeis else "Validador"
             
+            card_link = card_link_com_popup(card['ticket_id'], projeto)
+            sufixo = '...' if len(str(card.get('titulo', ''))) > 70 else ''
+            
+            # Define cor do card baseado no papel
+            card_class = "card-lista-roxo"
+            if "CORRIGIR" in acao_necessaria:
+                card_class = "card-lista"  # Vermelho
+            elif "VALIDAR" in acao_necessaria:
+                card_class = "card-lista-cyan"  # Ciano
+            
+            html_minha_acao += f'<div class="{card_class}" style="border-left-color: {cor_papel};">'
+            html_minha_acao += '<div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap;">'
+            html_minha_acao += '<span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">' + projeto + '</span>'
+            html_minha_acao += '<span style="background: ' + tipo_cor + '; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">' + tipo + '</span>'
+            html_minha_acao += '<span style="background: ' + cor_papel + '; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;">' + acao_necessaria + '</span>'
+            html_minha_acao += card_link
+            html_minha_acao += '<span style="color: #7c3aed; font-size: 0.75em; margin-left: auto;">🕐 ' + tempo_atualizacao + '</span>'
             html_minha_acao += '</div>'
-            st.markdown(html_minha_acao, unsafe_allow_html=True)
+            html_minha_acao += '<div style="color: #374151; font-size: 0.9em; line-height: 1.4;">' + titulo + sufixo + '</div>'
+            html_minha_acao += '<div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Por: ' + relator + ' • ' + papel_texto + ' • ' + status_card + '</div>'
+            html_minha_acao += '</div>'
+        
+        html_minha_acao += '</div>'
+        st.markdown(html_minha_acao, unsafe_allow_html=True)
 
 
 def _renderizar_cards_validar_producao(df_pessoa: pd.DataFrame):
-    """Renderiza os cards para validar em produção."""
+    """Renderiza os cards para validar em produção usando status_cat."""
+    has_status_cat = 'status_cat' in df_pessoa.columns
     df_valprod = df_pessoa[df_pessoa['projeto'] == 'VALPROD'] if 'projeto' in df_pessoa.columns else pd.DataFrame()
     
     with st.expander("🔍 Cards para Validar em Produção", expanded=False):
         if not df_valprod.empty:
-            df_pendentes = df_valprod[~df_valprod['status'].str.lower().str.contains('aprovado|validado|concluído', na=False)]
+            # Filtra pendentes usando status_cat se disponível
+            if has_status_cat:
+                df_pendentes = df_valprod[~df_valprod['status_cat'].isin(['done', 'valprod_aprovado'])]
+            else:
+                df_pendentes = df_valprod[~df_valprod['status'].str.lower().str.contains('aprovado|validado|concluído', na=False)]
             
             if not df_pendentes.empty:
                 st.markdown(f"##### 🔍 {len(df_pendentes)} cards pendentes de validação")
@@ -576,11 +706,16 @@ def _renderizar_cards_validar_producao(df_pessoa: pd.DataFrame):
 
 
 def _renderizar_cards_concluidos(df_pessoa: pd.DataFrame):
-    """Renderiza os cards concluídos."""
+    """Renderiza os cards concluídos usando status_cat para consistência."""
+    has_status_cat = 'status_cat' in df_pessoa.columns
+    
     with st.expander("✅ Cards Concluídos", expanded=False):
-        # Filtra cards concluídos/aprovados/validados em todos os projetos
-        df_concluidos_lista = df_pessoa[df_pessoa['status'].str.lower().str.contains(
-            'concluído|finalizado|done|aprovado|validado|resolvido|closed|encerrado', na=False)]
+        # Filtra cards concluídos usando status_cat se disponível
+        if has_status_cat:
+            df_concluidos_lista = df_pessoa[df_pessoa['status_cat'].isin(['done', 'valprod_aprovado'])]
+        else:
+            df_concluidos_lista = df_pessoa[df_pessoa['status'].str.lower().str.contains(
+                'concluído|finalizado|done|aprovado|validado|resolvido|closed|encerrado', na=False)]
         
         if not df_concluidos_lista.empty:
             st.markdown(f"##### ✅ {len(df_concluidos_lista)} cards concluídos")
@@ -622,46 +757,115 @@ def _renderizar_cards_concluidos(df_pessoa: pd.DataFrame):
 
 
 def _renderizar_onde_estao_meus_cards(df_pessoa: pd.DataFrame):
-    """Renderiza a seção 'Onde estão meus cards?'."""
-    with st.expander("📊 Onde estão meus cards?", expanded=False):
-        if 'projeto' in df_pessoa.columns:
+    """Renderiza a seção 'Onde estão meus cards?' usando status_cat para consistência."""
+    from modulos.config import STATUS_NOMES, STATUS_CORES
+    
+    has_status_cat = 'status_cat' in df_pessoa.columns
+    
+    with st.expander("📊 Onde estão meus cards? (Fluxo de Status)", expanded=False):
+        if has_status_cat:
             col_graf, col_lista = st.columns([1, 1])
             
             with col_graf:
-                # Gráfico de barras empilhadas por projeto e status
-                status_por_projeto = df_pessoa.groupby(['projeto', 'status']).size().reset_index(name='count')
+                # Gráfico de barras por status_cat (consistente com Visão Geral)
+                status_counts = df_pessoa['status_cat'].value_counts().reset_index()
+                status_counts.columns = ['status_cat', 'count']
                 
-                if not status_por_projeto.empty:
-                    fig = px.bar(status_por_projeto, x='projeto', y='count', color='status',
-                                 title='📊 Cards por Projeto e Status',
-                                 labels={'projeto': 'Projeto', 'count': 'Cards', 'status': 'Status'})
-                    fig.update_layout(height=350, showlegend=True)
+                # Adiciona nomes amigáveis
+                status_counts['nome'] = status_counts['status_cat'].map(
+                    lambda x: STATUS_NOMES.get(x, x.replace('_', ' ').title())
+                )
+                status_counts['cor'] = status_counts['status_cat'].map(
+                    lambda x: STATUS_CORES.get(x, '#64748b')
+                )
+                
+                if not status_counts.empty:
+                    fig = px.bar(
+                        status_counts, 
+                        x='nome', 
+                        y='count',
+                        color='nome',
+                        color_discrete_map={
+                            row['nome']: row['cor'] for _, row in status_counts.iterrows()
+                        },
+                        title='📊 Meus Cards por Status (Mesmo critério da Visão Geral)'
+                    )
+                    fig.update_layout(
+                        height=350, 
+                        showlegend=False,
+                        xaxis_title="Status",
+                        yaxis_title="Quantidade"
+                    )
                     st.plotly_chart(fig, use_container_width=True)
             
             with col_lista:
                 st.markdown("##### 📋 Detalhamento por Status")
                 
-                for projeto in ['SD', 'QA', 'PB', 'VALPROD']:
-                    df_proj = df_pessoa[df_pessoa['projeto'] == projeto]
-                    if not df_proj.empty:
-                        st.markdown(f"**{projeto}** ({len(df_proj)} cards):")
-                        status_counts = df_proj['status'].value_counts()
-                        for status, count in status_counts.items():
-                            # Cor baseada no status
-                            cor = "#22c55e" if 'concluído' in status.lower() or 'validado' in status.lower() or 'aprovado' in status.lower() else \
-                                  "#ef4444" if 'reprovado' in status.lower() or 'impedido' in status.lower() else \
-                                  "#f59e0b" if 'aguardando' in status.lower() else \
-                                  "#3b82f6"
-                            st.markdown(f"<span style='color: {cor};'>●</span> {status}: **{count}**", unsafe_allow_html=True)
-                        st.markdown("")
+                # Agrupa por status_cat para mostrar fluxo
+                fluxo_ordem = ['backlog', 'development', 'code_review', 'waiting_qa', 'testing', 'done', 'blocked', 'rejected']
+                
+                for cat in fluxo_ordem:
+                    df_cat = df_pessoa[df_pessoa['status_cat'] == cat]
+                    if not df_cat.empty:
+                        nome = STATUS_NOMES.get(cat, cat)
+                        cor = STATUS_CORES.get(cat, '#64748b')
+                        st.markdown(
+                            f"<div style='display: flex; align-items: center; gap: 8px; margin: 4px 0;'>"
+                            f"<span style='background: {cor}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; min-width: 140px;'>{nome}</span>"
+                            f"<span style='font-weight: bold; font-size: 16px;'>{len(df_cat)}</span>"
+                            f"</div>", 
+                            unsafe_allow_html=True
+                        )
+                
+                # Outros status não mapeados
+                outros = df_pessoa[~df_pessoa['status_cat'].isin(fluxo_ordem)]
+                if not outros.empty:
+                    st.markdown(f"<div style='margin-top: 8px; color: #64748b;'>Outros: {len(outros)}</div>", unsafe_allow_html=True)
+        else:
+            # Fallback: sem status_cat
+            if 'projeto' in df_pessoa.columns:
+                col_graf, col_lista = st.columns([1, 1])
+                
+                with col_graf:
+                    status_por_projeto = df_pessoa.groupby(['projeto', 'status']).size().reset_index(name='count')
+                    
+                    if not status_por_projeto.empty:
+                        fig = px.bar(status_por_projeto, x='projeto', y='count', color='status',
+                                     title='📊 Cards por Projeto e Status',
+                                     labels={'projeto': 'Projeto', 'count': 'Cards', 'status': 'Status'})
+                        fig.update_layout(height=350, showlegend=True)
+                        st.plotly_chart(fig, use_container_width=True)
+                
+                with col_lista:
+                    st.markdown("##### 📋 Detalhamento por Status")
+                    
+                    for projeto in ['SD', 'QA', 'PB', 'VALPROD']:
+                        df_proj = df_pessoa[df_pessoa['projeto'] == projeto]
+                        if not df_proj.empty:
+                            st.markdown(f"**{projeto}** ({len(df_proj)} cards):")
+                            status_counts = df_proj['status'].value_counts()
+                            for status, count in status_counts.items():
+                                cor = "#22c55e" if 'concluído' in status.lower() or 'validado' in status.lower() or 'aprovado' in status.lower() else \
+                                      "#ef4444" if 'reprovado' in status.lower() or 'impedido' in status.lower() else \
+                                      "#f59e0b" if 'aguardando' in status.lower() else \
+                                      "#3b82f6"
+                                st.markdown(f"<span style='color: {cor};'>●</span> {status}: **{count}**", unsafe_allow_html=True)
+                            st.markdown("")
 
 
 def _renderizar_cards_aguardando_resposta(df_pessoa: pd.DataFrame):
-    """Renderiza os cards aguardando resposta."""
+    """Renderiza os cards aguardando resposta usando status_cat para consistência."""
+    has_status_cat = 'status_cat' in df_pessoa.columns
+    
     with st.expander("💬 Cards Aguardando Resposta", expanded=False):
-        # Cards com status "aguardando" em qualquer projeto (várias variações)
-        filtro_aguardando = 'aguardando|waiting|pendente resposta|aguarda |em espera'
-        df_aguardando = df_pessoa[df_pessoa['status'].str.lower().str.contains(filtro_aguardando, na=False, regex=True)]
+        # Cards com status "aguardando" - usando status_cat se disponível
+        if has_status_cat:
+            df_aguardando = df_pessoa[df_pessoa['status_cat'].isin([
+                'pb_aguardando_resposta', 'waiting_qa', 'blocked'
+            ])]
+        else:
+            filtro_aguardando = 'aguardando|waiting|pendente resposta|aguarda |em espera'
+            df_aguardando = df_pessoa[df_pessoa['status'].str.lower().str.contains(filtro_aguardando, na=False, regex=True)]
         
         if not df_aguardando.empty:
             st.markdown(f"##### 💬 {len(df_aguardando)} cards aguardando algum retorno")
@@ -783,21 +987,40 @@ def _renderizar_tooltip_sobre():
         st.markdown("""
         ### 🎯 Suporte e Implantação — O que analisamos?
         
-        Esta aba foi criada para você acompanhar **seus cards em todos os projetos**:
+        Esta aba foi criada para você acompanhar **seus cards em todos os projetos**.
+        
+        **⚠️ IMPORTANTE: Consistência com a Visão Geral**
+        
+        Todos os números aqui usam os **mesmos critérios** da Visão Geral:
+        
+        | Status mostrado | O que significa (status_cat) |
+        |-----------------|------------------------------|
+        | **💻 Em Dev** | Em andamento ou Code Review |
+        | **⏳ Aguard. QA** | Aguardando Validação (fila do QA) |
+        | **🧪 Em Teste** | Em Validação (QA validando) |
+        | **✅ Concluído** | Concluído (pronto) |
+        | **🚫 Bloqueado** | Impedido ou Reprovado |
+        
+        ### 📋 Seções Disponíveis
         
         | Seção | O que mostra |
         |-------|--------------|
-        | **🔬 Cards Aguardando Minha Validação** | Cards para você validar como QA |
-        | **🔍 Cards para Validar em Produção** | Cards do VALPROD pendentes |
-        | **✅ Cards Concluídos** | Cards finalizados |
-        | **📊 Onde estão meus cards?** | Visão geral por projeto e status |
-        | **💬 Cards Aguardando Resposta** | Cards que precisam de retorno |
-        | **📋 PB** | Seus cards no Product Backlog |
-        | **💻 SD/QA** | Seus cards em desenvolvimento |
+        | **⚠️ Cards Aguardando MINHA Ação** | Cards onde VOCÊ precisa agir (validar, corrigir, aprovar) |
+        | **🔍 Cards para Validar em Produção** | Cards do VALPROD que você precisa testar em produção |
+        | **✅ Cards Concluídos** | Cards finalizados com sucesso |
+        | **📊 Onde estão meus cards?** | Visão geral por status (mesmo critério da Visão Geral) |
+        | **💬 Cards Aguardando Resposta** | Cards que precisam de retorno de alguém |
         
-        ### 🎯 Dicas:
-        - Selecione sua pessoa para filtrar seus cards
-        - Use o filtro de período na sidebar (Sprint Ativa, Todo período, etc)
-        - Cards com mais de 7 dias pendentes aparecem em **vermelho**
+        ### 🎯 Dicas de Uso:
+        - Selecione seu nome para ver **seus cards específicos**
+        - A seção "**Cards Aguardando MINHA Ação**" mostra exatamente o que você precisa fazer
+        - Cards com **👉 VALIDAR** = você é o QA responsável
+        - Cards com **👉 CORRIGIR** = voltou para você (foi reprovado)
+        - Cards com **👉 APROVAR** = você é representante do cliente
         - Copie o link para compartilhar sua visão com outros
+        
+        ### 🔄 Por que os números são iguais à Visão Geral?
+        
+        Usamos `status_cat` (categoria do status) em vez de procurar por texto no nome do status.
+        Isso garante que "3 em desenvolvimento" aqui seja **exatamente** igual a "3 em desenvolvimento" na Visão Geral.
         """)
