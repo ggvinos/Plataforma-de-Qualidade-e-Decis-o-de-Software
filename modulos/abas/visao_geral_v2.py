@@ -873,7 +873,23 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
         info_tempo = f'<span style="color: #6b7280;">{total} cards criados</span>'
         titulo_banner = f"{ctx['emoji']} {ctx['titulo']}"
     
-    banner_html = f'<div style="background: #f9fafb; border: 1px solid #e5e7eb; padding: 8px 14px; border-radius: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;"><div style="display: flex; align-items: center;"><span style="font-size: 13px; font-weight: 600; color: #374151;">{titulo_banner}</span>{badge_status}</div><span style="font-size: 12px;">{info_tempo}</span></div>'
+    # Banner centralizado e harmonioso
+    banner_html = f'''
+    <div style="
+        background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+        border: 1px solid #e5e7eb;
+        padding: 14px 20px;
+        border-radius: 10px;
+        margin-bottom: 16px;
+        text-align: center;
+    ">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;">
+            <span style="font-size: 15px; font-weight: 600; color: #1f2937;">{titulo_banner}</span>
+            {badge_status}
+        </div>
+        <div style="font-size: 12px; margin-top: 6px;">{info_tempo}</div>
+    </div>
+    '''
     st.markdown(banner_html, unsafe_allow_html=True)
     
     # Governança para verificações

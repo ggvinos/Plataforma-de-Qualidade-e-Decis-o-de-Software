@@ -970,8 +970,8 @@ def main():
         # AUTO-LOAD - busca os dados (loading fica visível até terminar)
         issues, ultima_atualizacao = buscar_dados_jira_cached(projeto, jql)
         
-        # Remove o loading APÓS carregar os dados
-        loading_placeholder.empty()
+        # NOTA: loading_placeholder.empty() é chamado mais abaixo,
+        # após todo o processamento estar completo
         
         # ===== TRATAMENTO DE ERRO COM BOTÃO TENTAR NOVAMENTE =====
         if issues is None:
@@ -1123,6 +1123,9 @@ def main():
             exibir_changelog()
         
         # ===== RENDERIZA AS ABAS DO DASHBOARD (DINÂMICO POR PERMISSÕES) =====
+        # Remove o loading AGORA que todo o processamento terminou
+        loading_placeholder.empty()
+        
         # Constrói apenas as abas que o usuário tem permissão para ver
         abas_permitidas = construir_abas_permitidas(projeto)
         
