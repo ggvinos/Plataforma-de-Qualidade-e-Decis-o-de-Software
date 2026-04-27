@@ -106,7 +106,7 @@ def _renderizar_ranking_geral(df: pd.DataFrame, devs: list):
     fk_medio = sp_total / (bugs_total + 1) if bugs_total >= 0 else 0
     mat = classificar_maturidade(fk_medio)
     
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
     
     with col1:
         st.markdown(mini_card(str(total_cards), "Total Cards", f"{sp_total} SP", "#3b82f6"), unsafe_allow_html=True)
@@ -134,7 +134,7 @@ def _renderizar_ranking_geral(df: pd.DataFrame, devs: list):
     cards_reprovados = df[df['status_cat'] == 'rejected']
     sp_bloqueado = int(cards_impedidos['sp'].sum()) + int(cards_reprovados['sp'].sum())
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4 = st.columns(4, gap="small")
     
     with col1:
         cor = cor_status(len(cards_impedidos), 1, 3)
@@ -526,7 +526,7 @@ def _renderizar_indicadores_individuais_dev(analise: dict, mat: dict):
     
     # ===== LINHA 1: KPIs Principais =====
     st.markdown("##### 📊 Indicadores Individuais")
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
     
     with col1:
         st.markdown(mini_card(str(analise['cards']), "Total Cards", f"{analise['sp_total']} SP", "#3b82f6"), unsafe_allow_html=True)
@@ -556,7 +556,7 @@ def _renderizar_indicadores_individuais_dev(analise: dict, mat: dict):
     em_dev = len(df_dev[df_dev['status_cat'] == 'development'])
     em_cr = len(df_dev[df_dev['status_cat'] == 'code_review'])
     
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
     
     with col1:
         cor = cor_status(em_dev, 3, 5)

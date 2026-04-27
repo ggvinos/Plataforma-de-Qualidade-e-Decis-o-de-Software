@@ -152,7 +152,7 @@ def _renderizar_kpis_qa(df: pd.DataFrame, metricas_qa: dict):
     
     # ===== LINHA 1: KPIs Principais =====
     st.markdown("##### 📊 Indicadores de QA")
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
     
     with col1:
         total_fila = metricas_qa['funil']['waiting_qa'] + metricas_qa['funil']['testing']
@@ -189,7 +189,7 @@ def _renderizar_kpis_qa(df: pd.DataFrame, metricas_qa: dict):
     bug_rate = total_com_bugs / total_validados * 100 if total_validados > 0 else 0
     sp_bloqueado = int(cards_impedidos['sp'].sum()) + int(cards_reprovados['sp'].sum())
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4 = st.columns(4, gap="small")
     
     with col1:
         cor = cor_status(len(cards_impedidos), 1, 3)
@@ -222,7 +222,7 @@ def _renderizar_kpis_qa(df: pd.DataFrame, metricas_qa: dict):
         n_prod = len(cards_prod)
         n_sem = len(cards_sem)
         
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4 = st.columns(4, gap="small")
         
         with col1:
             cor = "#16a34a"
@@ -751,7 +751,7 @@ def _renderizar_kpis_individuais(df: pd.DataFrame, df_qa: pd.DataFrame, qa_sel: 
     
     # ===== LINHA 1: KPIs Principais =====
     st.markdown("##### 📊 Indicadores Individuais")
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
     
     with col1:
         st.markdown(mini_card(str(len(df_qa)), "Total Cards", f"{sp_total} SP", "#3b82f6"), unsafe_allow_html=True)
@@ -779,7 +779,7 @@ def _renderizar_kpis_individuais(df: pd.DataFrame, df_qa: pd.DataFrame, qa_sel: 
     sp_travado = int(cards_impedidos_qa['sp'].sum()) + int(cards_reprovados_qa['sp'].sum())
     em_validacao = len(df_qa[df_qa['status_cat'] == 'testing'])
     
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
     
     with col1:
         cor = "#22c55e" if lead_time_medio <= 3 else "#f59e0b" if lead_time_medio <= 7 else "#ef4444"

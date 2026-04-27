@@ -111,7 +111,7 @@ def _renderizar_visao_geral(df_todos: pd.DataFrame):
     total_valprod = len(df_todos[df_todos['projeto'] == 'VALPROD']) if 'projeto' in df_todos.columns else 0
     pessoas_unicas = df_todos['relator'].nunique()
     
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
     
     with col1:
         pct_sd = f"{(total_sd/total_cards*100):.0f}%" if total_cards > 0 else "0%"
@@ -511,7 +511,7 @@ def _renderizar_metricas_pessoa(df_pessoa: pd.DataFrame):
     else:
         pendentes_valprod = 0
     
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
     
     with col1:
         cor = "#3b82f6" if em_dev > 0 else "#6b7280"
