@@ -1234,6 +1234,15 @@ def processar_issue_unica(issue: Dict) -> Dict:
     
     janela_info = avaliar_janela_validacao(dias_ate_release, complexidade)
     
+    # Ambiente Desenvolvido
+    ambiente_f = f.get(CUSTOM_FIELDS['ambiente_desenvolvido'])
+    ambiente = ambiente_f.get('value', '') if isinstance(ambiente_f, dict) else ''
+    ambiente_normalizado = ambiente.lower() if ambiente else ''
+    em_producao = 'produção' in ambiente_normalizado or 'producao' in ambiente_normalizado
+    em_homologacao = 'homologação' in ambiente_normalizado or 'homologacao' in ambiente_normalizado
+    em_develop = 'develop' in ambiente_normalizado
+    vai_subir_proxima_release = em_homologacao
+    
     ticket_id = issue.get('key', '')
     
     return {
@@ -1276,6 +1285,11 @@ def processar_issue_unica(issue: Dict) -> Dict:
         'labels': labels,
         'componentes': componentes,
         'epic_link': epic_link,
+        'ambiente': ambiente,
+        'em_producao': em_producao,
+        'em_homologacao': em_homologacao,
+        'em_develop': em_develop,
+        'vai_subir_proxima_release': vai_subir_proxima_release,
     }
 
 
@@ -1395,6 +1409,16 @@ def processar_issues(issues: List[Dict]) -> pd.DataFrame:
         sla_status = sla_f.get('value', '') if isinstance(sla_f, dict) else ''
         sla_atrasado = sla_status == 'Atrasado'
         
+        # Ambiente Desenvolvido (Develop, Homologação, Produção)
+        ambiente_f = f.get(CUSTOM_FIELDS['ambiente_desenvolvido'])
+        ambiente = ambiente_f.get('value', '') if isinstance(ambiente_f, dict) else ''
+        # Normaliza para comparação
+        ambiente_normalizado = ambiente.lower() if ambiente else ''
+        em_producao = 'produção' in ambiente_normalizado or 'producao' in ambiente_normalizado
+        em_homologacao = 'homologação' in ambiente_normalizado or 'homologacao' in ambiente_normalizado
+        em_develop = 'develop' in ambiente_normalizado
+        vai_subir_proxima_release = em_homologacao  # Cards em homologação sobem na próxima release
+        
         # Datas
         try:
             criado = datetime.fromisoformat(f.get('created', '').replace('Z', '+00:00')).replace(tzinfo=None)
@@ -1512,6 +1536,11 @@ def processar_issues(issues: List[Dict]) -> pd.DataFrame:
             'sla_atrasado': sla_atrasado,
             'origem_pb': origem_pb,
             'tem_link_pb': tem_link_pb,
+            'ambiente': ambiente,
+            'em_producao': em_producao,
+            'em_homologacao': em_homologacao,
+            'em_develop': em_develop,
+            'vai_subir_proxima_release': vai_subir_proxima_release,
         })
     
     return pd.DataFrame(dados)

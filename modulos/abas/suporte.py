@@ -23,7 +23,7 @@ from datetime import datetime
 import plotly.express as px
 
 from modulos.config import NINADASH_URL
-from modulos.helpers import criar_card_metrica, formatar_tempo_relativo, obter_contexto_periodo
+from modulos.helpers import criar_card_metrica, formatar_tempo_relativo, obter_contexto_periodo, gerar_badge_ambiente
 from modulos.utils import card_link_com_popup
 
 
@@ -329,11 +329,16 @@ def _renderizar_lista_cards_aguardando(df_cards: pd.DataFrame, projeto_default: 
         ticket_id = card.get('ticket_id', '')
         popup_html = card_link_com_popup(ticket_id, projeto)
         
+        # Badge de ambiente (se preenchido)
+        ambiente = card.get('ambiente', '')
+        ambiente_badge = gerar_badge_ambiente(ambiente, compacto=True) if ambiente else ''
+        
         cards_html += f'''
         <div class="{classe_card}">
             <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 4px;">
                 <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
                 <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
+                {ambiente_badge}
                 {popup_html}
             </div>
             <div style="font-size: 13px; line-height: 1.4;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 80 else ""}</div>

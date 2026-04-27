@@ -44,6 +44,7 @@ CUSTOM_FIELDS = {
     "temas": "customfield_10520",
     "importancia": "customfield_10522",
     "sla_status": "customfield_11124",
+    "ambiente_desenvolvido": "customfield_10586",
 }
 
 # ==============================================================================

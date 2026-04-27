@@ -685,5 +685,111 @@ def gerar_html_card_ticket(row: dict, compacto: bool = False) -> str:
         return f'<div class="ticket-card ticket-risk-{risco}"><div style="display: flex; justify-content: space-between;">{card_link}<span style="color: {cor_bug}; font-weight: bold;">{bug_icon}{bugs} bugs</span></div><p style="margin: 8px 0;">{row.get("titulo", "")}</p><p style="font-size: 12px; opacity: 0.8;"><b>Dev:</b> {row.get("desenvolvedor", "N/A")} | <b>QA:</b> {row.get("qa", "N/A")} | <b>SP:</b> {row.get("sp", 0)} | {status_badge}</p></div>'
 
 
+def gerar_badge_ambiente(ambiente: str, compacto: bool = False) -> str:
+    """
+    Gera um badge HTML para indicar o ambiente do card.
+    
+    Args:
+        ambiente: Valor do campo Ambiente Desenvolvido (Develop, Homologação, Produção)
+        compacto: Se True, retorna versão menor do badge
+    
+    Returns:
+        HTML string com o badge colorido
+    """
+    if not ambiente:
+        return ""
+    
+    ambiente_lower = ambiente.lower()
+    
+    if 'produção' in ambiente_lower or 'producao' in ambiente_lower:
+        cor = "#dc2626"  # Vermelho
+        bg = "#fef2f2"
+        emoji = "🔴"
+        texto = "PROD" if compacto else "Produção"
+        titulo = "Em Produção - Card já está impactando clientes"
+    elif 'homologação' in ambiente_lower or 'homologacao' in ambiente_lower:
+        cor = "#d97706"  # Laranja/Amarelo
+        bg = "#fffbeb"
+        emoji = "🟡"
+        texto = "HML" if compacto else "Homologação"
+        titulo = "Em Homologação - Vai subir na próxima release"
+    elif 'develop' in ambiente_lower:
+        cor = "#16a34a"  # Verde
+        bg = "#f0fdf4"
+        emoji = "🟢"
+        texto = "DEV" if compacto else "Develop"
+        titulo = "Em Develop - Ainda em desenvolvimento/testes"
+    else:
+        cor = "#6b7280"  # Cinza
+        bg = "#f9fafb"
+        emoji = "⚪"
+        texto = ambiente[:10] if compacto else ambiente
+        titulo = f"Ambiente: {ambiente}"
+    
+    if compacto:
+        return f'<span title="{titulo}" style="background: {bg}; color: {cor}; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; border: 1px solid {cor}20;">{emoji} {texto}</span>'
+    else:
+        return f'<span title="{titulo}" style="background: {bg}; color: {cor}; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; border: 1px solid {cor}30;">{emoji} {texto}</span>'
+
+
+def obter_info_ambiente(ambiente: str) -> dict:
+    """
+    Retorna informações estruturadas sobre o ambiente.
+    
+    Args:
+        ambiente: Valor do campo Ambiente Desenvolvido
+    
+    Returns:
+        dict com: nome, emoji, cor, criticidade, descricao, vai_subir_proxima_release
+    """
+    if not ambiente:
+        return {
+            "nome": "Não definido",
+            "emoji": "⚪",
+            "cor": "#6b7280",
+            "criticidade": 0,
+            "descricao": "Ambiente não informado",
+            "vai_subir_proxima_release": False
+        }
+    
+    ambiente_lower = ambiente.lower()
+    
+    if 'produção' in ambiente_lower or 'producao' in ambiente_lower:
+        return {
+            "nome": "Produção",
+            "emoji": "🔴",
+            "cor": "#dc2626",
+            "criticidade": 3,  # Máxima
+            "descricao": "Já está em produção - impactando clientes",
+            "vai_subir_proxima_release": False  # Já está em produção
+        }
+    elif 'homologação' in ambiente_lower or 'homologacao' in ambiente_lower:
+        return {
+            "nome": "Homologação",
+            "emoji": "🟡",
+            "cor": "#d97706",
+            "criticidade": 2,  # Alta
+            "descricao": "Em homologação - vai subir na próxima release",
+            "vai_subir_proxima_release": True
+        }
+    elif 'develop' in ambiente_lower:
+        return {
+            "nome": "Develop",
+            "emoji": "🟢",
+            "cor": "#16a34a",
+            "criticidade": 1,  # Normal
+            "descricao": "Em desenvolvimento - ainda em testes",
+            "vai_subir_proxima_release": False
+        }
+    else:
+        return {
+            "nome": ambiente,
+            "emoji": "⚪",
+            "cor": "#6b7280",
+            "criticidade": 0,
+            "descricao": f"Ambiente: {ambiente}",
+            "vai_subir_proxima_release": False
+        }
+
 
 

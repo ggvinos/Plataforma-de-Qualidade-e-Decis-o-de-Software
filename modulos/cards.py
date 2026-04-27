@@ -44,6 +44,7 @@ from modulos.jira_api import (
 
 from modulos.jira_api import extrair_historico_transicoes, extrair_texto_adf, gerar_icone_tabler
 from modulos.utils import link_jira, traduzir_link
+from modulos.helpers import gerar_badge_ambiente, obter_info_ambiente
 
 
 # ==============================================================================
@@ -78,11 +79,32 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Di
     }
     header_bg, header_icon = header_colors.get(projeto, header_colors["SD"])
     
+    # Badge de ambiente (se preenchido)
+    ambiente = card.get('ambiente', '')
+    ambiente_badge_html = ""
+    if ambiente:
+        info_amb = obter_info_ambiente(ambiente)
+        ambiente_badge_html = f"""
+        <span style="background: rgba(255,255,255,0.95); color: {info_amb['cor']}; 
+                     padding: 4px 10px; border-radius: 6px; font-size: 12px; 
+                     font-weight: 600; margin-left: 12px; vertical-align: middle;">
+            {info_amb['emoji']} {info_amb['nome']}
+        </span>
+        """
+        if info_amb['vai_subir_proxima_release']:
+            ambiente_badge_html += f"""
+            <span style="background: rgba(255,255,255,0.2); color: white; 
+                         padding: 3px 8px; border-radius: 4px; font-size: 11px; 
+                         margin-left: 8px; vertical-align: middle;">
+                🚀 Sobe na próxima release
+            </span>
+            """
+    
     st.markdown(f"""
     <div style='background: {header_bg}; 
                 color: white; padding: 20px; border-radius: 12px; margin-bottom: 15px;'>
         <h2 style='margin: 0; color: white; font-size: 1.5em;'>
-            {header_icon} {card['ticket_id']}
+            {header_icon} {card['ticket_id']} {ambiente_badge_html}
         </h2>
         <p style='margin: 8px 0 0 0; opacity: 0.9; font-size: 0.95em;'>
             {card['titulo'][:120]}{'...' if len(card['titulo']) > 120 else ''}
