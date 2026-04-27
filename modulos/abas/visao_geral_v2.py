@@ -297,7 +297,8 @@ def identificar_gargalos(df: pd.DataFrame) -> list:
                             cards_cr_antigos.append({
                                 'ticket_id': row['ticket_id'],
                                 'titulo': str(row.get('titulo', ''))[:50],
-                                'dias': dias_em_cr
+                                'dias': dias_em_cr,
+                                'ambiente': row.get('ambiente', '')
                             })
                     except:
                         pass
@@ -315,7 +316,7 @@ def identificar_gargalos(df: pd.DataFrame) -> list:
     bloqueados = df[df['status_cat'].isin(['blocked', 'rejected'])]
     if not bloqueados.empty:
         cards_bloqueados = [
-            {'ticket_id': row['ticket_id'], 'titulo': str(row.get('titulo', ''))[:50], 'status': row['status']}
+            {'ticket_id': row['ticket_id'], 'titulo': str(row.get('titulo', ''))[:50], 'status': row['status'], 'ambiente': row.get('ambiente', '')}
             for _, row in bloqueados.iterrows()
         ]
         gargalos.append({
@@ -333,7 +334,7 @@ def identificar_gargalos(df: pd.DataFrame) -> list:
             "tipo": "fila_qa",
             "severidade": "alerta" if len(em_fila_qa) <= 15 else "critico",
             "titulo": f"⏳ {len(em_fila_qa)} cards aguardando validação",
-            "cards": [{'ticket_id': row['ticket_id'], 'titulo': str(row.get('titulo', ''))[:50]} for _, row in em_fila_qa.head(5).iterrows()],
+            "cards": [{'ticket_id': row['ticket_id'], 'titulo': str(row.get('titulo', ''))[:50], 'ambiente': row.get('ambiente', '')} for _, row in em_fila_qa.head(5).iterrows()],
             "acao": "Aumentar capacidade de QA ou redistribuir carga"
         })
     
@@ -341,7 +342,7 @@ def identificar_gargalos(df: pd.DataFrame) -> list:
     cards_com_bugs = df[df['bugs'] >= 3]
     if not cards_com_bugs.empty:
         cards_problematicos = [
-            {'ticket_id': row['ticket_id'], 'titulo': str(row.get('titulo', ''))[:50], 'bugs': row['bugs']}
+            {'ticket_id': row['ticket_id'], 'titulo': str(row.get('titulo', ''))[:50], 'bugs': row['bugs'], 'ambiente': row.get('ambiente', '')}
             for _, row in cards_com_bugs.iterrows()
         ]
         gargalos.append({
@@ -714,31 +715,7 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
     # ==== CONTEXTO DE PERÍODO ====
     ctx = obter_contexto_periodo()
     
-    # ==== HEADER COMPACTO ====
-    agora = datetime.now()
-    diff = (agora - ultima_atualizacao).total_seconds() / 60
-    tempo_texto = "agora" if diff < 1 else f"há {int(diff)}min" if diff < 60 else f"há {int(diff/60)}h"
-    
-    # Header com botão de atualização integrado
-    col_titulo, col_periodo, col_refresh = st.columns([2, 2, 1])
-    with col_titulo:
-        st.markdown('<div style="font-size: 18px; font-weight: 700; color: #1f2937; padding-top: 4px;">🎯 Central de Decisão</div>', unsafe_allow_html=True)
-    with col_periodo:
-        # Badge mostrando o período selecionado
-        cor_badge = "#3b82f6" if ctx["eh_sprint"] else "#6b7280" if ctx["eh_todo_periodo"] else "#f59e0b"
-        st.markdown(f'''
-        <div style="display: flex; align-items: center; justify-content: center; padding-top: 4px;">
-            <span style="background: {cor_badge}15; color: {cor_badge}; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 500; border: 1px solid {cor_badge}40;">
-                {ctx["emoji"]} {ctx["titulo"]}
-            </span>
-        </div>
-        ''', unsafe_allow_html=True)
-    with col_refresh:
-        if st.button(f"🔄 Atualizar", help=f"Última atualização: {tempo_texto}", type="secondary", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
-    
-    # ==== COLETA DE DADOS ====
+    # ==== COLETA DE DADOS (antes do header para usar no badge) ====
     
     # Sprint info
     sprint_atual = "Sem Sprint"
@@ -806,6 +783,150 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
         dias_passados = None
         dias_total = None
     
+    # ==== HEADER COMPACTO ====
+    agora = datetime.now()
+    diff = (agora - ultima_atualizacao).total_seconds() / 60
+    tempo_texto = "agora" if diff < 1 else f"há {int(diff)}min" if diff < 60 else f"há {int(diff/60)}h"
+    
+    # CSS para altura uniforme 32px em todos os elementos
+    st.markdown('''
+    <style>
+    .header-title-box {
+        display: flex;
+        align-items: center;
+        height: 38px;
+    }
+    .header-title {
+        font-size: 17px;
+        font-weight: 700;
+        color: #1f2937;
+        white-space: nowrap;
+    }
+    .header-badges-box {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 38px;
+        justify-content: flex-end;
+    }
+    .badge-sprint {
+        background: #3b82f615;
+        color: #3b82f6;
+        padding: 0 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        border: 1px solid #3b82f640;
+        white-space: nowrap;
+        height: 32px;
+        line-height: 32px;
+        display: inline-flex;
+        align-items: center;
+    }
+    .badge-status-red {
+        background: #dc2626;
+        color: white;
+        padding: 0 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+        height: 32px;
+        line-height: 32px;
+        display: inline-flex;
+        align-items: center;
+    }
+    .badge-status-orange {
+        background: #ea580c;
+        color: white;
+        padding: 0 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+        height: 32px;
+        line-height: 32px;
+        display: inline-flex;
+        align-items: center;
+    }
+    .badge-status-yellow {
+        background: #f59e0b;
+        color: white;
+        padding: 0 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+        height: 32px;
+        line-height: 32px;
+        display: inline-flex;
+        align-items: center;
+    }
+    .badge-status-gray {
+        background: #e5e7eb;
+        color: #374151;
+        padding: 0 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+        height: 32px;
+        line-height: 32px;
+        display: inline-flex;
+        align-items: center;
+    }
+    .badge-periodo {
+        padding: 0 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+        height: 32px;
+        line-height: 32px;
+        display: inline-flex;
+        align-items: center;
+    }
+    /* Ajusta o botão Streamlit para ter mesma altura */
+    div[data-testid="stButton"] button {
+        height: 32px !important;
+        min-height: 32px !important;
+        padding: 0 12px !important;
+        line-height: 32px !important;
+    }
+    </style>
+    ''', unsafe_allow_html=True)
+    
+    # Monta os badges baseado no contexto
+    if ctx["eh_sprint"]:
+        sprint_badge = f'<span class="badge-sprint">🏃 {sprint_atual}</span>'
+        
+        if dias_restantes is not None and dias_restantes < 0:
+            status_badge = f'<span class="badge-status-red">🚨 RELEASE ATRASADA | {abs(dias_restantes)}d</span>'
+        elif dias_restantes == 0:
+            status_badge = '<span class="badge-status-yellow">⚡ HOJE</span>'
+        elif dias_restantes is not None and dias_restantes <= 2:
+            status_badge = f'<span class="badge-status-orange">⏰ {dias_restantes}d restantes</span>'
+        elif dias_restantes is not None:
+            status_badge = f'<span class="badge-status-gray">{dias_restantes}d restantes</span>'
+        else:
+            status_badge = ''
+        
+        badges_html = f'{sprint_badge}{status_badge}'
+    else:
+        cor_badge = "#6b7280" if ctx["eh_todo_periodo"] else "#f59e0b"
+        badges_html = f'<span class="badge-periodo" style="background: {cor_badge}15; color: {cor_badge}; border: 1px solid {cor_badge}40;">{ctx["emoji"]} {ctx["titulo"]}</span>'
+    
+    # Layout em 3 colunas: título | badges | botão - tudo na mesma linha
+    col_titulo, col_badges, col_btn = st.columns([3, 5, 1])
+    with col_titulo:
+        st.markdown(f'<div class="header-title-box"><span class="header-title">🎯 Central de Decisão</span></div>', unsafe_allow_html=True)
+    with col_badges:
+        st.markdown(f'<div class="header-badges-box">{badges_html}</div>', unsafe_allow_html=True)
+    with col_btn:
+        if st.button(f"🔄", help=f"Última atualização: {tempo_texto}", type="secondary", use_container_width=True, key="btn_refresh_header"):
+            st.cache_data.clear()
+            st.rerun()
+    
     # Métricas básicas
     total = len(df)
     concluidos = len(df[df['status_cat'] == 'done'])
@@ -833,64 +954,6 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
     
     # Gargalos
     gargalos = identificar_gargalos(df)
-    
-    # ==== BANNER DO PERÍODO - ADAPTATIVO ====
-    badge_status = ""
-    badge_cor = "#6b7280"
-    info_tempo = ""
-    
-    # Quando é Sprint Ativa, mostra informações de tempo
-    if ctx["eh_sprint"] and dias_restantes is not None:
-        if dias_restantes < 0:
-            badge_cor = "#dc2626"
-            badge_status = f'<span style="background: {badge_cor}; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-left: 8px;">ATRASADA {abs(dias_restantes)}d</span>'
-            info_tempo = f'<span style="color: #dc2626; font-weight: 600;">+{abs(dias_restantes)} dias além do prazo</span>'
-        elif dias_restantes == 0:
-            badge_cor = "#f59e0b"
-            badge_status = f'<span style="background: {badge_cor}; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-left: 8px;">HOJE</span>'
-            info_tempo = '<span style="color: #f59e0b; font-weight: 600;">Último dia!</span>'
-        elif dias_restantes <= 2:
-            badge_cor = "#ea580c"
-            badge_status = f'<span style="background: {badge_cor}; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-left: 8px;">{dias_restantes}d</span>'
-            info_tempo = f'<span style="color: #ea580c;">Faltam {dias_restantes} dias</span>'
-        else:
-            badge_status = f'<span style="background: #e5e7eb; color: #374151; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; margin-left: 8px;">{dias_restantes}d restantes</span>'
-            if dias_passados is not None and dias_total:
-                info_tempo = f'<span style="color: #6b7280;">Dia {dias_passados} de {dias_total}</span>'
-            else:
-                info_tempo = f'<span style="color: #6b7280;">{dias_restantes} dias restantes</span>'
-        titulo_banner = f"🚀 {sprint_atual}"
-    elif ctx["eh_sprint"]:
-        # Sprint ativa mas sem datas definidas
-        info_tempo = '<span style="color: #9ca3af;">Datas não definidas</span>'
-        titulo_banner = f"🚀 {sprint_atual}"
-    elif ctx["eh_todo_periodo"]:
-        # Todo o período - mostra total de cards
-        info_tempo = f'<span style="color: #6b7280;">{total} cards no total</span>'
-        titulo_banner = f"📆 {ctx['titulo']}"
-    else:
-        # Últimos 30/90 dias
-        info_tempo = f'<span style="color: #6b7280;">{total} cards criados</span>'
-        titulo_banner = f"{ctx['emoji']} {ctx['titulo']}"
-    
-    # Banner centralizado e harmonioso
-    banner_html = f'''
-    <div style="
-        background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
-        border: 1px solid #e5e7eb;
-        padding: 14px 20px;
-        border-radius: 10px;
-        margin-bottom: 16px;
-        text-align: center;
-    ">
-        <div style="display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;">
-            <span style="font-size: 15px; font-weight: 600; color: #1f2937;">{titulo_banner}</span>
-            {badge_status}
-        </div>
-        <div style="font-size: 12px; margin-top: 6px;">{info_tempo}</div>
-    </div>
-    '''
-    st.markdown(banner_html, unsafe_allow_html=True)
     
     # Governança para verificações
     gov = calcular_metricas_governanca(df)
@@ -1068,29 +1131,33 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
                 st.info("Dados de tipo não disponíveis")
         
         with col2:
-            # Gráfico de bugs por desenvolvedor (top 5)
-            if 'desenvolvedor' in df.columns and 'bugs' in df.columns:
-                dev_bugs = df.groupby('desenvolvedor').agg({
-                    'bugs': 'sum',
-                    'ticket_id': 'count'
-                }).reset_index()
-                dev_bugs.columns = ['Desenvolvedor', 'Bugs', 'Cards']
-                dev_bugs = dev_bugs[dev_bugs['Desenvolvedor'] != 'Não atribuído']
-                dev_bugs = dev_bugs.sort_values('Bugs', ascending=True).tail(6)
+            # Gráfico de distribuição por prioridade (visão geral - não expõe devs)
+            if 'prioridade' in df.columns:
+                prio_counts = df['prioridade'].value_counts().reset_index()
+                prio_counts.columns = ['Prioridade', 'Cards']
                 
-                if not dev_bugs.empty:
+                # Ordenar por criticidade
+                ordem_prio = ['Highest', 'High', 'Medium', 'Low', 'Lowest']
+                prio_counts['ordem'] = prio_counts['Prioridade'].apply(
+                    lambda x: ordem_prio.index(x) if x in ordem_prio else 99
+                )
+                prio_counts = prio_counts.sort_values('ordem')
+                
+                cores_prio = {'Highest': '#ef4444', 'High': '#f97316', 'Medium': '#f59e0b', 
+                             'Low': '#22c55e', 'Lowest': '#6b7280'}
+                
+                if not prio_counts.empty:
                     fig = px.bar(
-                        dev_bugs,
-                        y='Desenvolvedor',
-                        x='Bugs',
-                        title='Bugs por Desenvolvedor (Top 6)',
-                        orientation='h',
-                        color='Bugs',
-                        color_continuous_scale=['#22c55e', '#f59e0b', '#ef4444']
+                        prio_counts,
+                        x='Prioridade',
+                        y='Cards',
+                        title='Distribuição por Prioridade',
+                        color='Prioridade',
+                        color_discrete_map=cores_prio
                     )
                     fig.update_layout(height=320, margin=dict(t=40, b=20), showlegend=False)
                     st.plotly_chart(fig, use_container_width=True)
                 else:
-                    st.info("Sem dados de bugs por desenvolvedor")
+                    st.info("Sem dados de prioridade")
             else:
-                st.info("Dados de desenvolvedores não disponíveis")
+                st.info("Dados de prioridade não disponíveis")

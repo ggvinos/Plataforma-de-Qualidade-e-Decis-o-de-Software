@@ -26,7 +26,7 @@ from modulos.abas.visao_geral import aba_visao_geral
 from modulos.abas.visao_geral_v2 import aba_visao_geral_v2  # Nova versão orientada a decisão
 from modulos.abas.dev import aba_dev
 from modulos.abas.qa import aba_qa
-from modulos.abas.backlog import aba_backlog
+from modulos.abas.backlog import aba_backlog, aba_produto_pb, aba_historico_pb
 from modulos.abas.clientes import aba_clientes
 from modulos.abas.governanca import aba_governanca
 from modulos.abas.historico import aba_historico
@@ -50,8 +50,10 @@ __all__ = [
     'aba_dev',
     'aba_governanca',
     'aba_historico',
+    'aba_historico_pb',
     'aba_lideranca',
     'aba_produto',
+    'aba_produto_pb',
     'aba_qa',
     'aba_sobre',
     'aba_suporte_implantacao',

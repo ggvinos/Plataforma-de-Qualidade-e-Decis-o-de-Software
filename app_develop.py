@@ -127,6 +127,8 @@ from modulos.abas import (
     aba_governanca,
     aba_produto,
     aba_backlog,
+    aba_produto_pb,      # Aba Produto específica para PB
+    aba_historico_pb,    # Aba Histórico específica para PB
     aba_suporte_implantacao,
     aba_historico,
     aba_lideranca,
@@ -237,12 +239,11 @@ def construir_abas_permitidas(projeto: str) -> list:
     abas_permitidas = permissoes.get("abas_permitidas", ["visao_geral", "sobre"])
     
     if projeto == "PB":
-        # Todas as abas possíveis para PB
+        # Todas as abas possíveis para PB - experiência 100% focada em Produto
         todas_abas = [
-            ("📋 Backlog", "backlog", aba_backlog),
-            ("📊 Visão Geral", "visao_geral", aba_visao_geral_v2),
-            ("📦 Produto", "produto", aba_produto),
-            ("📈 Histórico", "historico", aba_historico),
+            ("📊 Visão Geral", "visao_geral", aba_backlog),    # Funil de Produto + KPIs
+            ("📦 Demandas", "produto", aba_produto_pb),        # Análise de Demandas
+            ("📈 Evolução", "historico", aba_historico_pb),    # Evolução do Backlog
             ("ℹ️ Sobre", "sobre", aba_sobre),
             ("⚙️ Admin", "admin", aba_admin),
         ]

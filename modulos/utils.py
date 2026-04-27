@@ -23,8 +23,16 @@ def link_jira(ticket_id: str) -> str:
     return f"{JIRA_BASE_URL}/browse/{ticket_id}"
 
 
-def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True) -> str:
-    """Gera HTML de link para Jira com botão NinaDash no hover."""
+def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True, ambiente: str = None) -> str:
+    """
+    Gera HTML de link para Jira com botão NinaDash no hover.
+    
+    Args:
+        ticket_id: ID do ticket (ex: SD-123)
+        projeto: Projeto do ticket (auto-detectado se não fornecido)
+        inline: Se True, retorna span inline
+        ambiente: Campo "Ambiente Desenvolvido" - se fornecido, adiciona badge
+    """
     if not projeto:
         if ticket_id.startswith("PB-"):
             projeto = "PB"
@@ -39,8 +47,19 @@ def card_link_com_popup(ticket_id: str, projeto: str = None, inline: bool = True
     cores = {"PB": "#8b5cf6", "SD": "#3b82f6", "QA": "#22c55e"}
     cor = cores.get(projeto, "#6b7280")
     
+    # Badge de ambiente (se fornecido)
+    ambiente_badge = ""
+    if ambiente:
+        ambiente_lower = ambiente.lower()
+        if 'produção' in ambiente_lower or 'producao' in ambiente_lower:
+            ambiente_badge = '<span title="Em Produção - impactando clientes" style="background: #fef2f2; color: #dc2626; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px; border: 1px solid #dc262620;">🔴 PROD</span>'
+        elif 'homologação' in ambiente_lower or 'homologacao' in ambiente_lower:
+            ambiente_badge = '<span title="Em Homologação - sobe na próxima release" style="background: #fffbeb; color: #d97706; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px; border: 1px solid #d9770620;">🟡 HML</span>'
+        elif 'develop' in ambiente_lower:
+            ambiente_badge = '<span title="Em Develop - ainda em testes" style="background: #f0fdf4; color: #16a34a; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px; border: 1px solid #16a34a20;">🟢 DEV</span>'
+    
     html = f'''<span class="card-link-wrapper">
-        <a href="{url_jira}" target="_blank" class="card-link-id" style="color: {cor};">{ticket_id}</a>
+        <a href="{url_jira}" target="_blank" class="card-link-id" style="color: {cor};">{ticket_id}</a>{ambiente_badge}
         <a href="{url_dashboard}" target="_blank" class="card-action-btn card-action-nina">📊 NinaDash</a>
     </span>'''
     

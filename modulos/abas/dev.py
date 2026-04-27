@@ -73,11 +73,11 @@ def aba_dev(df: pd.DataFrame):
 def _renderizar_ranking_geral(df: pd.DataFrame, devs: list):
     """Renderiza a visão de ranking geral dos desenvolvedores."""
     
-    # Helper para mini-cards harmonizados
+    # Helper para mini-cards compactos
     def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
         bg = f"{cor}10" if cor != "#6b7280" else "white"
         border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
-        return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 16px 12px; text-align: center; height: 95px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 28px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151; margin-top: 4px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+        return f'<div style="background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 10px 8px; text-align: center; height: 72px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
     
     def cor_status(valor, verde, amarelo):
         if valor < verde:
@@ -327,7 +327,8 @@ def _renderizar_code_reviews_pendentes(df: pd.DataFrame):
                 dias = row['dias_em_status']
                 cor = '#ef4444' if dias > 2 else '#f59e0b' if dias > 1 else '#22c55e'
                 urgente = "🔥 " if dias > 2 else ""
-                card_link = card_link_com_popup(row['ticket_id'])
+                ambiente = row.get('ambiente', '') if 'ambiente' in row.index else ''
+                card_link = card_link_com_popup(row['ticket_id'], ambiente=ambiente)
                 titulo = str(row['titulo'])[:50] + "..." if len(str(row['titulo'])) > 50 else str(row['titulo'])
                 st.markdown(f'<div style="background: white; border-left: 3px solid {cor}; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;"><div style="font-size: 13px; font-weight: 600; color: #374151;">{urgente}{card_link}</div><div style="font-size: 12px; color: #6b7280; margin-top: 4px;">{titulo}</div><div style="font-size: 11px; color: #9ca3af; margin-top: 6px;">👤 {row["desenvolvedor"]} · {row["sp"]} SP · <span style="color: {cor};">📅 {dias}d em CR</span></div></div>', unsafe_allow_html=True)
             
@@ -372,7 +373,8 @@ def _renderizar_cards_impedidos_reprovados(df: pd.DataFrame):
                 if not cards_impedidos_dev.empty:
                     html_imp_dev = '<div style="max-height: 350px; overflow-y: auto;">'
                     for _, row in cards_impedidos_dev.iterrows():
-                        card_link = card_link_com_popup(row['ticket_id'])
+                        ambiente = row.get('ambiente', '') if 'ambiente' in row.index else ''
+                        card_link = card_link_com_popup(row['ticket_id'], ambiente=ambiente)
                         titulo = str(row['titulo'])[:50] + "..." if len(str(row['titulo'])) > 50 else str(row['titulo'])
                         dev = str(row['desenvolvedor'])
                         qa = str(row['qa'])
@@ -392,7 +394,8 @@ def _renderizar_cards_impedidos_reprovados(df: pd.DataFrame):
                 if not cards_reprovados_dev.empty:
                     html_rep_dev = '<div style="max-height: 350px; overflow-y: auto;">'
                     for _, row in cards_reprovados_dev.iterrows():
-                        card_link = card_link_com_popup(row['ticket_id'])
+                        ambiente = row.get('ambiente', '') if 'ambiente' in row.index else ''
+                        card_link = card_link_com_popup(row['ticket_id'], ambiente=ambiente)
                         titulo = str(row['titulo'])[:50] + "..." if len(str(row['titulo'])) > 50 else str(row['titulo'])
                         dev = str(row['desenvolvedor'])
                         qa = str(row['qa'])
@@ -584,7 +587,8 @@ def _renderizar_indicadores_individuais_dev(analise: dict, mat: dict):
             for _, row in all_problemas.iterrows():
                 status_icon = "🚫" if row['status_cat'] == 'blocked' else "❌"
                 status_name = "Impedido" if row['status_cat'] == 'blocked' else "Reprovado"
-                card_link = card_link_com_popup(row['ticket_id'])
+                ambiente = row.get('ambiente', '') if 'ambiente' in row.index else ''
+                card_link = card_link_com_popup(row['ticket_id'], ambiente=ambiente)
                 st.markdown(f"""
                 <div style="padding: 10px 12px; margin: 6px 0; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.08); border-radius: 6px;">
                     <strong>{status_icon}</strong> {card_link} - {row['titulo']}<br>
@@ -856,7 +860,8 @@ Cards concluídos:
                     data_conclusao = data_ref.strftime("%d/%m %H:%M") if pd.notna(data_ref) else "N/A"
                     bugs = int(row['bugs'])
                     bugs_cor = '#22c55e' if bugs == 0 else '#f97316' if bugs == 1 else '#ef4444'
-                    card_link = card_link_com_popup(row['ticket_id'])
+                    ambiente = row.get('ambiente', '') if 'ambiente' in row.index else ''
+                    card_link = card_link_com_popup(row['ticket_id'], ambiente=ambiente)
                     titulo = str(row['titulo'])[:50]
                     sp = str(int(row['sp']))
                     qa = str(row['qa'])
@@ -915,7 +920,8 @@ def _renderizar_cards_dev(analise: dict):
             for _, row in df_cards.iterrows():
                 bugs = int(row['bugs'])
                 bugs_cor = '#ef4444' if bugs >= 2 else '#eab308' if bugs == 1 else '#22c55e'
-                card_link = card_link_com_popup(row['ticket_id'])
+                ambiente = row.get('ambiente', '') if 'ambiente' in row.index else ''
+                card_link = card_link_com_popup(row['ticket_id'], ambiente=ambiente)
                 titulo = str(row['titulo'])[:50]
                 sp = str(row['sp'])
                 status = str(row['status'])

@@ -44,6 +44,7 @@ def buscar_dados_jira_cached(projeto: str, jql: str) -> Tuple[Optional[List[Dict
         CUSTOM_FIELDS["temas"],
         CUSTOM_FIELDS["importancia"],
         CUSTOM_FIELDS["sla_status"],
+        CUSTOM_FIELDS["ambiente_desenvolvido"],  # Develop, Homologação, Produção
     ]
     
     all_issues = []
@@ -113,6 +114,7 @@ def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[Lis
             CUSTOM_FIELDS["complexidade_teste"],
             CUSTOM_FIELDS["qa_responsavel"],
             CUSTOM_FIELDS["produto"],
+            CUSTOM_FIELDS["ambiente_desenvolvido"],  # Develop, Homologação, Produção
         ]
         
         # Adiciona changelog para histórico de transições

@@ -32,8 +32,9 @@ from modulos.helpers import (
     exportar_para_csv, exportar_para_excel, obter_contexto_periodo
 )
 from modulos.widgets import (
-    mostrar_tooltip, mostrar_lista_df_completa
+    mostrar_tooltip, mostrar_lista_df_completa, mostrar_lista_tickets_completa
 )
+from modulos.utils import card_link_com_popup
 from modulos.graficos import criar_grafico_concentracao
 from modulos._abas_legacy import exibir_historico_validacoes
 
@@ -103,6 +104,8 @@ def aba_lideranca(df: pd.DataFrame):
     _renderizar_interacao_qa_dev(df)
     _renderizar_analise_tech_lead(df)
     _renderizar_concentracao_conhecimento(df)
+    _renderizar_cards_proxima_release(df)
+    _renderizar_lista_completa_por_ambiente(df)
     _renderizar_performance_dev(df)
     _renderizar_historico_validacoes_lideranca(df)
     _renderizar_exportacao(df, health)
@@ -199,8 +202,14 @@ def _renderizar_pontos_atencao(df: pd.DataFrame):
             </div>
             """, unsafe_allow_html=True)
             # Mostrar tabela com detalhes
-            df_fora = fora_janela[['ticket_id', 'titulo', 'complexidade', 'dias_ate_release', 'janela_dias_necessarios', 'qa']].copy()
-            df_fora.columns = ['Ticket', 'Título', 'Complexidade', 'Dias Disponíveis', 'Dias Necessários', 'QA']
+            colunas_fora = ['ticket_id', 'titulo', 'complexidade', 'dias_ate_release', 'janela_dias_necessarios', 'qa']
+            if 'ambiente' in fora_janela.columns:
+                colunas_fora.insert(2, 'ambiente')
+            df_fora = fora_janela[[c for c in colunas_fora if c in fora_janela.columns]].copy()
+            colunas_renomeadas = ['Ticket', 'Título', 'Complexidade', 'Dias Disponíveis', 'Dias Necessários', 'QA']
+            if 'ambiente' in fora_janela.columns:
+                colunas_renomeadas.insert(2, 'Ambiente')
+            df_fora.columns = colunas_renomeadas
             df_fora['Título'] = df_fora['Título'].str[:35] + '...'
             df_fora['Complexidade'] = df_fora['Complexidade'].replace('', 'Não definida')
             st.dataframe(df_fora, hide_index=True, use_container_width=True)
@@ -703,6 +712,134 @@ def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
             """)
 
 
+def _renderizar_cards_proxima_release(df: pd.DataFrame):
+    """Renderiza seção de cards que vão subir na próxima release."""
+    with st.expander("🚀 Cards na Próxima Release", expanded=True):
+        # Cards em homologação
+        if 'ambiente' in df.columns:
+            # Filtra cards em homologação (ambiente HML)
+            cards_hml = df[df['ambiente'].str.lower().str.contains('homolog', na=False)]
+            # Filtra cards em produção
+            cards_prod = df[df['ambiente'].str.lower().str.contains('produ', na=False)]
+            # Cards em develop
+            cards_dev = df[df['ambiente'].str.lower().str.contains('develop', na=False)]
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown(f'''
+                <div style="background: #fffbeb; border: 2px solid #d97706; border-radius: 10px; padding: 14px; text-align: center;">
+                    <div style="font-size: 28px; font-weight: 700; color: #d97706;">{len(cards_hml)}</div>
+                    <div style="font-size: 13px; font-weight: 600; color: #92400e;">🟡 Em Homologação</div>
+                    <div style="font-size: 11px; color: #b45309; margin-top: 4px;">Sobem na próxima release</div>
+                </div>
+                ''', unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f'''
+                <div style="background: #f0fdf4; border: 2px solid #16a34a; border-radius: 10px; padding: 14px; text-align: center;">
+                    <div style="font-size: 28px; font-weight: 700; color: #16a34a;">{len(cards_dev)}</div>
+                    <div style="font-size: 13px; font-weight: 600; color: #166534;">🟢 Em Develop</div>
+                    <div style="font-size: 11px; color: #15803d; margin-top: 4px;">Ainda em testes</div>
+                </div>
+                ''', unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown(f'''
+                <div style="background: #fef2f2; border: 2px solid #dc2626; border-radius: 10px; padding: 14px; text-align: center;">
+                    <div style="font-size: 28px; font-weight: 700; color: #dc2626;">{len(cards_prod)}</div>
+                    <div style="font-size: 13px; font-weight: 600; color: #991b1b;">🔴 Em Produção</div>
+                    <div style="font-size: 11px; color: #b91c1c; margin-top: 4px;">Já publicados</div>
+                </div>
+                ''', unsafe_allow_html=True)
+            
+            # Lista de cards em homologação
+            if not cards_hml.empty:
+                st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
+                st.markdown("**🚀 Cards que sobem na próxima release:**")
+                
+                # Usa função padrão da plataforma com botão NinaDash
+                cards_list = cards_hml.to_dict('records')
+                mostrar_lista_tickets_completa(cards_list, "Em Homologação - Próxima Release")
+            else:
+                st.info("Nenhum card em homologação no momento")
+        else:
+            st.warning("⚠️ Campo 'Ambiente' não disponível nos dados")
+            st.caption("O campo de ambiente permite identificar onde cada card está deployado")
+
+
+def _renderizar_lista_completa_por_ambiente(df: pd.DataFrame):
+    """Renderiza lista completa de cards agrupados por ambiente."""
+    with st.expander("🌍 Lista de Cards por Ambiente", expanded=False):
+        st.markdown('<div style="font-size: 13px; color: #6b7280; margin-bottom: 16px;">Visualize todos os cards organizados pelo ambiente de deploy</div>', unsafe_allow_html=True)
+        
+        if 'ambiente' not in df.columns:
+            st.warning("⚠️ Campo 'Ambiente' não disponível nos dados")
+            return
+        
+        # Classificar cards por ambiente
+        cards_dev = df[df['ambiente'].str.lower().str.contains('develop', na=False)]
+        cards_hml = df[df['ambiente'].str.lower().str.contains('homolog', na=False)]
+        cards_prod = df[df['ambiente'].str.lower().str.contains('produ', na=False)]
+        cards_sem = df[df['ambiente'].isna() | (df['ambiente'] == '')]
+        
+        # Resumo geral
+        total = len(df)
+        st.markdown(f"""
+        <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
+            <div style="background: #f0fdf4; border: 1px solid #16a34a40; border-radius: 8px; padding: 8px 16px;">
+                <span style="font-weight: 600; color: #16a34a;">🟢 DEV: {len(cards_dev)}</span>
+            </div>
+            <div style="background: #fffbeb; border: 1px solid #d9770640; border-radius: 8px; padding: 8px 16px;">
+                <span style="font-weight: 600; color: #d97706;">🟡 HML: {len(cards_hml)}</span>
+            </div>
+            <div style="background: #fef2f2; border: 1px solid #dc262640; border-radius: 8px; padding: 8px 16px;">
+                <span style="font-weight: 600; color: #dc2626;">🔴 PROD: {len(cards_prod)}</span>
+            </div>
+            <div style="background: #f3f4f6; border: 1px solid #6b728040; border-radius: 8px; padding: 8px 16px;">
+                <span style="font-weight: 600; color: #6b7280;">⚪ Sem: {len(cards_sem)}</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Seletor de ambiente
+        tab_dev, tab_hml, tab_prod, tab_sem = st.tabs(["🟢 Develop", "🟡 Homologação", "🔴 Produção", "⚪ Sem Ambiente"])
+        
+        with tab_dev:
+            if not cards_dev.empty:
+                mostrar_lista_tickets_completa(cards_dev.to_dict('records'), f"Develop ({len(cards_dev)} cards)")
+            else:
+                st.info("Nenhum card em ambiente Develop")
+        
+        with tab_hml:
+            if not cards_hml.empty:
+                st.markdown("""
+                <div style="background: #fffbeb; border: 1px solid #d97706; border-radius: 8px; padding: 10px; margin-bottom: 12px;">
+                    <span style="font-weight: 600; color: #d97706;">🚀 Estes cards sobem na próxima release</span>
+                </div>
+                """, unsafe_allow_html=True)
+                mostrar_lista_tickets_completa(cards_hml.to_dict('records'), f"Homologação ({len(cards_hml)} cards)")
+            else:
+                st.info("Nenhum card em ambiente Homologação")
+        
+        with tab_prod:
+            if not cards_prod.empty:
+                mostrar_lista_tickets_completa(cards_prod.to_dict('records'), f"Produção ({len(cards_prod)} cards)")
+            else:
+                st.info("Nenhum card em ambiente Produção")
+        
+        with tab_sem:
+            if not cards_sem.empty:
+                st.markdown("""
+                <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 10px; margin-bottom: 12px;">
+                    <span style="font-weight: 600; color: #d97706;">⚠️ Estes cards precisam ter o ambiente preenchido</span>
+                </div>
+                """, unsafe_allow_html=True)
+                mostrar_lista_tickets_completa(cards_sem.to_dict('records'), f"Sem Ambiente ({len(cards_sem)} cards)")
+            else:
+                st.success("✅ Todos os cards têm ambiente preenchido")
+
+
 def _renderizar_performance_dev(df: pd.DataFrame):
     """Renderiza a seção de performance por desenvolvedor."""
     with st.expander("👨‍💻 Performance por Desenvolvedor", expanded=False):
@@ -807,7 +944,17 @@ def _renderizar_analise_tech_lead(df: pd.DataFrame):
             for i, (_, row) in enumerate(criticos_dev.head(6).iterrows()):
                 with col1 if i % 2 == 0 else col2:
                     titulo = str(row['titulo'])[:45] + "..." if len(str(row['titulo'])) > 45 else str(row['titulo'])
-                    st.markdown(f'<div style="background: #FEF2F2; border-left: 3px solid #EF4444; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;"><div style="font-size: 13px; font-weight: 600; color: #374151;">{row["ticket_id"]}</div><div style="font-size: 12px; color: #6b7280; margin-top: 4px;">{titulo}</div><div style="font-size: 11px; color: #9ca3af; margin-top: 6px;">⚠️ {row["prioridade"]} · 👤 {row["desenvolvedor"]} · {row["sp"]} SP</div></div>', unsafe_allow_html=True)
+                    ambiente = row.get('ambiente', '') if 'ambiente' in row.index else ''
+                    ambiente_badge = ""
+                    if ambiente:
+                        ambiente_lower = ambiente.lower()
+                        if 'produção' in ambiente_lower or 'producao' in ambiente_lower:
+                            ambiente_badge = '<span style="background: #fef2f2; color: #dc2626; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px;">🔴 PROD</span>'
+                        elif 'homologação' in ambiente_lower or 'homologacao' in ambiente_lower:
+                            ambiente_badge = '<span style="background: #fffbeb; color: #d97706; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px;">🟡 HML</span>'
+                        elif 'develop' in ambiente_lower:
+                            ambiente_badge = '<span style="background: #f0fdf4; color: #16a34a; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px;">🟢 DEV</span>'
+                    st.markdown(f'<div style="background: #FEF2F2; border-left: 3px solid #EF4444; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;"><div style="font-size: 13px; font-weight: 600; color: #374151;">{row["ticket_id"]}{ambiente_badge}</div><div style="font-size: 12px; color: #6b7280; margin-top: 4px;">{titulo}</div><div style="font-size: 11px; color: #9ca3af; margin-top: 6px;">⚠️ {row["prioridade"]} · 👤 {row["desenvolvedor"]} · {row["sp"]} SP</div></div>', unsafe_allow_html=True)
             
             if len(criticos_dev) > 6:
                 st.markdown(f'<div style="background: #FEF2F2; border-radius: 8px; padding: 10px; text-align: center; margin-top: 8px;"><span style="font-size: 13px; color: #EF4444; font-weight: 600;">⚠️ {len(criticos_dev)} cards de alta prioridade ainda em desenvolvimento!</span></div>', unsafe_allow_html=True)

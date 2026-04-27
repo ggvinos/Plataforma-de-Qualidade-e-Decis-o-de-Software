@@ -671,7 +671,8 @@ def gerar_html_card_ticket(row: dict, compacto: bool = False) -> str:
     """Gera HTML de um card de ticket (retorna string, não renderiza)."""
     bugs = row.get('bugs', 0)
     risco = 'high' if bugs >= 3 else 'medium' if bugs >= 1 else 'low'
-    card_link = card_link_com_popup(row.get('ticket_id', ''))
+    ambiente = row.get('ambiente', '')
+    card_link = card_link_com_popup(row.get('ticket_id', ''), ambiente=ambiente)
     titulo = str(row.get('titulo', ''))[:60] + ('...' if len(str(row.get('titulo', ''))) > 60 else '')
     cor_bug = '#ef4444' if bugs >= 3 else '#f97316' if bugs >= 1 else '#22c55e'
     

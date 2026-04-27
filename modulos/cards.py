@@ -17,6 +17,7 @@ import streamlit.components.v1 as components
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+import html
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any
 
@@ -84,33 +85,14 @@ def exibir_card_detalhado_v2(card: Dict, links: List[Dict], comentarios: List[Di
     ambiente_badge_html = ""
     if ambiente:
         info_amb = obter_info_ambiente(ambiente)
-        ambiente_badge_html = f"""
-        <span style="background: rgba(255,255,255,0.95); color: {info_amb['cor']}; 
-                     padding: 4px 10px; border-radius: 6px; font-size: 12px; 
-                     font-weight: 600; margin-left: 12px; vertical-align: middle;">
-            {info_amb['emoji']} {info_amb['nome']}
-        </span>
-        """
+        ambiente_badge_html = f'<span style="background: rgba(255,255,255,0.95); color: {info_amb["cor"]}; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; margin-left: 12px; vertical-align: middle;">{info_amb["emoji"]} {info_amb["nome"]}</span>'
         if info_amb['vai_subir_proxima_release']:
-            ambiente_badge_html += f"""
-            <span style="background: rgba(255,255,255,0.2); color: white; 
-                         padding: 3px 8px; border-radius: 4px; font-size: 11px; 
-                         margin-left: 8px; vertical-align: middle;">
-                🚀 Sobe na próxima release
-            </span>
-            """
+            ambiente_badge_html += f' <span style="background: rgba(255,255,255,0.2); color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; vertical-align: middle;">🚀 Sobe na próxima release</span>'
     
-    st.markdown(f"""
-    <div style='background: {header_bg}; 
-                color: white; padding: 20px; border-radius: 12px; margin-bottom: 15px;'>
-        <h2 style='margin: 0; color: white; font-size: 1.5em;'>
-            {header_icon} {card['ticket_id']} {ambiente_badge_html}
-        </h2>
-        <p style='margin: 8px 0 0 0; opacity: 0.9; font-size: 0.95em;'>
-            {card['titulo'][:120]}{'...' if len(card['titulo']) > 120 else ''}
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Escapa caracteres especiais no título para evitar quebra do HTML
+    titulo_seguro = html.escape(card['titulo'][:120]) + ('...' if len(card['titulo']) > 120 else '')
+    
+    st.markdown(f'''<div style="background: {header_bg}; color: white; padding: 20px; border-radius: 12px; margin-bottom: 15px;"><h2 style="margin: 0; color: white; font-size: 1.5em;">{header_icon} {card["ticket_id"]} {ambiente_badge_html}</h2><p style="margin: 8px 0 0 0; opacity: 0.9; font-size: 0.95em;">{titulo_seguro}</p></div>''', unsafe_allow_html=True)
     
     # ===== BOTÕES DE AÇÃO =====
     col1, col2, col3 = st.columns([1, 1, 2])
@@ -1152,6 +1134,10 @@ def exibir_comentarios(comentarios: List[Dict], projeto: str = "SD"):
     # Para SD e QA: classificação com tags de QA
     comentarios_filtrados = filtrar_e_classificar_comentarios(comentarios)
     
+    # Garante que comentarios_filtrados não seja None
+    if comentarios_filtrados is None:
+        comentarios_filtrados = []
+    
     total_original = len(comentarios) if comentarios else 0
     total_filtrado = len(comentarios_filtrados)
     filtrados = total_original - total_filtrado
@@ -1341,6 +1327,10 @@ def exibir_comentarios_pb(comentarios: List[Dict]):
     """Exibe comentários para cards de Product Backlog (PB) com tags de produto."""
     
     comentarios_filtrados = filtrar_comentarios_pb(comentarios)
+    
+    # Garante que comentarios_filtrados não seja None
+    if comentarios_filtrados is None:
+        comentarios_filtrados = []
     
     total_original = len(comentarios) if comentarios else 0
     total_filtrado = len(comentarios_filtrados)

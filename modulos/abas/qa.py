@@ -127,11 +127,11 @@ def _renderizar_visao_geral_time(df: pd.DataFrame, metricas_qa: dict, qas: list)
 def _renderizar_kpis_qa(df: pd.DataFrame, metricas_qa: dict):
     """Renderiza os KPIs principais de QA - Estilo harmonizado."""
     
-    # Helper para criar mini-cards harmonizados
+    # Helper para criar mini-cards compactos
     def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
         bg = f"{cor}10" if cor != "#6b7280" else "white"
         border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
-        return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 16px 12px; text-align: center; height: 95px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 28px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151; margin-top: 4px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+        return f'<div style="background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 10px 8px; text-align: center; height: 72px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
     
     # Cores do sistema
     def cor_status(valor, verde, amarelo):
@@ -207,6 +207,43 @@ def _renderizar_kpis_qa(df: pd.DataFrame, metricas_qa: dict):
         cor = cor_status(sp_bloqueado, 1, 10)
         st.markdown(mini_card(str(sp_bloqueado), "SP Travados", "imp. + repr.", cor), unsafe_allow_html=True)
     
+    st.markdown("<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True)
+    
+    # ===== LINHA 3: Status de Ambiente (Pipeline de Deploy) =====
+    if 'ambiente' in df.columns:
+        total_cards = len(df)
+        cards_dev = df[df['ambiente'].str.lower().str.contains('develop', na=False)]
+        cards_hml = df[df['ambiente'].str.lower().str.contains('homolog', na=False)]
+        cards_prod = df[df['ambiente'].str.lower().str.contains('produ', na=False)]
+        cards_sem = df[df['ambiente'].isna() | (df['ambiente'] == '')]
+        
+        n_dev = len(cards_dev)
+        n_hml = len(cards_hml)
+        n_prod = len(cards_prod)
+        n_sem = len(cards_sem)
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            cor = "#16a34a"
+            pct = (n_dev / total_cards * 100) if total_cards > 0 else 0
+            st.markdown(mini_card(str(n_dev), "🟢 Develop", f"{pct:.0f}%", cor), unsafe_allow_html=True)
+        
+        with col2:
+            cor = "#d97706"
+            pct = (n_hml / total_cards * 100) if total_cards > 0 else 0
+            subtitulo = "🚀 Próxima Release" if n_hml > 0 else f"{pct:.0f}%"
+            st.markdown(mini_card(str(n_hml), "🟡 Homologação", subtitulo, cor), unsafe_allow_html=True)
+        
+        with col3:
+            cor = "#dc2626"
+            pct = (n_prod / total_cards * 100) if total_cards > 0 else 0
+            st.markdown(mini_card(str(n_prod), "🔴 Produção", f"{pct:.0f}%", cor), unsafe_allow_html=True)
+        
+        with col4:
+            cor = "#6b7280" if n_sem == 0 else "#f59e0b"
+            st.markdown(mini_card(str(n_sem), "⚪ Sem Ambiente", "a preencher", cor), unsafe_allow_html=True)
+    
     # Espaçamento antes da próxima seção
     st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
 
@@ -234,7 +271,8 @@ def _renderizar_cards_impedidos_reprovados(df: pd.DataFrame):
                 if not cards_impedidos.empty:
                     html_impedidos = '<div style="max-height: 350px; overflow-y: auto;">'
                     for _, row in cards_impedidos.iterrows():
-                        card_link = card_link_com_popup(row['ticket_id'])
+                        ambiente = row.get('ambiente', '') if 'ambiente' in row.index else ''
+                        card_link = card_link_com_popup(row['ticket_id'], ambiente=ambiente)
                         titulo = str(row['titulo'])[:50] + "..." if len(str(row['titulo'])) > 50 else str(row['titulo'])
                         dev = str(row['desenvolvedor'])
                         qa = str(row['qa'])
@@ -254,7 +292,8 @@ def _renderizar_cards_impedidos_reprovados(df: pd.DataFrame):
                 if not cards_reprovados.empty:
                     html_reprovados = '<div style="max-height: 350px; overflow-y: auto;">'
                     for _, row in cards_reprovados.iterrows():
-                        card_link = card_link_com_popup(row['ticket_id'])
+                        ambiente = row.get('ambiente', '') if 'ambiente' in row.index else ''
+                        card_link = card_link_com_popup(row['ticket_id'], ambiente=ambiente)
                         titulo = str(row['titulo'])[:50] + "..." if len(str(row['titulo'])) > 50 else str(row['titulo'])
                         dev = str(row['desenvolvedor'])
                         qa = str(row['qa'])
@@ -538,8 +577,14 @@ def _renderizar_janela_validacao(df: pd.DataFrame):
             
             if not fora_janela.empty:
                 st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin: 16px 0 8px 0;">🚨 Cards FORA da Janela</div>', unsafe_allow_html=True)
-                df_fora = fora_janela[['ticket_id', 'titulo', 'complexidade', 'dias_ate_release', 'desenvolvedor', 'sp']].copy()
-                df_fora.columns = ['Ticket', 'Título', 'Complexidade', 'Dias Disponíveis', 'Dev', 'SP']
+                colunas_fora = ['ticket_id', 'titulo', 'complexidade', 'dias_ate_release', 'desenvolvedor', 'sp']
+                if 'ambiente' in fora_janela.columns:
+                    colunas_fora.insert(2, 'ambiente')
+                df_fora = fora_janela[[c for c in colunas_fora if c in fora_janela.columns]].copy()
+                colunas_renomeadas = ['Ticket', 'Título', 'Complexidade', 'Dias Disponíveis', 'Dev', 'SP']
+                if 'ambiente' in fora_janela.columns:
+                    colunas_renomeadas.insert(2, 'Ambiente')
+                df_fora.columns = colunas_renomeadas
                 st.dataframe(df_fora, hide_index=True, use_container_width=True)
         else:
             st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum card aguardando validação!</div></div>', unsafe_allow_html=True)
@@ -674,11 +719,11 @@ def _renderizar_metricas_individuais(df: pd.DataFrame, qa_sel: str):
 def _renderizar_kpis_individuais(df: pd.DataFrame, df_qa: pd.DataFrame, qa_sel: str):
     """Renderiza KPIs individuais do QA - Estilo harmonizado."""
     
-    # Helper para criar mini-cards harmonizados
+    # Helper para criar mini-cards compactos
     def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
         bg = f"{cor}10" if cor != "#6b7280" else "white"
         border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
-        return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 16px 12px; text-align: center; height: 95px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 28px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151; margin-top: 4px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+        return f'<div style="background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 10px 8px; text-align: center; height: 72px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
     
     def cor_status(valor, verde, amarelo):
         if valor < verde:
@@ -763,7 +808,8 @@ def _renderizar_kpis_individuais(df: pd.DataFrame, df_qa: pd.DataFrame, qa_sel: 
             for _, row in all_problemas.iterrows():
                 status_icon = "🚫" if row['status_cat'] == 'blocked' else "❌"
                 status_name = "Impedido" if row['status_cat'] == 'blocked' else "Reprovado"
-                card_link = card_link_com_popup(row['ticket_id'])
+                ambiente = row.get('ambiente', '') if 'ambiente' in row.index else ''
+                card_link = card_link_com_popup(row['ticket_id'], ambiente=ambiente)
                 st.markdown(f"""
                 <div style="padding: 10px 12px; margin: 6px 0; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.08); border-radius: 6px;">
                     <strong>{status_icon}</strong> {card_link} - {row['titulo']}<br>
@@ -836,11 +882,11 @@ def _renderizar_resumo_semana_qa(df_qa: pd.DataFrame, qa_sel: str):
             (df_qa['atualizado'] <= fim_sexta)
         ].copy() if 'atualizado' in df_qa.columns else pd.DataFrame()
         
-        # Helper para mini-cards harmonizados
+        # Helper para mini-cards compactos
         def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
             bg = f"{cor}10" if cor != "#6b7280" else "white"
             border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
-            return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 16px 12px; text-align: center; height: 95px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 28px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151; margin-top: 4px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+            return f'<div style="background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 10px 8px; text-align: center; height: 72px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
         
         # KPIs da Semana - Novo estilo
         col1, col2, col3, col4 = st.columns(4)

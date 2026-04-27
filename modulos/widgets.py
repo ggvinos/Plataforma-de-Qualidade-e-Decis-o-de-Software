@@ -865,12 +865,13 @@ def renderizar_lista_com_scroll(df: pd.DataFrame, titulo: str = None, max_height
         titulo_card = str(card.get('titulo', card.get('resumo', '')))[:80]
         ticket_id = card.get('ticket_id', '')
         status = card.get('status', '')
+        ambiente = card.get('ambiente', '')
         
         # Classe de cor
         classe_cor = f"card-lista-{cor_classe}" if cor_classe else "card-lista"
         
-        # Popup do card
-        popup_html = card_link_com_popup(ticket_id, projeto)
+        # Popup do card com badge de ambiente
+        popup_html = card_link_com_popup(ticket_id, projeto, ambiente=ambiente)
         
         # Campos customizados
         info_extra = ""

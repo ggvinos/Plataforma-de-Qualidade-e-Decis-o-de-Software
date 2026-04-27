@@ -95,11 +95,11 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
 def _renderizar_visao_geral(df_todos: pd.DataFrame):
     """Renderiza a visão geral quando 'Ver Todos' está selecionado."""
     
-    # Helper para mini-cards harmonizados
+    # Helper para mini-cards compactos
     def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
         bg = f"{cor}10" if cor != "#6b7280" else "white"
         border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
-        return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 16px 12px; text-align: center; height: 95px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 28px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151; margin-top: 4px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+        return f'<div style="background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 10px 8px; text-align: center; height: 72px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
     
     # ===== INDICADORES DO TIME =====
     st.markdown("##### 📊 Indicadores do Time")
@@ -310,14 +310,24 @@ def _renderizar_lista_cards_aguardando(df_cards: pd.DataFrame, projeto_default: 
         st.info("Nenhum card aguardando")
         return
     
-    cores_classes = {
-        'amarelo': 'card-lista-amarelo',
-        'laranja': 'card-lista-laranja',
-        'azul': 'card-lista-azul'
+    # Cores com CSS inline para garantir renderização
+    cores_bg = {
+        'amarelo': 'rgba(245, 158, 11, 0.08)',
+        'laranja': 'rgba(249, 115, 22, 0.08)',
+        'azul': 'rgba(59, 130, 246, 0.08)'
     }
-    classe_card = cores_classes.get(cor_card, 'card-lista')
+    cores_borda = {
+        'amarelo': '#f59e0b',
+        'laranja': '#f97316',
+        'azul': '#3b82f6'
+    }
+    bg = cores_bg.get(cor_card, 'rgba(100, 100, 100, 0.08)')
+    borda = cores_borda.get(cor_card, '#64748b')
     
-    cards_html = f'<div class="scroll-container" style="max-height: 400px;">'
+    # URL base do Jira
+    jira_base = "https://ninatecnologia.atlassian.net/browse"
+    
+    cards_html = f'<div style="max-height: 400px; overflow-y: auto;">'
     for _, card in df_cards.head(limite).iterrows():
         projeto = card.get('projeto', projeto_default)
         tipo = card.get('tipo', 'TAREFA')
@@ -327,22 +337,34 @@ def _renderizar_lista_cards_aguardando(df_cards: pd.DataFrame, projeto_default: 
             responsavel = card.get('relator', 'N/A')
         titulo = str(card.get('titulo', card.get('resumo', '')))[:80]
         ticket_id = card.get('ticket_id', '')
-        popup_html = card_link_com_popup(ticket_id, projeto)
+        
+        # Link direto para o Jira (sem popup complexo)
+        link_jira = f'{jira_base}/{ticket_id}'
+        ticket_cor = "#8b5cf6" if projeto == "PB" else "#3b82f6" if projeto == "SD" else "#22c55e"
         
         # Badge de ambiente (se preenchido)
         ambiente = card.get('ambiente', '')
-        ambiente_badge = gerar_badge_ambiente(ambiente, compacto=True) if ambiente else ''
+        ambiente_badge = ''
+        if ambiente:
+            ambiente_lower = str(ambiente).lower()
+            if 'produção' in ambiente_lower or 'producao' in ambiente_lower:
+                ambiente_badge = '<span style="background: #fef2f2; color: #dc2626; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 4px;">🔴 PROD</span>'
+            elif 'homologação' in ambiente_lower or 'homologacao' in ambiente_lower:
+                ambiente_badge = '<span style="background: #fffbeb; color: #d97706; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 4px;">🟡 HML</span>'
+            elif 'develop' in ambiente_lower:
+                ambiente_badge = '<span style="background: #f0fdf4; color: #16a34a; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 4px;">🟢 DEV</span>'
         
+        # CSS inline completo para garantir renderização
         cards_html += f'''
-        <div class="{classe_card}">
+        <div style="padding: 12px 15px; margin: 8px 0; border-radius: 8px; border-left: 4px solid {borda}; background: {bg};">
             <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 4px;">
                 <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
                 <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
+                <a href="{link_jira}" target="_blank" style="color: {ticket_cor}; font-weight: 600; text-decoration: none;">{ticket_id}</a>
                 {ambiente_badge}
-                {popup_html}
             </div>
-            <div style="font-size: 13px; line-height: 1.4;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 80 else ""}</div>
-            <div style="font-size: 11px; margin-top: 4px;">👤 {responsavel}</div>
+            <div style="font-size: 13px; line-height: 1.4; color: #1f2937;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 80 else ""}</div>
+            <div style="font-size: 11px; margin-top: 4px; color: #6b7280;">👤 {responsavel}</div>
         </div>'''
     cards_html += '</div>'
     
@@ -446,11 +468,11 @@ def _renderizar_metricas_pessoa(df_pessoa: pd.DataFrame):
     - Concluído: status_cat == 'done'
     """
     
-    # Helper para mini-cards harmonizados
+    # Helper para mini-cards compactos
     def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
         bg = f"{cor}10" if cor != "#6b7280" else "white"
         border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
-        return f'<div style="background: {bg}; border: 2px solid {border}; border-radius: 12px; padding: 16px 12px; text-align: center; height: 95px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><div style="font-size: 28px; font-weight: 700; color: {cor}; line-height: 1.1;">{valor}</div><div style="font-size: 12px; font-weight: 600; color: #374151; margin-top: 4px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+        return f'<div style="background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 10px 8px; text-align: center; height: 72px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
     
     st.markdown("##### 📊 Meus Cards por Status")
     

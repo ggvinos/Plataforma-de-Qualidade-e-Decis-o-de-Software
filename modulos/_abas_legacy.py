@@ -4857,10 +4857,11 @@ def exibir_historico_validacoes(df: pd.DataFrame, key_prefix: str = "qa"):
     qas_disponiveis = ['Todos'] + sorted([q for q in df_validados['qa'].unique() if q and q != 'Não atribuído'])
     tipos_disponiveis = ['Todos'] + sorted([t for t in df_validados['tipo'].unique() if t])
     produtos_disponiveis = ['Todos'] + sorted([p for p in df_validados['produto'].unique() if p])
+    ambientes_disponiveis = ['Todos', '🟢 Develop', '🟡 Homologação', '🔴 Produção', '⚪ Sem Ambiente']
     
     # ===== FILTROS =====
     st.markdown("#### 🔍 Filtros")
-    col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+    col_f1, col_f2, col_f3, col_f4, col_f5 = st.columns(5)
     
     with col_f1:
         # ATUALIZAÇÃO: Sprint Atual agora é "Sprint Atual (todos)" com valor 0
@@ -4904,6 +4905,14 @@ def exibir_historico_validacoes(df: pd.DataFrame, key_prefix: str = "qa"):
             key=f"{key_prefix}_produto_filtro_validacao"
         )
     
+    with col_f5:
+        ambiente_sel = st.selectbox(
+            "🌍 Ambiente",
+            ambientes_disponiveis,
+            index=0,
+            key=f"{key_prefix}_ambiente_filtro_validacao"
+        )
+    
     # ===== APLICA FILTROS =====
     hoje = datetime.now()
     dias_filtro = periodo_opcoes[periodo_sel]
@@ -4933,6 +4942,17 @@ def exibir_historico_validacoes(df: pd.DataFrame, key_prefix: str = "qa"):
     
     if produto_sel != 'Todos':
         df_filtrado = df_filtrado[df_filtrado['produto'] == produto_sel]
+    
+    # Filtro por ambiente
+    if ambiente_sel != 'Todos' and 'ambiente' in df_filtrado.columns:
+        if ambiente_sel == '🟢 Develop':
+            df_filtrado = df_filtrado[df_filtrado['ambiente'].str.lower().str.contains('develop', na=False)]
+        elif ambiente_sel == '🟡 Homologação':
+            df_filtrado = df_filtrado[df_filtrado['ambiente'].str.lower().str.contains('homolog', na=False)]
+        elif ambiente_sel == '🔴 Produção':
+            df_filtrado = df_filtrado[df_filtrado['ambiente'].str.lower().str.contains('produ', na=False)]
+        elif ambiente_sel == '⚪ Sem Ambiente':
+            df_filtrado = df_filtrado[df_filtrado['ambiente'].isna() | (df_filtrado['ambiente'] == '')]
     
     if df_filtrado.empty:
         st.warning("⚠️ Nenhum card encontrado para os filtros selecionados.")

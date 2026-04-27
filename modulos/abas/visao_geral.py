@@ -333,7 +333,8 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
                             categoria = "➕ Criação Direta"
                             cor_tag = "#8b5cf6"
                         
-                        card_link = card_link_com_popup(card['ticket_id'])
+                        ambiente = card.get('ambiente', '')
+                        card_link = card_link_com_popup(card['ticket_id'], ambiente=ambiente)
                         titulo_card = str(card['titulo'])[:60]
                         status_card = str(card['status'])
                         html_cards += '<div class="card-lista" style="border-left-color: ' + cor_tag + ';">'
