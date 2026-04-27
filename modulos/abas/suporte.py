@@ -95,11 +95,14 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
 def _renderizar_visao_geral(df_todos: pd.DataFrame):
     """Renderiza a visão geral quando 'Ver Todos' está selecionado."""
     
-    # Helper para mini-cards compactos
+    # Helper para mini-cards compactos (para flexbox)
     def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
         bg = f"{cor}10" if cor != "#6b7280" else "white"
         border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
-        return f'<div style="background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 10px 8px; text-align: center; height: 72px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+        return f'<div style="flex: 1; min-width: 0; background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 10px 8px; text-align: center; height: 72px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+    
+    def renderizar_linha(cards_html):
+        return f'<div style="display: flex; gap: 8px; margin-bottom: 8px;">{"".join(cards_html)}</div>'
     
     # ===== INDICADORES DO TIME =====
     st.markdown("##### 📊 Indicadores do Time")
@@ -111,26 +114,19 @@ def _renderizar_visao_geral(df_todos: pd.DataFrame):
     total_valprod = len(df_todos[df_todos['projeto'] == 'VALPROD']) if 'projeto' in df_todos.columns else 0
     pessoas_unicas = df_todos['relator'].nunique()
     
-    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
+    pct_sd = f"{(total_sd/total_cards*100):.0f}%" if total_cards > 0 else "0%"
+    pct_qa = f"{(total_qa/total_cards*100):.0f}%" if total_cards > 0 else "0%"
+    pct_pb = f"{(total_pb/total_cards*100):.0f}%" if total_cards > 0 else "0%"
+    pct_vp = f"{(total_valprod/total_cards*100):.0f}%" if total_cards > 0 else "0%"
     
-    with col1:
-        pct_sd = f"{(total_sd/total_cards*100):.0f}%" if total_cards > 0 else "0%"
-        st.markdown(mini_card(str(total_sd), "📋 SD", pct_sd, "#3b82f6"), unsafe_allow_html=True)
-    
-    with col2:
-        pct_qa = f"{(total_qa/total_cards*100):.0f}%" if total_cards > 0 else "0%"
-        st.markdown(mini_card(str(total_qa), "🔬 QA", pct_qa, "#22c55e"), unsafe_allow_html=True)
-    
-    with col3:
-        pct_pb = f"{(total_pb/total_cards*100):.0f}%" if total_cards > 0 else "0%"
-        st.markdown(mini_card(str(total_pb), "📦 PB", pct_pb, "#f59e0b"), unsafe_allow_html=True)
-    
-    with col4:
-        pct_vp = f"{(total_valprod/total_cards*100):.0f}%" if total_cards > 0 else "0%"
-        st.markdown(mini_card(str(total_valprod), "✅ VALPROD", pct_vp, "#8b5cf6"), unsafe_allow_html=True)
-    
-    with col5:
-        st.markdown(mini_card(str(pessoas_unicas), "👥 Pessoas", "no time", "#6b7280"), unsafe_allow_html=True)
+    cards_linha1 = [
+        mini_card(str(total_sd), "📋 SD", pct_sd, "#3b82f6"),
+        mini_card(str(total_qa), "🔬 QA", pct_qa, "#22c55e"),
+        mini_card(str(total_pb), "📦 PB", pct_pb, "#f59e0b"),
+        mini_card(str(total_valprod), "✅ VALPROD", pct_vp, "#8b5cf6"),
+        mini_card(str(pessoas_unicas), "👥 Pessoas", "no time", "#6b7280"),
+    ]
+    st.markdown(renderizar_linha(cards_linha1), unsafe_allow_html=True)
     
     st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
     
@@ -468,11 +464,14 @@ def _renderizar_metricas_pessoa(df_pessoa: pd.DataFrame):
     - Concluído: status_cat == 'done'
     """
     
-    # Helper para mini-cards compactos
+    # Helper para mini-cards compactos (para flexbox)
     def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
         bg = f"{cor}10" if cor != "#6b7280" else "white"
         border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
-        return f'<div style="background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 10px 8px; text-align: center; height: 72px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+        return f'<div style="flex: 1; min-width: 0; background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 10px 8px; text-align: center; height: 72px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+    
+    def renderizar_linha(cards_html):
+        return f'<div style="display: flex; gap: 8px; margin-bottom: 8px;">{"".join(cards_html)}</div>'
     
     st.markdown("##### 📊 Meus Cards por Status")
     
@@ -511,33 +510,25 @@ def _renderizar_metricas_pessoa(df_pessoa: pd.DataFrame):
     else:
         pendentes_valprod = 0
     
-    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
+    cor_dev = "#3b82f6" if em_dev > 0 else "#6b7280"
+    cor_qa = "#f59e0b" if aguardando_qa > 0 else "#6b7280"
+    cor_teste = "#06b6d4" if em_teste > 0 else "#6b7280"
+    cor_valprod = "#ef4444" if pendentes_valprod > 0 else "#8b5cf6"
     
-    with col1:
-        cor = "#3b82f6" if em_dev > 0 else "#6b7280"
-        st.markdown(mini_card(str(em_dev), "💻 Em Dev", "desenvolvimento", cor), unsafe_allow_html=True)
-    
-    with col2:
-        cor = "#f59e0b" if aguardando_qa > 0 else "#6b7280"
-        st.markdown(mini_card(str(aguardando_qa), "⏳ Aguard. QA", "na fila", cor), unsafe_allow_html=True)
-    
-    with col3:
-        cor = "#06b6d4" if em_teste > 0 else "#6b7280"
-        st.markdown(mini_card(str(em_teste), "🧪 Em Teste", "validando", cor), unsafe_allow_html=True)
-    
-    with col4:
-        cor = "#ef4444" if pendentes_valprod > 0 else "#8b5cf6"
-        st.markdown(mini_card(str(pendentes_valprod), "🔍 Val. Prod", "pendentes", cor), unsafe_allow_html=True)
-    
-    with col5:
-        st.markdown(mini_card(str(concluidos), "✅ Concluídos", "finalizados", "#22c55e"), unsafe_allow_html=True)
+    cards_linha1 = [
+        mini_card(str(em_dev), "💻 Em Dev", "desenvolvimento", cor_dev),
+        mini_card(str(aguardando_qa), "⏳ Aguard. QA", "na fila", cor_qa),
+        mini_card(str(em_teste), "🧪 Em Teste", "validando", cor_teste),
+        mini_card(str(pendentes_valprod), "🔍 Val. Prod", "pendentes", cor_valprod),
+        mini_card(str(concluidos), "✅ Concluídos", "finalizados", "#22c55e"),
+    ]
+    st.markdown(renderizar_linha(cards_linha1), unsafe_allow_html=True)
     
     # Linha 2: Detalhamento se houver bloqueados ou por projeto
     if bloqueados > 0:
         st.markdown("<div style='margin-top: 12px;'></div>", unsafe_allow_html=True)
-        col_extra1, col_extra2, col_extra3, col_extra4, col_extra5 = st.columns(5)
-        with col_extra1:
-            st.markdown(mini_card(str(bloqueados), "🚫 Bloqueados", "impeditivos", "#ef4444"), unsafe_allow_html=True)
+        cards_extra = [mini_card(str(bloqueados), "🚫 Bloqueados", "impeditivos", "#ef4444")]
+        st.markdown(renderizar_linha(cards_extra), unsafe_allow_html=True)
     
     st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
 

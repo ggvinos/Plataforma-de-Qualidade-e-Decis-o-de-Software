@@ -127,11 +127,15 @@ def _renderizar_visao_geral_time(df: pd.DataFrame, metricas_qa: dict, qas: list)
 def _renderizar_kpis_qa(df: pd.DataFrame, metricas_qa: dict):
     """Renderiza os KPIs principais de QA - Estilo harmonizado."""
     
-    # Helper para criar mini-cards compactos
+    # Helper para criar mini-cards compactos (retorna só o card, sem container)
     def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
         bg = f"{cor}10" if cor != "#6b7280" else "white"
         border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
-        return f'<div style="background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 10px 8px; text-align: center; height: 72px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+        return f'<div style="flex: 1; min-width: 0; background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 10px 8px; text-align: center; height: 72px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+    
+    # Helper para renderizar linha de cards com flexbox
+    def renderizar_linha(cards_html):
+        return f'<div style="display: flex; gap: 8px; margin-bottom: 8px;">{"".join(cards_html)}</div>'
     
     # Cores do sistema
     def cor_status(valor, verde, amarelo):
@@ -152,34 +156,21 @@ def _renderizar_kpis_qa(df: pd.DataFrame, metricas_qa: dict):
     
     # ===== LINHA 1: KPIs Principais =====
     st.markdown("##### 📊 Indicadores de QA")
-    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
     
-    with col1:
-        total_fila = metricas_qa['funil']['waiting_qa'] + metricas_qa['funil']['testing']
-        cor = cor_status(total_fila, 5, 10)
-        st.markdown(mini_card(str(total_fila), "Fila de QA", f"{metricas_qa['funil']['waiting_qa']} aguardando", cor), unsafe_allow_html=True)
+    total_fila = metricas_qa['funil']['waiting_qa'] + metricas_qa['funil']['testing']
+    tempo = metricas_qa['tempo']['waiting']
+    aging = metricas_qa['aging']['total']
+    taxa = metricas_qa['taxa_reprovacao']
+    ddp = calcular_ddp(df)
     
-    with col2:
-        tempo = metricas_qa['tempo']['waiting']
-        cor = cor_status(tempo, 2, 5)
-        st.markdown(mini_card(f"{tempo:.1f}d", "Tempo Médio", "na fila", cor), unsafe_allow_html=True)
-    
-    with col3:
-        aging = metricas_qa['aging']['total']
-        cor = cor_status(aging, 1, 3)
-        st.markdown(mini_card(str(aging), "Aging", f">{REGRAS['dias_aging_alerta']}d", cor), unsafe_allow_html=True)
-    
-    with col4:
-        taxa = metricas_qa['taxa_reprovacao']
-        cor = cor_status(taxa, 10, 20)
-        st.markdown(mini_card(f"{taxa:.0f}%", "Reprovação", "taxa", cor), unsafe_allow_html=True)
-    
-    with col5:
-        ddp = calcular_ddp(df)
-        cor = cor_status_inv(ddp['valor'], 85, 70)
-        st.markdown(mini_card(f"{ddp['valor']:.0f}%", "DDP", "detecção defeitos", cor), unsafe_allow_html=True)
-    
-    st.markdown("<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True)
+    cards_linha1 = [
+        mini_card(str(total_fila), "Fila de QA", f"{metricas_qa['funil']['waiting_qa']} aguardando", cor_status(total_fila, 5, 10)),
+        mini_card(f"{tempo:.1f}d", "Tempo Médio", "na fila", cor_status(tempo, 2, 5)),
+        mini_card(str(aging), "Aging", f">{REGRAS['dias_aging_alerta']}d", cor_status(aging, 1, 3)),
+        mini_card(f"{taxa:.0f}%", "Reprovação", "taxa", cor_status(taxa, 10, 20)),
+        mini_card(f"{ddp['valor']:.0f}%", "DDP", "detecção defeitos", cor_status_inv(ddp['valor'], 85, 70)),
+    ]
+    st.markdown(renderizar_linha(cards_linha1), unsafe_allow_html=True)
     
     # ===== LINHA 2: Status de Cards =====
     cards_impedidos = df[df['status_cat'] == 'blocked']
@@ -189,25 +180,13 @@ def _renderizar_kpis_qa(df: pd.DataFrame, metricas_qa: dict):
     bug_rate = total_com_bugs / total_validados * 100 if total_validados > 0 else 0
     sp_bloqueado = int(cards_impedidos['sp'].sum()) + int(cards_reprovados['sp'].sum())
     
-    col1, col2, col3, col4 = st.columns(4, gap="small")
-    
-    with col1:
-        cor = cor_status(len(cards_impedidos), 1, 3)
-        st.markdown(mini_card(str(len(cards_impedidos)), "🚫 Impedidos", "bloqueados", cor), unsafe_allow_html=True)
-    
-    with col2:
-        cor = cor_status(len(cards_reprovados), 1, 3)
-        st.markdown(mini_card(str(len(cards_reprovados)), "❌ Reprovados", "falha validação", cor), unsafe_allow_html=True)
-    
-    with col3:
-        cor = cor_status(bug_rate, 20, 40)
-        st.markdown(mini_card(f"{bug_rate:.0f}%", "Bug Rate", f"{total_com_bugs} com bugs", cor), unsafe_allow_html=True)
-    
-    with col4:
-        cor = cor_status(sp_bloqueado, 1, 10)
-        st.markdown(mini_card(str(sp_bloqueado), "SP Travados", "imp. + repr.", cor), unsafe_allow_html=True)
-    
-    st.markdown("<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True)
+    cards_linha2 = [
+        mini_card(str(len(cards_impedidos)), "🚫 Impedidos", "bloqueados", cor_status(len(cards_impedidos), 1, 3)),
+        mini_card(str(len(cards_reprovados)), "❌ Reprovados", "falha validação", cor_status(len(cards_reprovados), 1, 3)),
+        mini_card(f"{bug_rate:.0f}%", "Bug Rate", f"{total_com_bugs} com bugs", cor_status(bug_rate, 20, 40)),
+        mini_card(str(sp_bloqueado), "SP Travados", "imp. + repr.", cor_status(sp_bloqueado, 1, 10)),
+    ]
+    st.markdown(renderizar_linha(cards_linha2), unsafe_allow_html=True)
     
     # ===== LINHA 3: Status de Ambiente (Pipeline de Deploy) =====
     if 'ambiente' in df.columns:
@@ -222,30 +201,20 @@ def _renderizar_kpis_qa(df: pd.DataFrame, metricas_qa: dict):
         n_prod = len(cards_prod)
         n_sem = len(cards_sem)
         
-        col1, col2, col3, col4 = st.columns(4, gap="small")
+        pct_dev = (n_dev / total_cards * 100) if total_cards > 0 else 0
+        pct_hml = (n_hml / total_cards * 100) if total_cards > 0 else 0
+        pct_prod = (n_prod / total_cards * 100) if total_cards > 0 else 0
         
-        with col1:
-            cor = "#16a34a"
-            pct = (n_dev / total_cards * 100) if total_cards > 0 else 0
-            st.markdown(mini_card(str(n_dev), "🟢 Develop", f"{pct:.0f}%", cor), unsafe_allow_html=True)
-        
-        with col2:
-            cor = "#d97706"
-            pct = (n_hml / total_cards * 100) if total_cards > 0 else 0
-            subtitulo = "🚀 Próxima Release" if n_hml > 0 else f"{pct:.0f}%"
-            st.markdown(mini_card(str(n_hml), "🟡 Homologação", subtitulo, cor), unsafe_allow_html=True)
-        
-        with col3:
-            cor = "#dc2626"
-            pct = (n_prod / total_cards * 100) if total_cards > 0 else 0
-            st.markdown(mini_card(str(n_prod), "🔴 Produção", f"{pct:.0f}%", cor), unsafe_allow_html=True)
-        
-        with col4:
-            cor = "#6b7280" if n_sem == 0 else "#f59e0b"
-            st.markdown(mini_card(str(n_sem), "⚪ Sem Ambiente", "a preencher", cor), unsafe_allow_html=True)
+        cards_linha3 = [
+            mini_card(str(n_dev), "🟢 Develop", f"{pct_dev:.0f}%", "#16a34a"),
+            mini_card(str(n_hml), "🟡 Homologação", "🚀 Próxima Release" if n_hml > 0 else f"{pct_hml:.0f}%", "#d97706"),
+            mini_card(str(n_prod), "🔴 Produção", f"{pct_prod:.0f}%", "#dc2626"),
+            mini_card(str(n_sem), "⚪ Sem Ambiente", "a preencher", "#6b7280" if n_sem == 0 else "#f59e0b"),
+        ]
+        st.markdown(renderizar_linha(cards_linha3), unsafe_allow_html=True)
     
     # Espaçamento antes da próxima seção
-    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 12px;'></div>", unsafe_allow_html=True)
 
 
 def _renderizar_cards_impedidos_reprovados(df: pd.DataFrame):
@@ -719,11 +688,14 @@ def _renderizar_metricas_individuais(df: pd.DataFrame, qa_sel: str):
 def _renderizar_kpis_individuais(df: pd.DataFrame, df_qa: pd.DataFrame, qa_sel: str):
     """Renderiza KPIs individuais do QA - Estilo harmonizado."""
     
-    # Helper para criar mini-cards compactos
+    # Helper para criar mini-cards compactos (para flexbox)
     def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
         bg = f"{cor}10" if cor != "#6b7280" else "white"
         border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
-        return f'<div style="background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 10px 8px; text-align: center; height: 72px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+        return f'<div style="flex: 1; min-width: 0; background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 10px 8px; text-align: center; height: 72px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+    
+    def renderizar_linha(cards_html):
+        return f'<div style="display: flex; gap: 8px; margin-bottom: 8px;">{"".join(cards_html)}</div>'
     
     def cor_status(valor, verde, amarelo):
         if valor < verde:
@@ -751,27 +723,15 @@ def _renderizar_kpis_individuais(df: pd.DataFrame, df_qa: pd.DataFrame, qa_sel: 
     
     # ===== LINHA 1: KPIs Principais =====
     st.markdown("##### 📊 Indicadores Individuais")
-    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
     
-    with col1:
-        st.markdown(mini_card(str(len(df_qa)), "Total Cards", f"{sp_total} SP", "#3b82f6"), unsafe_allow_html=True)
-    
-    with col2:
-        cor = cor_status_inv(validados, 5, 2)
-        st.markdown(mini_card(str(validados), "Validados", "concluídos", cor), unsafe_allow_html=True)
-    
-    with col3:
-        cor = cor_status(em_fila, 3, 6)
-        st.markdown(mini_card(str(em_fila), "Em Fila", "aguardando", cor), unsafe_allow_html=True)
-    
-    with col4:
-        st.markdown(mini_card(str(bugs_encontrados), "Bugs", "encontrados", "#8b5cf6"), unsafe_allow_html=True)
-    
-    with col5:
-        cor = cor_status_inv(fpy_val, 80, 60)
-        st.markdown(mini_card(f"{fpy_val:.0f}%", "FPY", "first pass yield", cor), unsafe_allow_html=True)
-    
-    st.markdown("<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True)
+    cards_linha1 = [
+        mini_card(str(len(df_qa)), "Total Cards", f"{sp_total} SP", "#3b82f6"),
+        mini_card(str(validados), "Validados", "concluídos", cor_status_inv(validados, 5, 2)),
+        mini_card(str(em_fila), "Em Fila", "aguardando", cor_status(em_fila, 3, 6)),
+        mini_card(str(bugs_encontrados), "Bugs", "encontrados", "#8b5cf6"),
+        mini_card(f"{fpy_val:.0f}%", "FPY", "first pass yield", cor_status_inv(fpy_val, 80, 60)),
+    ]
+    st.markdown(renderizar_linha(cards_linha1), unsafe_allow_html=True)
     
     # ===== LINHA 2: Métricas Secundárias =====
     cards_impedidos_qa = df_qa[df_qa['status_cat'] == 'blocked']
@@ -779,26 +739,16 @@ def _renderizar_kpis_individuais(df: pd.DataFrame, df_qa: pd.DataFrame, qa_sel: 
     sp_travado = int(cards_impedidos_qa['sp'].sum()) + int(cards_reprovados_qa['sp'].sum())
     em_validacao = len(df_qa[df_qa['status_cat'] == 'testing'])
     
-    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
+    cor_lt = "#22c55e" if lead_time_medio <= 3 else "#f59e0b" if lead_time_medio <= 7 else "#ef4444"
     
-    with col1:
-        cor = "#22c55e" if lead_time_medio <= 3 else "#f59e0b" if lead_time_medio <= 7 else "#ef4444"
-        st.markdown(mini_card(f"{lead_time_medio:.1f}d", "Lead Time", "médio", cor), unsafe_allow_html=True)
-    
-    with col2:
-        cor = cor_status(aging_qa, 1, 3)
-        st.markdown(mini_card(str(aging_qa), "Aging", f">{REGRAS['dias_aging_alerta']}d", cor), unsafe_allow_html=True)
-    
-    with col3:
-        cor = cor_status(len(cards_impedidos_qa), 1, 2)
-        st.markdown(mini_card(str(len(cards_impedidos_qa)), "🚫 Impedidos", "bloqueados", cor), unsafe_allow_html=True)
-    
-    with col4:
-        cor = cor_status(len(cards_reprovados_qa), 1, 2)
-        st.markdown(mini_card(str(len(cards_reprovados_qa)), "❌ Reprovados", "falha", cor), unsafe_allow_html=True)
-    
-    with col5:
-        st.markdown(mini_card(str(em_validacao), "🧪 Validando", "em teste", "#3b82f6"), unsafe_allow_html=True)
+    cards_linha2 = [
+        mini_card(f"{lead_time_medio:.1f}d", "Lead Time", "médio", cor_lt),
+        mini_card(str(aging_qa), "Aging", f">{REGRAS['dias_aging_alerta']}d", cor_status(aging_qa, 1, 3)),
+        mini_card(str(len(cards_impedidos_qa)), "🚫 Impedidos", "bloqueados", cor_status(len(cards_impedidos_qa), 1, 2)),
+        mini_card(str(len(cards_reprovados_qa)), "❌ Reprovados", "falha", cor_status(len(cards_reprovados_qa), 1, 2)),
+        mini_card(str(em_validacao), "🧪 Validando", "em teste", "#3b82f6"),
+    ]
+    st.markdown(renderizar_linha(cards_linha2), unsafe_allow_html=True)
     
     # Lista cards impedidos/reprovados se existirem
     if len(cards_impedidos_qa) > 0 or len(cards_reprovados_qa) > 0:

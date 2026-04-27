@@ -73,11 +73,14 @@ def aba_dev(df: pd.DataFrame):
 def _renderizar_ranking_geral(df: pd.DataFrame, devs: list):
     """Renderiza a visão de ranking geral dos desenvolvedores."""
     
-    # Helper para mini-cards compactos
+    # Helper para mini-cards compactos (para flexbox)
     def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
         bg = f"{cor}10" if cor != "#6b7280" else "white"
         border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
-        return f'<div style="background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 10px 8px; text-align: center; height: 72px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+        return f'<div style="flex: 1; min-width: 0; background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 10px 8px; text-align: center; height: 72px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+    
+    def renderizar_linha(cards_html):
+        return f'<div style="display: flex; gap: 8px; margin-bottom: 8px;">{"".join(cards_html)}</div>'
     
     def cor_status(valor, verde, amarelo):
         if valor < verde:
@@ -106,51 +109,27 @@ def _renderizar_ranking_geral(df: pd.DataFrame, devs: list):
     fk_medio = sp_total / (bugs_total + 1) if bugs_total >= 0 else 0
     mat = classificar_maturidade(fk_medio)
     
-    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
-    
-    with col1:
-        st.markdown(mini_card(str(total_cards), "Total Cards", f"{sp_total} SP", "#3b82f6"), unsafe_allow_html=True)
-    
-    with col2:
-        cor = cor_status(em_dev, 10, 20)
-        st.markdown(mini_card(str(em_dev), "🔧 Em Dev", "desenvolvimento", cor), unsafe_allow_html=True)
-    
-    with col3:
-        cor = cor_status(em_cr, 5, 10)
-        st.markdown(mini_card(str(em_cr), "👀 Code Review", "aguardando CR", cor), unsafe_allow_html=True)
-    
-    with col4:
-        cor = cor_status_inv(concluidos, 10, 5)
-        st.markdown(mini_card(str(concluidos), "✅ Concluídos", "done", cor), unsafe_allow_html=True)
-    
-    with col5:
-        cor = cor_status_inv(fk_medio, 3, 2)
-        st.markdown(mini_card(f"{fk_medio:.1f}", f"Fator K {mat['emoji']}", mat['selo'], cor), unsafe_allow_html=True)
-    
-    st.markdown("<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True)
+    cards_linha1 = [
+        mini_card(str(total_cards), "Total Cards", f"{sp_total} SP", "#3b82f6"),
+        mini_card(str(em_dev), "🔧 Em Dev", "desenvolvimento", cor_status(em_dev, 10, 20)),
+        mini_card(str(em_cr), "👀 Code Review", "aguardando CR", cor_status(em_cr, 5, 10)),
+        mini_card(str(concluidos), "✅ Concluídos", "done", cor_status_inv(concluidos, 10, 5)),
+        mini_card(f"{fk_medio:.1f}", f"Fator K {mat['emoji']}", mat['selo'], cor_status_inv(fk_medio, 3, 2)),
+    ]
+    st.markdown(renderizar_linha(cards_linha1), unsafe_allow_html=True)
     
     # Linha 2: Status de Cards
     cards_impedidos = df[df['status_cat'] == 'blocked']
     cards_reprovados = df[df['status_cat'] == 'rejected']
     sp_bloqueado = int(cards_impedidos['sp'].sum()) + int(cards_reprovados['sp'].sum())
     
-    col1, col2, col3, col4 = st.columns(4, gap="small")
-    
-    with col1:
-        cor = cor_status(len(cards_impedidos), 1, 3)
-        st.markdown(mini_card(str(len(cards_impedidos)), "🚫 Impedidos", "bloqueados", cor), unsafe_allow_html=True)
-    
-    with col2:
-        cor = cor_status(len(cards_reprovados), 1, 3)
-        st.markdown(mini_card(str(len(cards_reprovados)), "❌ Reprovados", "falha QA", cor), unsafe_allow_html=True)
-    
-    with col3:
-        cor = cor_status(bugs_total, 10, 20)
-        st.markdown(mini_card(str(bugs_total), "🐛 Bugs", "total encontrados", cor), unsafe_allow_html=True)
-    
-    with col4:
-        cor = cor_status(sp_bloqueado, 1, 10)
-        st.markdown(mini_card(str(sp_bloqueado), "SP Travados", "imp. + repr.", cor), unsafe_allow_html=True)
+    cards_linha2 = [
+        mini_card(str(len(cards_impedidos)), "🚫 Impedidos", "bloqueados", cor_status(len(cards_impedidos), 1, 3)),
+        mini_card(str(len(cards_reprovados)), "❌ Reprovados", "falha QA", cor_status(len(cards_reprovados), 1, 3)),
+        mini_card(str(bugs_total), "🐛 Bugs", "total encontrados", cor_status(bugs_total, 10, 20)),
+        mini_card(str(sp_bloqueado), "SP Travados", "imp. + repr.", cor_status(sp_bloqueado, 1, 10)),
+    ]
+    st.markdown(renderizar_linha(cards_linha2), unsafe_allow_html=True)
     
     st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
     
@@ -502,11 +481,14 @@ def _renderizar_metricas_individuais(df: pd.DataFrame, dev_sel: str):
 def _renderizar_indicadores_individuais_dev(analise: dict, mat: dict):
     """Renderiza indicadores individuais do DEV - Estilo harmonizado."""
     
-    # Helper para mini-cards compactos
+    # Helper para mini-cards compactos (para flexbox)
     def mini_card(valor, titulo, subtitulo, cor="#6b7280"):
         bg = f"{cor}10" if cor != "#6b7280" else "white"
         border = f"{cor}40" if cor != "#6b7280" else "#e5e7eb"
-        return f'<div style="background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 10px 8px; text-align: center; height: 72px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+        return f'<div style="flex: 1; min-width: 0; background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 10px 8px; text-align: center; height: 72px; display: flex; flex-direction: column; justify-content: center;"><div style="font-size: 24px; font-weight: 700; color: {cor}; line-height: 1;">{valor}</div><div style="font-size: 11px; font-weight: 600; color: #374151; margin-top: 3px;">{titulo}</div><div style="font-size: 10px; color: #6b7280;">{subtitulo}</div></div>'
+    
+    def renderizar_linha(cards_html):
+        return f'<div style="display: flex; gap: 8px; margin-bottom: 8px;">{"".join(cards_html)}</div>'
     
     def cor_status(valor, verde, amarelo):
         if valor < verde:
@@ -523,61 +505,36 @@ def _renderizar_indicadores_individuais_dev(analise: dict, mat: dict):
         return "#ef4444"
     
     df_dev = analise['df']
+    concluidos = len(df_dev[df_dev['status_cat'] == 'done'])
     
     # ===== LINHA 1: KPIs Principais =====
     st.markdown("##### 📊 Indicadores Individuais")
-    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
     
-    with col1:
-        st.markdown(mini_card(str(analise['cards']), "Total Cards", f"{analise['sp_total']} SP", "#3b82f6"), unsafe_allow_html=True)
-    
-    with col2:
-        concluidos = len(df_dev[df_dev['status_cat'] == 'done'])
-        cor = cor_status_inv(concluidos, 5, 2)
-        st.markdown(mini_card(str(concluidos), "Concluídos", "validados", cor), unsafe_allow_html=True)
-    
-    with col3:
-        cor = cor_status(analise['bugs_total'], 3, 8)
-        st.markdown(mini_card(str(analise['bugs_total']), "Bugs", "encontrados", cor), unsafe_allow_html=True)
-    
-    with col4:
-        cor = cor_status_inv(analise['zero_bugs'], 80, 60)
-        st.markdown(mini_card(f"{analise['zero_bugs']}%", "Zero Bugs", "taxa FPY", cor), unsafe_allow_html=True)
-    
-    with col5:
-        cor = cor_status_inv(analise['fk_medio'], 3, 2)
-        st.markdown(mini_card(f"{analise['fk_medio']:.1f}", f"FK {mat['emoji']}", mat['selo'], cor), unsafe_allow_html=True)
-    
-    st.markdown("<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True)
+    cards_linha1 = [
+        mini_card(str(analise['cards']), "Total Cards", f"{analise['sp_total']} SP", "#3b82f6"),
+        mini_card(str(concluidos), "Concluídos", "validados", cor_status_inv(concluidos, 5, 2)),
+        mini_card(str(analise['bugs_total']), "Bugs", "encontrados", cor_status(analise['bugs_total'], 3, 8)),
+        mini_card(f"{analise['zero_bugs']}%", "Zero Bugs", "taxa FPY", cor_status_inv(analise['zero_bugs'], 80, 60)),
+        mini_card(f"{analise['fk_medio']:.1f}", f"FK {mat['emoji']}", mat['selo'], cor_status_inv(analise['fk_medio'], 3, 2)),
+    ]
+    st.markdown(renderizar_linha(cards_linha1), unsafe_allow_html=True)
     
     # ===== LINHA 2: Status de Cards =====
     cards_impedidos = df_dev[df_dev['status_cat'] == 'blocked']
     cards_reprovados = df_dev[df_dev['status_cat'] == 'rejected']
     em_dev = len(df_dev[df_dev['status_cat'] == 'development'])
     em_cr = len(df_dev[df_dev['status_cat'] == 'code_review'])
+    tempo = analise['tempo_medio'] if isinstance(analise['tempo_medio'], (int, float)) else 0
+    cor_lt = "#22c55e" if tempo <= 3 else "#f59e0b" if tempo <= 7 else "#ef4444"
     
-    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
-    
-    with col1:
-        cor = cor_status(em_dev, 3, 5)
-        st.markdown(mini_card(str(em_dev), "🔧 Em Dev", "desenvolvimento", cor), unsafe_allow_html=True)
-    
-    with col2:
-        cor = cor_status(em_cr, 2, 4)
-        st.markdown(mini_card(str(em_cr), "👀 Code Review", "aguardando", cor), unsafe_allow_html=True)
-    
-    with col3:
-        cor = cor_status(len(cards_impedidos), 1, 2)
-        st.markdown(mini_card(str(len(cards_impedidos)), "🚫 Impedidos", "bloqueados", cor), unsafe_allow_html=True)
-    
-    with col4:
-        cor = cor_status(len(cards_reprovados), 1, 2)
-        st.markdown(mini_card(str(len(cards_reprovados)), "❌ Reprovados", "falha QA", cor), unsafe_allow_html=True)
-    
-    with col5:
-        tempo = analise['tempo_medio'] if isinstance(analise['tempo_medio'], (int, float)) else 0
-        cor = "#22c55e" if tempo <= 3 else "#f59e0b" if tempo <= 7 else "#ef4444"
-        st.markdown(mini_card(f"{tempo:.1f}d" if isinstance(tempo, float) else f"{tempo}d", "Lead Time", "médio", cor), unsafe_allow_html=True)
+    cards_linha2 = [
+        mini_card(str(em_dev), "🔧 Em Dev", "desenvolvimento", cor_status(em_dev, 3, 5)),
+        mini_card(str(em_cr), "👀 Code Review", "aguardando", cor_status(em_cr, 2, 4)),
+        mini_card(str(len(cards_impedidos)), "🚫 Impedidos", "bloqueados", cor_status(len(cards_impedidos), 1, 2)),
+        mini_card(str(len(cards_reprovados)), "❌ Reprovados", "falha QA", cor_status(len(cards_reprovados), 1, 2)),
+        mini_card(f"{tempo:.1f}d" if isinstance(tempo, float) else f"{tempo}d", "Lead Time", "médio", cor_lt),
+    ]
+    st.markdown(renderizar_linha(cards_linha2), unsafe_allow_html=True)
     
     # Cards com problemas em expander
     if len(cards_impedidos) > 0 or len(cards_reprovados) > 0:
