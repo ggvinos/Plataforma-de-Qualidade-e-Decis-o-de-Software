@@ -85,6 +85,76 @@ def buscar_dados_jira_cached(projeto: str, jql: str) -> Tuple[Optional[List[Dict
 
 
 # ==============================================================================
+# VERIFICAR SPRINT FUTURA
+# ==============================================================================
+
+@st.cache_data(ttl=60, show_spinner=False)
+def verificar_sprint_futura(projeto: str) -> Optional[Dict]:
+    """
+    Verifica se existe sprint futura aguardando início para o projeto.
+    
+    Busca apenas 1 card com sprint futura para detectar existência.
+    Retorna informações da sprint futura se existir, None caso contrário.
+    
+    Args:
+        projeto: Código do projeto (SD, QA, PB)
+    
+    Returns:
+        Dict com {name, state, startDate, endDate} ou None
+    """
+    secrets = get_secrets()
+    if not secrets["email"] or not secrets["token"]:
+        return None
+    
+    base_url = f"{JIRA_BASE_URL}/rest/api/3/search/jql"
+    headers = {"Accept": "application/json"}
+    
+    jql = f'project = {projeto} AND sprint in futureSprints() ORDER BY created DESC'
+    
+    try:
+        params = {
+            "jql": jql,
+            "maxResults": 1,
+            "fields": CUSTOM_FIELDS["sprint"]
+        }
+        
+        response = requests.get(
+            base_url, 
+            headers=headers, 
+            params=params, 
+            auth=(secrets["email"], secrets["token"]),
+            timeout=30
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        issues = data.get("issues", [])
+        if not issues:
+            return None
+        
+        # Extrair informações da sprint futura
+        sprint_field = issues[0].get("fields", {}).get(CUSTOM_FIELDS["sprint"], [])
+        if not sprint_field:
+            return None
+        
+        # Encontrar sprint com state='future'
+        for sprint in sprint_field:
+            if sprint.get("state") == "future":
+                return {
+                    "name": sprint.get("name", ""),
+                    "state": sprint.get("state", ""),
+                    "startDate": sprint.get("startDate"),
+                    "endDate": sprint.get("endDate"),
+                    "id": sprint.get("id")
+                }
+        
+        return None
+    
+    except Exception:
+        return None
+
+
+# ==============================================================================
 # BUSCA CARD ESPECÍFICO COM LINKS E HISTÓRICO
 # ==============================================================================
 

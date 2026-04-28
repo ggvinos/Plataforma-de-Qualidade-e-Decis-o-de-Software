@@ -41,6 +41,7 @@ from modulos.calculos import (
 from modulos.helpers import criar_card_metrica, obter_contexto_periodo
 from modulos.utils import card_link_com_popup
 from modulos.widgets import mostrar_tooltip, mostrar_lista_df_completa
+from modulos.jira_api import verificar_sprint_futura
 
 
 # ==============================================================================
@@ -903,21 +904,18 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
         # Detecta se precisa virar sprint no Jira (sprint active com endDate no passado)
         precisa_virar_sprint = False
         if dias_restantes is not None and dias_restantes < 0:
-            # Verifica se existe sprint 'future' que deveria estar ativa
-            if 'sprint_state' in df.columns:
-                df_future = df[df['sprint_state'] == 'future']
-                if not df_future.empty and 'sprint_start' in df_future.columns:
-                    for _, row in df_future.iterrows():
-                        future_start = row.get('sprint_start')
-                        if future_start is not None:
-                            try:
-                                if isinstance(future_start, str):
-                                    future_start = datetime.fromisoformat(future_start.replace('Z', '+00:00')).replace(tzinfo=None)
-                                if future_start <= hoje:
-                                    precisa_virar_sprint = True
-                                    break
-                            except:
-                                pass
+            # Busca sprint futura via API (a query principal só traz sprints ativas)
+            projeto = df['projeto'].iloc[0] if 'projeto' in df.columns and not df.empty else 'SD'
+            sprint_futura = verificar_sprint_futura(projeto)
+            
+            if sprint_futura and sprint_futura.get('startDate'):
+                try:
+                    future_start_str = sprint_futura['startDate']
+                    future_start = datetime.fromisoformat(future_start_str.replace('Z', '+00:00')).replace(tzinfo=None)
+                    if future_start <= hoje:
+                        precisa_virar_sprint = True
+                except Exception:
+                    pass
         
         if dias_restantes is not None and dias_restantes < 0:
             if precisa_virar_sprint:
