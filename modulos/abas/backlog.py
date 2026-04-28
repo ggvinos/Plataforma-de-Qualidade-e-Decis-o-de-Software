@@ -102,10 +102,9 @@ def _renderizar_funil_produto(df: pd.DataFrame):
     """Renderiza o funil de produto visual com as 5 etapas."""
     st.markdown("##### 🎯 Funil de Produto")
     
-    # Cores do funil
+    # Cores do funil (4 etapas - baseado nos status reais do Jira PB)
     cores_funil = {
         "pb_revisao_produto": "#6366f1",
-        "pb_roteiro": "#8b5cf6", 
         "pb_ux": "#ec4899",
         "pb_esforco": "#f97316",
         "pb_aguarda_dev": "#22c55e",
@@ -161,7 +160,7 @@ def _renderizar_kpis_produto(df: pd.DataFrame, metricas: dict):
     pct_sem_sp = metricas['pct_sem_sp']
     
     # Cards aguardando (status PB)
-    status_pb = ['pb_revisao_produto', 'pb_roteiro', 'pb_ux', 'pb_esforco', 'pb_aguarda_dev']
+    status_pb = ['pb_revisao_produto', 'pb_ux', 'pb_esforco', 'pb_aguarda_dev']
     cards_aguardando = len(df[df['status_cat'].isin(status_pb)])
     
     # Cards alta prioridade
@@ -555,7 +554,7 @@ def aba_produto_pb(df: pd.DataFrame, projeto: str = "PB"):
     }
     
     # Status que estão no backlog (não finalizados)
-    status_backlog = ['pb_revisao_produto', 'pb_roteiro', 'pb_ux', 'pb_esforco', 
+    status_backlog = ['pb_revisao_produto', 'pb_ux', 'pb_esforco', 
                       'pb_aguarda_dev', 'backlog', 'unknown', 'in_progress']
     df_pendentes = df[df['status_cat'].isin(status_backlog)]
     
@@ -674,7 +673,6 @@ def aba_historico_pb(df: pd.DataFrame, projeto: str = "PB"):
     # Etapas do funil PB
     etapas_funil = [
         ('pb_revisao_produto', '📝 Revisão', '#6366f1'),
-        ('pb_roteiro', '📋 Roteiro', '#8b5cf6'),
         ('pb_ux', '🎨 UX', '#ec4899'),
         ('pb_esforco', '⏱️ Esforço', '#f97316'),
         ('pb_aguarda_dev', '💻 Aguarda Dev', '#22c55e'),
@@ -886,31 +884,34 @@ def aba_historico_pb(df: pd.DataFrame, projeto: str = "PB"):
         df_funil = df[df['status_cat'].isin([s for s, _, _ in etapas_funil])]
         
         if not df_funil.empty and 'dias_em_status' in df_funil.columns:
-            df_antigos = df_funil.nlargest(15, 'dias_em_status')
+            df_antigos = df_funil.nlargest(15, 'dias_em_status').copy()
             
             st.markdown("**Top 15 cards há mais tempo parados (potenciais bloqueios):**")
+            st.caption("Cards parados há muito tempo podem indicar impedimentos ou falta de priorização.")
             
-            for _, card in df_antigos.iterrows():
-                dias = int(card['dias_em_status'])
-                cor = "#ef4444" if dias > 60 else "#f59e0b" if dias > 30 else "#6b7280"
-                status_nome = next((n for s, n, _ in etapas_funil if s == card['status_cat']), card['status_cat'])
-                titulo = str(card['titulo'])[:55] if pd.notna(card['titulo']) else "Sem título"
-                
-                st.markdown(f'''
-                <div style="display: flex; align-items: center; padding: 8px 12px; 
-                            background: #f8fafc; border-left: 4px solid {cor}; 
-                            border-radius: 0 8px 8px 0; margin-bottom: 8px;">
-                    <div style="flex: 1;">
-                        <a href="https://ninatecnologia.atlassian.net/browse/{card['ticket_id']}" target="_blank" 
-                           style="color: #3b82f6; text-decoration: none; font-weight: 600;">
-                            {card['ticket_id']}
-                        </a>
-                        <span style="color: #374151; margin-left: 8px;">{titulo}...</span>
-                        <span style="color: #9ca3af; font-size: 11px; margin-left: 8px;">({status_nome})</span>
+            # Usar padrão da plataforma com mostrar_lista_df_completa
+            mostrar_lista_df_completa(df_antigos, "Cards Antigos no Funil")
+            
+            # Resumo por etapa
+            st.markdown("---")
+            st.markdown("**📊 Resumo de Aging por Etapa:**")
+            for status_cat, nome, cor in etapas_funil:
+                df_etapa = df_funil[df_funil['status_cat'] == status_cat]
+                if not df_etapa.empty:
+                    mais_antigo = int(df_etapa['dias_em_status'].max())
+                    media = df_etapa['dias_em_status'].mean()
+                    qtd = len(df_etapa)
+                    cor_texto = "#ef4444" if mais_antigo > 60 else "#f59e0b" if mais_antigo > 30 else "#22c55e"
+                    st.markdown(f"""
+                    <div style="display: flex; justify-content: space-between; align-items: center; 
+                                padding: 8px 12px; background: {cor}15; border-left: 4px solid {cor}; 
+                                border-radius: 0 8px 8px 0; margin-bottom: 6px;">
+                        <span style="font-weight: 600;">{nome}</span>
+                        <span style="color: {cor_texto}; font-weight: 700;">
+                            {qtd} cards · Máx: {mais_antigo}d · Média: {media:.0f}d
+                        </span>
                     </div>
-                    <div style="font-size: 14px; font-weight: 700; color: {cor};">{dias}d</div>
-                </div>
-                ''', unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
         else:
             st.info("Nenhum card no funil ou sem dados de tempo")
     

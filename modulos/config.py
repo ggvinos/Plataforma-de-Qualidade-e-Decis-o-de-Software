@@ -69,19 +69,19 @@ NINADASH_URL = "https://ninadash.streamlit.app/"
 
 STATUS_FLOW = {
     "backlog": ["Backlog", "To Do", "Tarefas pendentes"],
-    "development": ["Em andamento"],
+    "development": ["Em andamento", "EM DESENVOLVIMENTO"],
     "code_review": ["EM REVISÃO"],
     "waiting_qa": ["AGUARDANDO VALIDAÇÃO"],
     "testing": ["EM VALIDAÇÃO"],
-    "done": ["Concluído"],
+    "done": ["Concluído", "ENTREGUE"],
     "blocked": ["IMPEDIDO"],
     "rejected": ["REPROVADO"],
     "deferred": ["Validado - Adiado", "DESCARTADO"],
-    "pb_revisao_produto": ["Aguardando Revisão de Produto", "Revisão de Produto", "Análise de Produto"],
+    "pb_revisao_produto": ["Aguardando Revisão de Produto", "Revisão de Produto", "Análise de Produto", "AGUARDA REVISÃO DE PRODUTO"],
     "pb_roteiro": ["Em Roteiro", "Roteiro", "Definição de Roteiro"],
-    "pb_ux": ["UX/Design", "UX Design", "Análise UX", "UX/UI"],
-    "pb_esforco": ["Aguardando Esforço", "Estimativa de Esforço", "Aguarda Esforço"],
-    "pb_aguarda_dev": ["Aguardando Desenvolvimento", "Aguarda Desenvolvimento", "Fila de Desenvolvimento"],
+    "pb_ux": ["UX/Design", "UX Design", "Análise UX", "UX/UI", "AGUARDA UX"],
+    "pb_esforco": ["Aguardando Esforço", "Estimativa de Esforço", "Aguarda Esforço", "AGUARDA ESFORÇO"],
+    "pb_aguarda_dev": ["Aguardando Desenvolvimento", "Aguarda Desenvolvimento", "Fila de Desenvolvimento", "AGUARDA DESENVOLVIMENTO"],
     "pb_aguardando_resposta": ["Aguardando Resposta", "Aguardando Cliente", "Aguarda Retorno"],
     "valprod_pendente": ["Pendente", "Aguardando Validação", "Para Validar"],
     "valprod_validando": ["Em Validação", "Validando"],
@@ -173,7 +173,6 @@ TRADUCAO_LINK_TYPES = {
 
 PB_FUNIL_ETAPAS = [
     ("pb_revisao_produto", "📝 Revisão Produto"),
-    ("pb_roteiro", "📋 Em Roteiro"),
     ("pb_ux", "🎨 UX/Design"),
     ("pb_esforco", "⏱️ Aguarda Esforço"),
     ("pb_aguarda_dev", "💻 Aguarda Dev"),

@@ -227,7 +227,7 @@ def _renderizar_visao_geral(df_todos: pd.DataFrame):
         
         # PB aguardando
         df_pb_aguard = df_todos[(df_todos['projeto'] == 'PB') & 
-                                (df_todos['status_cat'].isin(['pb_revisao_produto', 'pb_roteiro', 'pb_ux', 
+                                (df_todos['status_cat'].isin(['pb_revisao_produto', 'pb_ux', 
                                                                'pb_esforco', 'pb_aguarda_dev', 'pb_aguardando_resposta']))]
     else:
         # Fallback para string matching

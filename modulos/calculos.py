@@ -899,7 +899,7 @@ def calcular_metricas_backlog(df: pd.DataFrame) -> Dict:
     categorias_backlog = [
         'backlog', 
         'pb_revisao_produto', 
-        'pb_roteiro', 
+ 
         'pb_ux', 
         'pb_esforco', 
         'pb_aguarda_dev',
