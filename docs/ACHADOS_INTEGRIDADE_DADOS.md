@@ -1,7 +1,8 @@
 # Achados da Verificação de Integridade de Dados
 
 **Data:** 28/04/2026  
-**Analista:** GitHub Copilot
+**Analista:** GitHub Copilot  
+**Status:** ✅ CORRIGIDO em commit f63a9d1
 
 ## Status Atual do Jira (Dados Reais)
 
@@ -33,36 +34,39 @@
 
 ---
 
-## 🐛 BUG CRÍTICO: Detecção de "VIRAR SPRINT" não funciona
+## ✅ BUG CORRIGIDO: Detecção de "VIRAR SPRINT" (commit f63a9d1)
 
-### Problema
+### Problema Original
 O dashboard deveria mostrar "⚠️ VIRAR SPRINT NO JIRA" quando:
 1. Sprint atual está vencida (dias_restantes < 0) ✅
 2. Existe sprint futura com startDate <= hoje ❌ **NUNCA DETECTADO**
 
-### Causa Raiz
-**Arquivo:** [visao_geral_v2.py](../modulos/abas/visao_geral_v2.py#L903-924)
+### Solução Implementada
+**Opção A implementada:** Nova função `verificar_sprint_futura()` em [jira_api.py](../modulos/jira_api.py)
+
 ```python
-# Esta verificação nunca encontra nada:
-if 'sprint_state' in df.columns:
-    df_future = df[df['sprint_state'] == 'future']  # SEMPRE VAZIO!
+@st.cache_data(ttl=60, show_spinner=False)
+def verificar_sprint_futura(projeto: str) -> Optional[Dict]:
+    """Verifica se existe sprint futura aguardando início para o projeto."""
+    jql = f'project = {projeto} AND sprint in futureSprints() ORDER BY created DESC'
+    # Busca limitada (apenas 1 card) para detectar existência
+    ...
 ```
 
-**Motivo:** A query JQL em [app_develop.py](../app_develop.py#L995) usa:
+**Arquivos alterados:**
+- `modulos/jira_api.py` - Nova função `verificar_sprint_futura()`
+- `modulos/abas/visao_geral_v2.py` - Usa nova função API
+- `modulos/abas/visao_geral.py` - Usa nova função API
+
+### Resultado
+- ✅ Dashboard agora detecta corretamente quando sprint futura existe
+- ✅ Mostra "⚠️ VIRAR SPRINT NO JIRA" ao invés de "RELEASE ATRASADA" quando apropriado
+- ✅ Cache de 60 segundos para evitar chamadas excessivas à API
+
+### ~~Solução Proposta~~
+~~**Opção A (Recomendada):** Adicionar busca separada de sprint futura~~
 ```python
-jql = f'project = {projeto} AND sprint in openSprints() ORDER BY created DESC'
-```
-
-Isso busca APENAS sprints ativas (state=active), nunca futuras (state=future).
-
-### Impacto
-- Dashboard sempre mostra "🚨 RELEASE ATRASADA" mesmo quando existe sprint futura pronta
-- Usuário não recebe a indicação correta de que precisa "virar a sprint" no Jira
-
-### Solução Proposta
-**Opção A (Recomendada):** Adicionar busca separada de sprint futura
-```python
-# Em jira_api.py ou consultas.py
+# ✅ IMPLEMENTADO em jira_api.py
 def verificar_sprint_futura(projeto):
     """Verifica se existe sprint futura aguardando início"""
     jql = f'project = {projeto} AND sprint in futureSprints() ORDER BY created DESC'
