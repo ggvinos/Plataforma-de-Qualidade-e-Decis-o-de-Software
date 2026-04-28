@@ -1,29 +1,29 @@
 """
-🔐 CONFIRMATION CALL AUTH - Autenticação com API JWT
+🔐 CONFIRMATION CALL AUTH v2 - Autenticação Simplificada
 
-Integração com API do ConfirmationCall usando Basic Auth para obtenção de JWT.
-Gerencia estado de autenticação em session_state + COOKIES para persistência.
-
-Endpoints:
-- Develop: https://api.develop.confirmationcall.com.br/api/user/loginjwt
-- Homolog: https://api.homolog.confirmationcall.com.br/api/user/loginjwt
-- Produção: https://api.confirmationcall.com.br/api/user/loginjwt
+Versão simplificada e robusta da autenticação com ConfirmationCall.
+Foco em: FUNCIONAR SEMPRE, sem dependência de cookies complexos.
 """
 
 import streamlit as st
 import requests
 from requests.auth import HTTPBasicAuth
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Tuple
+from typing import Optional, Tuple
 import json
-import time
-import extra_streamlit_components as stx
 
 # Import do SVG da logo
 try:
     from modulos.config import NINA_LOGO_SVG
 except ImportError:
     NINA_LOGO_SVG = ''
+
+# Para compatibilidade com código existente
+try:
+    import extra_streamlit_components as stx
+    HAS_STX = True
+except ImportError:
+    HAS_STX = False
 
 # ==============================================================================
 # CONFIGURAÇÃO
@@ -35,433 +35,159 @@ ENDPOINTS = {
     "Desenvolvimento": "https://api.develop.confirmationcall.com.br/api/user/loginjwt",
 }
 
-# Ordem de tentativa dos ambientes (mais provável primeiro)
 ORDEM_AMBIENTES = ["Produção", "Homologação", "Desenvolvimento"]
-
-TIMEOUT_SEGUNDOS = 5  # Timeout menor para tentar mais rápido
-
-# Configuração de Cookies para persistência
-COOKIE_AUTH_NAME = "ninadash_jwt_auth"
-COOKIE_EXPIRY_DAYS = 30
+TIMEOUT_SEGUNDOS = 8  # Timeout maior para garantir resposta
 
 
 # ==============================================================================
-# GERENCIADOR DE COOKIES (USANDO JAVASCRIPT NATIVO)
+# COOKIE MANAGER (COMPATIBILIDADE)
 # ==============================================================================
-
-def _injetar_js_cookie():
-    """
-    Injeta JavaScript para ler cookies de forma síncrona.
-    Retorna o valor do cookie de autenticação se existir.
-    """
-    import streamlit.components.v1 as components
-    
-    # JavaScript para ler o cookie e enviar para o Streamlit
-    js_code = f"""
-    <script>
-    (function() {{
-        function getCookie(name) {{
-            const value = "; " + document.cookie;
-            const parts = value.split("; " + name + "=");
-            if (parts.length === 2) {{
-                return decodeURIComponent(parts.pop().split(";").shift());
-            }}
-            return null;
-        }}
-        
-        const cookieValue = getCookie("{COOKIE_AUTH_NAME}");
-        if (cookieValue && window.parent) {{
-            // Armazena no sessionStorage para persistir durante o rerun
-            sessionStorage.setItem("ninadash_auth_cookie", cookieValue);
-        }}
-    }})();
-    </script>
-    """
-    components.html(js_code, height=0, width=0)
-
-
-def _salvar_cookie_js(dados: str, dias: int = 30):
-    """Salva cookie usando JavaScript."""
-    import streamlit.components.v1 as components
-    
-    js_code = f"""
-    <script>
-    (function() {{
-        const d = new Date();
-        d.setTime(d.getTime() + ({dias} * 24 * 60 * 60 * 1000));
-        const expires = "expires=" + d.toUTCString();
-        document.cookie = "{COOKIE_AUTH_NAME}=" + encodeURIComponent(`{dados}`) + ";" + expires + ";path=/;SameSite=Lax";
-    }})();
-    </script>
-    """
-    components.html(js_code, height=0, width=0)
-
-
-def _remover_cookie_js():
-    """Remove cookie usando JavaScript."""
-    import streamlit.components.v1 as components
-    
-    js_code = f"""
-    <script>
-    (function() {{
-        document.cookie = "{COOKIE_AUTH_NAME}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;";
-        sessionStorage.removeItem("ninadash_auth_cookie");
-    }})();
-    </script>
-    """
-    components.html(js_code, height=0, width=0)
-
 
 def get_cookie_manager():
     """
-    Retorna instância do CookieManager.
-    Usa uma key única fixa para garantir que cookies sejam lidos corretamente.
+    Retorna instância do CookieManager para compatibilidade.
+    NOTA: A v2 não depende de cookies, mas mantém para código legado.
     """
-    return stx.CookieManager(key="ninadash_auth_cm")
+    if HAS_STX:
+        return stx.CookieManager(key="ninadash_compat_cm")
+    return None
 
 
 # ==============================================================================
-# AUTENTICAÇÃO COM API CONFIRMATION CALL
+# AUTENTICAÇÃO COM API
 # ==============================================================================
 
-def autenticar_com_confirmation_call(
-    usuario: str,
-    senha: str,
-    ambiente: str = "Produção"
-) -> Tuple[bool, Optional[str], str]:
-    """
-    Autentica usuário com a API do ConfirmationCall usando Basic Auth.
-    
-    Args:
-        usuario: Nome de usuário (pode ser nome.sobrenome ou nome.sobrenome@confirmationcall.com.br)
-        senha: Senha do usuário
-        ambiente: "Desenvolvimento", "Homologação" ou "Produção"
-    
-    Returns:
-        (sucesso: bool, token_jwt: Optional[str], mensagem: str)
-    """
+def _autenticar_ambiente(usuario: str, senha: str, ambiente: str) -> Tuple[bool, Optional[str], str]:
+    """Tenta autenticar em um ambiente específico."""
     
     if ambiente not in ENDPOINTS:
-        return False, None, f"Ambiente inválido. Escolha entre: {', '.join(ENDPOINTS.keys())}"
+        return False, None, "Ambiente inválido"
     
-    if not usuario or not senha:
-        return False, None, "Usuário e senha são obrigatórios"
-    
-    # Se o usuário não tiver domínio, adiciona @confirmationcall.com.br
+    # Adiciona domínio se necessário
     if "@" not in usuario:
         usuario = f"{usuario}@confirmationcall.com.br"
     
     try:
-        endpoint = ENDPOINTS[ambiente]
-        
-        # Configura Basic Auth
-        auth = HTTPBasicAuth(usuario, senha)
-        
-        # Headers
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        }
-        
-        # Realiza requisição
         response = requests.post(
-            endpoint,
-            auth=auth,
-            headers=headers,
+            ENDPOINTS[ambiente],
+            auth=HTTPBasicAuth(usuario, senha),
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
             timeout=TIMEOUT_SEGUNDOS,
-            verify=True  # Valida certificado SSL
+            verify=True
         )
         
-        # Debug: Log resposta para troubleshooting
-        debug_info = {
-            "status": response.status_code,
-            "headers": dict(response.headers),
-            "content_length": len(response.content),
-            "content_type": response.headers.get("content-type", "unknown"),
-        }
-        
-        # Trata resposta baseado no status code
         if response.status_code == 200:
-            token = None
-            
+            # Tenta extrair token
             try:
-                # Tenta fazer parse JSON (formato 1)
                 data = response.json()
                 token = data.get("token") or data.get("access_token")
-                
                 if token:
-                    return True, token, f"✅ Autenticado com sucesso no ambiente {ambiente}"
-            
-            except json.JSONDecodeError:
-                # Não é JSON, tenta como token puro (formato 2)
+                    return True, token, f"✅ Autenticado em {ambiente}"
+            except:
                 pass
             
-            # Se não encontrou token em JSON, tenta considerar resposta como token puro
-            if not token:
-                resposta_texto = response.text.strip() if response.text else ""
-                
-                # Valida se parece com JWT (tem 3 partes separadas por pontos)
-                if resposta_texto and resposta_texto.count(".") == 2:
-                    # Parece ser um JWT válido
-                    token = resposta_texto
-                    return True, token, f"✅ Autenticado com sucesso no ambiente {ambiente}"
-                
-                # Nenhum formato válido
-                return False, None, f"❌ Servidor retornou sucesso (200) mas resposta não contém token válido.\nResposta: {resposta_texto[:200]}\n\nContate o administrador do ConfirmationCall."
+            # Tenta como texto puro (JWT)
+            texto = response.text.strip()
+            if texto and texto.count(".") == 2:
+                return True, texto, f"✅ Autenticado em {ambiente}"
+            
+            return False, None, "Resposta inválida do servidor"
         
         elif response.status_code == 401:
-            return False, None, "❌ Credenciais inválidas (Usuário ou Senha incorretos)"
+            return False, None, "CREDENCIAIS_INVALIDAS"
         
         elif response.status_code == 403:
-            return False, None, "❌ Acesso negado. Usuário não tem permissão para este ambiente"
-        
-        elif response.status_code == 404:
-            # Tenta extrair mais info
-            try:
-                erro_msg = response.json().get("message", "")
-                if erro_msg:
-                    return False, None, f"❌ Endpoint não encontrado no ambiente {ambiente}\nDetalhes: {erro_msg}"
-            except:
-                pass
-            return False, None, f"❌ Endpoint não encontrado no ambiente {ambiente}\nURL: {endpoint}"
-        
-        elif response.status_code == 500:
-            try:
-                erro_msg = response.json().get("message", "Erro interno no servidor")
-                return False, None, f"❌ Erro no servidor ConfirmationCall ({ambiente}): {erro_msg}"
-            except:
-                return False, None, f"❌ Erro no servidor do ConfirmationCall ({ambiente})"
+            return False, None, "ACESSO_NEGADO"
         
         else:
-            # Tenta extrair info de erro se disponível
-            try:
-                erro_response = response.json()
-                erro_msg = erro_response.get("message") or erro_response.get("error") or str(erro_response)
-                return False, None, f"❌ Erro na autenticação (Status {response.status_code}): {erro_msg}"
-            except:
-                return False, None, f"❌ Erro na autenticação (Status: {response.status_code})\nVerifique se as credenciais estão corretas."
+            return False, None, f"Erro {response.status_code}"
     
     except requests.exceptions.Timeout:
-        return False, None, f"⏱️ Timeout ao conectar com {ambiente} (excedeu {TIMEOUT_SEGUNDOS}s)\nVerifique sua conexão de internet."
+        return False, None, "TIMEOUT"
     
-    except requests.exceptions.ConnectionError as e:
-        return False, None, f"🌐 Erro de conexão com o servidor {ambiente}.\nDetalhes: {str(e)}\nVerifique sua internet ou se há firewall bloqueando."
-    
-    except requests.exceptions.RequestException as e:
-        return False, None, f"❌ Erro na requisição: {str(e)}"
-    
-    except json.JSONDecodeError as e:
-        return False, None, f"❌ Resposta inválida do servidor (não é JSON válido)\nErro: {str(e)}"
+    except requests.exceptions.ConnectionError:
+        return False, None, "SEM_CONEXAO"
     
     except Exception as e:
-        return False, None, f"❌ Erro inesperado: {str(e)}\nTipo: {type(e).__name__}"
+        return False, None, f"Erro: {str(e)}"
 
 
-def autenticar_automatico(usuario: str, senha: str) -> Tuple[bool, Optional[str], str, str]:
+def autenticar_usuario(usuario: str, senha: str) -> Tuple[bool, str, str]:
     """
     Tenta autenticar em todos os ambientes automaticamente.
-    Ordem: Produção → Homologação → Desenvolvimento
-    
-    Args:
-        usuario: Nome de usuário
-        senha: Senha do usuário
     
     Returns:
-        (sucesso: bool, token_jwt: Optional[str], mensagem: str, ambiente: str)
+        (sucesso: bool, mensagem: str, ambiente: str)
     """
     if not usuario or not senha:
-        return False, None, "Usuário e senha são obrigatórios", ""
+        return False, "❌ Preencha usuário e senha", ""
     
-    erros = []
-    credenciais_invalidas_count = 0
+    # Conta erros por tipo
+    credenciais_invalidas = 0
+    sem_conexao = 0
+    ultimo_erro = ""
     
     for ambiente in ORDEM_AMBIENTES:
-        sucesso, token, mensagem = autenticar_com_confirmation_call(usuario, senha, ambiente)
+        sucesso, token, msg = _autenticar_ambiente(usuario, senha, ambiente)
         
         if sucesso:
-            return True, token, f"✅ Autenticado com sucesso!", ambiente
-        
-        # Conta quantos ambientes retornaram credenciais inválidas
-        if "Credenciais inválidas" in mensagem or "401" in mensagem:
-            credenciais_invalidas_count += 1
-        
-        # Guarda o erro para mostrar depois se nenhum funcionar
-        erros.append(f"{ambiente}: {mensagem}")
-    
-    # Se TODOS os ambientes retornaram credenciais inválidas, é senha errada
-    if credenciais_invalidas_count == len(ORDEM_AMBIENTES):
-        return False, None, "❌ Usuário ou senha incorretos", ""
-    
-    # Nenhum ambiente funcionou (mistura de erros)
-    return False, None, "❌ Não foi possível conectar aos servidores.\nTente novamente mais tarde.", ""
-
-
-# ==============================================================================
-# GERENCIAMENTO DE STATE + COOKIES
-# ==============================================================================
-
-def inicializar_session_state():
-    """Inicializa variáveis de autenticação no session_state."""
-    if "authenticated" not in st.session_state:
-        st.session_state.authenticated = False
-    if "jwt_token" not in st.session_state:
-        st.session_state.jwt_token = None
-    if "usuario_autenticado" not in st.session_state:
-        st.session_state.usuario_autenticado = None
-    if "ambiente_autenticacao" not in st.session_state:
-        st.session_state.ambiente_autenticacao = None
-    if "tempo_autenticacao" not in st.session_state:
-        st.session_state.tempo_autenticacao = None
-    if "cookie_checked" not in st.session_state:
-        st.session_state.cookie_checked = False
-
-
-def restaurar_sessao_do_cookie() -> bool:
-    """
-    Tenta restaurar a sessão a partir do cookie salvo.
-    O CookieManager é assíncrono - na primeira execução pode retornar None.
-    
-    Retorna True se conseguiu restaurar, False caso contrário.
-    """
-    try:
-        cookie_manager = get_cookie_manager()
-        
-        # IMPORTANTE: Renderiza o componente para garantir que o JS carregou
-        # Isso é necessário para o CookieManager funcionar corretamente
-        cookies = cookie_manager.get_all()
-        
-        # Tenta obter o cookie de autenticação
-        auth_data = cookies.get(COOKIE_AUTH_NAME) if cookies else None
-        
-        if auth_data:
-            # Parse dos dados do cookie (formato JSON)
-            if isinstance(auth_data, str):
-                data = json.loads(auth_data)
-            else:
-                data = auth_data
+            # SUCESSO! Salva na sessão
+            email = usuario if "@" in usuario else f"{usuario}@confirmationcall.com.br"
+            st.session_state.authenticated = True
+            st.session_state.jwt_token = token
+            st.session_state.usuario_autenticado = email
+            st.session_state.ambiente_autenticacao = ambiente
+            st.session_state.tempo_autenticacao = datetime.now()
             
-            # Verifica se tem os campos necessários
-            if data.get("token") and data.get("usuario"):
-                # Restaura sessão
-                st.session_state.authenticated = True
-                st.session_state.jwt_token = data["token"]
-                st.session_state.usuario_autenticado = data["usuario"]
-                st.session_state.ambiente_autenticacao = data.get("ambiente", "Produção")
-                st.session_state.tempo_autenticacao = datetime.now()
-                
-                # Para compatibilidade com auth.py
-                st.session_state.logged_in = True
-                st.session_state.user_email = data["usuario"]
-                nome_usuario = data["usuario"].split("@")[0].replace(".", " ").title()
-                st.session_state.user_nome = nome_usuario
-                
-                return True
-    except Exception as e:
-        # Se falhar ao ler cookie, ignora silenciosamente
-        pass
-    
-    return False
-
-
-def verificar_autenticacao() -> bool:
-    """
-    Verifica se o usuário está autenticado.
-    Ordem de verificação:
-    1. session_state (mais rápido, já autenticado nesta sessão)
-    2. Cookie (persistência entre recarregamentos/abas)
-    
-    Retorna True se autenticado, False caso contrário.
-    """
-    # 1. Primeiro verifica session_state (mais rápido)
-    if st.session_state.get("authenticated", False) and st.session_state.get("jwt_token"):
-        return True
-    
-    # 2. Tenta restaurar do cookie (sem rerun - deixa o login processar)
-    if restaurar_sessao_do_cookie():
-        return True
-    
-    return False
-
-
-def salvar_autenticacao(usuario: str, token: str, ambiente: str, lembrar: bool = True):
-    """
-    Salva informações de autenticação no session_state e opcionalmente no cookie.
-    
-    Args:
-        usuario: Email do usuário
-        token: Token JWT
-        ambiente: Ambiente de autenticação
-        lembrar: Se True, salva cookie para persistência (padrão: True)
-    """
-    # Salva em session_state
-    st.session_state.authenticated = True
-    st.session_state.jwt_token = token
-    st.session_state.usuario_autenticado = usuario
-    st.session_state.ambiente_autenticacao = ambiente
-    st.session_state.tempo_autenticacao = datetime.now()
-    st.session_state.cookie_check_attempts = 0  # Reset contador
-    
-    # Para compatibilidade com auth.py
-    st.session_state.logged_in = True
-    st.session_state.user_email = usuario
-    nome_usuario = usuario.split("@")[0].replace(".", " ").title() if "@" in usuario else usuario
-    st.session_state.user_nome = nome_usuario
-    
-    # Salva no cookie para persistência
-    if lembrar:
-        auth_data = json.dumps({
-            "token": token,
-            "usuario": usuario,
-            "ambiente": ambiente,
-            "salvo_em": datetime.now().isoformat()
-        })
+            # Compatibilidade
+            st.session_state.logged_in = True
+            st.session_state.user_email = email
+            st.session_state.user_nome = email.split("@")[0].replace(".", " ").title()
+            
+            return True, f"✅ Bem-vindo!", ambiente
         
-        # Método 1: CookieManager (componente streamlit)
-        try:
-            cookie_manager = get_cookie_manager()
-            cookie_manager.set(
-                COOKIE_AUTH_NAME,
-                auth_data,
-                expires_at=datetime.now() + timedelta(days=COOKIE_EXPIRY_DAYS)
-            )
-        except Exception:
-            pass
+        # Conta tipo de erro
+        if msg == "CREDENCIAIS_INVALIDAS":
+            credenciais_invalidas += 1
+        elif msg in ["TIMEOUT", "SEM_CONEXAO"]:
+            sem_conexao += 1
         
-        # Método 2: JavaScript direto (backup mais confiável)
-        _salvar_cookie_js(auth_data, COOKIE_EXPIRY_DAYS)
+        ultimo_erro = msg
+    
+    # Análise dos erros
+    if credenciais_invalidas == len(ORDEM_AMBIENTES):
+        return False, "❌ Usuário ou senha incorretos", ""
+    
+    if sem_conexao == len(ORDEM_AMBIENTES):
+        return False, "❌ Sem conexão com o servidor. Verifique sua internet.", ""
+    
+    # Erro misto
+    return False, f"❌ Não foi possível autenticar. Tente novamente.", ""
 
 
-def limpar_autenticacao():
-    """Limpa informações de autenticação do session_state e cookie."""
-    # Limpa session_state
-    st.session_state.authenticated = False
-    st.session_state.jwt_token = None
-    st.session_state.usuario_autenticado = None
-    st.session_state.ambiente_autenticacao = None
-    st.session_state.tempo_autenticacao = None
-    st.session_state.cookie_checked = False
-    st.session_state.cookie_check_attempts = 0  # Reset contador
-    
-    # Limpa permissões do usuário
-    if "user_permissions" in st.session_state:
-        del st.session_state.user_permissions
-    if "acesso_registrado" in st.session_state:
-        del st.session_state.acesso_registrado
-    
-    # Limpa compatibilidade com auth.py
-    st.session_state.logged_in = False
-    st.session_state.user_email = None
-    st.session_state.user_nome = None
-    
-    # Remove cookie usando CookieManager
-    try:
-        cookie_manager = get_cookie_manager()
-        cookie_manager.delete(COOKIE_AUTH_NAME)
-    except Exception:
-        pass
-    
-    # Remove cookie também via JavaScript (backup)
-    _remover_cookie_js()
+# ==============================================================================
+# VERIFICAÇÃO DE AUTENTICAÇÃO
+# ==============================================================================
+
+def esta_autenticado() -> bool:
+    """Verifica se o usuário está autenticado (apenas session_state)."""
+    return (
+        st.session_state.get("authenticated", False) and 
+        st.session_state.get("jwt_token") is not None
+    )
+
+
+def fazer_logout():
+    """Limpa a sessão do usuário."""
+    keys_to_clear = [
+        "authenticated", "jwt_token", "usuario_autenticado", 
+        "ambiente_autenticacao", "tempo_autenticacao",
+        "logged_in", "user_email", "user_nome",
+        "user_permissions", "acesso_registrado"
+    ]
+    for key in keys_to_clear:
+        if key in st.session_state:
+            del st.session_state[key]
 
 
 # ==============================================================================
@@ -472,14 +198,23 @@ def tela_login():
     """
     Exibe tela de login com campos para usuário e senha.
     Tenta autenticar automaticamente em todos os ambientes (Produção → Homolog → Dev).
-    
-    NOTA: NÃO chama st.set_page_config() porque já foi chamado pelo app principal.
     """
-    inicializar_session_state()
     
     # CSS para esconder "Press enter to submit" e estilizar
     st.markdown("""
     <style>
+        /* Esconde "Press Enter to submit form" */
+        .stForm [data-testid="stFormSubmitButton"] + div {
+            display: none !important;
+        }
+        div[data-testid="InputInstructions"] {
+            display: none !important;
+        }
+        .stForm small {
+            display: none !important;
+        }
+        
+        /* Estilos do login */
         .nina-red { color: #AF0C37; font-weight: 700; }
         .login-header { text-align: center; margin-bottom: 20px; }
         .login-header svg { max-width: 100px; height: auto; }
@@ -500,7 +235,7 @@ def tela_login():
         st.markdown("<p class='login-title'>Bem-vindo ao <span class='nina-red'>NinaDash</span></p>", unsafe_allow_html=True)
         st.markdown("<p class='login-subtitle'>Plataforma de Qualidade e Decisão de Software</p>", unsafe_allow_html=True)
         
-        # Container fixo para mensagens - usa info como placeholder para manter tamanho
+        # Container fixo para mensagens
         msg_container = st.empty()
         msg_container.info("Insira suas credenciais para acessar o dashboard")
         
@@ -519,21 +254,11 @@ def tela_login():
             else:
                 msg_container.info("🔄 Conectando...")
                 
-                # Debug: mostra que estamos tentando autenticar
-                st.toast(f"Autenticando {usuario}...")
-                
                 # Tenta autenticar automaticamente em todos os ambientes
-                sucesso, token, mensagem, ambiente = autenticar_automatico(usuario, senha)
-                
-                # Debug: mostra resultado
-                st.toast(f"Resultado: {sucesso} - {ambiente}")
+                sucesso, mensagem, ambiente = autenticar_usuario(usuario, senha)
                 
                 if sucesso:
-                    email = usuario if "@" in usuario else f"{usuario}@confirmationcall.com.br"
-                    salvar_autenticacao(email, token, ambiente, lembrar=lembrar)
-                    msg_container.success(f"✅ Bem-vindo! Redirecionando...")
-                    
-                    # Força atualização imediata
+                    msg_container.success("✅ Bem-vindo! Redirecionando...")
                     import time
                     time.sleep(0.5)
                     st.rerun()
@@ -545,7 +270,21 @@ def tela_login():
 
 
 # ==============================================================================
-# COMPONENTE LOGOUT (SIDEBAR)
+# MIDDLEWARE PRINCIPAL
+# ==============================================================================
+
+def verificar_e_bloquear():
+    """
+    Middleware simples: se não autenticado, mostra login e para.
+    Deve ser chamado APÓS st.set_page_config().
+    """
+    if not esta_autenticado():
+        tela_login()
+        st.stop()
+
+
+# ==============================================================================
+# COMPONENTE SIDEBAR
 # ==============================================================================
 
 def renderizar_logout_sidebar():
@@ -553,31 +292,13 @@ def renderizar_logout_sidebar():
     Renderiza informações do usuário em um card e botão de logout na sidebar.
     Deve ser chamado dentro de st.sidebar.
     """
-    if not verificar_autenticacao():
+    if not esta_autenticado():
         return
     
-    usuario_email = st.session_state.get("usuario_autenticado", "usuário@confirmationcall.com.br")
+    email = st.session_state.get("usuario_autenticado", "usuário@confirmationcall.com.br")
+    nome = email.split("@")[0].replace(".", " ").title() if "@" in email else email
     
-    # Extrai apenas o nome (primeira parte antes do @)
-    nome_usuario = usuario_email.split("@")[0].replace(".", " ").title() if "@" in usuario_email else usuario_email
-    
-    # Tenta obter o perfil do usuário
-    perfil_info = st.session_state.get("user_permissions", {})
-    perfil = perfil_info.get("perfil", "Pendente") if perfil_info else "Pendente"
-    is_mapeado = perfil_info.get("is_mapeado", False) if perfil_info else False
-    
-    # Define cor e texto do perfil
-    if not is_mapeado or perfil == "NAO_MAPEADO":
-        perfil_texto = "⏳ Perfil Pendente"
-        perfil_cor = "#f59e0b"
-    elif perfil == "ADMIN":
-        perfil_texto = f"👑 {perfil}"
-        perfil_cor = "#ef4444"
-    else:
-        perfil_texto = perfil
-        perfil_cor = "#22c55e"
-    
-    # Card com informações do usuário (UX: similar a aba de perfil)
+    # Card com informações do usuário
     st.markdown(f"""
     <div style="
         background: linear-gradient(135deg, #f8f9fa 0%, #f0f1f5 100%);
@@ -587,119 +308,28 @@ def renderizar_logout_sidebar():
         margin: 10px 0;
     ">
         <div style="font-size: 12px; color: #666; margin-bottom: 8px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Usuário</div>
-        <div style="font-size: 16px; color: #AF0C37; font-weight: 600; margin-bottom: 4px;">{nome_usuario}</div>
-        <div style="font-size: 12px; color: #999; word-break: break-all; margin-bottom: 8px;">{usuario_email}</div>
-        <div style="font-size: 11px; color: {perfil_cor}; font-weight: 600; padding: 3px 8px; background: {perfil_cor}15; border-radius: 4px; display: inline-block;">{perfil_texto}</div>
+        <div style="font-size: 16px; color: #AF0C37; font-weight: 600; margin-bottom: 4px;">{nome}</div>
+        <div style="font-size: 12px; color: #999; word-break: break-all;">{email}</div>
     </div>
     """, unsafe_allow_html=True)
     
     # Botão de sair
     if st.button("Sair", use_container_width=True, key="btn_logout_sidebar"):
-        limpar_autenticacao()
+        fazer_logout()
         st.rerun()
-
-
-# ==============================================================================
-# MIDDLEWARE DE AUTENTICAÇÃO
-# ==============================================================================
-
-def verificar_e_bloquear():
-    """
-    Middleware que bloqueia acesso ao dashboard se não autenticado.
-    Deve ser chamado no início do app.py APÓS st.set_page_config().
-    
-    Usa um contador de tentativas para aguardar o CookieManager carregar,
-    evitando o "flash" da tela de login enquanto o cookie está sendo lido.
-    """
-    inicializar_session_state()
-    
-    # Contador de tentativas de leitura do cookie
-    if "cookie_check_attempts" not in st.session_state:
-        st.session_state.cookie_check_attempts = 0
-    
-    # Máximo de tentativas antes de mostrar login (evita loop infinito)
-    MAX_ATTEMPTS = 2
-    
-    # Se já está autenticado em session_state, prossegue
-    if st.session_state.get("authenticated", False) and st.session_state.get("jwt_token"):
-        return
-    
-    # Tenta restaurar do cookie
-    if restaurar_sessao_do_cookie():
-        return
-    
-    # Se ainda não tentou o máximo de vezes, aguarda e tenta novamente
-    # Isso dá tempo para o CookieManager carregar
-    if st.session_state.cookie_check_attempts < MAX_ATTEMPTS:
-        st.session_state.cookie_check_attempts += 1
-        
-        # Mostra tela de loading discreta enquanto verifica cookie
-        placeholder = st.empty()
-        with placeholder.container():
-            st.markdown("""
-            <style>
-                .loading-container {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    height: 100vh;
-                    background: #fafafa;
-                }
-                .loading-spinner {
-                    width: 40px;
-                    height: 40px;
-                    border: 3px solid #f3f3f3;
-                    border-top: 3px solid #AF0C37;
-                    border-radius: 50%;
-                    animation: spin 1s linear infinite;
-                }
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-                .loading-text {
-                    margin-top: 16px;
-                    color: #666;
-                    font-size: 14px;
-                }
-            </style>
-            <div class="loading-container">
-                <div class="loading-spinner"></div>
-                <div class="loading-text">Verificando sessão...</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Aguarda brevemente e tenta novamente
-        import time
-        time.sleep(0.3)
-        st.rerun()
-    
-    # Esgotou tentativas - mostra tela de login
-    st.session_state.cookie_check_attempts = 0  # Reset para próxima vez
-    tela_login()
-    st.stop()
 
 
 # ==============================================================================
 # UTILITÁRIOS
 # ==============================================================================
 
-def obter_token_jwt() -> Optional[str]:
-    """Retorna o token JWT atual, se autenticado."""
-    if verificar_autenticacao():
-        return st.session_state.jwt_token
-    return None
-
-
 def obter_usuario_autenticado() -> Optional[str]:
-    """Retorna o usuário autenticado, se houver."""
+    """Retorna o email do usuário autenticado."""
     return st.session_state.get("usuario_autenticado")
 
 
-def tempo_sessao() -> Optional[timedelta]:
-    """Retorna o tempo decorrido desde a autenticação."""
-    tempo_auth = st.session_state.get("tempo_autenticacao")
-    if tempo_auth:
-        return datetime.now() - tempo_auth
+def obter_token_jwt() -> Optional[str]:
+    """Retorna o token JWT se autenticado."""
+    if esta_autenticado():
+        return st.session_state.get("jwt_token")
     return None
