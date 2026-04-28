@@ -287,10 +287,29 @@ def verificar_e_bloquear():
 # COMPONENTE SIDEBAR
 # ==============================================================================
 
-def renderizar_logout_sidebar():
+# Cores por tipo de role
+ROLE_CORES = {
+    "ADMIN": "#AF0C37",
+    "LIDERANCA": "#7c3aed", 
+    "LIDERANÇA": "#7c3aed",
+    "DEV": "#3b82f6",
+    "QA": "#22c55e",
+    "PRODUTO": "#f59e0b",
+    "SUPORTE": "#06b6d4",
+    "CS": "#ec4899",
+    "IMPLANTAÇÃO": "#8b5cf6",
+    "COMERCIAL": "#64748b",
+    "VIEWER": "#6b7280",
+}
+
+
+def renderizar_usuario_sidebar(colaborador_data: dict = None, is_mapeado: bool = True):
     """
-    Renderiza informações do usuário em um card e botão de logout na sidebar.
-    Deve ser chamado dentro de st.sidebar.
+    Renderiza informações do usuário com múltiplos papéis na sidebar.
+    
+    Args:
+        colaborador_data: Dados completos do colaborador (nome, times, is_admin, etc.)
+        is_mapeado: Se o usuário está mapeado no sistema
     """
     if not esta_autenticado():
         return
@@ -298,23 +317,97 @@ def renderizar_logout_sidebar():
     email = st.session_state.get("usuario_autenticado", "usuário@confirmationcall.com.br")
     nome = email.split("@")[0].replace(".", " ").title() if "@" in email else email
     
-    # Card com informações do usuário
+    # Usa nome do colaborador se disponível
+    if colaborador_data and colaborador_data.get("nome"):
+        nome = colaborador_data["nome"]
+    
+    # Monta lista de roles
+    roles = []
+    cor_principal = "#6b7280"  # Cor padrão (viewer)
+    
+    if not is_mapeado:
+        roles = ["Sem vínculo"]
+        cor_principal = "#ef4444"
+    elif colaborador_data:
+        # Super Admin tem prioridade
+        if colaborador_data.get("is_admin"):
+            roles.append("Super Admin")
+            cor_principal = "#AF0C37"
+        
+        # Adiciona times (evita duplicar se já tem admin)
+        times = colaborador_data.get("times", [])
+        for time in times:
+            time_upper = time.upper()
+            # Não adiciona LIDERANÇA se já é admin
+            if time_upper in ["LIDERANÇA", "LIDERANCA"] and colaborador_data.get("is_admin"):
+                continue
+            roles.append(time.title())
+            # Pega cor do primeiro time se não for admin
+            if cor_principal == "#6b7280":
+                cor_principal = ROLE_CORES.get(time_upper, "#6b7280")
+        
+        # Se não tem roles, usa o perfil_acesso
+        if not roles:
+            perfil = colaborador_data.get("perfil_acesso", "VIEWER")
+            roles.append(perfil.title())
+            cor_principal = ROLE_CORES.get(perfil.upper(), "#6b7280")
+    
+    # Formata roles como string
+    roles_texto = " • ".join(roles) if roles else "Viewer"
+    
+    # Ícone baseado no primeiro role
+    icone = "👑" if "Super Admin" in roles else "👤"
+    
+    # Card do usuário com múltiplos papéis
     st.markdown(f"""
     <div style="
-        background: linear-gradient(135deg, #f8f9fa 0%, #f0f1f5 100%);
-        border: 1px solid #e9ecef;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
         border-radius: 8px;
-        padding: 16px;
-        margin: 10px 0;
+        padding: 10px 12px;
+        margin: 0;
     ">
-        <div style="font-size: 12px; color: #666; margin-bottom: 8px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Usuário</div>
-        <div style="font-size: 16px; color: #AF0C37; font-weight: 600; margin-bottom: 4px;">{nome}</div>
-        <div style="font-size: 12px; color: #999; word-break: break-all;">{email}</div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="
+                width: 36px; 
+                height: 36px; 
+                background: linear-gradient(135deg, {cor_principal} 0%, {cor_principal}cc 100%);
+                border-radius: 50%; 
+                display: flex; 
+                align-items: center; 
+                justify-content: center;
+                color: white;
+                font-weight: 600;
+                font-size: 14px;
+                flex-shrink: 0;
+            ">{nome[0].upper()}</div>
+            <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 13px; color: #1f2937; font-weight: 600; line-height: 1.3; 
+                            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{nome}</div>
+                <div style="font-size: 10px; color: #6b7280; margin-top: 2px; line-height: 1.3;
+                            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {icone} {roles_texto}
+                </div>
+            </div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
+
+
+def renderizar_logout_sidebar():
+    """
+    Renderiza informações do usuário de forma compacta na sidebar.
+    DEPRECADO: Use renderizar_usuario_sidebar() com colaborador_data.
+    """
+    renderizar_usuario_sidebar()
+
+
+def renderizar_botao_sair():
+    """Renderiza apenas o botão de sair - para uso no footer."""
+    if not esta_autenticado():
+        return
     
-    # Botão de sair
-    if st.button("Sair", use_container_width=True, key="btn_logout_sidebar"):
+    if st.button("🚪 Sair", use_container_width=True, key="btn_logout_footer", type="secondary"):
         fazer_logout()
         st.rerun()
 
