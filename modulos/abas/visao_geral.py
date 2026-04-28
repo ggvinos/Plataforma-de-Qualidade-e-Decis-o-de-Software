@@ -40,7 +40,6 @@ from modulos.calculos import (
 from modulos.helpers import criar_card_metrica
 from modulos.utils import card_link_com_popup
 from modulos.widgets import mostrar_tooltip, mostrar_lista_df_completa
-from modulos.jira_api import verificar_sprint_futura
 
 
 def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
@@ -96,25 +95,8 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
         dias_diff = (sprint_end - hoje).days
         
         if dias_diff < 0:
-            # Verifica se precisa virar sprint no Jira via API
-            precisa_virar_sprint = False
-            projeto = df['projeto'].iloc[0] if 'projeto' in df.columns and not df.empty else 'SD'
-            sprint_futura = verificar_sprint_futura(projeto)
-            
-            if sprint_futura and sprint_futura.get('startDate'):
-                try:
-                    future_start_str = sprint_futura['startDate']
-                    future_start = datetime.fromisoformat(future_start_str.replace('Z', '+00:00')).replace(tzinfo=None)
-                    if future_start <= hoje:
-                        precisa_virar_sprint = True
-                except Exception:
-                    pass
-            
-            if precisa_virar_sprint:
-                release_info = "⚠️ VIRAR SPRINT NO JIRA"
-            else:
-                dias_atraso = abs(dias_diff)
-                release_info = f"🚨 Release ATRASADA ({dias_atraso}d)"
+            dias_atraso = abs(dias_diff)
+            release_info = f"🚨 Release ATRASADA ({dias_atraso}d)"
             cor_barra = "#ef4444"  # Vermelho
             release_bold = "bold"
         elif dias_diff == 0:

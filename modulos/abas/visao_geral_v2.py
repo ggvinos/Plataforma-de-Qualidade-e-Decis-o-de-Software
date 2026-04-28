@@ -41,7 +41,6 @@ from modulos.calculos import (
 from modulos.helpers import criar_card_metrica, obter_contexto_periodo
 from modulos.utils import card_link_com_popup
 from modulos.widgets import mostrar_tooltip, mostrar_lista_df_completa
-from modulos.jira_api import verificar_sprint_futura
 
 
 # ==============================================================================
@@ -901,27 +900,8 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
     if ctx["eh_sprint"]:
         sprint_badge = f'<span class="badge-sprint">🏃 {sprint_atual}</span>'
         
-        # Detecta se precisa virar sprint no Jira (sprint active com endDate no passado)
-        precisa_virar_sprint = False
         if dias_restantes is not None and dias_restantes < 0:
-            # Busca sprint futura via API (a query principal só traz sprints ativas)
-            projeto = df['projeto'].iloc[0] if 'projeto' in df.columns and not df.empty else 'SD'
-            sprint_futura = verificar_sprint_futura(projeto)
-            
-            if sprint_futura and sprint_futura.get('startDate'):
-                try:
-                    future_start_str = sprint_futura['startDate']
-                    future_start = datetime.fromisoformat(future_start_str.replace('Z', '+00:00')).replace(tzinfo=None)
-                    if future_start <= hoje:
-                        precisa_virar_sprint = True
-                except Exception:
-                    pass
-        
-        if dias_restantes is not None and dias_restantes < 0:
-            if precisa_virar_sprint:
-                status_badge = f'<span class="badge-status-red" title="A sprint {sprint_atual} terminou há {abs(dias_restantes)} dias mas não foi fechada no Jira. Existe uma nova sprint aguardando início.">⚠️ VIRAR SPRINT NO JIRA</span>'
-            else:
-                status_badge = f'<span class="badge-status-red">🚨 RELEASE ATRASADA | {abs(dias_restantes)}d</span>'
+            status_badge = f'<span class="badge-status-red">🚨 RELEASE ATRASADA | {abs(dias_restantes)}d</span>'
         elif dias_restantes == 0:
             status_badge = '<span class="badge-status-yellow">⚡ HOJE</span>'
         elif dias_restantes is not None and dias_restantes <= 2:
