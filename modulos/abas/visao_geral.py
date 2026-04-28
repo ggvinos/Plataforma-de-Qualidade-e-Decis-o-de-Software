@@ -95,9 +95,28 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
         dias_diff = (sprint_end - hoje).days
         
         if dias_diff < 0:
-            # Release ATRASADA
-            dias_atraso = abs(dias_diff)
-            release_info = f"🚨 Release ATRASADA ({dias_atraso}d)"
+            # Verifica se precisa virar sprint no Jira
+            precisa_virar_sprint = False
+            if 'sprint_state' in df.columns:
+                df_future = df[df['sprint_state'] == 'future']
+                if not df_future.empty and 'sprint_start' in df_future.columns:
+                    for _, row in df_future.iterrows():
+                        future_start = row.get('sprint_start')
+                        if future_start is not None:
+                            try:
+                                if isinstance(future_start, str):
+                                    future_start = datetime.fromisoformat(future_start.replace('Z', '+00:00')).replace(tzinfo=None)
+                                if future_start <= hoje:
+                                    precisa_virar_sprint = True
+                                    break
+                            except:
+                                pass
+            
+            if precisa_virar_sprint:
+                release_info = "⚠️ VIRAR SPRINT NO JIRA"
+            else:
+                dias_atraso = abs(dias_diff)
+                release_info = f"🚨 Release ATRASADA ({dias_atraso}d)"
             cor_barra = "#ef4444"  # Vermelho
             release_bold = "bold"
         elif dias_diff == 0:

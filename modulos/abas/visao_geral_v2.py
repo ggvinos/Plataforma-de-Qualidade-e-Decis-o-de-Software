@@ -900,8 +900,30 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
     if ctx["eh_sprint"]:
         sprint_badge = f'<span class="badge-sprint">🏃 {sprint_atual}</span>'
         
+        # Detecta se precisa virar sprint no Jira (sprint active com endDate no passado)
+        precisa_virar_sprint = False
         if dias_restantes is not None and dias_restantes < 0:
-            status_badge = f'<span class="badge-status-red">🚨 RELEASE ATRASADA | {abs(dias_restantes)}d</span>'
+            # Verifica se existe sprint 'future' que deveria estar ativa
+            if 'sprint_state' in df.columns:
+                df_future = df[df['sprint_state'] == 'future']
+                if not df_future.empty and 'sprint_start' in df_future.columns:
+                    for _, row in df_future.iterrows():
+                        future_start = row.get('sprint_start')
+                        if future_start is not None:
+                            try:
+                                if isinstance(future_start, str):
+                                    future_start = datetime.fromisoformat(future_start.replace('Z', '+00:00')).replace(tzinfo=None)
+                                if future_start <= hoje:
+                                    precisa_virar_sprint = True
+                                    break
+                            except:
+                                pass
+        
+        if dias_restantes is not None and dias_restantes < 0:
+            if precisa_virar_sprint:
+                status_badge = f'<span class="badge-status-red" title="A sprint {sprint_atual} terminou há {abs(dias_restantes)} dias mas não foi fechada no Jira. Existe uma nova sprint aguardando início.">⚠️ VIRAR SPRINT NO JIRA</span>'
+            else:
+                status_badge = f'<span class="badge-status-red">🚨 RELEASE ATRASADA | {abs(dias_restantes)}d</span>'
         elif dias_restantes == 0:
             status_badge = '<span class="badge-status-yellow">⚡ HOJE</span>'
         elif dias_restantes is not None and dias_restantes <= 2:

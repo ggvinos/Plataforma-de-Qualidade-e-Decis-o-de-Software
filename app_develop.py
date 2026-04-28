@@ -61,6 +61,8 @@ from modulos.auth import (
 from modulos.confirmation_call_auth import (
     verificar_e_bloquear,
     renderizar_logout_sidebar,
+    renderizar_usuario_sidebar,
+    renderizar_botao_sair,
     obter_usuario_autenticado,
     get_cookie_manager,
 )
@@ -737,6 +739,14 @@ def main():
     if 'projeto_buscado' not in st.session_state:
         st.session_state.projeto_buscado = "SD"
     
+    # Inicializa session_state para controle de atualização do Jira
+    if 'ultima_atualizacao_jira' not in st.session_state:
+        st.session_state.ultima_atualizacao_jira = None
+    if 'atualizando_jira' not in st.session_state:
+        st.session_state.atualizando_jira = False
+    if 'erro_atualizacao' not in st.session_state:
+        st.session_state.erro_atualizacao = False
+    
     # ===============================================================
     # MODO NORMAL - SIDEBAR COMPLETA COM FILTROS
     # ===============================================================
@@ -747,27 +757,70 @@ def main():
         st.session_state.card_buscado = card_compartilhado
         st.session_state.projeto_buscado = projeto_param if projeto_param else "SD"
     
-    # Sidebar reorganizada
+    # Obtém informações de permissão do usuário
+    email_usuario = obter_usuario_autenticado()
+    colaborador_data, abas_permitidas, is_mapeado = obter_permissoes_usuario(email_usuario) if email_usuario else ({}, [], False)
+    
+    # Sidebar reorganizada - Nova estrutura UX
     with st.sidebar:
-        # ===== HEADER: Logo centralizada + Nome + Descrição =====
+        # ================================================================
+        # BLOCO 1: HEADER (Logo + Usuário)
+        # ================================================================
         st.markdown('''
-        <div style="text-align: center; padding: 10px 0 5px 0;">
-            <svg width="70" height="70" viewBox="0 0 187 187" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <div style="text-align: center; padding: 4px 0 0 0;">
+            <svg width="38" height="38" viewBox="0 0 187 187" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M173.709 89.2107C172.209 86.6048 169.414 84.838 166.225 84.838C163.036 84.838 160.241 86.5649 158.741 89.1627H151.683C149.465 58.8237 124.495 35 94.0216 35C63.5489 35 38.5862 58.8237 36.3678 89.1627H29.1759C27.6759 86.5649 24.8734 84.798 21.6682 84.798C18.463 84.798 15.6605 86.5806 14.1605 89.2031C13.4184 90.4899 13 92.001 13 93.6C13 95.1987 13.4184 96.7017 14.1605 97.997C15.6605 100.619 18.463 102.306 21.6682 102.306C24.8734 102.306 27.6838 100.435 29.1759 97.8369H36.3678C38.5862 128.168 63.5489 152 94.0216 152C124.495 152 149.465 128.176 151.675 97.8369H158.686C160.178 100.435 162.996 102.354 166.217 102.354C169.438 102.354 172.256 100.611 173.749 97.9648C174.475 96.6856 174.885 95.2148 174.885 93.6319C174.885 92.049 174.451 90.5222 173.701 89.2188L173.709 89.2107ZM111.145 125.554C107.971 131.518 101.758 135.459 94.5981 135.459C87.4374 135.459 81.2248 131.566 78.0509 125.602C77.1666 123.947 78.3667 122.092 80.2219 122.092H108.982C110.837 122.092 112.029 123.891 111.153 125.554H111.145ZM140.528 94.1277C140.528 103.825 132.76 111.691 123.184 111.691H65.4432C55.8675 111.691 48.0991 103.825 48.0991 94.1277V93.7199C48.0991 84.0223 55.8675 76.1557 65.4432 76.1557H123.184C132.76 76.1557 140.528 84.0223 140.528 93.7199V94.1277Z" fill="#AF0C37"/>
             <path d="M76.5809 105.311C82.9686 105.311 88.1466 100.068 88.1466 93.5996C88.1466 87.1312 82.9686 81.8875 76.5809 81.8875C70.1936 81.8875 65.0156 87.1312 65.0156 93.5996C65.0156 100.068 70.1936 105.311 76.5809 105.311Z" fill="#AF0C37"/>
             <path d="M111.437 105.311C117.824 105.311 123.002 100.068 123.002 93.5996C123.002 87.1312 117.824 81.8875 111.437 81.8875C105.049 81.8875 99.8712 87.1312 99.8712 93.5996C99.8712 100.068 105.049 105.311 111.437 105.311Z" fill="#AF0C37"/>
             </svg>
-        </div>
-        <div style="text-align: center; margin-bottom: 5px;">
-            <h2 style="color: #AF0C37; margin: 0; font-size: 1.8em;">NinaDash</h2>
-            <p style="color: #666; font-size: 0.85em; margin: 2px 0 0 0; font-style: italic;">
-                Transformando dados em decisões
-            </p>
+            <div style="font-size: 1.2em; font-weight: 700; color: #AF0C37; margin: 0;">NinaDash</div>
         </div>
         ''', unsafe_allow_html=True)
         
-        # Renderiza informações de autenticação JWT
-        renderizar_logout_sidebar()
+        st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
+        
+        # Usuário com múltiplos papéis
+        renderizar_usuario_sidebar(colaborador_data, is_mapeado)
+        
+        # ================================================================
+        # BLOCO 2: ATUALIZAR JIRA (separado)
+        # ================================================================
+        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+        
+        # Estado do botão
+        atualizando = st.session_state.get('atualizando_jira', False)
+        erro_att = st.session_state.get('erro_atualizacao', False)
+        
+        if atualizando:
+            st.button("🔄 Atualizando...", use_container_width=True, disabled=True, key="btn_att_jira")
+        elif erro_att:
+            if st.button("⚠️ Erro - Tentar novamente", use_container_width=True, type="secondary", key="btn_att_jira"):
+                st.session_state.erro_atualizacao = False
+                st.session_state.atualizando_jira = True
+                st.cache_data.clear()
+                st.rerun()
+        else:
+            if st.button("🔄 Atualizar dados", use_container_width=True, type="primary", key="btn_att_jira"):
+                st.session_state.atualizando_jira = True
+                st.cache_data.clear()
+                st.rerun()
+        
+        # Texto auxiliar de última atualização (separado do botão)
+        ultima_att = st.session_state.get('ultima_atualizacao_jira')
+        if ultima_att:
+            minutos = int((datetime.now() - ultima_att).total_seconds() / 60)
+            if minutos < 1:
+                tempo_texto = "agora mesmo"
+            elif minutos < 60:
+                tempo_texto = f"há {minutos} min"
+            else:
+                horas = minutos // 60
+                tempo_texto = f"há {horas}h"
+            st.markdown(f"""
+            <div style="text-align: center; font-size: 10px; color: #9ca3af; margin-top: 2px;">
+                Última atualização: {tempo_texto}
+            </div>
+            """, unsafe_allow_html=True)
         
         if not verificar_credenciais():
             st.error("⚠️ Credenciais Jira não configuradas!")
@@ -781,10 +834,11 @@ def main():
             """)
             st.stop()
         
-        st.markdown("---")
-        
-        # ===== SEÇÃO 1: BUSCA DE CARD =====
-        st.markdown("##### 🔍 Busca Rápida de Card")
+        # ================================================================
+        # BLOCO 3: BUSCA RÁPIDA
+        # ================================================================
+        st.markdown("<div style='border-top: 1px solid #e5e7eb; margin: 12px 0 8px 0;'></div>", unsafe_allow_html=True)
+        st.markdown("<p style='font-size: 11px; font-weight: 600; color: #6b7280; margin: 0 0 6px 0; letter-spacing: 0.5px;'>🔍 BUSCA RÁPIDA</p>", unsafe_allow_html=True)
         
         # Projeto para busca
         projetos_lista = ["SD", "QA", "PB", "VALPROD"]
@@ -837,44 +891,74 @@ def main():
         # Mostra indicador de pesquisa ativa
         if st.session_state.busca_ativa and st.session_state.card_buscado:
             st.markdown(f"""
-            <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; 
-                        padding: 8px; margin: 8px 0; text-align: center;">
-                <p style="margin: 0; color: #92400e; font-size: 0.85em;">
-                    📍 <b>Visualizando:</b> {st.session_state.card_buscado.upper()}
-                </p>
+            <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 4px; 
+                        padding: 6px 10px; margin: 6px 0; text-align: center;">
+                <span style="color: #92400e; font-size: 12px;">
+                    📍 <b>{st.session_state.card_buscado.upper()}</b>
+                </span>
             </div>
             """, unsafe_allow_html=True)
             
             # Botão para voltar ao dashboard
-            if st.button("⬅️ Voltar ao Dashboard", type="primary", use_container_width=True, key="btn_voltar"):
+            if st.button("⬅️ Voltar", type="secondary", use_container_width=True, key="btn_voltar"):
                 st.session_state.busca_ativa = False
                 st.session_state.card_buscado = ""
                 st.session_state.projeto_buscado = "SD"
                 st.query_params.clear()
                 st.rerun()
         
-        st.markdown("---")
-        
-        # ===== SEÇÃO 2: FILTROS (só mostra quando NÃO está pesquisando) =====
+        # ================================================================
+        # BLOCO 4: CONTEXTO ATUAL (sem duplicação visual)
+        # ================================================================
         if not st.session_state.busca_ativa:
-            st.markdown("##### ⚙️ Filtros do Dashboard")
+            st.markdown("<div style='border-top: 1px solid #e5e7eb; margin: 12px 0 8px 0;'></div>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size: 11px; font-weight: 600; color: #6b7280; margin: 0 0 8px 0; letter-spacing: 0.5px;'>📌 CONTEXTO ATUAL</p>", unsafe_allow_html=True)
             
-            projeto = st.selectbox("📁 Projeto", projetos_lista, index=0, key="projeto_dash")
+            # Cores por projeto
+            cores_projeto = {"SD": "#3b82f6", "QA": "#22c55e", "PB": "#f59e0b", "VALPROD": "#8b5cf6"}
             
-            # Índice padrão do filtro baseado no projeto E na aba
-            # PB, VALPROD e aba Suporte usam "Todo o período" (index=0)
-            # SD/QA usam "Sprint Ativa" (index=1)
+            # --- PROJETO ---
+            # Estado para controlar edição
+            if 'editando_projeto' not in st.session_state:
+                st.session_state.editando_projeto = False
+            
+            col_label, col_valor = st.columns([1.2, 2])
+            with col_label:
+                st.markdown("<span style='font-size: 12px; color: #6b7280;'>📁 Projeto</span>", unsafe_allow_html=True)
+            with col_valor:
+                projeto = st.selectbox(
+                    "Projeto", 
+                    projetos_lista, 
+                    index=0, 
+                    key="projeto_dash", 
+                    label_visibility="collapsed"
+                )
+            
+            # --- PERÍODO ---
             aba_suporte = st.query_params.get("aba", None) == "suporte"
             indice_filtro_padrao = 0 if projeto in ["PB", "VALPROD"] or aba_suporte else 1
             
-            filtro_sprint = st.selectbox(
-                "🗓️ Período",
-                ["Todo o período", "Sprint Ativa", "Últimos 30 dias", "Últimos 90 dias"],
-                index=indice_filtro_padrao
-            )
+            col_label2, col_valor2 = st.columns([1.2, 2])
+            with col_label2:
+                st.markdown("<span style='font-size: 12px; color: #6b7280;'>📅 Período</span>", unsafe_allow_html=True)
+            with col_valor2:
+                filtro_sprint = st.selectbox(
+                    "Período",
+                    ["Todo período", "Sprint Ativa", "Últimos 30d", "Últimos 90d"],
+                    index=indice_filtro_padrao,
+                    label_visibility="collapsed"
+                )
+            
+            # Mapeamento para JQL
+            filtro_sprint_map = {
+                "Todo período": "Todo o período",
+                "Sprint Ativa": "Sprint Ativa",
+                "Últimos 30d": "Últimos 30 dias",
+                "Últimos 90d": "Últimos 90 dias"
+            }
+            filtro_sprint = filtro_sprint_map.get(filtro_sprint, filtro_sprint)
             
             # Nota: Filtro de Produto será adicionado após carregar os dados
-            # Ferramentas Avançadas também será adicionado após Produto
             
         else:
             # Quando pesquisando, usa o projeto da busca
@@ -969,7 +1053,17 @@ def main():
             """, unsafe_allow_html=True)
         
         # AUTO-LOAD - busca os dados (loading fica visível até terminar)
-        issues, ultima_atualizacao = buscar_dados_jira_cached(projeto, jql)
+        try:
+            issues, ultima_atualizacao = buscar_dados_jira_cached(projeto, jql)
+            # Salva última atualização e reseta estados
+            st.session_state.ultima_atualizacao_jira = ultima_atualizacao
+            st.session_state.atualizando_jira = False
+            st.session_state.erro_atualizacao = False
+        except Exception as e:
+            st.session_state.atualizando_jira = False
+            st.session_state.erro_atualizacao = True
+            issues = None
+            ultima_atualizacao = datetime.now()
         
         # NOTA: loading_placeholder.empty() é chamado mais abaixo,
         # após todo o processamento estar completo
@@ -1103,24 +1197,50 @@ def main():
         
         # Filtro por produto (dentro da sidebar, junto aos outros filtros)
         with st.sidebar:
-            # Adiciona Produto aos filtros principais
+            # Adiciona Produto aos filtros (compacto)
             produtos_disponiveis = ['Todos'] + sorted(df['produto'].unique().tolist())
-            filtro_produto = st.selectbox("📦 Produto", produtos_disponiveis, index=0, key="filtro_produto_main")
+            filtro_produto = st.selectbox("Produto", produtos_disponiveis, index=0, key="filtro_produto_main", label_visibility="collapsed")
             
+            # Badge do produto
             if filtro_produto != 'Todos':
                 df = df[df['produto'] == filtro_produto]
+                st.markdown(f"""
+                <div style="background: #dbeafe; border-radius: 4px; padding: 4px 8px; margin: -8px 0 4px 0; text-align: center;">
+                    <span style="font-size: 11px; color: #1d4ed8;">
+                        📦 {filtro_produto}
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div style="background: #f3f4f6; border-radius: 4px; padding: 4px 8px; margin: -8px 0 4px 0; text-align: center;">
+                    <span style="font-size: 11px; color: #6b7280;">
+                        📦 Todos os produtos
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
             
-            # ===== RODAPÉ DA SIDEBAR (sempre no final) =====
-            st.markdown("---")
+            # ================================================================
+            # BLOCO 4: FOOTER (Sair + Versão)
+            # ================================================================
+            st.markdown("<div style='border-top: 1px solid #eee; margin: 16px 0 8px 0;'></div>", unsafe_allow_html=True)
+            
+            # Botão de sair
+            renderizar_botao_sair()
+            
+            # Versão e créditos
             st.markdown("""
-            <div style="text-align: center; padding: 5px 0;">
-                <p style="color: #AF0C37; font-weight: bold; margin: 0; font-size: 0.85em;">
-                    📌 N9 • Qualidade e Decisão de Software
+            <div style="text-align: center; padding: 8px 0 4px 0;">
+                <p style="color: #9ca3af; font-size: 10px; margin: 0;">
+                    NinaDash v8.82
+                </p>
+                <p style="color: #d1d5db; font-size: 9px; margin: 2px 0 0 0;">
+                    N9 • Qualidade de Software
                 </p>
             </div>
             """, unsafe_allow_html=True)
             
-            # Changelog (extraído para modulos/changelog.py)
+            # Changelog (compacto)
             exibir_changelog()
         
         # ===== RENDERIZA AS ABAS DO DASHBOARD (DINÂMICO POR PERMISSÕES) =====
