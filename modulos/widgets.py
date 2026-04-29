@@ -849,29 +849,75 @@ def renderizar_lista_com_scroll(df: pd.DataFrame, titulo: str = None, max_height
     if titulo:
         st.markdown(f"##### {titulo} ({total})")
     
-    # Container com scroll
-    cards_html = f'<div class="scroll-container" style="max-height: {max_height}px;">'
+    # Cores por classe (CSS inline para garantir renderização)
+    cores_borda = {
+        'amarelo': '#f59e0b',
+        'laranja': '#f97316',
+        'azul': '#3b82f6',
+        'verde': '#22c55e',
+        'vermelho': '#ef4444',
+        'roxo': '#8b5cf6'
+    }
+    cores_bg = {
+        'amarelo': 'rgba(245, 158, 11, 0.06)',
+        'laranja': 'rgba(249, 115, 22, 0.06)',
+        'azul': 'rgba(59, 130, 246, 0.06)',
+        'verde': 'rgba(34, 197, 94, 0.06)',
+        'vermelho': 'rgba(239, 68, 68, 0.06)',
+        'roxo': 'rgba(139, 92, 246, 0.06)'
+    }
+    cores_hover = {
+        'amarelo': 'rgba(245, 158, 11, 0.12)',
+        'laranja': 'rgba(249, 115, 22, 0.12)',
+        'azul': 'rgba(59, 130, 246, 0.12)',
+        'verde': 'rgba(34, 197, 94, 0.12)',
+        'vermelho': 'rgba(239, 68, 68, 0.12)',
+        'roxo': 'rgba(139, 92, 246, 0.12)'
+    }
+    borda = cores_borda.get(cor_classe, '#e5e7eb')
+    bg = cores_bg.get(cor_classe, 'rgba(248, 250, 252, 1)')
+    bg_hover = cores_hover.get(cor_classe, 'rgba(248, 250, 252, 1)')
     
-    for _, card in df.head(limite).iterrows():
+    # URL base do Jira
+    jira_base = "https://ninatecnologia.atlassian.net/browse"
+    
+    # Container com scroll
+    cards_html = f'<div style="max-height: {max_height}px; overflow-y: auto; padding-right: 8px;">'
+    
+    for idx, (_, card) in enumerate(df.head(limite).iterrows()):
         projeto = card.get('projeto', 'SD')
         tipo = card.get('tipo', 'TAREFA')
-        tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#6366f1" if tipo == "SUGESTÃO" else "#64748b"
+        tipo_cor = "#dc2626" if tipo == "HOTFIX" else "#ea580c" if tipo == "BUG" else "#7c3aed" if tipo == "SUGESTÃO" else "#64748b"
+        tipo_bg = "#fef2f2" if tipo == "HOTFIX" else "#fff7ed" if tipo == "BUG" else "#f5f3ff" if tipo == "SUGESTÃO" else "#f8fafc"
         
         # Responsável (prioridade: responsavel > desenvolvedor > qa > relator)
         responsavel = card.get('responsavel') or card.get('desenvolvedor') or card.get('qa') or card.get('relator', 'N/A')
         if not responsavel or responsavel == 'Não atribuído':
             responsavel = card.get('relator', 'N/A')
         
-        titulo_card = str(card.get('titulo', card.get('resumo', '')))[:80]
+        titulo_card = str(card.get('titulo', card.get('resumo', '')))[:75]
         ticket_id = card.get('ticket_id', '')
-        status = card.get('status', '')
+        status = card.get('status', '')[:25] if card.get('status') else ''
         ambiente = card.get('ambiente', '')
         
-        # Classe de cor
-        classe_cor = f"card-lista-{cor_classe}" if cor_classe else "card-lista"
+        # Cor do ticket por projeto
+        ticket_cor = "#8b5cf6" if projeto == "PB" else "#2563eb" if projeto == "SD" else "#059669" if projeto == "QA" else "#6b7280"
+        projeto_bg = "#f5f3ff" if projeto == "PB" else "#eff6ff" if projeto == "SD" else "#ecfdf5" if projeto == "QA" else "#f8fafc"
         
-        # Popup do card com badge de ambiente
-        popup_html = card_link_com_popup(ticket_id, projeto, ambiente=ambiente)
+        # Badge de ambiente (inline)
+        ambiente_badge = ''
+        if ambiente:
+            ambiente_lower = str(ambiente).lower()
+            if 'produção' in ambiente_lower or 'producao' in ambiente_lower:
+                ambiente_badge = '<span style="background:#fef2f2;color:#dc2626;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fecaca;">🔴 PROD</span>'
+            elif 'homologação' in ambiente_lower or 'homologacao' in ambiente_lower:
+                ambiente_badge = '<span style="background:#fffbeb;color:#d97706;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fde68a;">🟡 HML</span>'
+            elif 'develop' in ambiente_lower:
+                ambiente_badge = '<span style="background:#f0fdf4;color:#16a34a;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #bbf7d0;">🟢 DEV</span>'
+        
+        # Links Jira e NinaDash
+        link_jira = f'{jira_base}/{ticket_id}'
+        link_nina = f'?card={ticket_id}&projeto={projeto}'
         
         # Campos customizados
         info_extra = ""
@@ -882,20 +928,29 @@ def renderizar_lista_com_scroll(df: pd.DataFrame, titulo: str = None, max_height
                 if valor and valor != 'N/A' and valor != 'Não atribuído':
                     extras.append(f"<b>{label}:</b> {valor}")
             if extras:
-                info_extra = f'<div style="font-size: 11px; color: #64748b; margin-top: 4px;">{" | ".join(extras)}</div>'
+                info_extra = f'<div style="font-size:12px;color:#64748b;margin-top:6px;">{" | ".join(extras)}</div>'
+        
+        # Card ID único para hover effect
+        card_id = f"scroll_card_{key_prefix}_{idx}"
         
         cards_html += f'''
-        <div class="{classe_cor}">
-            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px;">
-                <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
-                <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
-                {popup_html}
-                <span style="background: #e5e7eb; color: #374151; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: auto;">{status[:20]}</span>
-            </div>
-            <div style="font-size: 13px; color: #374151; line-height: 1.4;">{titulo_card}{"..." if len(str(card.get("titulo", ""))) > 80 else ""}</div>
-            <div style="font-size: 11px; color: #64748b; margin-top: 4px;">👤 {responsavel}</div>
-            {info_extra}
-        </div>'''
+<div id="{card_id}" style="padding:14px 16px;margin:10px 0;border-radius:10px;border-left:4px solid {borda};background:{bg};box-shadow:0 1px 3px rgba(0,0,0,0.08);transition:all 0.2s ease;" onmouseover="this.style.background='{bg_hover}';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';this.style.transform='translateY(-1px)'" onmouseout="this.style.background='{bg}';this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)';this.style.transform='translateY(0)'">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+        <span style="background:{projeto_bg};color:{ticket_cor};padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid {ticket_cor}20;">{projeto}</span>
+        <span style="background:{tipo_bg};color:{tipo_cor};padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;">{tipo}</span>
+        <span class="card-link-wrapper">
+            <a href="{link_jira}" target="_blank" class="card-link-id" style="color:{ticket_cor};font-weight:700;font-size:13px;">{ticket_id}</a>
+            <a href="{link_nina}" target="_blank" class="card-action-btn card-action-nina">📊 NinaDash</a>
+        </span>
+        {ambiente_badge}
+        <span style="background:#f1f5f9;color:#475569;padding:3px 10px;border-radius:6px;font-size:10px;font-weight:500;margin-left:auto;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{card.get('status', '')}">{status}</span>
+    </div>
+    <div style="font-size:13px;color:#1e293b;line-height:1.5;font-weight:500;">{titulo_card}{"..." if len(str(card.get("titulo", ""))) > 75 else ""}</div>
+    <div style="font-size:12px;color:#64748b;margin-top:6px;display:flex;align-items:center;gap:4px;">
+        <span style="opacity:0.8;">👤</span> <span style="font-weight:500;">{responsavel}</span>
+    </div>
+    {info_extra}
+</div>'''
     
     cards_html += '</div>'
     

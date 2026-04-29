@@ -810,38 +810,69 @@ Cards concluídos:
                 df_done_semana_sorted = df_done_semana.sort_values('resolutiondate' if 'resolutiondate' in df_done_semana.columns else 'atualizado', ascending=False)
                 
                 # Container com scroll
-                cards_html = '<div class="scroll-container" style="max-height: 350px;">'
+                cards_html = '<div style="max-height: 350px; overflow-y: auto; padding-right: 8px;">'
                 
-                for _, row in df_done_semana_sorted.iterrows():
+                jira_base = "https://ninatecnologia.atlassian.net/browse"
+                
+                for idx, (_, row) in enumerate(df_done_semana_sorted.head(20).iterrows()):
                     data_ref = row.get('resolutiondate') if pd.notna(row.get('resolutiondate')) else row.get('atualizado')
                     data_conclusao = data_ref.strftime("%d/%m %H:%M") if pd.notna(data_ref) else "N/A"
                     bugs = int(row['bugs'])
-                    bugs_cor = '#22c55e' if bugs == 0 else '#f97316' if bugs == 1 else '#ef4444'
+                    bugs_cor = '#16a34a' if bugs == 0 else '#d97706' if bugs == 1 else '#dc2626'
+                    bugs_bg = '#f0fdf4' if bugs == 0 else '#fffbeb' if bugs == 1 else '#fef2f2'
                     ambiente = row.get('ambiente', '') if 'ambiente' in row.index else ''
-                    card_link = card_link_com_popup(row['ticket_id'], ambiente=ambiente)
-                    titulo = str(row['titulo'])[:50]
+                    ticket_id = row['ticket_id']
+                    titulo = str(row['titulo'])[:55]
                     sp = str(int(row['sp']))
                     qa = str(row['qa'])
                     lead_time = str(round(row['lead_time'], 1))
+                    projeto = row.get('projeto', 'SD')
                     
-                    badge_bugs = '<span style="background: #22c55e; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">✅ Clean</span>' if bugs == 0 else '<span style="background: ' + bugs_cor + '; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">🐛 ' + str(bugs) + '</span>'
+                    link_jira = f'{jira_base}/{ticket_id}'
+                    link_nina = f'?card={ticket_id}&projeto={projeto}'
+                    ticket_cor = "#8b5cf6" if projeto == "PB" else "#2563eb"
                     
-                    cards_html += '<div style="padding: 12px; margin: 6px 0; border-left: 3px solid ' + bugs_cor + '; background: rgba(139,92,246,0.05); border-radius: 6px;">'
-                    cards_html += '<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">'
-                    cards_html += '<div style="display: flex; align-items: center; gap: 6px;">'
-                    cards_html += card_link
-                    cards_html += '<span style="color: #64748b;"> - ' + titulo + '...</span>'
-                    cards_html += '</div>'
-                    cards_html += '<div style="display: flex; gap: 8px; align-items: center;">'
-                    cards_html += badge_bugs
-                    cards_html += '<span style="background: #8b5cf6; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">' + sp + ' SP</span>'
-                    cards_html += '</div>'
-                    cards_html += '</div>'
-                    cards_html += '<div style="margin-top: 6px; font-size: 12px; color: #94a3b8;">📅 ' + data_conclusao + ' | 👤 QA: ' + qa + ' | ⏱️ Lead Time: ' + lead_time + 'd</div>'
-                    cards_html += '</div>'
+                    badge_bugs = f'<span style="background:{bugs_bg};color:{bugs_cor};padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;">{"✅ Clean" if bugs == 0 else f"🐛 {bugs} bugs"}</span>'
+                    
+                    # Badge de ambiente
+                    ambiente_badge = ''
+                    if ambiente:
+                        amb_lower = str(ambiente).lower()
+                        if 'produção' in amb_lower or 'producao' in amb_lower:
+                            ambiente_badge = '<span style="background:#fef2f2;color:#dc2626;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fecaca;">🔴 PROD</span>'
+                        elif 'homologação' in amb_lower or 'homologacao' in amb_lower:
+                            ambiente_badge = '<span style="background:#fffbeb;color:#d97706;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fde68a;">🟡 HML</span>'
+                        elif 'develop' in amb_lower:
+                            ambiente_badge = '<span style="background:#f0fdf4;color:#16a34a;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #bbf7d0;">🟢 DEV</span>'
+                    
+                    cards_html += f'''
+<div style="padding:14px 16px;margin:10px 0;border-radius:10px;border-left:4px solid {bugs_cor};background:rgba(139,92,246,0.04);box-shadow:0 1px 3px rgba(0,0,0,0.08);transition:all 0.2s ease;" onmouseover="this.style.background='rgba(139,92,246,0.08)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';this.style.transform='translateY(-1px)'" onmouseout="this.style.background='rgba(139,92,246,0.04)';this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)';this.style.transform='translateY(0)'">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+            <span class="card-link-wrapper">
+                <a href="{link_jira}" target="_blank" class="card-link-id" style="color:{ticket_cor};font-weight:700;font-size:13px;">{ticket_id}</a>
+                <a href="{link_nina}" target="_blank" class="card-action-btn card-action-nina">📊 NinaDash</a>
+            </span>
+            {ambiente_badge}
+            <span style="color:#64748b;font-size:13px;"> - {titulo}...</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+            {badge_bugs}
+            <span style="background:#f5f3ff;color:#7c3aed;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;">{sp} SP</span>
+        </div>
+    </div>
+    <div style="margin-top:8px;font-size:12px;color:#64748b;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span>📅 {data_conclusao}</span>
+        <span>👤 QA: {qa}</span>
+        <span>⏱️ Lead Time: {lead_time}d</span>
+    </div>
+</div>'''
                 
                 cards_html += '</div>'
                 st.markdown(cards_html, unsafe_allow_html=True)
+                
+                if len(df_done_semana_sorted) > 20:
+                    st.caption(f"📋 Mostrando 20 de {len(df_done_semana_sorted)} cards")
             else:
                 st.info("💡 Nenhum card foi concluído nesta semana.")
         
@@ -866,37 +897,66 @@ Cards concluídos:
 
 
 def _renderizar_cards_dev(analise: dict):
-    """Renderiza lista de cards do desenvolvedor."""
+    """Renderiza lista de cards do desenvolvedor com UI moderna."""
     with st.expander(f"📋 Cards", expanded=False):
         df_cards = analise['df']
         
         if not df_cards.empty:
-            # Container com scroll (classe global)
-            cards_html = '<div class="scroll-container" style="max-height: 350px;">'
+            # Container com scroll
+            cards_html = '<div style="max-height: 350px; overflow-y: auto; padding-right: 8px;">'
             
-            for _, row in df_cards.iterrows():
+            jira_base = "https://ninatecnologia.atlassian.net/browse"
+            
+            for idx, (_, row) in enumerate(df_cards.head(30).iterrows()):
                 bugs = int(row['bugs'])
-                bugs_cor = '#ef4444' if bugs >= 2 else '#eab308' if bugs == 1 else '#22c55e'
+                bugs_cor = '#dc2626' if bugs >= 2 else '#d97706' if bugs == 1 else '#16a34a'
+                bugs_bg = '#fef2f2' if bugs >= 2 else '#fffbeb' if bugs == 1 else '#f0fdf4'
                 ambiente = row.get('ambiente', '') if 'ambiente' in row.index else ''
-                card_link = card_link_com_popup(row['ticket_id'], ambiente=ambiente)
-                titulo = str(row['titulo'])[:50]
+                ticket_id = row['ticket_id']
+                titulo = str(row['titulo'])[:55]
                 sp = str(row['sp'])
-                status = str(row['status'])
+                status = str(row['status'])[:20]
                 lead_time = str(round(row['lead_time'], 1))
+                projeto = row.get('projeto', 'SD')
                 
-                cards_html += '<div style="padding: 10px; margin: 5px 0; border-left: 3px solid ' + bugs_cor + '; background: rgba(100,100,100,0.05); border-radius: 4px;">'
-                cards_html += '<div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">'
-                cards_html += card_link
-                cards_html += '<span style="color: #64748b;"> - ' + titulo + '...</span>'
-                cards_html += '</div>'
-                cards_html += '<small style="color: #94a3b8;">🐛 ' + str(bugs) + ' bugs | 📊 ' + sp + ' SP | 📍 ' + status + ' | ⏱️ ' + lead_time + 'd</small>'
-                cards_html += '</div>'
+                link_jira = f'{jira_base}/{ticket_id}'
+                link_nina = f'?card={ticket_id}&projeto={projeto}'
+                ticket_cor = "#8b5cf6" if projeto == "PB" else "#2563eb"
+                
+                # Badge de ambiente
+                ambiente_badge = ''
+                if ambiente:
+                    amb_lower = str(ambiente).lower()
+                    if 'produção' in amb_lower or 'producao' in amb_lower:
+                        ambiente_badge = '<span style="background:#fef2f2;color:#dc2626;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fecaca;">🔴 PROD</span>'
+                    elif 'homologação' in amb_lower or 'homologacao' in amb_lower:
+                        ambiente_badge = '<span style="background:#fffbeb;color:#d97706;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fde68a;">🟡 HML</span>'
+                    elif 'develop' in amb_lower:
+                        ambiente_badge = '<span style="background:#f0fdf4;color:#16a34a;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #bbf7d0;">🟢 DEV</span>'
+                
+                cards_html += f'''
+<div style="padding:14px 16px;margin:10px 0;border-radius:10px;border-left:4px solid {bugs_cor};background:rgba(248,250,252,0.8);box-shadow:0 1px 3px rgba(0,0,0,0.08);transition:all 0.2s ease;" onmouseover="this.style.background='rgba(241,245,249,1)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';this.style.transform='translateY(-1px)'" onmouseout="this.style.background='rgba(248,250,252,0.8)';this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)';this.style.transform='translateY(0)'">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+        <span class="card-link-wrapper">
+            <a href="{link_jira}" target="_blank" class="card-link-id" style="color:{ticket_cor};font-weight:700;font-size:13px;">{ticket_id}</a>
+            <a href="{link_nina}" target="_blank" class="card-action-btn card-action-nina">📊 NinaDash</a>
+        </span>
+        {ambiente_badge}
+        <span style="color:#64748b;font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"> - {titulo}...</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;font-size:12px;color:#64748b;flex-wrap:wrap;">
+        <span style="background:{bugs_bg};color:{bugs_cor};padding:3px 8px;border-radius:6px;font-weight:600;">🐛 {bugs} bugs</span>
+        <span style="background:#f5f3ff;color:#7c3aed;padding:3px 8px;border-radius:6px;font-weight:500;">📊 {sp} SP</span>
+        <span style="background:#f1f5f9;color:#475569;padding:3px 8px;border-radius:6px;font-weight:500;">📍 {status}</span>
+        <span>⏱️ {lead_time}d</span>
+    </div>
+</div>'''
             
             cards_html += '</div>'
             st.markdown(cards_html, unsafe_allow_html=True)
             
-            if len(df_cards) > 20:
-                st.caption(f"📋 {len(df_cards)} cards")
+            if len(df_cards) > 30:
+                st.caption(f"📋 Mostrando 30 de {len(df_cards)} cards")
         else:
             st.info("Nenhum card atribuído")
 

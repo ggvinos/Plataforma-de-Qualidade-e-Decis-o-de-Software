@@ -24,6 +24,7 @@ com imports existentes no app_modularizado.py.
 # Funções extraídas para arquivos separados
 from modulos.abas.visao_geral import aba_visao_geral
 from modulos.abas.visao_geral_v2 import aba_visao_geral_v2  # Nova versão orientada a decisão
+from modulos.abas.central_decisao import aba_central_decisao  # Central de Decisão
 from modulos.abas.dev import aba_dev
 from modulos.abas.qa import aba_qa
 from modulos.abas.backlog import aba_backlog, aba_produto_pb, aba_historico_pb
@@ -44,6 +45,7 @@ from modulos._abas_legacy import (
 __all__ = [
     'aba_visao_geral',
     'aba_visao_geral_v2',
+    'aba_central_decisao',
     'aba_admin',
     'aba_backlog',
     'aba_clientes',

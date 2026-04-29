@@ -239,26 +239,9 @@ def _renderizar_visao_geral(df_todos: pd.DataFrame):
     
     total_aguardando = len(df_aguard_resp) + len(df_valprod_pend) + len(df_pb_aguard)
     
-    with st.expander(f"⏳ Cards Aguardando Ação ({total_aguardando})", expanded=False):
-        st.caption("Cards que precisam de ação. O **responsável** mostrado é quem deve agir no card.")
-        
-        # Checkbox para ver todos os cards
-        ver_todos_cards = st.checkbox("📋 Ver todos os cards (sem limite)", key="ver_todos_cards_aguardando", value=False)
-        limite_cards = 999 if ver_todos_cards else 20
-        
-        col_aguard1, col_aguard2, col_aguard3 = st.columns(3)
-        
-        with col_aguard1:
-            st.markdown(f"##### 💬 Aguardando Resposta ({len(df_aguard_resp)})")
-            _renderizar_lista_cards_aguardando(df_aguard_resp, 'SD', limite_cards, 'amarelo')
-        
-        with col_aguard2:
-            st.markdown(f"##### 🔍 Validação Produção ({len(df_valprod_pend)})")
-            _renderizar_lista_cards_aguardando(df_valprod_pend, 'VALPROD', limite_cards, 'laranja')
-        
-        with col_aguard3:
-            st.markdown(f"##### 📦 Backlog ({len(df_pb_aguard)})")
-            _renderizar_lista_cards_aguardando(df_pb_aguard, 'PB', limite_cards, 'azul')
+    # ===== ACTION CENTER - Lista única priorizada =====
+    # Passa todos os cards para permitir filtros completos (incluindo concluídos)
+    _renderizar_action_center(df_todos, df_aguard_resp, df_valprod_pend, df_pb_aguard)
     
     # ===== GRÁFICOS: TIPOS E IDADE - EM EXPANDER =====
     with st.expander("📊 Análise de Distribuição", expanded=False):
@@ -300,74 +283,467 @@ def _renderizar_visao_geral(df_todos: pd.DataFrame):
                 st.plotly_chart(fig_idade, use_container_width=True)
 
 
+# ============================================================================
+# ACTION CENTER - Lista única priorizada de cards aguardando ação
+# ============================================================================
+
+def _calcular_prioridade(card: pd.Series) -> tuple[int, str]:
+    """
+    Calcula score de prioridade do card e classifica como crítico/atenção/ok.
+    
+    Critérios (score 0-100):
+    - Bugs: até 30pts
+    - Tempo inativo desde última atualização: até 25pts
+    - Lead time alto: até 20pts
+    - Status crítico (blocked/rejected): até 15pts
+    - Ambiente de produção: 10pts
+    - Tipo HOTFIX: 10pts
+    - Sem responsável atribuído: 5pts
+    """
+    score = 0
+    
+    # Bugs (peso alto)
+    bugs = int(card.get('bugs', 0) or 0)
+    score += min(bugs * 15, 30)
+    
+    # Tempo inativo
+    dias_inativo = 0
+    if pd.notna(card.get('atualizado')):
+        try:
+            atualizado = pd.to_datetime(card['atualizado'])
+            now = pd.Timestamp.now(tz=atualizado.tz) if atualizado.tz else pd.Timestamp.now()
+            dias_inativo = (now - atualizado).days
+        except Exception:
+            dias_inativo = 0
+    
+    if dias_inativo >= 14:
+        score += 25
+    elif dias_inativo >= 7:
+        score += 15
+    elif dias_inativo >= 3:
+        score += 8
+    
+    # Lead time alto
+    try:
+        lt = float(card.get('lead_time', 0) or 0)
+    except (TypeError, ValueError):
+        lt = 0
+    if lt >= 30:
+        score += 20
+    elif lt >= 15:
+        score += 12
+    elif lt >= 7:
+        score += 5
+    
+    # Status crítico
+    status_cat = card.get('status_cat', '')
+    if status_cat in ['blocked', 'rejected']:
+        score += 15
+    elif status_cat == 'waiting_qa' and dias_inativo >= 3:
+        score += 10
+    
+    # Ambiente PROD
+    amb = str(card.get('ambiente', '') or '').lower()
+    if 'produção' in amb or 'producao' in amb:
+        score += 10
+    
+    # HOTFIX
+    if card.get('tipo') == 'HOTFIX':
+        score += 10
+    
+    # Sem responsável
+    resp = card.get('responsavel') or ''
+    if not resp or resp == 'Não atribuído':
+        score += 5
+    
+    # Classificação
+    if score >= 50:
+        return (score, 'critico')
+    if score >= 25:
+        return (score, 'atencao')
+    return (score, 'ok')
+
+
+def _obter_dias_inativo(card: pd.Series) -> int:
+    """Retorna quantos dias o card está sem atualização."""
+    if pd.notna(card.get('atualizado')):
+        try:
+            atualizado = pd.to_datetime(card['atualizado'])
+            now = pd.Timestamp.now(tz=atualizado.tz) if atualizado.tz else pd.Timestamp.now()
+            return (now - atualizado).days
+        except Exception:
+            return 0
+    return 0
+
+
+def _obter_origem(card: pd.Series) -> str:
+    """Determina a origem do card (Aguard. Resposta / Validação Prod / Backlog)."""
+    projeto = card.get('projeto', '')
+    status_cat = card.get('status_cat', '')
+    
+    if projeto == 'VALPROD':
+        return 'Validação Produção'
+    if projeto == 'PB':
+        return 'Backlog'
+    if status_cat in ['blocked', 'rejected']:
+        return 'Bloqueado'
+    if status_cat == 'waiting_qa':
+        return 'Aguard. QA'
+    return 'Aguard. Resposta'
+
+
+def _renderizar_card_action(card: pd.Series, idx: int):
+    """Renderiza um card no Action Center com botão NinaDash no hover."""
+    score = card.get('_score', 0)
+    classificacao = card.get('_classificacao', 'ok')
+    
+    # Cores por classificação
+    cores_class = {
+        'critico': ('#dc2626', 'rgba(220,38,38,0.06)', 'rgba(220,38,38,0.10)', '🔴'),
+        'atencao': ('#d97706', 'rgba(217,119,6,0.06)', 'rgba(217,119,6,0.10)', '🟡'),
+        'ok': ('#16a34a', 'rgba(22,163,74,0.06)', 'rgba(22,163,74,0.10)', '🟢'),
+    }
+    borda, bg, bg_hover, emoji = cores_class.get(classificacao, cores_class['ok'])
+    
+    projeto = str(card.get('projeto', 'SD') or 'SD')
+    tipo = str(card.get('tipo', 'TAREFA') or 'TAREFA')
+    tipo_cor = "#dc2626" if tipo == "HOTFIX" else "#ea580c" if tipo == "BUG" else "#7c3aed" if tipo == "SUGESTÃO" else "#64748b"
+    tipo_bg = "#fef2f2" if tipo == "HOTFIX" else "#fff7ed" if tipo == "BUG" else "#f5f3ff" if tipo == "SUGESTÃO" else "#f8fafc"
+    
+    responsavel = card.get('responsavel') or card.get('desenvolvedor') or card.get('qa') or card.get('relator') or 'Não atribuído'
+    if responsavel == 'Não atribuído' and card.get('relator'):
+        responsavel = card.get('relator')
+    
+    # Título COMPLETO (sem truncar)
+    titulo = str(card.get('titulo', '') or card.get('resumo', '') or '')
+    
+    # Ticket ID obrigatório - tenta várias fontes
+    ticket_id = str(card.get('ticket_id', '') or card.get('key', '') or card.get('id', '') or '')
+    
+    status = str(card.get('status', '') or '')[:25]
+    bugs = int(card.get('bugs', 0) or 0)
+    dias_inativo = _obter_dias_inativo(card)
+    origem = _obter_origem(card)
+    ambiente = str(card.get('ambiente', '') or '')
+    
+    ticket_cor = "#8b5cf6" if projeto == "PB" else "#2563eb" if projeto == "SD" else "#059669" if projeto == "QA" else "#f59e0b" if projeto == "VALPROD" else "#6b7280"
+    projeto_bg = "#f5f3ff" if projeto == "PB" else "#eff6ff" if projeto == "SD" else "#fffbeb" if projeto == "VALPROD" else "#f8fafc"
+    
+    # Badge ambiente
+    ambiente_badge = ''
+    amb_lower = ambiente.lower()
+    if 'produção' in amb_lower or 'producao' in amb_lower:
+        ambiente_badge = '<span style="background:#fef2f2;color:#dc2626;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;border:1px solid #fecaca;">🔴 PROD</span>'
+    elif 'homologação' in amb_lower or 'homologacao' in amb_lower:
+        ambiente_badge = '<span style="background:#fffbeb;color:#d97706;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;border:1px solid #fde68a;">🟡 HML</span>'
+    elif 'develop' in amb_lower:
+        ambiente_badge = '<span style="background:#f0fdf4;color:#16a34a;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;border:1px solid #bbf7d0;">🟢 DEV</span>'
+    
+    # Badges adicionais
+    bugs_badge = f'<span style="background:#fef2f2;color:#dc2626;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;">🐛 {bugs}</span>' if bugs > 0 else ''
+    inativo_badge = ''
+    if dias_inativo >= 7:
+        inativo_cor = '#dc2626' if dias_inativo >= 14 else '#d97706'
+        inativo_badge = f'<span style="background:#fff7ed;color:{inativo_cor};padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;">⏱️ {dias_inativo}d parado</span>'
+    
+    jira_base = "https://ninatecnologia.atlassian.net/browse"
+    link_jira = f'{jira_base}/{ticket_id}' if ticket_id else '#'
+    link_nina = f'?card={ticket_id}&projeto={projeto}' if ticket_id else '#'
+    
+    # Card HTML - TICKET_ID PRIMEIRO, título completo, SEM emoji
+    st.markdown(f'<div style="padding:14px 16px;margin:8px 0;border-radius:10px;border-left:4px solid {borda};background:{bg};box-shadow:0 1px 3px rgba(0,0,0,0.08);transition:all 0.2s ease;" onmouseover="this.style.background=\'{bg_hover}\';this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.1)\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.background=\'{bg}\';this.style.boxShadow=\'0 1px 3px rgba(0,0,0,0.08)\';this.style.transform=\'translateY(0)\'"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;"><span class="card-link-wrapper"><a href="{link_jira}" target="_blank" class="card-link-id" style="color:{ticket_cor};font-weight:700;font-size:14px;">{ticket_id}</a><a href="{link_nina}" class="card-action-btn card-action-nina">📊 NinaDash</a></span><span style="background:{projeto_bg};color:{ticket_cor};padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700;border:1px solid {ticket_cor}20;">{projeto}</span><span style="background:{tipo_bg};color:{tipo_cor};padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;">{tipo}</span>{ambiente_badge}{bugs_badge}{inativo_badge}<span style="background:#f1f5f9;color:#475569;padding:3px 10px;border-radius:6px;font-size:10px;font-weight:500;margin-left:auto;">{origem}</span></div><div style="font-size:13px;color:#1e293b;line-height:1.5;font-weight:500;">{titulo}</div><div style="font-size:12px;color:#64748b;margin-top:6px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><span style="opacity:0.8;">👤</span> <span style="font-weight:500;">{responsavel}</span><span style="opacity:0.7;">📍 {status}</span><span style="color:#94a3b8;font-size:11px;margin-left:auto;">Score: {score}</span></div></div>', unsafe_allow_html=True)
+
+
+def _renderizar_action_center(df_todos: pd.DataFrame, df_aguard_resp: pd.DataFrame, df_valprod_pend: pd.DataFrame, df_pb_aguard: pd.DataFrame):
+    """
+    Central de Cards - Interface limpa e organizada.
+    
+    Layout simplificado:
+    - Header com controles principais
+    - Filtros em expander (escondidos por padrão)
+    - Lista de cards
+    """
+    # ===== PREPARA DADOS =====
+    # Checkbox para modo de visualização
+    mostrar_todos = st.checkbox("📦 Mostrar todos os cards (incluindo concluídos)", value=False, key="ac_mostrar_todos")
+    
+    # Seleciona dataset baseado no toggle
+    if mostrar_todos:
+        if df_todos.empty:
+            st.info("✅ Nenhum card encontrado.")
+            return
+        df_action = df_todos.copy()
+    else:
+        dfs = [df for df in [df_aguard_resp, df_valprod_pend, df_pb_aguard] if not df.empty]
+        if not dfs:
+            st.info("✅ Nenhum card aguardando ação no momento.")
+            return
+        df_action = pd.concat(dfs).drop_duplicates(subset=['ticket_id']) if 'ticket_id' in dfs[0].columns else pd.concat(dfs)
+    
+    if df_action.empty:
+        st.info("✅ Nenhum card encontrado.")
+        return
+    
+    # Calcula priorização
+    scores = df_action.apply(_calcular_prioridade, axis=1)
+    df_action = df_action.copy()
+    df_action['_score'] = [s[0] for s in scores]
+    df_action['_classificacao'] = [s[1] for s in scores]
+    
+    # Contadores
+    n_critico = (df_action['_classificacao'] == 'critico').sum()
+    n_atencao = (df_action['_classificacao'] == 'atencao').sum()
+    n_ok = (df_action['_classificacao'] == 'ok').sum()
+    
+    # ===== HEADER COMPACTO =====
+    st.markdown(f'''<div style="display:flex;align-items:center;gap:16px;padding:12px 16px;background:linear-gradient(90deg,#f8fafc,#f1f5f9);border-radius:10px;margin:8px 0 16px 0;">
+<span style="font-size:20px;font-weight:700;color:#1e293b;">📋 Central de Cards</span>
+<span style="background:#fef2f2;color:#dc2626;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;">🔴 {n_critico}</span>
+<span style="background:#fffbeb;color:#d97706;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;">🟡 {n_atencao}</span>
+<span style="background:#f0fdf4;color:#16a34a;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;">🟢 {n_ok}</span>
+<span style="margin-left:auto;color:#64748b;font-size:13px;">⚠️ Filtros da sidebar ativos</span>
+</div>''', unsafe_allow_html=True)
+    
+    # ===== CONTROLES: Ordenação + Total =====
+    col_ord1, col_ord2, col_ord3 = st.columns([2, 1, 1])
+    with col_ord1:
+        ordenar_por = st.selectbox("🔃 Ordenar", 
+                                    options=['score', 'data_criacao', 'data_atualizacao', 'projeto', 'prioridade'],
+                                    format_func=lambda x: {
+                                        'score': 'Criticidade', 'data_criacao': 'Data Criação',
+                                        'data_atualizacao': 'Última Atualização', 'projeto': 'Projeto',
+                                        'prioridade': 'Prioridade Jira'
+                                    }.get(x, x),
+                                    key="ac_ordenar_por", label_visibility="collapsed")
+    with col_ord2:
+        ordem = st.selectbox("Ordem", options=['desc', 'asc'],
+                              format_func=lambda x: '⬇️ Desc' if x == 'desc' else '⬆️ Asc',
+                              key="ac_ordem", label_visibility="collapsed")
+    with col_ord3:
+        st.markdown(f"<div style='padding:8px;text-align:right;'><b>{len(df_action)}</b> cards</div>", unsafe_allow_html=True)
+    
+    # ===== FILTROS EM EXPANDER =====
+    with st.expander("⚙️ Filtros avançados", expanded=False):
+        # Linha 1: Pessoas
+        col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+        with col_f1:
+            opcoes_dev = sorted([x for x in df_action.get('desenvolvedor', pd.Series()).dropna().unique() if x and x != 'Não atribuído'])
+            f_dev = st.multiselect("👤 Responsável", options=opcoes_dev, key="ac_filtro_dev")
+        with col_f2:
+            opcoes_qa = sorted([x for x in df_action.get('qa', pd.Series()).dropna().unique() if x and x != 'Não atribuído'])
+            f_qa = st.multiselect("🧪 QA", options=opcoes_qa, key="ac_filtro_qa")
+        with col_f3:
+            opcoes_rel = sorted([x for x in df_action.get('relator', pd.Series()).dropna().unique() if x and x != 'Não informado'])
+            f_rel = st.multiselect("📝 Relator", options=opcoes_rel, key="ac_filtro_relator")
+        with col_f4:
+            opcoes_rep = sorted([x for x in df_action.get('representante_cliente', pd.Series()).dropna().unique() if x and x != 'Não atribuído'])
+            f_rep = st.multiselect("🤝 Representante", options=opcoes_rep, key="ac_filtro_rep")
+        
+        # Linha 2: Projeto, Cliente, Status
+        col_f5, col_f6, col_f7 = st.columns(3)
+        with col_f5:
+            opcoes_proj = sorted(df_action.get('projeto', pd.Series()).dropna().unique().tolist())
+            f_proj = st.multiselect("📁 Projeto", options=opcoes_proj, key="ac_filtro_projeto")
+        with col_f6:
+            opcoes_cliente = sorted([x for x in df_action.get('tema_principal', pd.Series()).dropna().unique() if x and x not in ['Não informado', 'Interno', '']])
+            f_cliente = st.multiselect("🏢 Cliente", options=opcoes_cliente, key="ac_filtro_cliente")
+        with col_f7:
+            opcoes_status = sorted(df_action.get('status', pd.Series()).dropna().unique().tolist())
+            f_status = st.multiselect("📍 Status", options=opcoes_status, key="ac_filtro_status",
+                                       format_func=lambda x: x.capitalize() if x else x)
+        
+        # Linha 3: Tipo, Prioridade, Criticidade
+        col_f8, col_f9, col_f10 = st.columns(3)
+        with col_f8:
+            opcoes_tipo = sorted(df_action.get('tipo', pd.Series()).dropna().unique().tolist())
+            f_tipo = st.multiselect("🏷️ Tipo", options=opcoes_tipo, key="ac_filtro_tipo")
+        with col_f9:
+            opcoes_prio = sorted([x for x in df_action.get('prioridade', pd.Series()).dropna().unique() if x])
+            f_prio = st.multiselect("🎯 Prioridade", options=opcoes_prio, key="ac_filtro_prio")
+        with col_f10:
+            f_classe = st.multiselect("⚡ Criticidade", options=['critico', 'atencao', 'ok'], 
+                                       format_func=lambda x: {'critico': '🔴 Crítico', 'atencao': '🟡 Atenção', 'ok': '🟢 OK'}[x],
+                                       key="ac_filtro_classe")
+    
+    # Verifica se existem filtros (fora do expander)
+    f_dev = st.session_state.get('ac_filtro_dev', [])
+    f_qa = st.session_state.get('ac_filtro_qa', [])
+    f_rel = st.session_state.get('ac_filtro_relator', [])
+    f_rep = st.session_state.get('ac_filtro_rep', [])
+    f_proj = st.session_state.get('ac_filtro_projeto', [])
+    f_cliente = st.session_state.get('ac_filtro_cliente', [])
+    f_status = st.session_state.get('ac_filtro_status', [])
+    f_tipo = st.session_state.get('ac_filtro_tipo', [])
+    f_prio = st.session_state.get('ac_filtro_prio', [])
+    f_classe = st.session_state.get('ac_filtro_classe', [])
+    
+    # ===== APLICA FILTROS =====
+    df_filtrado = df_action.copy()
+    if f_dev:
+        df_filtrado = df_filtrado[df_filtrado['desenvolvedor'].isin(f_dev)]
+    if f_qa:
+        df_filtrado = df_filtrado[df_filtrado['qa'].isin(f_qa)]
+    if f_rel:
+        df_filtrado = df_filtrado[df_filtrado['relator'].isin(f_rel)]
+    if f_rep:
+        df_filtrado = df_filtrado[df_filtrado['representante_cliente'].isin(f_rep)]
+    if f_proj:
+        df_filtrado = df_filtrado[df_filtrado['projeto'].isin(f_proj)]
+    if f_cliente:
+        df_filtrado = df_filtrado[df_filtrado['tema_principal'].isin(f_cliente)]
+    if f_status:
+        df_filtrado = df_filtrado[df_filtrado['status'].isin(f_status)]
+    if f_tipo:
+        df_filtrado = df_filtrado[df_filtrado['tipo'].isin(f_tipo)]
+    if f_prio:
+        df_filtrado = df_filtrado[df_filtrado['prioridade'].isin(f_prio)]
+    if f_classe:
+        df_filtrado = df_filtrado[df_filtrado['_classificacao'].isin(f_classe)]
+    
+    # Conta filtros ativos
+    filtros_ativos = sum([bool(f_dev), bool(f_qa), bool(f_rel), bool(f_rep), bool(f_proj), 
+                          bool(f_cliente), bool(f_status), bool(f_tipo), bool(f_prio), bool(f_classe)])
+    if filtros_ativos > 0:
+        st.caption(f"🔍 {filtros_ativos} filtro(s) ativo(s) — {len(df_filtrado)} de {len(df_action)} cards")
+    
+    # ===== ORDENAÇÃO =====
+    ascending = (ordem == 'asc')
+    if ordenar_por == 'score':
+        df_filtrado = df_filtrado.sort_values('_score', ascending=ascending).reset_index(drop=True)
+    elif ordenar_por == 'data_criacao':
+        if 'criado' in df_filtrado.columns:
+            df_filtrado['_sort_date'] = pd.to_datetime(df_filtrado['criado'], errors='coerce')
+            df_filtrado = df_filtrado.sort_values('_sort_date', ascending=ascending).reset_index(drop=True)
+    elif ordenar_por == 'data_atualizacao':
+        if 'atualizado' in df_filtrado.columns:
+            df_filtrado['_sort_date'] = pd.to_datetime(df_filtrado['atualizado'], errors='coerce')
+            df_filtrado = df_filtrado.sort_values('_sort_date', ascending=ascending).reset_index(drop=True)
+    elif ordenar_por == 'projeto':
+        df_filtrado = df_filtrado.sort_values('projeto', ascending=ascending).reset_index(drop=True)
+    elif ordenar_por == 'prioridade':
+        prio_ordem = {'Highest': 1, 'High': 2, 'Medium': 3, 'Low': 4, 'Lowest': 5}
+        df_filtrado['_prio_ordem'] = df_filtrado['prioridade'].map(prio_ordem).fillna(6)
+        df_filtrado = df_filtrado.sort_values('_prio_ordem', ascending=ascending).reset_index(drop=True)
+    
+    if df_filtrado.empty:
+        st.info("Nenhum card corresponde aos filtros aplicados.")
+        return
+    
+    total_cards = len(df_filtrado)
+    
+    # ===== PAGINAÇÃO =====
+    CARDS_POR_PAGINA = 50
+    total_paginas = (total_cards + CARDS_POR_PAGINA - 1) // CARDS_POR_PAGINA
+    
+    if 'ac_pagina' not in st.session_state:
+        st.session_state.ac_pagina = 1
+    
+    pagina_atual = st.session_state.ac_pagina
+    if pagina_atual > total_paginas:
+        pagina_atual = 1
+        st.session_state.ac_pagina = 1
+    
+    inicio = (pagina_atual - 1) * CARDS_POR_PAGINA
+    fim = min(inicio + CARDS_POR_PAGINA, total_cards)
+    
+    # Navegação de página
+    if total_paginas > 1:
+        col_prev, col_pg, col_next = st.columns([1, 2, 1])
+        with col_prev:
+            if st.button("◀ Anterior", key="ac_prev", disabled=pagina_atual <= 1):
+                st.session_state.ac_pagina = pagina_atual - 1
+                st.rerun()
+        with col_pg:
+            st.markdown(f"<div style='text-align:center;padding:8px;'>Página {pagina_atual} de {total_paginas} • {inicio+1}-{fim} de {total_cards}</div>", unsafe_allow_html=True)
+        with col_next:
+            if st.button("Próxima ▶", key="ac_next", disabled=pagina_atual >= total_paginas):
+                st.session_state.ac_pagina = pagina_atual + 1
+                st.rerun()
+    
+    # ===== LISTA DE CARDS =====
+    df_pagina = df_filtrado.iloc[inicio:fim]
+    
+    with st.container(height=500, border=True):
+        for idx, (_, card) in enumerate(df_pagina.iterrows()):
+            _renderizar_card_action(card, inicio + idx)
+
+
 def _renderizar_lista_cards_aguardando(df_cards: pd.DataFrame, projeto_default: str, limite: int, cor_card: str):
-    """Renderiza uma lista de cards aguardando ação."""
+    """Renderiza uma lista de cards aguardando ação com UI moderna."""
     if df_cards.empty:
         st.info("Nenhum card aguardando")
         return
     
-    # Cores com CSS inline para garantir renderização
-    cores_bg = {
-        'amarelo': 'rgba(245, 158, 11, 0.08)',
-        'laranja': 'rgba(249, 115, 22, 0.08)',
-        'azul': 'rgba(59, 130, 246, 0.08)'
-    }
-    cores_borda = {
-        'amarelo': '#f59e0b',
-        'laranja': '#f97316',
-        'azul': '#3b82f6'
-    }
-    bg = cores_bg.get(cor_card, 'rgba(100, 100, 100, 0.08)')
-    borda = cores_borda.get(cor_card, '#64748b')
+    # Cores por tipo de card
+    cores_borda = {'amarelo': '#f59e0b', 'laranja': '#f97316', 'azul': '#3b82f6'}
+    cores_bg = {'amarelo': 'rgba(245, 158, 11, 0.06)', 'laranja': 'rgba(249, 115, 22, 0.06)', 'azul': 'rgba(59, 130, 246, 0.06)'}
+    cores_hover = {'amarelo': 'rgba(245, 158, 11, 0.12)', 'laranja': 'rgba(249, 115, 22, 0.12)', 'azul': 'rgba(59, 130, 246, 0.12)'}
+    borda = cores_borda.get(cor_card, '#e5e7eb')
+    bg = cores_bg.get(cor_card, 'rgba(248, 250, 252, 1)')
+    bg_hover = cores_hover.get(cor_card, 'rgba(248, 250, 252, 1)')
     
-    # URL base do Jira
     jira_base = "https://ninatecnologia.atlassian.net/browse"
     
-    cards_html = f'<div style="max-height: 400px; overflow-y: auto;">'
-    for _, card in df_cards.head(limite).iterrows():
+    # Monta HTML dos cards com UI melhorada
+    html = f'''<div style="max-height: 400px; overflow-y: auto; padding-right: 8px;">'''
+    
+    for idx, (_, card) in enumerate(df_cards.head(limite).iterrows()):
         projeto = card.get('projeto', projeto_default)
         tipo = card.get('tipo', 'TAREFA')
-        tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#64748b"
+        tipo_cor = "#dc2626" if tipo == "HOTFIX" else "#ea580c" if tipo == "BUG" else "#7c3aed" if tipo == "SUGESTÃO" else "#64748b"
+        tipo_bg = "#fef2f2" if tipo == "HOTFIX" else "#fff7ed" if tipo == "BUG" else "#f5f3ff" if tipo == "SUGESTÃO" else "#f8fafc"
+        
         responsavel = card.get('responsavel') or card.get('desenvolvedor') or card.get('qa') or card.get('relator', 'N/A')
         if not responsavel or responsavel == 'Não atribuído':
             responsavel = card.get('relator', 'N/A')
-        titulo = str(card.get('titulo', card.get('resumo', '')))[:80]
+        
+        titulo_card = str(card.get('titulo', card.get('resumo', '')))[:75]
         ticket_id = card.get('ticket_id', '')
-        
-        # Link direto para o Jira (sem popup complexo)
-        link_jira = f'{jira_base}/{ticket_id}'
-        ticket_cor = "#8b5cf6" if projeto == "PB" else "#3b82f6" if projeto == "SD" else "#22c55e"
-        
-        # Badge de ambiente (se preenchido)
+        status = card.get('status', '')[:25] if card.get('status') else ''
         ambiente = card.get('ambiente', '')
+        
+        # Cores do ticket por projeto
+        ticket_cor = "#8b5cf6" if projeto == "PB" else "#2563eb" if projeto == "SD" else "#059669" if projeto == "QA" else "#6b7280"
+        projeto_bg = "#f5f3ff" if projeto == "PB" else "#eff6ff" if projeto == "SD" else "#ecfdf5" if projeto == "QA" else "#f8fafc"
+        
+        # Badge de ambiente
         ambiente_badge = ''
         if ambiente:
-            ambiente_lower = str(ambiente).lower()
-            if 'produção' in ambiente_lower or 'producao' in ambiente_lower:
-                ambiente_badge = '<span style="background: #fef2f2; color: #dc2626; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 4px;">🔴 PROD</span>'
-            elif 'homologação' in ambiente_lower or 'homologacao' in ambiente_lower:
-                ambiente_badge = '<span style="background: #fffbeb; color: #d97706; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 4px;">🟡 HML</span>'
-            elif 'develop' in ambiente_lower:
-                ambiente_badge = '<span style="background: #f0fdf4; color: #16a34a; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 4px;">🟢 DEV</span>'
+            amb_lower = str(ambiente).lower()
+            if 'produção' in amb_lower or 'producao' in amb_lower:
+                ambiente_badge = '<span style="background:#fef2f2;color:#dc2626;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fecaca;">🔴 PROD</span>'
+            elif 'homologação' in amb_lower or 'homologacao' in amb_lower:
+                ambiente_badge = '<span style="background:#fffbeb;color:#d97706;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fde68a;">🟡 HML</span>'
+            elif 'develop' in amb_lower:
+                ambiente_badge = '<span style="background:#f0fdf4;color:#16a34a;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #bbf7d0;">🟢 DEV</span>'
         
-        # CSS inline completo para garantir renderização
-        cards_html += f'''
-        <div style="padding: 12px 15px; margin: 8px 0; border-radius: 8px; border-left: 4px solid {borda}; background: {bg};">
-            <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 4px;">
-                <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
-                <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
-                <a href="{link_jira}" target="_blank" style="color: {ticket_cor}; font-weight: 600; text-decoration: none;">{ticket_id}</a>
-                {ambiente_badge}
-            </div>
-            <div style="font-size: 13px; line-height: 1.4; color: #1f2937;">{titulo}{"..." if len(str(card.get("titulo", ""))) > 80 else ""}</div>
-            <div style="font-size: 11px; margin-top: 4px; color: #6b7280;">👤 {responsavel}</div>
-        </div>'''
-    cards_html += '</div>'
+        link_jira = f'{jira_base}/{ticket_id}'
+        
+        # Card ID único para hover effect
+        card_id = f"card_{cor_card}_{idx}"
+        
+        html += f'''
+<div id="{card_id}" style="padding:14px 16px;margin:10px 0;border-radius:10px;border-left:4px solid {borda};background:{bg};box-shadow:0 1px 3px rgba(0,0,0,0.08);transition:all 0.2s ease;" onmouseover="this.style.background='{bg_hover}';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';this.style.transform='translateY(-1px)'" onmouseout="this.style.background='{bg}';this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)';this.style.transform='translateY(0)'">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+        <span style="background:{projeto_bg};color:{ticket_cor};padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid {ticket_cor}20;">{projeto}</span>
+        <span style="background:{tipo_bg};color:{tipo_cor};padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;">{tipo}</span>
+        <a href="{link_jira}" target="_blank" style="color:{ticket_cor};font-weight:700;font-size:13px;text-decoration:none;">{ticket_id}</a>
+        {ambiente_badge}
+        <span style="background:#f1f5f9;color:#475569;padding:3px 10px;border-radius:6px;font-size:10px;font-weight:500;margin-left:auto;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{card.get('status', '')}">{status}</span>
+    </div>
+    <div style="font-size:13px;color:#1e293b;line-height:1.5;font-weight:500;">{titulo_card}{"..." if len(str(card.get("titulo", ""))) > 75 else ""}</div>
+    <div style="font-size:12px;color:#64748b;margin-top:6px;display:flex;align-items:center;gap:4px;">
+        <span style="opacity:0.8;">👤</span> <span style="font-weight:500;">{responsavel}</span>
+    </div>
+</div>'''
     
+    html += '</div>'
+    
+    st.markdown(html, unsafe_allow_html=True)
+    
+    # Mostra quantos cards não foram exibidos
     if len(df_cards) > limite:
-        cards_html += f'<p style="color: #64748b; font-size: 12px; margin-top: 8px; text-align: center;">... e mais {len(df_cards) - limite} cards</p>'
-    
-    st.markdown(cards_html, unsafe_allow_html=True)
+        st.caption(f"📌 Mais {len(df_cards) - limite} cards ocultos. Use o checkbox acima para ver todos.")
 
 
 def _renderizar_visao_individual(df_todos: pd.DataFrame, df_pessoa: pd.DataFrame, pessoa_selecionada: str):

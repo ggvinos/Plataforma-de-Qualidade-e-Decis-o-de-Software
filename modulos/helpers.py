@@ -372,6 +372,23 @@ def exportar_para_excel(df: pd.DataFrame, metricas: Dict) -> bytes:
 def aplicar_estilos():
     st.markdown("""
     <style>
+    /* ========== KEYFRAMES DE ANIMAÇÃO ========== */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
     /* Header Nina - Fundo branco para melhor contraste */
     .nina-header {
         background: #ffffff;
@@ -384,6 +401,7 @@ def aplicar_estilos():
         gap: 20px;
         border: 1px solid #e2e8f0;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        animation: fadeIn 0.3s ease-out;
     }
     .nina-logo {
         width: 60px;
@@ -418,13 +436,24 @@ def aplicar_estilos():
         text-align: center;
         border: 2px solid;
         margin-bottom: 10px;
-        transition: transform 0.2s;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         min-height: 130px;
         display: flex;
         flex-direction: column;
         justify-content: center;
+        animation: fadeInUp 0.4s ease-out forwards;
+        opacity: 0;
     }
-    .status-card:hover { transform: translateY(-3px); }
+    .status-card:nth-child(1) { animation-delay: 0.05s; }
+    .status-card:nth-child(2) { animation-delay: 0.1s; }
+    .status-card:nth-child(3) { animation-delay: 0.15s; }
+    .status-card:nth-child(4) { animation-delay: 0.2s; }
+    .status-card:nth-child(5) { animation-delay: 0.25s; }
+    .status-card:nth-child(6) { animation-delay: 0.3s; }
+    .status-card:hover { 
+        transform: translateY(-4px); 
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
     .status-green { background: rgba(34, 197, 94, 0.1); border-color: #22c55e; }
     .status-yellow { background: rgba(234, 179, 8, 0.1); border-color: #eab308; }
     .status-orange { background: rgba(249, 115, 22, 0.1); border-color: #f97316; }
@@ -437,52 +466,70 @@ def aplicar_estilos():
     .card-label { font-size: 14px; opacity: 0.8; margin-top: 5px; }
     .card-sublabel { font-size: 12px; opacity: 0.6; margin-top: 3px; min-height: 16px; }
     
-    /* Alertas */
+    /* Alertas - com animação de entrada */
     .alert-critical {
         background: rgba(239, 68, 68, 0.15);
         border-left: 4px solid #ef4444;
         padding: 15px; border-radius: 8px; margin: 10px 0;
+        animation: fadeInUp 0.4s ease-out;
+        transition: all 0.2s ease;
     }
+    .alert-critical:hover { transform: translateX(3px); }
     .alert-warning {
         background: rgba(234, 179, 8, 0.15);
         border-left: 4px solid #eab308;
         padding: 15px; border-radius: 8px; margin: 10px 0;
+        animation: fadeInUp 0.4s ease-out;
+        transition: all 0.2s ease;
     }
+    .alert-warning:hover { transform: translateX(3px); }
     .alert-info {
         background: rgba(59, 130, 246, 0.15);
         border-left: 4px solid #3b82f6;
         padding: 15px; border-radius: 8px; margin: 10px 0;
+        animation: fadeInUp 0.4s ease-out;
+        transition: all 0.2s ease;
     }
+    .alert-info:hover { transform: translateX(3px); }
     .alert-success {
         background: rgba(34, 197, 94, 0.15);
         border-left: 4px solid #22c55e;
         padding: 15px; border-radius: 8px; margin: 10px 0;
+        animation: fadeInUp 0.4s ease-out;
+        transition: all 0.2s ease;
     }
+    .alert-success:hover { transform: translateX(3px); }
     
-    /* Ticket cards clicáveis */
+    /* Ticket cards clicáveis - com animações refinadas */
     .ticket-card {
         border-radius: 10px;
         padding: 12px 15px;
         margin: 8px 0;
         border-left: 4px solid;
         background: rgba(100, 100, 100, 0.05);
-        transition: all 0.2s ease;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: fadeIn 0.3s ease-out;
     }
     .ticket-card:hover {
         transform: translateX(5px);
         background: rgba(100, 100, 100, 0.1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     }
     .ticket-risk-high { border-left-color: #ef4444; }
     .ticket-risk-medium { border-left-color: #f97316; }
     .ticket-risk-low { border-left-color: #22c55e; }
     
-    /* Barra de progresso */
+    /* Barra de progresso - com animação de preenchimento */
+    @keyframes progressFill {
+        from { width: 0; }
+    }
     .progress-bar {
         background: #e5e7eb;
         border-radius: 10px;
         height: 24px;
         overflow: hidden;
         margin: 5px 0;
+        animation: fadeIn 0.3s ease-out;
     }
     .progress-fill {
         height: 100%;
@@ -493,6 +540,8 @@ def aplicar_estilos():
         color: white;
         font-weight: bold;
         font-size: 12px;
+        animation: progressFill 0.8s ease-out;
+        transition: width 0.5s ease;
     }
     
     /* Última atualização */
@@ -503,19 +552,30 @@ def aplicar_estilos():
         border-radius: 15px;
         font-size: 12px;
         display: inline-block;
+        animation: fadeIn 0.3s ease-out;
+        transition: all 0.2s ease;
+    }
+    .update-badge:hover {
+        transform: scale(1.03);
     }
     .update-badge-stale {
         background: rgba(234, 179, 8, 0.2);
         color: #854d0e;
     }
     
-    /* Section headers */
+    /* Section headers - com animação de entrada */
     .section-header {
         background: linear-gradient(90deg, rgba(99, 102, 241, 0.1), transparent);
         padding: 10px 15px;
         border-radius: 8px;
         margin: 20px 0 10px 0;
         border-left: 4px solid #6366f1;
+        animation: fadeInUp 0.4s ease-out;
+        transition: all 0.2s ease;
+    }
+    .section-header:hover {
+        transform: translateX(3px);
+        border-left-width: 6px;
     }
     
     /* Scroll container para listagens */
@@ -526,6 +586,7 @@ def aplicar_estilos():
         margin: 10px 0;
         scrollbar-width: thin;
         scrollbar-color: #cbd5e1 #f1f5f9;
+        animation: fadeIn 0.3s ease-out;
     }
     .scroll-container::-webkit-scrollbar {
         width: 6px;
@@ -542,18 +603,20 @@ def aplicar_estilos():
         background: #94a3b8;
     }
     
-    /* Card de listagem padrão */
+    /* Card de listagem padrão - com animações */
     .card-lista {
         background: rgba(100, 100, 100, 0.05);
         padding: 12px 15px;
         margin: 8px 0;
         border-radius: 8px;
         border-left: 4px solid #64748b;
-        transition: all 0.2s ease;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: fadeIn 0.3s ease-out;
     }
     .card-lista:hover {
-        transform: translateX(3px);
+        transform: translateX(4px);
         background: rgba(100, 100, 100, 0.1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
     /* Variantes coloridas - herdam estilos base */
     .card-lista-amarelo, .card-lista-verde, .card-lista-azul, .card-lista-roxo, .card-lista-vermelho, .card-lista-laranja {
@@ -561,11 +624,13 @@ def aplicar_estilos():
         margin: 8px 0;
         border-radius: 8px;
         border-left: 4px solid;
-        transition: all 0.2s ease;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: fadeIn 0.3s ease-out;
     }
     .card-lista-amarelo:hover, .card-lista-verde:hover, .card-lista-azul:hover, .card-lista-roxo:hover, .card-lista-vermelho:hover, .card-lista-laranja:hover {
-        transform: translateX(3px);
+        transform: translateX(4px);
         filter: brightness(0.95);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
     .card-lista-amarelo { border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.08); }
     .card-lista-verde { border-left-color: #22c55e; background: rgba(34, 197, 94, 0.08); }

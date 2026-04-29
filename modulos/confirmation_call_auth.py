@@ -1,29 +1,26 @@
 """
-🔐 CONFIRMATION CALL AUTH v2 - Autenticação Simplificada
+🔐 CONFIRMATION CALL AUTH v4 - Autenticação com LocalStorage
 
-Versão simplificada e robusta da autenticação com ConfirmationCall.
-Foco em: FUNCIONAR SEMPRE, sem dependência de cookies complexos.
+Autenticação robusta com ConfirmationCall + persistência via LocalStorage.
+Usa JavaScript direto para maior confiabilidade.
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import requests
 from requests.auth import HTTPBasicAuth
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 import json
+import time
+import hashlib
+import os
 
 # Import do SVG da logo
 try:
     from modulos.config import NINA_LOGO_SVG
 except ImportError:
     NINA_LOGO_SVG = ''
-
-# Para compatibilidade com código existente
-try:
-    import extra_streamlit_components as stx
-    HAS_STX = True
-except ImportError:
-    HAS_STX = False
 
 # ==============================================================================
 # CONFIGURAÇÃO
@@ -36,20 +33,229 @@ ENDPOINTS = {
 }
 
 ORDEM_AMBIENTES = ["Produção", "Homologação", "Desenvolvimento"]
-TIMEOUT_SEGUNDOS = 8  # Timeout maior para garantir resposta
+TIMEOUT_SEGUNDOS = 8
+
+# LocalStorage config
+STORAGE_KEY = "ninadash_session_v4"
+SESSION_EXPIRY_DAYS = 30
+
+# Arquivo de sessão local (fallback para servidor próprio)
+SESSION_FILE = ".streamlit/session_cache.json"
 
 
 # ==============================================================================
-# COOKIE MANAGER (COMPATIBILIDADE)
+# PERSISTÊNCIA VIA ARQUIVO LOCAL (para servidor próprio)
+# ==============================================================================
+
+def _get_session_file_path():
+    """Retorna caminho do arquivo de sessão."""
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, ".streamlit", "sessions.json")
+
+
+def _load_sessions() -> dict:
+    """Carrega sessões do arquivo."""
+    try:
+        path = _get_session_file_path()
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                return json.load(f)
+    except:
+        pass
+    return {}
+
+
+def _save_sessions(sessions: dict):
+    """Salva sessões no arquivo."""
+    try:
+        path = _get_session_file_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as f:
+            json.dump(sessions, f)
+    except:
+        pass
+
+
+def _gerar_session_id() -> str:
+    """Gera ID único de sessão baseado em timestamp."""
+    return hashlib.md5(f"{datetime.now().isoformat()}{os.urandom(8).hex()}".encode()).hexdigest()[:16]
+
+
+def salvar_sessao_arquivo(email: str, token: str, ambiente: str) -> str:
+    """
+    Salva sessão em arquivo local e retorna session_id.
+    O session_id pode ser passado via query params para restaurar.
+    """
+    session_id = _gerar_session_id()
+    sessions = _load_sessions()
+    
+    # Limpa sessões expiradas
+    agora = datetime.now()
+    sessions = {
+        sid: data for sid, data in sessions.items()
+        if datetime.fromisoformat(data.get("created", "2000-01-01")) + timedelta(days=SESSION_EXPIRY_DAYS) > agora
+    }
+    
+    # Salva nova sessão
+    sessions[session_id] = {
+        "email": email,
+        "token": token,
+        "ambiente": ambiente,
+        "created": agora.isoformat()
+    }
+    
+    _save_sessions(sessions)
+    return session_id
+
+
+def restaurar_sessao_arquivo(session_id: str) -> Optional[dict]:
+    """Restaura sessão do arquivo usando session_id."""
+    if not session_id:
+        return None
+    
+    sessions = _load_sessions()
+    data = sessions.get(session_id)
+    
+    if data:
+        # Verifica expiração
+        created = datetime.fromisoformat(data.get("created", "2000-01-01"))
+        if datetime.now() - created < timedelta(days=SESSION_EXPIRY_DAYS):
+            return data
+        else:
+            # Remove sessão expirada
+            del sessions[session_id]
+            _save_sessions(sessions)
+    
+    return None
+
+
+def limpar_sessao_arquivo(session_id: str):
+    """Remove sessão do arquivo."""
+    if not session_id:
+        return
+    
+    sessions = _load_sessions()
+    if session_id in sessions:
+        del sessions[session_id]
+        _save_sessions(sessions)
+
+
+# ==============================================================================
+# FUNÇÕES AUXILIARES DE URL
+# ==============================================================================
+
+def _ler_session_id_url() -> Optional[str]:
+    """Lê session_id da URL (query params)."""
+    try:
+        params = st.query_params
+        return params.get("sid")
+    except:
+        return None
+
+
+def _definir_session_id_url(session_id: str):
+    """Define session_id na URL."""
+    try:
+        st.query_params["sid"] = session_id
+    except:
+        pass
+
+
+def _limpar_session_id_url():
+    """Remove session_id da URL."""
+    try:
+        if "sid" in st.query_params:
+            del st.query_params["sid"]
+    except:
+        pass
+
+
+# ==============================================================================
+# COMPONENTE DE LEITURA DE LOCALSTORAGE
+# ==============================================================================
+
+def _criar_leitor_localstorage():
+    """
+    Cria componente que lê localStorage e redireciona com session_id na URL.
+    Usa iframe com parent.location para redirecionar a página principal.
+    """
+    # Se já tem sid na URL, não precisa ler localStorage
+    if _ler_session_id_url():
+        return False
+    
+    # Injeta script que lê localStorage e redireciona a página PRINCIPAL (parent)
+    components.html(f"""
+    <script>
+        (function() {{
+            try {{
+                const sid = localStorage.getItem('{STORAGE_KEY}');
+                const currentUrl = window.parent.location.href;
+                
+                if (sid && !currentUrl.includes('sid=')) {{
+                    // Adiciona sid na URL e redireciona a página principal
+                    const url = new URL(currentUrl);
+                    url.searchParams.set('sid', sid);
+                    window.parent.location.replace(url.toString());
+                }}
+            }} catch(e) {{
+                // Se falhar com parent, tenta top
+                try {{
+                    const sid = localStorage.getItem('{STORAGE_KEY}');
+                    const currentUrl = window.top.location.href;
+                    
+                    if (sid && !currentUrl.includes('sid=')) {{
+                        const url = new URL(currentUrl);
+                        url.searchParams.set('sid', sid);
+                        window.top.location.replace(url.toString());
+                    }}
+                }} catch(e2) {{
+                    console.log('Não foi possível redirecionar:', e2);
+                }}
+            }}
+        }})();
+    </script>
+    """, height=0)
+    
+    return True
+
+
+def _injetar_script_salvar(session_id: str):
+    """Injeta JavaScript para salvar session_id no localStorage."""
+    components.html(f"""
+    <script>
+        try {{
+            localStorage.setItem('{STORAGE_KEY}', '{session_id}');
+            console.log('Sessão salva no localStorage:', '{session_id}');
+        }} catch(e) {{
+            console.error('Erro ao salvar sessão:', e);
+        }}
+    </script>
+    """, height=0)
+
+
+def _injetar_script_limpar():
+    """Injeta JavaScript para limpar localStorage."""
+    components.html(f"""
+    <script>
+        try {{
+            localStorage.removeItem('{STORAGE_KEY}');
+            console.log('Sessão removida do localStorage');
+        }} catch(e) {{
+            console.error('Erro ao limpar sessão:', e);
+        }}
+    </script>
+    """, height=0)
+
+
+# ==============================================================================
+# COMPATIBILIDADE - COOKIE MANAGER (PARA CÓDIGO LEGADO)
 # ==============================================================================
 
 def get_cookie_manager():
     """
-    Retorna instância do CookieManager para compatibilidade.
-    NOTA: A v2 não depende de cookies, mas mantém para código legado.
+    Retorna None - função mantida para compatibilidade.
+    A v4 usa LocalStorage + arquivo, não CookieManager.
     """
-    if HAS_STX:
-        return stx.CookieManager(key="ninadash_compat_cm")
     return None
 
 
@@ -112,9 +318,14 @@ def _autenticar_ambiente(usuario: str, senha: str, ambiente: str) -> Tuple[bool,
         return False, None, f"Erro: {str(e)}"
 
 
-def autenticar_usuario(usuario: str, senha: str) -> Tuple[bool, str, str]:
+def autenticar_usuario(usuario: str, senha: str, lembrar: bool = True) -> Tuple[bool, str, str]:
     """
     Tenta autenticar em todos os ambientes automaticamente.
+    
+    Args:
+        usuario: Email ou login do usuário
+        senha: Senha do usuário
+        lembrar: Se True, salva sessão em cookie para persistência
     
     Returns:
         (sucesso: bool, mensagem: str, ambiente: str)
@@ -143,6 +354,15 @@ def autenticar_usuario(usuario: str, senha: str) -> Tuple[bool, str, str]:
             st.session_state.logged_in = True
             st.session_state.user_email = email
             st.session_state.user_nome = email.split("@")[0].replace(".", " ").title()
+            
+            # Salva sessão persistente se "lembrar" está marcado
+            if lembrar:
+                session_id = salvar_sessao_arquivo(email, token, ambiente)
+                st.session_state.session_id = session_id
+                # Injeta JavaScript para salvar no localStorage
+                _injetar_script_salvar(session_id)
+                # Também coloca na URL
+                _definir_session_id_url(session_id)
             
             return True, f"✅ Bem-vindo!", ambiente
         
@@ -178,12 +398,25 @@ def esta_autenticado() -> bool:
 
 
 def fazer_logout():
-    """Limpa a sessão do usuário."""
+    """Limpa a sessão do usuário (session_state + arquivo + localStorage)."""
+    # Limpa sessão do arquivo
+    session_id = st.session_state.get("session_id")
+    if session_id:
+        limpar_sessao_arquivo(session_id)
+    
+    # Limpa localStorage via JavaScript
+    _injetar_script_limpar()
+    
+    # Limpa URL
+    _limpar_session_id_url()
+    
+    # Limpa session_state
     keys_to_clear = [
         "authenticated", "jwt_token", "usuario_autenticado", 
         "ambiente_autenticacao", "tempo_autenticacao",
         "logged_in", "user_email", "user_nome",
-        "user_permissions", "acesso_registrado"
+        "user_permissions", "acesso_registrado",
+        "session_id", "session_restored"
     ]
     for key in keys_to_clear:
         if key in st.session_state:
@@ -199,6 +432,26 @@ def tela_login():
     Exibe tela de login com campos para usuário e senha.
     Tenta autenticar automaticamente em todos os ambientes (Produção → Homolog → Dev).
     """
+    
+    # IMPORTANTE: Script para verificar localStorage e restaurar sessão automaticamente
+    # Este script roda na página principal (não em iframe) e consegue redirecionar
+    # Se encontrar sessão salva, adiciona ?sid=xxx na URL e recarrega
+    components.html(f"""
+    <script>
+        (function() {{
+            // Só executa se não tem sid na URL
+            if (!window.location.search.includes('sid=')) {{
+                const sid = localStorage.getItem('{STORAGE_KEY}');
+                if (sid) {{
+                    // Encontrou sessão - adiciona sid na URL e recarrega
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('sid', sid);
+                    window.location.replace(url.toString());
+                }}
+            }}
+        }})();
+    </script>
+    """, height=0)
     
     # CSS para esconder "Press enter to submit" e estilizar
     st.markdown("""
@@ -255,11 +508,10 @@ def tela_login():
                 msg_container.info("🔄 Conectando...")
                 
                 # Tenta autenticar automaticamente em todos os ambientes
-                sucesso, mensagem, ambiente = autenticar_usuario(usuario, senha)
+                sucesso, mensagem, ambiente = autenticar_usuario(usuario, senha, lembrar=lembrar)
                 
                 if sucesso:
                     msg_container.success("✅ Bem-vindo! Redirecionando...")
-                    import time
                     time.sleep(0.5)
                     st.rerun()
                 else:
@@ -273,14 +525,71 @@ def tela_login():
 # MIDDLEWARE PRINCIPAL
 # ==============================================================================
 
+def _restaurar_sessao_de_arquivo() -> bool:
+    """
+    Tenta restaurar sessão usando session_id da URL.
+    Retorna True se conseguiu restaurar.
+    """
+    # Já autenticado?
+    if esta_autenticado():
+        return True
+    
+    # Pega session_id da URL
+    session_id = _ler_session_id_url()
+    if not session_id:
+        return False
+    
+    # Tenta restaurar do arquivo
+    dados = restaurar_sessao_arquivo(session_id)
+    if not dados:
+        # Session inválida, limpa URL
+        _limpar_session_id_url()
+        return False
+    
+    # Restaura sessão!
+    email = dados["email"]
+    st.session_state.authenticated = True
+    st.session_state.jwt_token = dados["token"]
+    st.session_state.usuario_autenticado = email
+    st.session_state.ambiente_autenticacao = dados["ambiente"]
+    st.session_state.tempo_autenticacao = datetime.now()
+    st.session_state.session_id = session_id
+    
+    # Compatibilidade
+    st.session_state.logged_in = True
+    st.session_state.user_email = email
+    st.session_state.user_nome = email.split("@")[0].replace(".", " ").title()
+    
+    st.session_state.session_restored = True
+    return True
+
+
 def verificar_e_bloquear():
     """
-    Middleware simples: se não autenticado, mostra login e para.
+    Middleware de autenticação com persistência via LocalStorage + Arquivo.
+    
+    Fluxo:
+    1. Se já autenticado no session_state → continua
+    2. Se tem session_id na URL → tenta restaurar do arquivo
+    3. Se não tem session_id → injeta JS para ler localStorage e redirecionar
+    4. Se não conseguir → mostra tela de login
+    
     Deve ser chamado APÓS st.set_page_config().
     """
-    if not esta_autenticado():
-        tela_login()
-        st.stop()
+    # 1. Já autenticado? Passa direto
+    if esta_autenticado():
+        return
+    
+    # 2. Tem session_id na URL? Tenta restaurar
+    session_id = _ler_session_id_url()
+    if session_id:
+        if _restaurar_sessao_de_arquivo():
+            # Restaurou com sucesso!
+            return
+    
+    # 3. Não autenticado → mostra login
+    tela_login()
+    st.stop()
 
 
 # ==============================================================================
@@ -358,17 +667,18 @@ def renderizar_usuario_sidebar(colaborador_data: dict = None, is_mapeado: bool =
     # Ícone baseado no primeiro role
     icone = "👑" if "Super Admin" in roles else "👤"
     
-    # Card do usuário com múltiplos papéis
+    # Card do usuário com múltiplos papéis e animações
     st.markdown(f"""
-    <div style="
+    <div class="user-card-animated hover-glow" style="
         background: #ffffff;
         border: 1px solid #e5e7eb;
         border-radius: 8px;
         padding: 10px 12px;
         margin: 0;
+        animation: fadeIn 0.3s ease-out;
     ">
         <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="
+            <div class="avatar-animated" style="
                 width: 36px; 
                 height: 36px; 
                 background: linear-gradient(135deg, {cor_principal} 0%, {cor_principal}cc 100%);

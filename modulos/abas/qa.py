@@ -1339,35 +1339,52 @@ def _renderizar_distribuicao_complexidade(df_qa: pd.DataFrame):
 
 
 def _renderizar_cards_validados_qa(df_qa: pd.DataFrame):
-    """Renderiza histórico de cards validados."""
+    """Renderiza histórico de cards validados com UI moderna."""
     with st.expander("✅ Cards Validados (Histórico)", expanded=False):
         cards_done = df_qa[df_qa['status_cat'] == 'done'].sort_values('lead_time', ascending=False)
         
         if not cards_done.empty:
-            # Container com scroll (classe global)
-            cards_html = '<div class="scroll-container" style="max-height: 350px;">'
+            # Container com scroll
+            cards_html = '<div style="max-height: 350px; overflow-y: auto; padding-right: 8px;">'
             
-            for _, row in cards_done.iterrows():
+            jira_base = "https://ninatecnologia.atlassian.net/browse"
+            
+            for idx, (_, row) in enumerate(cards_done.head(30).iterrows()):
                 bugs = int(row['bugs'])
-                bugs_cor = '#ef4444' if bugs >= 2 else '#eab308' if bugs == 1 else '#22c55e'
-                card_link = card_link_com_popup(row['ticket_id'])
-                titulo = str(row['titulo'])[:50]
+                bugs_cor = '#dc2626' if bugs >= 2 else '#d97706' if bugs == 1 else '#16a34a'
+                bugs_bg = '#fef2f2' if bugs >= 2 else '#fffbeb' if bugs == 1 else '#f0fdf4'
+                ticket_id = row['ticket_id']
+                titulo = str(row['titulo'])[:60]
                 dev = str(row['desenvolvedor'])
                 sp = str(row['sp'])
                 lead_time = str(round(row['lead_time'], 1))
+                projeto = row.get('projeto', 'SD')
                 
-                cards_html += '<div style="padding: 10px; margin: 5px 0; border-left: 3px solid ' + bugs_cor + '; background: rgba(100,100,100,0.05); border-radius: 4px;">'
-                cards_html += '<div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">'
-                cards_html += card_link
-                cards_html += '<span style="color: #64748b;"> - ' + titulo + '...</span>'
-                cards_html += '</div>'
-                cards_html += '<small style="color: #94a3b8;">🐛 ' + str(bugs) + ' bugs | 👤 ' + dev + ' | ' + sp + ' SP | ⏱️ ' + lead_time + 'd</small>'
-                cards_html += '</div>'
+                link_jira = f'{jira_base}/{ticket_id}'
+                link_nina = f'?card={ticket_id}&projeto={projeto}'
+                ticket_cor = "#8b5cf6" if projeto == "PB" else "#2563eb"
+                
+                cards_html += f'''
+<div style="padding:14px 16px;margin:10px 0;border-radius:10px;border-left:4px solid {bugs_cor};background:rgba(248,250,252,0.8);box-shadow:0 1px 3px rgba(0,0,0,0.08);transition:all 0.2s ease;" onmouseover="this.style.background='rgba(241,245,249,1)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';this.style.transform='translateY(-1px)'" onmouseout="this.style.background='rgba(248,250,252,0.8)';this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)';this.style.transform='translateY(0)'">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+        <span class="card-link-wrapper">
+            <a href="{link_jira}" target="_blank" class="card-link-id" style="color:{ticket_cor};font-weight:700;font-size:13px;">{ticket_id}</a>
+            <a href="{link_nina}" target="_blank" class="card-action-btn card-action-nina">📊 NinaDash</a>
+        </span>
+        <span style="color:#64748b;font-size:13px;"> - {titulo}...</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;font-size:12px;color:#64748b;">
+        <span style="background:{bugs_bg};color:{bugs_cor};padding:3px 8px;border-radius:6px;font-weight:600;">🐛 {bugs} bugs</span>
+        <span>👤 {dev}</span>
+        <span style="background:#f5f3ff;color:#7c3aed;padding:3px 8px;border-radius:6px;font-weight:500;">{sp} SP</span>
+        <span>⏱️ {lead_time}d</span>
+    </div>
+</div>'''
             
             cards_html += '</div>'
             st.markdown(cards_html, unsafe_allow_html=True)
             
-            if len(cards_done) > 20:
-                st.caption(f"📋 {len(cards_done)} cards validados")
+            if len(cards_done) > 30:
+                st.caption(f"📋 Mostrando 30 de {len(cards_done)} cards validados")
         else:
             st.info("Nenhum card validado ainda")

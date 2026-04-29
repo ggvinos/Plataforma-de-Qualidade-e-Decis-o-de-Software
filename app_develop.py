@@ -64,7 +64,6 @@ from modulos.confirmation_call_auth import (
     renderizar_usuario_sidebar,
     renderizar_botao_sair,
     obter_usuario_autenticado,
-    get_cookie_manager,
 )
 
 from modulos.permissoes_usuario import (
@@ -124,6 +123,7 @@ from modulos.abas import (
     aba_clientes,
     aba_visao_geral,
     aba_visao_geral_v2,  # Nova versão orientada a decisão
+    aba_central_decisao,  # Central de Decisão - Indicadores consolidados
     aba_qa,
     aba_dev,
     aba_governanca,
@@ -139,8 +139,11 @@ from modulos.abas import (
 )
 
 # Phase 7: Novos módulos temáticos (blocos mentais)
+# REFATORAÇÃO V2: Nova visualização de cards com hierarquia visual
+from modulos.cards_v2 import exibir_card_detalhado_v2
+
+# Funções auxiliares do módulo original (para compatibilidade)
 from modulos.cards import (
-    exibir_card_detalhado_v2,
     exibir_detalhes_sd,
     exibir_detalhes_qa,
     exibir_detalhes_pb,
@@ -252,6 +255,7 @@ def construir_abas_permitidas(projeto: str) -> list:
     else:
         # Todas as abas possíveis para SD/QA/DVG
         todas_abas = [
+            ("🎯 Central", "central_decisao", aba_central_decisao),
             ("📊 Visão Geral", "visao_geral", aba_visao_geral_v2),
             ("🔬 QA", "qa", aba_qa),
             ("👨‍💻 Dev", "dev", aba_dev),
@@ -399,34 +403,205 @@ CARD_POPUP_CSS = """
 </style>
 """
 
+# ==============================================================================
+# CSS GLOBAL DE ANIMAÇÕES - Sutis e profissionais
+# ==============================================================================
+ANIMACOES_CSS = """
+<style>
+    /* ========== KEYFRAMES DE ANIMAÇÃO ========== */
+    
+    /* Fade in de baixo para cima */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Fade in simples */
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    /* Slide da esquerda */
+    @keyframes slideInLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Pulso suave para elementos de atenção */
+    @keyframes pulseSoft {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.02); }
+    }
+    
+    /* Brilho sutil */
+    @keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+    
+    /* ========== CLASSES DE ENTRADA ========== */
+    
+    /* Cards de métricas - entrada em sequência */
+    .animate-card {
+        animation: fadeInUp 0.4s ease-out forwards;
+        opacity: 0;
+    }
+    .animate-card:nth-child(1) { animation-delay: 0.05s; }
+    .animate-card:nth-child(2) { animation-delay: 0.1s; }
+    .animate-card:nth-child(3) { animation-delay: 0.15s; }
+    .animate-card:nth-child(4) { animation-delay: 0.2s; }
+    .animate-card:nth-child(5) { animation-delay: 0.25s; }
+    .animate-card:nth-child(6) { animation-delay: 0.3s; }
+    
+    /* Fade in genérico */
+    .animate-fade {
+        animation: fadeIn 0.3s ease-out forwards;
+    }
+    
+    /* Slide da esquerda */
+    .animate-slide {
+        animation: slideInLeft 0.3s ease-out forwards;
+    }
+    
+    /* ========== CLASSES DE HOVER ========== */
+    
+    /* Elevação suave no hover (para cards informativos) */
+    .hover-lift {
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .hover-lift:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+    
+    /* Brilho de borda no hover */
+    .hover-glow {
+        transition: all 0.25s ease;
+    }
+    .hover-glow:hover {
+        border-color: #AF0C37 !important;
+        box-shadow: 0 0 0 2px rgba(175, 12, 55, 0.1);
+    }
+    
+    /* Scale sutil no hover */
+    .hover-scale {
+        transition: transform 0.2s ease;
+    }
+    .hover-scale:hover {
+        transform: scale(1.02);
+    }
+    
+    /* Highlight de fundo no hover */
+    .hover-highlight {
+        transition: background-color 0.2s ease;
+    }
+    .hover-highlight:hover {
+        background-color: rgba(175, 12, 55, 0.04) !important;
+    }
+    
+    /* ========== MINI-CARDS E BADGES ========== */
+    
+    /* Mini-card com hover */
+    .mini-card-animated {
+        transition: all 0.2s ease;
+        cursor: default;
+    }
+    .mini-card-animated:hover {
+        background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%) !important;
+        transform: translateX(2px);
+    }
+    
+    /* Badge com pulso suave */
+    .badge-pulse {
+        animation: pulseSoft 2s ease-in-out infinite;
+    }
+    
+    /* ========== SEÇÕES E CONTAINERS ========== */
+    
+    /* Seção com entrada */
+    .section-animate {
+        animation: fadeInUp 0.5s ease-out forwards;
+    }
+    
+    /* Container de métricas */
+    .metrics-container {
+        animation: fadeIn 0.4s ease-out;
+    }
+    
+    /* ========== TABELAS E LISTAS ========== */
+    
+    /* Linha de tabela com hover */
+    .table-row-hover {
+        transition: background-color 0.15s ease;
+    }
+    .table-row-hover:hover {
+        background-color: rgba(175, 12, 55, 0.03) !important;
+    }
+    
+    /* ========== SIDEBAR ========== */
+    
+    /* User card com hover elegante */
+    .user-card-animated {
+        transition: all 0.25s ease;
+    }
+    .user-card-animated:hover {
+        background: linear-gradient(135deg, #fafafa 0%, #f0f0f0 100%) !important;
+    }
+    
+    /* Avatar com hover */
+    .avatar-animated {
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .avatar-animated:hover {
+        transform: scale(1.08);
+    }
+    
+    /* ========== BOTÕES ESPECIAIS ========== */
+    
+    /* Botão com ripple effect visual */
+    .btn-animated {
+        position: relative;
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+    .btn-animated:hover {
+        transform: translateY(-1px);
+    }
+    .btn-animated:active {
+        transform: translateY(0);
+    }
+    
+    /* ========== INDICADORES ========== */
+    
+    /* Dot pulsante (online/ativo) */
+    .dot-pulse {
+        animation: pulseSoft 1.5s ease-in-out infinite;
+    }
+    
+    /* Loading shimmer para skeletons */
+    .skeleton-shimmer {
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+    }
+</style>
+"""
+
 
 # ==============================================================================
-
-
-def _salvar_consultas_cookie():
-    """Salva as consultas no cookie para persistência."""
-    try:
-        import json
-        cookie_manager = get_cookie_manager()
-        # Converte filtros datetime para string antes de serializar
-        consultas_serializaveis = {}
-        for nome, consulta in st.session_state.consultas_salvas.items():
-            consulta_copia = consulta.copy()
-            filtros_copia = consulta_copia.get('filtros', {}).copy()
-            # Remove datetime objects que não são serializáveis
-            for key in ['data_inicio', 'data_fim']:
-                if key in filtros_copia and isinstance(filtros_copia[key], datetime):
-                    filtros_copia[key] = filtros_copia[key].isoformat()
-            consulta_copia['filtros'] = filtros_copia
-            consultas_serializaveis[nome] = consulta_copia
-        
-        cookie_manager.set(
-            COOKIE_CONSULTAS_NAME,
-            json.dumps(consultas_serializaveis),
-            expires_at=datetime.now() + timedelta(days=365)  # 1 ano
-        )
-    except Exception as e:
-        pass  # Silently fail cookie save
 
 
 def calcular_lista_cards(metrica_key: str, df: pd.DataFrame):
@@ -709,6 +884,9 @@ def main():
     # CSS global para popup de cards (permite escolher NinaDash ou Jira)
     st.markdown(CARD_POPUP_CSS, unsafe_allow_html=True)
     
+    # CSS global de animações sutis
+    st.markdown(ANIMACOES_CSS, unsafe_allow_html=True)
+    
     # Header principal com logo Nina
     mostrar_header_nina()
     
@@ -888,12 +1066,20 @@ def main():
                 else:
                     st.warning("Digite o número do card")
         
-        # Mostra indicador de pesquisa ativa
+        # Mostra indicador de pesquisa ativa (com animação)
         if st.session_state.busca_ativa and st.session_state.card_buscado:
             st.markdown(f"""
-            <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 4px; 
-                        padding: 6px 10px; margin: 6px 0; text-align: center;">
-                <span style="color: #92400e; font-size: 12px;">
+            <div class="animate-fade" style="
+                background: #fef3c7; 
+                border: 1px solid #f59e0b; 
+                border-radius: 6px; 
+                padding: 8px 12px; 
+                margin: 8px 0; 
+                text-align: center;
+                animation: fadeInUp 0.3s ease-out;
+                transition: all 0.2s ease;
+            ">
+                <span style="color: #92400e; font-size: 12px; font-weight: 500;">
                     📍 <b>{st.session_state.card_buscado.upper()}</b>
                 </span>
             </div>
@@ -1259,6 +1445,7 @@ def main():
             
             # Mapeamento de abas que precisam de argumentos especiais
             args_especiais = {
+                "central_decisao": (df, ultima_atualizacao),
                 "backlog": (df,),
                 "visao_geral": (df, ultima_atualizacao),
                 "qa": (df,),

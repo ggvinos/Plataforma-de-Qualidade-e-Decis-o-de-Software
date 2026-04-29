@@ -976,75 +976,56 @@ def exibir_timeline_transicoes(historico: List[Dict], titulo: str = "📜 Timeli
         else:
             st.info("Nenhum evento registrado.")
         
-        # ===== MÉTRICAS DE TEMPO =====
-        st.markdown("---")
-        st.markdown("##### ⏱️ Métricas de Tempo por Status")
-        
-        # Agrupa tempo por status
+        # ===== MÉTRICAS COMPACTAS (uma linha) =====
+        # Calcula tempo por status
         tempo_por_status = {}
         for evento in transicoes_status:
             if evento['tipo'] == 'transicao' and evento.get('de'):
                 status_anterior = evento['de']
                 if status_anterior not in tempo_por_status:
                     tempo_por_status[status_anterior] = 0
-                # Procura o tempo que ficou nesse status (olhando o evento anterior)
                 idx = transicoes_status.index(evento)
                 if idx > 0:
                     evento_anterior = transicoes_status[idx - 1]
                     tempo_por_status[status_anterior] += evento_anterior.get('duracao_dias', 0)
         
-        # Adiciona tempo no status atual
         if transicoes_status:
             ultimo = transicoes_status[-1]
             status_atual = ultimo.get('para', 'Desconhecido')
             tempo_por_status[status_atual] = ultimo.get('duracao_dias', 0)
         
-        if tempo_por_status:
-            cols = st.columns(min(len(tempo_por_status), 5))
-            for i, (status, dias) in enumerate(tempo_por_status.items()):
-                with cols[i % len(cols)]:
-                    icone, cor = obter_icone_status(status)
-                    st.markdown(f"""
-<div style='background:{cor}15; padding:10px; border-radius:8px; text-align:center; border-left:3px solid {cor};'>
-    <div style='font-size:18px;'>{icone}</div>
-    <div style='font-size:11px; color:#666;'>{status[:15]}{'...' if len(status) > 15 else ''}</div>
-    <div style='font-size:16px; font-weight:600; color:{cor};'>{dias}d</div>
-</div>
-                    """, unsafe_allow_html=True)
-        
-        # ===== QUANTIDADE DE REPROVAÇÕES =====
+        # Conta reprovações e retornos
         reprovacoes = len([h for h in historico if h['tipo'] == 'transicao' and h.get('para') and
                           any(x in h['para'].lower() for x in ['reprovado', 'rejected', 'recusado'])])
         retornos_dev = len([h for h in historico if h['tipo'] == 'transicao' and h.get('de') and h.get('para') and
                            any(x in h['de'].lower() for x in ['validação', 'qa', 'testing']) and
                            any(x in h['para'].lower() for x in ['desenvolvimento', 'andamento', 'development'])])
         
-        if reprovacoes > 0 or retornos_dev > 0:
-            st.markdown("---")
-            st.markdown("##### 🔄 Análise de Retrabalho")
-            col1, col2 = st.columns(2)
+        # Monta mini-cards inline
+        if tempo_por_status or reprovacoes > 0 or retornos_dev > 0:
+            # Mini-cards de tempo por status (top 4)
+            tempo_cards = ""
+            for status, dias in list(tempo_por_status.items())[:4]:
+                icone, cor = obter_icone_status(status)
+                nome_curto = status[:10] + ('...' if len(status) > 10 else '')
+                tempo_cards += f'<div style="text-align:center; padding:4px 8px; min-width:60px;"><div style="font-size:10px; color:#94a3b8; white-space:nowrap;">{nome_curto}</div><div style="font-size:13px; font-weight:600; color:{cor};">{dias}d</div></div>'
             
-            with col1:
-                cor_rep = "#ef4444" if reprovacoes > 0 else "#22c55e"
-                st.markdown(f"""
-<div style='background:{cor_rep}15; padding:12px; border-radius:8px; text-align:center; border-left:3px solid {cor_rep};'>
-    <div style='font-size:22px;'>❌</div>
-    <div style='font-size:24px; font-weight:700; color:{cor_rep};'>{reprovacoes}</div>
-    <div style='font-size:12px; color:#666;'>Reprovações</div>
-</div>
-                """, unsafe_allow_html=True)
+            # Mini-cards de retrabalho
+            retrabalho_cards = ""
+            if reprovacoes > 0:
+                cor_rep = "#ef4444"
+                retrabalho_cards += f'<div style="text-align:center; padding:4px 8px; border-left:1px solid #e2e8f0;"><div style="font-size:10px; color:#94a3b8;">Reprovações</div><div style="font-size:13px; font-weight:600; color:{cor_rep};">❌ {reprovacoes}</div></div>'
+            if retornos_dev > 0:
+                cor_ret = "#f97316"
+                retrabalho_cards += f'<div style="text-align:center; padding:4px 8px; border-left:1px solid #e2e8f0;"><div style="font-size:10px; color:#94a3b8;">Retornos</div><div style="font-size:13px; font-weight:600; color:{cor_ret};">🔄 {retornos_dev}</div></div>'
             
-            with col2:
-                cor_ret = "#f97316" if retornos_dev > 0 else "#22c55e"
-                st.markdown(f"""
-<div style='background:{cor_ret}15; padding:12px; border-radius:8px; text-align:center; border-left:3px solid {cor_ret};'>
-    <div style='font-size:22px;'>🔄</div>
-    <div style='font-size:24px; font-weight:700; color:{cor_ret};'>{retornos_dev}</div>
-    <div style='font-size:12px; color:#666;'>Retornos p/ Dev</div>
-</div>
-                """, unsafe_allow_html=True)
-
-
+            html_metricas = f'''
+            <div style="display:flex; justify-content:center; align-items:center; gap:2px; margin-top:8px; padding:6px 10px; background:#f8fafc; border-radius:6px; flex-wrap:wrap;">
+                {tempo_cards}
+                {retrabalho_cards}
+            </div>
+            '''
+            st.markdown(html_metricas, unsafe_allow_html=True)
 
 
 def exibir_cards_vinculados(links: List[Dict]):
@@ -1164,7 +1145,7 @@ def exibir_comentarios(comentarios: List[Dict], projeto: str = "SD"):
             titulo_extra.append(f"🔄 {retornos}")
         titulo_sufixo = f" | {' '.join(titulo_extra)}" if titulo_extra else ""
         
-        with st.expander(f"💬 **Comentários ({total_filtrado})**{titulo_sufixo}", expanded=True):
+        with st.expander(f"💬 **Comentários ({total_filtrado})**{titulo_sufixo}", expanded=False):
             # Aviso sobre comentários filtrados
             if filtrados > 0:
                 st.caption(f"ℹ️ {filtrados} comentário(s) de automação foram ocultados")
@@ -1358,7 +1339,7 @@ def exibir_comentarios_pb(comentarios: List[Dict]):
             titulo_extra.append(f"🤝 {alinhamentos}")
         titulo_sufixo = f" | {' '.join(titulo_extra)}" if titulo_extra else ""
         
-        with st.expander(f"💬 **Comentários ({total_filtrado})**{titulo_sufixo}", expanded=True):
+        with st.expander(f"💬 **Comentários ({total_filtrado})**{titulo_sufixo}", expanded=False):
             if filtrados > 0:
                 st.caption(f"ℹ️ {filtrados} comentário(s) de automação foram ocultados")
             
@@ -1527,18 +1508,14 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
     if not comentarios:
         return []
     
-    # Padrões de automação a serem filtrados (case insensitive)
+    # Padrões de automação a serem filtrados (MAIS RESTRITIVOS)
+    # Esses padrões são específicos de mensagens automáticas do Git
     padroes_automacao = [
+        # Mensagens automáticas do GitHub/Bitbucket/GitLab
         "mentioned this issue in a commit",
         "mentioned this issue in a branch",
-        "merge branch",
-        "pushed a commit",
-        "created a branch",
-        "deleted branch",
-        "opened a pull request",
-        "closed a pull request",
-        "merged a pull request",
         "mentioned this issue in a pull request",
+        "mentioned this issue in a merge request",  # GitLab usa merge request
         "linked a pull request",
         "connected this issue",
         "disconnected this issue",
@@ -1546,14 +1523,14 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
         "added a commit",
         "referenced this issue",
         "mentioned this page",
-        "/confirmationcall on branch",
-        "Elintondm /",
-        "on branch sd-",
-        "on branch SD-",
-        "into homolog",
-        "into master",
-        "into main",
-        "into develop",
+        "opened a pull request",
+        "closed a pull request",
+        "merged a pull request",
+        "pushed a commit",
+        "created a branch",
+        "deleted branch",
+        # Formato específico de merge do git (começa com "merge branch")
+        # NÃO incluir padrões genéricos como "into develop" pois devs podem escrever isso
     ]
     
     # Padrões para identificar comentários de bugs (AMPLIADO)
@@ -1879,6 +1856,11 @@ def filtrar_e_classificar_comentarios(comentarios: List[Dict]) -> List[Dict]:
                 'data': com['data_parsed'],
                 'numero': len([e for e in eventos if e['tipo'] == com['classificacao']]) + 1
             })
+    
+    # Retorna os comentários processados
+    return comentarios_pre
+
+
 def filtrar_comentarios_pb(comentarios: List[Dict]) -> List[Dict]:
     """
     Filtra e classifica comentários para Product Backlog (PB).
@@ -1894,26 +1876,21 @@ def filtrar_comentarios_pb(comentarios: List[Dict]) -> List[Dict]:
     if not comentarios:
         return []
     
-    # Padrões de automação a serem filtrados
+    # Padrões de automação a serem filtrados (MAIS RESTRITIVOS)
     padroes_automacao = [
         "mentioned this issue in a commit",
         "mentioned this issue in a branch",
-        "merge branch",
-        "pushed a commit",
-        "created a branch",
-        "deleted branch",
-        "opened a pull request",
-        "closed a pull request",
-        "merged a pull request",
         "mentioned this issue in a pull request",
+        "mentioned this issue in a merge request",  # GitLab usa merge request
         "linked a pull request",
         "connected this issue",
         "referenced this issue",
-        "/confirmationcall on branch",
-        "on branch sd-",
-        "on branch SD-",
-        "on branch pb-",
-        "on branch PB-",
+        "opened a pull request",
+        "closed a pull request",
+        "merged a pull request",
+        "pushed a commit",
+        "created a branch",
+        "deleted branch",
     ]
     
     # Padrões para DECISÃO/APROVAÇÃO
@@ -2142,7 +2119,7 @@ def exibir_comentarios_pb(comentarios: List[Dict]):
             titulo_extra.append(f"🤝 {alinhamentos}")
         titulo_sufixo = f" | {' '.join(titulo_extra)}" if titulo_extra else ""
         
-        with st.expander(f"💬 **Comentários ({total_filtrado})**{titulo_sufixo}", expanded=True):
+        with st.expander(f"💬 **Comentários ({total_filtrado})**{titulo_sufixo}", expanded=False):
             if filtrados > 0:
                 st.caption(f"ℹ️ {filtrados} comentário(s) de automação foram ocultados")
             

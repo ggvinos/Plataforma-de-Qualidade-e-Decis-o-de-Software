@@ -242,7 +242,7 @@ def obter_abas_por_perfil(perfil: str, permissoes: Dict = None) -> List[str]:
     if not abas:
         # ADMIN sempre tem acesso total
         if perfil == "ADMIN":
-            return ["visao_geral", "qa", "dev", "suporte", "clientes", "governanca", 
+            return ["central_decisao", "visao_geral", "qa", "dev", "suporte", "clientes", "governanca", 
                     "produto", "historico", "lideranca", "sobre", "admin"]
         return ABAS_NAO_MAPEADO
     
