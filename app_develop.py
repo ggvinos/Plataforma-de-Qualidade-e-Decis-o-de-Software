@@ -1094,35 +1094,49 @@ def main():
                 st.rerun()
         
         # ================================================================
-        # BLOCO 4: CONTEXTO ATUAL (sem duplicação visual)
+        # BLOCO 4: CONTEXTO ATUAL (Filtro Inteligente)
         # ================================================================
         if not st.session_state.busca_ativa:
             st.markdown("<div style='border-top: 1px solid #e5e7eb; margin: 12px 0 8px 0;'></div>", unsafe_allow_html=True)
             st.markdown("<p style='font-size: 11px; font-weight: 600; color: #6b7280; margin: 0 0 8px 0; letter-spacing: 0.5px;'>📌 CONTEXTO ATUAL</p>", unsafe_allow_html=True)
             
+            # Toggle para ver todos os projetos (útil para Suporte, Clientes, Central)
+            ver_todos_projetos = st.checkbox("📊 Ver todos os projetos", value=False, key="ver_todos_projetos",
+                                              help="Ativa nas abas Suporte, Clientes e Central para ver SD+QA+PB juntos")
+            
             # Cores por projeto
             cores_projeto = {"SD": "#3b82f6", "QA": "#22c55e", "PB": "#f59e0b", "VALPROD": "#8b5cf6"}
             
             # --- PROJETO ---
-            # Estado para controlar edição
-            if 'editando_projeto' not in st.session_state:
-                st.session_state.editando_projeto = False
-            
-            col_label, col_valor = st.columns([1.2, 2])
-            with col_label:
-                st.markdown("<span style='font-size: 12px; color: #6b7280;'>📁 Projeto</span>", unsafe_allow_html=True)
-            with col_valor:
-                projeto = st.selectbox(
-                    "Projeto", 
-                    projetos_lista, 
-                    index=0, 
-                    key="projeto_dash", 
-                    label_visibility="collapsed"
-                )
+            if ver_todos_projetos:
+                # Mostra badge informativo em vez do seletor
+                st.markdown(f'''
+                <div style="background:linear-gradient(90deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:8px;">
+                    <div style="font-size:11px;color:#166534;font-weight:600;">📁 Projetos: SD + QA + PB</div>
+                    <div style="font-size:10px;color:#15803d;margin-top:2px;">Ideal para Suporte e Central de Cards</div>
+                </div>
+                ''', unsafe_allow_html=True)
+                # Define projeto padrão para carregamento
+                projeto = "SD"
+            else:
+                # Mostra seletor de projeto normalmente
+                if 'editando_projeto' not in st.session_state:
+                    st.session_state.editando_projeto = False
+                
+                col_label, col_valor = st.columns([1.2, 2])
+                with col_label:
+                    st.markdown("<span style='font-size: 12px; color: #6b7280;'>📁 Projeto</span>", unsafe_allow_html=True)
+                with col_valor:
+                    projeto = st.selectbox(
+                        "Projeto", 
+                        projetos_lista, 
+                        index=0, 
+                        key="projeto_dash", 
+                        label_visibility="collapsed"
+                    )
             
             # --- PERÍODO ---
-            aba_suporte = st.query_params.get("aba", None) == "suporte"
-            indice_filtro_padrao = 0 if projeto in ["PB", "VALPROD"] or aba_suporte else 1
+            indice_filtro_padrao = 0 if ver_todos_projetos or projeto in ["PB", "VALPROD"] else 1
             
             col_label2, col_valor2 = st.columns([1.2, 2])
             with col_label2:
@@ -1443,22 +1457,43 @@ def main():
             nomes_abas = [aba[0] for aba in abas_permitidas]
             tabs = st.tabs(nomes_abas)
             
+            # Verifica se deve usar df_todos para todas as abas
+            ver_todos = st.session_state.get('ver_todos_projetos', False)
+            
             # Mapeamento de abas que precisam de argumentos especiais
-            args_especiais = {
-                "central_decisao": (df, ultima_atualizacao),
-                "backlog": (df,),
-                "visao_geral": (df, ultima_atualizacao),
-                "qa": (df,),
-                "dev": (df,),
-                "suporte": (df_todos,),  # Usa df_todos para suporte
-                "clientes": (df_todos,),  # Usa df_todos para clientes
-                "governanca": (df,),
-                "produto": (df,),
-                "historico": (df,),
-                "lideranca": (df,),
-                "sobre": (),
-                "admin": (),
-            }
+            # Se "ver todos os projetos" está ativo, usa df_todos em mais abas
+            if ver_todos:
+                args_especiais = {
+                    "central_decisao": (df_todos, ultima_atualizacao),
+                    "backlog": (df_todos,),
+                    "visao_geral": (df_todos, ultima_atualizacao),
+                    "qa": (df_todos,),
+                    "dev": (df_todos,),
+                    "suporte": (df_todos,),
+                    "clientes": (df_todos,),
+                    "governanca": (df_todos,),
+                    "produto": (df_todos,),
+                    "historico": (df_todos,),
+                    "lideranca": (df_todos,),
+                    "sobre": (),
+                    "admin": (),
+                }
+            else:
+                args_especiais = {
+                    "central_decisao": (df, ultima_atualizacao),
+                    "backlog": (df,),
+                    "visao_geral": (df, ultima_atualizacao),
+                    "qa": (df,),
+                    "dev": (df,),
+                    "suporte": (df_todos,),  # Sempre usa df_todos para suporte
+                    "clientes": (df_todos,),  # Sempre usa df_todos para clientes
+                    "governanca": (df,),
+                    "produto": (df,),
+                    "historico": (df,),
+                    "lideranca": (df,),
+                    "sobre": (),
+                    "admin": (),
+                }
             
             # Renderiza cada aba com seus argumentos
             for i, (nome_display, nome_interno, funcao_aba) in enumerate(abas_permitidas):
