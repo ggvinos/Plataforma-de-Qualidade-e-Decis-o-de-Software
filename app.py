@@ -139,8 +139,11 @@ from modulos.abas import (
 )
 
 # Phase 7: Novos módulos temáticos (blocos mentais)
+# REFATORAÇÃO V2: Nova visualização de cards com hierarquia visual
+from modulos.cards_v2 import exibir_card_detalhado_v2
+
+# Funções auxiliares do módulo original (para compatibilidade)
 from modulos.cards import (
-    exibir_card_detalhado_v2,
     exibir_detalhes_sd,
     exibir_detalhes_qa,
     exibir_detalhes_pb,

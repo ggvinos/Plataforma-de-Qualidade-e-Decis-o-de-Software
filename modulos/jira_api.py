@@ -204,6 +204,41 @@ def buscar_card_especifico(ticket_id: str) -> Tuple[Optional[Dict], Optional[Lis
         response.raise_for_status()
         issue = response.json()
         
+        # Verifica se o changelog está truncado e busca completo se necessário
+        changelog = issue.get('changelog', {})
+        total_changelog = changelog.get('total', 0)
+        loaded_changelog = len(changelog.get('histories', []))
+        
+        if total_changelog > loaded_changelog:
+            # Busca changelog completo via endpoint separado (desde o início)
+            all_histories = []
+            start_at = 0
+            
+            while start_at < total_changelog:
+                changelog_url = f"{JIRA_BASE_URL}/rest/api/3/issue/{ticket_id}/changelog"
+                changelog_params = {"startAt": start_at, "maxResults": 100}
+                
+                changelog_response = requests.get(
+                    changelog_url,
+                    headers=headers,
+                    params=changelog_params,
+                    auth=(secrets["email"], secrets["token"]),
+                    timeout=60
+                )
+                
+                if changelog_response.status_code == 200:
+                    changelog_data = changelog_response.json()
+                    new_histories = changelog_data.get('values', [])
+                    all_histories.extend(new_histories)
+                    start_at += len(new_histories)
+                    if not new_histories:
+                        break
+                else:
+                    break
+            
+            # Atualiza o changelog com todas as entradas
+            issue['changelog'] = {'histories': all_histories, 'total': len(all_histories)}
+        
         # Extrai os links do card
         links = []
         fields_data = issue.get('fields', {})
@@ -498,18 +533,58 @@ def extrair_historico_transicoes(issue: Dict, ticket_id: str) -> List[Dict]:
                         'cor': '#8b5cf6'
                     })
                 
-                elif field.lower() == 'sprint':
-                    historico.append({
-                        'data': entry_date,
-                        'de': from_value if from_value else 'Sem sprint',
-                        'para': to_value if to_value else 'Removido da sprint',
-                        'autor': author_name,
-                        'tipo': 'sprint',
-                        'campo': 'Sprint',
-                        'detalhes': f"Sprint: {from_value or 'Nenhuma'} → {to_value or 'Removido'}",
-                        'icone': gerar_icone_tabler('target', tamanho=32, cor='#f59e0b'),
-                        'cor': '#f59e0b'
-                    })
+                # Sprint pode aparecer como "Sprint" ou como o custom field ID
+                elif field.lower() == 'sprint' or field == CUSTOM_FIELDS.get('sprint', ''):
+                    # Extrai nomes de sprints individuais (Jira pode retornar lista: "Sprint 1, Sprint 2")
+                    from_sprints = [s.strip() for s in (from_value or '').split(',') if s.strip()]
+                    to_sprints = [s.strip() for s in (to_value or '').split(',') if s.strip()]
+                    
+                    # Identifica sprints adicionadas e removidas
+                    sprints_removidas = set(from_sprints) - set(to_sprints)
+                    sprints_adicionadas = set(to_sprints) - set(from_sprints)
+                    
+                    # Cria evento para cada sprint adicionada
+                    for sprint_nova in sprints_adicionadas:
+                        historico.append({
+                            'data': entry_date,
+                            'de': from_value if from_value else 'Sem sprint',
+                            'para': f"🏃 {sprint_nova}",
+                            'autor': author_name,
+                            'tipo': 'sprint',
+                            'campo': 'Sprint',
+                            'detalhes': f"Movido para {sprint_nova}",
+                            'icone': gerar_icone_tabler('target', tamanho=32, cor='#22c55e'),
+                            'cor': '#22c55e'
+                        })
+                    
+                    # Cria evento para cada sprint removida (se foi para outra sprint, não mostra remoção)
+                    if not sprints_adicionadas:
+                        for sprint_antiga in sprints_removidas:
+                            historico.append({
+                                'data': entry_date,
+                                'de': sprint_antiga,
+                                'para': f"❌ Removido de {sprint_antiga}",
+                                'autor': author_name,
+                                'tipo': 'sprint',
+                                'campo': 'Sprint',
+                                'detalhes': f"Removido de {sprint_antiga}",
+                                'icone': gerar_icone_tabler('target-off', tamanho=32, cor='#ef4444'),
+                                'cor': '#ef4444'
+                            })
+                    
+                    # Se não teve mudanças claras mas teve alguma alteração, cria evento genérico
+                    if not sprints_adicionadas and not sprints_removidas and (from_value or to_value):
+                        historico.append({
+                            'data': entry_date,
+                            'de': from_value if from_value else 'Sem sprint',
+                            'para': to_value if to_value else 'Removido da sprint',
+                            'autor': author_name,
+                            'tipo': 'sprint',
+                            'campo': 'Sprint',
+                            'detalhes': f"Sprint: {from_value or 'Nenhuma'} → {to_value or 'Removido'}",
+                            'icone': gerar_icone_tabler('target', tamanho=32, cor='#f59e0b'),
+                            'cor': '#f59e0b'
+                        })
                 
                 elif 'story point' in field.lower() or field == CUSTOM_FIELDS.get('story_points', ''):
                     historico.append({
