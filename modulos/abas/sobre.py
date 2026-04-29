@@ -2,17 +2,7 @@
 ================================================================================
 ABA SOBRE - NinaDash v8.82
 ================================================================================
-Página Sobre - Objetivo do Dashboard, Arquitetura e Documentação.
-
-Funcionalidades:
-- Sobre a NINA
-- Objetivo do dashboard
-- Arquitetura modularizada
-- Métricas implementadas
-- Fórmulas e fundamentos teóricos
-- Tomada de decisão por perfil
-- Governança técnica
-- Abas disponíveis
+Página Sobre - Objetivo do Dashboard e Funcionalidades Principais.
 
 Author: Time de Qualidade NINA
 Version: 8.82 (Abril 2026)
@@ -23,9 +13,9 @@ from datetime import datetime
 
 
 def aba_sobre():
-    """Aba Sobre - Objetivo do Dashboard e Fontes das Métricas."""
+    """Aba Sobre - Objetivo do Dashboard e Funcionalidades."""
     
-    # ===== HERO BANNER NINA (SEMPRE VISÍVEL) =====
+    # ===== HERO BANNER NINA =====
     st.markdown("""
     <div style="background: linear-gradient(135deg, #AF0C37 0%, #8B0A2C 100%); padding: 28px 32px; border-radius: 16px; margin-bottom: 24px;">
         <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
@@ -54,31 +44,148 @@ def aba_sobre():
     </div>
     """, unsafe_allow_html=True)
     
-    # ===== FEATURES PRINCIPAIS (SEMPRE VISÍVEIS) =====
-    st.markdown("##### ✨ Principais Funcionalidades")
+    # ===== POR QUE O NINADASH EXISTE =====
+    st.markdown("##### 🎯 Por Que o NinaDash Existe?")
     
-    def feature_card(icone, titulo, desc, cor):
-        return f'''<div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; height: 140px; display: flex; flex-direction: column;">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                <span style="background: {cor}15; padding: 8px; border-radius: 8px; font-size: 20px;">{icone}</span>
-                <span style="font-weight: 600; color: #1f2937; font-size: 14px;">{titulo}</span>
+    st.markdown("""
+    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+        <p style="margin: 0 0 12px 0; font-size: 15px; color: #166534; font-weight: 600;">
+            O NinaDash nasceu para resolver um problema real: <strong>falta de visibilidade sobre o que está acontecendo com nossos cards.</strong>
+        </p>
+        <p style="margin: 0; font-size: 14px; color: #374151; line-height: 1.6;">
+            Antes, cada pessoa tinha que abrir o Jira, filtrar manualmente, e ainda assim não conseguia responder perguntas simples como 
+            "onde estão meus cards?", "quanto tempo esse card ficou parado?", ou "quem está sobrecarregado?".
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("""
+        <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0 0 8px 0; font-weight: 600; color: #dc2626;">❌ Antes do NinaDash</p>
+            <ul style="margin: 0; padding-left: 20px; color: #7f1d1d; font-size: 13px; line-height: 1.8;">
+                <li>Cada um olhava só o próprio Jira</li>
+                <li>Sem visão do tempo em cada status</li>
+                <li>Não sabia onde os cards estavam parados</li>
+                <li>Decisões baseadas em "achismo"</li>
+                <li>Sem métricas individuais de performance</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 16px; border-radius: 0 8px 8px 0;">
+            <p style="margin: 0 0 8px 0; font-weight: 600; color: #16a34a;">✅ Com o NinaDash</p>
+            <ul style="margin: 0; padding-left: 20px; color: #166534; font-size: 13px; line-height: 1.8;">
+                <li>Visão consolidada de todos os projetos</li>
+                <li>Histórico visual de cada card</li>
+                <li>Métricas em tempo real</li>
+                <li>Decisões baseadas em dados</li>
+                <li>Performance individual de QA e Dev</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+    
+    # ===== FUNCIONALIDADES PRINCIPAIS =====
+    st.markdown("##### ✨ Funcionalidades Principais")
+    
+    # PESQUISA RÁPIDA DE CARD
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 2px solid #3b82f6; border-radius: 16px; padding: 24px; margin-bottom: 16px;">
+        <div style="display: flex; align-items: flex-start; gap: 16px;">
+            <div style="background: #3b82f6; color: white; padding: 16px; border-radius: 12px; font-size: 32px;">🔍</div>
+            <div style="flex: 1;">
+                <h4 style="margin: 0 0 8px 0; color: #1e40af; font-size: 18px;">Pesquisa Rápida de Card</h4>
+                <p style="margin: 0 0 12px 0; color: #374151; font-size: 14px; line-height: 1.6;">
+                    Digite o código de qualquer card (ex: SD-1234) e veja instantaneamente tudo sobre ele:
+                </p>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    <span style="background: white; border: 1px solid #93c5fd; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #1e40af;">📊 Métricas do Card</span>
+                    <span style="background: white; border: 1px solid #93c5fd; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #1e40af;">📜 Timeline Visual</span>
+                    <span style="background: white; border: 1px solid #93c5fd; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #1e40af;">⏱️ Tempo em Cada Status</span>
+                    <span style="background: white; border: 1px solid #93c5fd; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #1e40af;">🔗 Vínculos com Outros Cards</span>
+                    <span style="background: white; border: 1px solid #93c5fd; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #1e40af;">💬 Comentários</span>
+                    <span style="background: white; border: 1px solid #93c5fd; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #1e40af;">📋 Link Compartilhável</span>
+                </div>
             </div>
-            <p style="margin: 0; color: #64748b; font-size: 12px; line-height: 1.5; flex: 1;">{desc}</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # VISÃO INDIVIDUAL
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); border: 2px solid #8b5cf6; border-radius: 16px; padding: 20px; height: 100%;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <div style="background: #8b5cf6; color: white; padding: 12px; border-radius: 10px; font-size: 24px;">👨‍💻</div>
+                <h4 style="margin: 0; color: #6d28d9; font-size: 16px;">Visão Individual do Dev</h4>
+            </div>
+            <p style="margin: 0 0 12px 0; color: #374151; font-size: 13px; line-height: 1.5;">
+                Cada desenvolvedor pode ver suas próprias métricas:
+            </p>
+            <ul style="margin: 0; padding-left: 18px; color: #5b21b6; font-size: 12px; line-height: 1.8;">
+                <li><strong>Fator K</strong> - Qualidade das entregas</li>
+                <li><strong>Selo de Maturidade</strong> - Gold, Silver, Bronze</li>
+                <li><strong>Cards em andamento</strong> - WIP atual</li>
+                <li><strong>Tempo médio de ciclo</strong></li>
+                <li><strong>Histórico de entregas</strong></li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #22c55e; border-radius: 16px; padding: 20px; height: 100%;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <div style="background: #22c55e; color: white; padding: 12px; border-radius: 10px; font-size: 24px;">🔬</div>
+                <h4 style="margin: 0; color: #166534; font-size: 16px;">Visão Individual do QA</h4>
+            </div>
+            <p style="margin: 0 0 12px 0; color: #374151; font-size: 13px; line-height: 1.5;">
+                Cada QA pode acompanhar seu trabalho:
+            </p>
+            <ul style="margin: 0; padding-left: 18px; color: #166534; font-size: 12px; line-height: 1.8;">
+                <li><strong>Cards na fila</strong> - O que precisa validar</li>
+                <li><strong>Carga de trabalho</strong> - SP em validação</li>
+                <li><strong>Bugs encontrados</strong> - Eficácia do QA</li>
+                <li><strong>Tempo médio de validação</strong></li>
+                <li><strong>Janela de release</strong> - Cards dentro/fora</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+    
+    # OUTRAS FUNCIONALIDADES
+    st.markdown("###### Outras Funcionalidades")
+    
+    def feature_mini(icone, titulo, desc, cor):
+        return f'''<div style="background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                <span style="background: {cor}15; padding: 6px; border-radius: 6px; font-size: 18px;">{icone}</span>
+                <span style="font-weight: 600; color: #1f2937; font-size: 13px;">{titulo}</span>
+            </div>
+            <p style="margin: 0; color: #64748b; font-size: 11px; line-height: 1.4;">{desc}</p>
         </div>'''
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.markdown(feature_card("🏥", "Health Score", "Score composto para decisão Go/No-Go de release com base em 5 indicadores", "#22c55e"), unsafe_allow_html=True)
+        st.markdown(feature_mini("🎯", "Suporte/Implantação", "Veja onde estão seus cards em todos os projetos", "#ef4444"), unsafe_allow_html=True)
     with col2:
-        st.markdown(feature_card("🏆", "Fator K", "Classificação de maturidade dos devs: Gold, Silver, Bronze baseado em SP/Bugs", "#f59e0b"), unsafe_allow_html=True)
+        st.markdown(feature_mini("🏥", "Health Score", "Score para decisão Go/No-Go de release", "#22c55e"), unsafe_allow_html=True)
     with col3:
-        st.markdown(feature_card("⏰", "Janela Release", "Monitoramento de 3 dias úteis para validação segura antes do deploy", "#3b82f6"), unsafe_allow_html=True)
+        st.markdown(feature_mini("⏰", "Janela Release", "Monitora 3 dias úteis para validação segura", "#3b82f6"), unsafe_allow_html=True)
     with col4:
-        st.markdown(feature_card("🔗", "Deep Links", "URLs compartilháveis para abas, pessoas e cards específicos", "#8b5cf6"), unsafe_allow_html=True)
+        st.markdown(feature_mini("🔗", "Links Compartilháveis", "Compartilhe visões específicas com a equipe", "#8b5cf6"), unsafe_allow_html=True)
     
-    st.markdown("<div style='margin-top: 24px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
     
-    # ===== PERFIS DE USO (SEMPRE VISÍVEIS) =====
+    # ===== QUEM USA =====
     st.markdown("##### 👥 Quem Usa o NinaDash")
     
     def perfil_card(icone, nome, acoes):
@@ -93,323 +200,114 @@ def aba_sobre():
     
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
-        st.markdown(perfil_card("🔬", "QA", ["Priorizar cards", "Gestão de carga", "Janela release", "Funil validação"]), unsafe_allow_html=True)
+        st.markdown(perfil_card("🔬", "QA", ["Priorizar validações", "Ver carga de trabalho", "Janela de release", "Bugs encontrados"]), unsafe_allow_html=True)
     with col2:
-        st.markdown(perfil_card("👨‍💻", "Dev", ["Fator K pessoal", "Selo maturidade", "Tempo de ciclo", "WIP e Review"]), unsafe_allow_html=True)
+        st.markdown(perfil_card("👨‍💻", "Dev", ["Ver Fator K pessoal", "Cards em andamento", "Histórico de entregas", "Selo de maturidade"]), unsafe_allow_html=True)
     with col3:
-        st.markdown(perfil_card("🎯", "Tech Lead", ["Visão do time", "Concentração", "Performance", "Distribuição"]), unsafe_allow_html=True)
+        st.markdown(perfil_card("🎯", "Suporte", ["Onde estão meus cards?", "Multi-projeto (SD, QA, PB)", "Status de validação", "Links rápidos"]), unsafe_allow_html=True)
     with col4:
-        st.markdown(perfil_card("👔", "Liderança", ["Go/No-Go", "Health Score", "Tendências", "Riscos"]), unsafe_allow_html=True)
+        st.markdown(perfil_card("👔", "Liderança", ["Go/No-Go release", "Health Score", "Visão do time", "Alertas de risco"]), unsafe_allow_html=True)
     with col5:
-        st.markdown(perfil_card("🏢", "Suporte", ["Meus cards", "Multi-projeto", "Validação prod", "Links rápidos"]), unsafe_allow_html=True)
-    
-    st.markdown("<div style='margin-top: 24px;'></div>", unsafe_allow_html=True)
-    
-    # ===== QUICK STATS (MENORES, MAIS ABAIXO) =====
-    def stat_card_mini(valor, titulo, icone):
-        return f'''<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 10px; text-align: center;">
-            <div style="font-size: 18px; margin-bottom: 2px;">{icone}</div>
-            <div style="font-size: 20px; font-weight: 700; color: #374151;">{valor}</div>
-            <div style="font-size: 10px; color: #64748b; margin-top: 2px;">{titulo}</div>
-        </div>'''
-    
-    st.markdown("###### 📊 Números do Sistema")
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown(stat_card_mini("16", "Métricas ISTQB", "📊"), unsafe_allow_html=True)
-    with col2:
-        st.markdown(stat_card_mini("5", "Projetos Jira", "📂"), unsafe_allow_html=True)
-    with col3:
-        st.markdown(stat_card_mini("11", "Abas", "📑"), unsafe_allow_html=True)
-    with col4:
-        st.markdown(stat_card_mini("16", "Módulos", "🧩"), unsafe_allow_html=True)
+        st.markdown(perfil_card("📦", "Produto", ["Funil do backlog", "Demandas por etapa", "Idade das demandas", "Priorização"]), unsafe_allow_html=True)
     
     st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
     
-    # ===== DOCUMENTAÇÃO DETALHADA (EXPANDERS) =====
-    st.markdown("##### 📚 Documentação Detalhada")
+    # ===== DOCUMENTAÇÃO TÉCNICA (EXPANDIDA) =====
+    st.markdown("##### 📚 Documentação Técnica")
     
-    # Sobre a NINA
-    with st.expander("Sobre a NINA Tecnologia", expanded=False):
-        st.markdown("""
-        A **NINA** é uma empresa de tecnologia especializada em **soluções digitais inovadoras**, 
-        com foco em desenvolvimento de software de alta qualidade.
-        
-        | Aspecto | Descrição |
-        |---------|-----------|
-        | **🎯 Missão** | Entregar software de qualidade com excelência operacional |
-        | **👁️ Visão** | Ser referência em qualidade de software no Brasil |
-        | **💎 Valores** | Qualidade, Transparência, Inovação |
-        """)
-    
-    # Objetivo do Dashboard
-    with st.expander("🎯 Objetivo do Dashboard", expanded=False):
-        st.markdown("""
-        ### 📊 NinaDash v8.82 — Dashboard de Inteligência e Qualidade
-        
-        **Propósito central:** Transformar o processo de QA em um **sistema de inteligência operacional baseado em dados**, 
-        fornecendo visibilidade completa para toda a organização.
-        
-        ---
-        
-        #### 🚨 Problema que resolve
-        
-        | Antes do NinaDash | Depois do NinaDash |
-        |---|---|
-        | ❌ Falta de mensuração real do tempo de validação | ✅ Coleta automatizada de métricas |
-        | ❌ Zero previsibilidade de entregas | ✅ Cálculo em tempo real de SLAs |
-        | ❌ Uso do Notion como controle manual | ✅ Integração direta com Jira |
-        | ❌ Falta de segurança na validação de cards | ✅ Monitoramento da janela de release (3 dias úteis) |
-        | ❌ Decisões baseadas em "feeling" | ✅ Decisão orientada por dados |
-        | ❌ Código monolítico difícil de manter | ✅ Arquitetura modularizada por responsabilidade |
-        
-        ---
-        
-        #### ⚡ Diferencial
-        
-        | Dashboards Comuns | NinaDash |
-        |---|---|
-        | Métricas genéricas | Métricas baseadas em QA (ISTQB) |
-        | Dados estáticos | Integração em tempo real com Jira API |
-        | Foco em volume | Foco em **qualidade e maturidade** |
-        | Sem contexto de QA | Janela de release com dias úteis |
-        | Métricas isoladas | Health Score para decisão Go/No-Go |
-        | Sem autenticação | Sistema de login seguro |
-        """)
-    
-    # Projetos Suportados
-    with st.expander("📂 Projetos Jira Integrados", expanded=False):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("""
-            ### 🔹 Projetos Principais
-            
-            | Projeto | Descrição | Abas Disponíveis |
-            |---------|-----------|------------------|
-            | **SD** | Service Desk (Suporte) | Todas as 10 abas |
-            | **QA** | Quality Assurance | Todas as 10 abas |
-            | **DVG** | Desenvolvimento | Todas as 10 abas |
-            | **PB** | Product Backlog | 5 abas (foco em Backlog) |
-            | **VALPROD** | Validação Produção | Via aba Suporte |
-            """)
-        
-        with col2:
-            st.markdown("""
-            ### 🔹 Dados Consolidados
-            
-            A aba **Suporte/Implantação** consolida dados de **todos os projetos** simultaneamente:
-            
-            - **SD** — Cards de suporte
-            - **QA** — Cards de qualidade  
-            - **PB** — Product Backlog
-            - **VALPROD** — Validação em produção
-            
-            Permite acompanhar **onde estão seus cards** independente do projeto.
-            """)
-    
-    # Métricas implementadas
-    with st.expander("📊 Métricas Implementadas (ISTQB-Aligned)", expanded=False):
-        st.markdown("""
-        O dashboard implementa métricas fundamentais do **ISTQB Foundation Level**, fornecendo uma visão completa do ciclo de qualidade:
-        
-        | Métrica | Descrição | Impacto |
-        |---------|-----------|---------|
-        | **FPY (First Pass Yield)** | Cards aprovados de primeira sem bugs | Mede eficiência do desenvolvimento |
-        | **DDP (Defect Detection Percentage)** | Eficácia do QA em encontrar bugs | Indica maturidade do processo de testes |
-        | **Fator K** | Relação SP/Bugs (SP/(Bugs+1)) | Classifica maturidade individual |
-        | **Lead Time** | Tempo do início ao fim do card | Identifica gargalos no fluxo |
-        | **Health Score** | Score composto de saúde da release | Suporta decisão Go/No-Go |
-        | **WIP (Work In Progress)** | Cards simultâneos por pessoa | Controla sobrecarga |
-        | **Throughput** | Vazão de entrega por sprint | Indica capacidade do time |
-        | **Aging** | Tempo em cada etapa do fluxo | Detecta cards parados |
-        | **Concentração de Conhecimento** | Distribuição de responsabilidades | Evita dependência de pessoas |
-        """)
-    
-    # Fórmulas
-    with st.expander("🧮 Fórmulas Principais", expanded=False):
+    with st.expander("📊 Métricas e Fórmulas", expanded=False):
         st.markdown("""
         ### Fator K (Maturidade do Desenvolvedor)
         ```
         FK = SP / (Bugs + 1)
         ```
-        - **🥇 Gold (≥3.0):** Excelente qualidade — Padrão de referência
-        - **🥈 Silver (2.0-2.9):** Boa qualidade — Acima da média
-        - **🥉 Bronze (1.0-1.9):** Regular — Acompanhar evolução
-        - **⚠️ Risco (<1.0):** Crítico — Requer atenção imediata
+        
+        | Selo | Fator K | Classificação |
+        |------|---------|---------------|
+        | 🥇 Gold | ≥ 3.0 | Excelente - Referência para o time |
+        | 🥈 Silver | 2.0 - 2.9 | Bom - Acima da média |
+        | 🥉 Bronze | 1.0 - 1.9 | Regular - Acompanhar evolução |
+        | ⚠️ Risco | < 1.0 | Crítico - Requer atenção |
         
         ---
         
         ### Health Score (Saúde da Release)
-        ```
-        HS = (Conclusão×30 + DDP×25 + FPY×20 + Gargalos×15 + LeadTime×10) / 100
-        ```
-        - **🟢 ≥75:** Saudável — Release pode seguir
-        - **🟡 50-74:** Atenção — Monitorar riscos
-        - **🟠 25-49:** Alerta — Ação necessária
-        - **🔴 <25:** Crítico — Avaliar adiamento
+        Score composto que considera: Conclusão, DDP, FPY, Gargalos e Lead Time.
         
-        ---
-        
-        ### First Pass Yield (FPY)
-        ```
-        FPY = (Cards sem bugs / Total de cards) × 100
-        ```
-        Indica a porcentagem de cards aprovados **de primeira**, sem retrabalho.
-        
-        ---
-        
-        ### Defect Detection Percentage (DDP)
-        ```
-        DDP = (Bugs QA / (Bugs QA + Bugs Prod)) × 100
-        ```
-        Mede a eficácia do QA em **detectar bugs antes da produção**.
+        | Score | Status | Ação |
+        |-------|--------|------|
+        | 🟢 ≥75 | Saudável | Release pode seguir |
+        | 🟡 50-74 | Atenção | Monitorar riscos |
+        | 🟠 25-49 | Alerta | Ação necessária |
+        | 🔴 <25 | Crítico | Avaliar adiamento |
         
         ---
         
         ### Janela de Release
-        ```
-        ≥ 3 dias úteis antes da release = Dentro da janela ✅
-        < 3 dias úteis = Fora da janela ⚠️
-        ```
-        Garante tempo mínimo para validação segura.
+        Para validação segura, o card deve entrar em validação com **≥ 3 dias úteis** antes da release.
         """)
     
-    # Fundamentos Teóricos
-    with st.expander("📚 Fundamentos Teóricos", expanded=False):
-        st.markdown("""
-        ### 🎓 ISTQB/CTFL - International Software Testing Qualifications Board
-        
-        O **ISTQB Foundation Level (CTFL)** define padrões globais para métricas de teste:
-        
-        **Métricas de Processo** (implementadas no dashboard):
-        - *Defect Detection Percentage (DDP)*: Eficácia do QA
-        - *First Pass Yield (FPY)*: Qualidade na primeira entrega
-        - *Rework Effort Ratio*: Esforço gasto em correções
-        
-        **Métricas de Produto**:
-        - *Defect Density*: Bugs por unidade de tamanho (SP)
-        - *Test Coverage*: Cobertura de testes automatizados
-        
-        > *"We cannot improve what we cannot measure"* - ISTQB Syllabus
-        
-        ---
-        
-        ### 🔄 TDD - Test-Driven Development (Kent Beck)
-        
-        O **TDD** segue o ciclo **Red-Green-Refactor**:
-        1. 🔴 **Red**: Escrever um teste que falha
-        2. 🟢 **Green**: Escrever código mínimo para passar
-        3. 🔵 **Refactor**: Melhorar o código mantendo testes passando
-        
-        **Como o Fator K se relaciona com TDD**:
-        - Devs que praticam TDD tendem a ter **FK mais alto**
-        - Menos bugs = maior proporção SP/Bugs
-        - Selo Gold incentiva a prática
-        
-        ---
-        
-        ### 📈 Shift-Left Testing
-        
-        O conceito move as atividades de teste para o início do ciclo:
-        
-        ```
-        Tradicional:  Requisitos → Desenvolvimento → [TESTES] → Deploy
-        Shift-Left:   [TESTES] → Requisitos → [TESTES] → Dev → [TESTES] → Deploy
-        ```
-        
-        **ROI comprovado pela indústria**:
-        | Fase de Detecção | Custo de Correção |
-        |------------------|-------------------|
-        | Desenvolvimento | ~$100 |
-        | QA/Testes | ~$1.500 |
-        | Produção | ~$10.000+ |
-        
-        > O NinaDash ajuda a NINA a encontrar bugs mais cedo, **economizando recursos**.
-        """)
-    
-    # Governança
-    with st.expander("🏛️ Governança Técnica", expanded=False):
-        current_year = datetime.now().year
-        current_month = datetime.now().strftime("%B %Y")
-        
-        st.markdown(f"""
-        ### Informações do Sistema
-        
-        | Informação | Valor |
-        |------------|-------|
-        | **Nome** | NinaDash |
-        | **Versão** | 8.82 |
-        | **Desenvolvido por** | Time de Qualidade NINA |
-        | **Mantido por** | Vinícios Ferreira |
-        | **Última atualização** | Abril 2026 |
-        | **Arquitetura** | Modularizada (16 módulos) |
-        
-        ---
-        
-        ### Stack Tecnológica
-        
-        | Componente | Tecnologia | Versão |
-        |------------|------------|--------|
-        | **Linguagem** | Python | 3.13+ |
-        | **Framework Web** | Streamlit | Latest |
-        | **Visualização** | Plotly Express | Latest |
-        | **Dados** | Pandas | Latest |
-        | **Autenticação** | Cookies seguros | - |
-        | **API** | Jira REST API | v3 |
-        | **Deploy** | Local/Server | - |
-        
-        ---
-        
-        ### Módulos do Sistema
-        
-        | Categoria | Módulos | Responsabilidade |
-        |-----------|---------|------------------|
-        | **Core** | config, auth, jira_api | Configuração e integração |
-        | **Processamento** | calculos, processamento, helpers | Lógica de negócio |
-        | **Visualização** | graficos, widgets, cards | Interface |
-        | **Abas** | 11 módulos em `abas/` | Páginas do dashboard |
-        """)
-    
-    # Abas Disponíveis
     with st.expander("📑 Guia de Abas", expanded=False):
         st.markdown("""
-        ### Visão Geral das Abas
-        
-        | Aba | Ícone | Descrição | Público-Alvo |
-        |-----|-------|-----------|---------------|
-        | **Visão Geral** | 📊 | KPIs principais, Health Score, alertas, progresso da release | Todos |
-        | **QA** | 🔬 | Funil de validação, carga por QA, aging, bugs, comparativo | QA, Liderança |
-        | **Dev** | 👨‍💻 | Ranking Fator K, performance, WIP, Code Review, Tech Lead | Devs, Tech Lead |
-        | **Suporte/Implantação** | 🎯 | "Onde estão meus cards?", validação produção, multi-projeto | Suporte |
-        | **Clientes** | 🏢 | Análise por cliente/tema, dev pago, bugs | Comercial |
-        | **Governança** | 📋 | Qualidade dos dados, campos obrigatórios, compliance | PO, Liderança |
-        | **Produto** | 📦 | Métricas por produto, Health Score, tendências | PO, Stakeholders |
-        | **Backlog** | 📋 | Saúde do backlog, aging, gargalos, recomendações | PO, Liderança |
-        | **Histórico** | 📈 | Evolução de métricas, tendências entre releases | Liderança |
-        | **Liderança** | 🎯 | Go/No-Go, riscos, simulações, pontos de atenção | Gerentes, Diretores |
-        | **Sobre** | ℹ️ | Esta documentação | Todos |
-        
-        ---
-        
-        ### 🔗 Links Compartilháveis
-        
+        | Aba | Para Quem | O Que Mostra |
+        |-----|-----------|--------------|
+        | **Visão Geral** | Todos | KPIs principais, progresso da sprint, alertas |
+        | **QA** | QA, Liderança | Fila de validação, carga por QA, aging, bugs |
+        | **Dev** | Devs, Tech Lead | Ranking Fator K, performance individual, WIP |
+        | **Suporte/Implantação** | Suporte | "Onde estão meus cards?" em todos os projetos |
+        | **Clientes** | Comercial | Análise por cliente/tema |
+        | **Governança** | PO, Liderança | Qualidade dos dados, compliance |
+        | **Produto** | PO, Stakeholders | Métricas por produto |
+        | **Backlog (PB)** | PO, Liderança | Saúde do backlog, funil de produto |
+        | **Histórico** | Liderança | Evolução entre releases |
+        | **Liderança** | Gerentes | Go/No-Go, riscos, simulações |
+        """)
+    
+    with st.expander("🔗 Links Compartilháveis", expanded=False):
+        st.markdown("""
         O NinaDash suporta **deep linking** para compartilhar visões específicas:
         
-        ```
-        ?aba=suporte&pessoa=Nome%20Pessoa   → Abre aba Suporte filtrado
-        ?aba=qa&qa=Nome%20QA                → Abre aba QA filtrado
-        ?aba=dev&dev=Nome%20Dev             → Abre aba Dev filtrado
-        ?card=SD-1234&projeto=SD            → Abre card específico
-        ```
+        | Tipo | Formato | Exemplo |
+        |------|---------|---------|
+        | Card específico | `?card=XX-1234&projeto=XX` | `?card=SD-1234&projeto=SD` |
+        | Aba com pessoa | `?aba=suporte&pessoa=Nome` | `?aba=suporte&pessoa=João%20Silva` |
+        | QA específico | `?aba=qa&qa=Nome` | `?aba=qa&qa=Maria%20QA` |
+        | Dev específico | `?aba=dev&dev=Nome` | `?aba=dev&dev=Pedro%20Dev` |
         
         Use o botão **📋 Copiar Link** presente em cada aba para gerar o link automaticamente.
         """)
+        with st.expander("📚 Base Teórica (ISTQB)", expanded=False):
+            st.markdown("""
+            As métricas do NinaDash são baseadas no **ISTQB** (International Software Testing Qualifications Board), 
+        um padrão internacional de qualidade de software.
+        
+        **Por que isso importa?**
+        - Métricas reconhecidas mundialmente
+        - Permite comparação com outras empresas
+        - Fundamentação técnica sólida
+        
+        **Principais conceitos usados:**
+        
+        | Conceito | O que significa | Como usamos |
+        |----------|-----------------|-------------|
+        | **FPY** | Cards aprovados de primeira | Mede qualidade das entregas |
+        | **DDP** | Bugs encontrados antes de prod | Mede eficácia do QA |
+        | **Shift-Left** | Testar mais cedo | Encontrar bugs antes = mais barato |
+        """)
     
-    # ===== FOOTER RICO =====
+    with st.expander("🛠️ Tecnologias Utilizadas", expanded=False):
+        st.markdown("""
+        | O que | Tecnologia |
+        |-------|------------|
+        | **Linguagem** | Python 3.13 |
+        | **Interface** | Streamlit |
+        | **Gráficos** | Plotly |
+        | **Dados** | Pandas |
+        | **Integração** | Jira REST API |
+        """)
+        # ===== FOOTER =====
     st.markdown("---")
     
-    # Footer com cards informativos
     col1, col2, col3 = st.columns(3)
     
     def footer_card(icone, titulo, valor, subtitulo):
@@ -427,10 +325,8 @@ def aba_sobre():
     with col3:
         st.markdown(footer_card("🏢", "Desenvolvido para", "NINA Tecnologia", "Confirmation Call"), unsafe_allow_html=True)
     
-    st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
-    
     st.markdown("""
-    <div style="text-align: center; padding: 16px; color: #94a3b8; font-size: 12px;">
-        Feito com ❤️ em Python + Streamlit • Métricas baseadas em ISTQB Foundation Level
+    <div style="text-align: center; padding: 16px; color: #94a3b8; font-size: 12px; margin-top: 16px;">
+        Feito com ❤️ em Python + Streamlit
     </div>
     """, unsafe_allow_html=True)
