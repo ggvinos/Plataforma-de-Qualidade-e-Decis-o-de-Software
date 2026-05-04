@@ -56,9 +56,33 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
         return
     
     # ========== SELETOR DE PESSOA (igual QA/Dev) ==========
-    # Coleta relatores de todos os projetos
-    relatores = sorted([r for r in df_todos['relator'].dropna().unique() 
-                       if r and r != 'Não informado'])
+    # Coleta TODAS as pessoas de todos os projetos (relator, QA, dev, representante)
+    pessoas_set = set()
+    
+    # Relatores
+    for r in df_todos['relator'].dropna().unique():
+        if r and r != 'Não informado':
+            pessoas_set.add(r)
+    
+    # QAs
+    if 'qa' in df_todos.columns:
+        for q in df_todos['qa'].dropna().unique():
+            if q and q != 'Não atribuído':
+                pessoas_set.add(q)
+    
+    # Desenvolvedores
+    if 'desenvolvedor' in df_todos.columns:
+        for d in df_todos['desenvolvedor'].dropna().unique():
+            if d and d != 'Não atribuído':
+                pessoas_set.add(d)
+    
+    # Representantes de cliente
+    if 'representante_cliente' in df_todos.columns:
+        for rc in df_todos['representante_cliente'].dropna().unique():
+            if rc and rc != 'Não atribuído':
+                pessoas_set.add(rc)
+    
+    relatores = sorted(list(pessoas_set))
     
     # Verifica se tem pessoa na URL (link compartilhado)
     pessoa_url = st.query_params.get("pessoa", None)
@@ -82,8 +106,14 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
     
     st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
     
-    # ========== FILTRAR CARDS DA PESSOA ==========
-    df_pessoa = df_todos[df_todos['relator'] == pessoa_selecionada].copy()
+    # ========== FILTRAR CARDS DA PESSOA (TODOS OS PAPÉIS) ==========
+    # Filtra cards onde a pessoa está relacionada de QUALQUER forma
+    mask_relator = df_todos['relator'] == pessoa_selecionada
+    mask_qa = df_todos['qa'] == pessoa_selecionada if 'qa' in df_todos.columns else False
+    mask_dev = df_todos['desenvolvedor'] == pessoa_selecionada if 'desenvolvedor' in df_todos.columns else False
+    mask_rep = df_todos['representante_cliente'] == pessoa_selecionada if 'representante_cliente' in df_todos.columns else False
+    
+    df_pessoa = df_todos[mask_relator | mask_qa | mask_dev | mask_rep].copy()
     
     if df_pessoa.empty:
         st.warning(f"⚠️ Nenhum card encontrado para **{pessoa_selecionada}** no período selecionado.")
@@ -805,17 +835,17 @@ def _renderizar_visao_individual(df_todos: pd.DataFrame, df_pessoa: pd.DataFrame
     # Métricas por projeto
     _renderizar_metricas_pessoa(df_pessoa)
     
-    # Cards aguardando minha ação
+    # Cards aguardando minha ação (PRIORIDADE 1)
     _renderizar_cards_aguardando_minha_acao(df_todos, df_pessoa, pessoa_selecionada)
     
-    # Cards para validar em produção
-    _renderizar_cards_validar_producao(df_pessoa)
-    
-    # Cards concluídos
-    _renderizar_cards_concluidos(df_pessoa)
+    # Cards para validar em produção (PRIORIDADE 2 - VALPROD)
+    _renderizar_cards_validar_producao(df_todos, df_pessoa, pessoa_selecionada)
     
     # Onde estão meus cards
     _renderizar_onde_estao_meus_cards(df_pessoa)
+    
+    # Cards aguardando resposta
+    _renderizar_cards_aguardando_resposta(df_pessoa)
     
     # Cards aguardando resposta
     _renderizar_cards_aguardando_resposta(df_pessoa)
@@ -825,6 +855,9 @@ def _renderizar_visao_individual(df_todos: pd.DataFrame, df_pessoa: pd.DataFrame
     
     # Meus cards em SD/QA
     _renderizar_cards_sd_qa(df_pessoa)
+    
+    # Cards concluídos (menos prioridade - vai para o final)
+    _renderizar_cards_concluidos(df_pessoa)
     
     # Tooltip explicativo
     _renderizar_tooltip_sobre()
@@ -1051,49 +1084,103 @@ def _renderizar_cards_aguardando_minha_acao(df_todos: pd.DataFrame, df_pessoa: p
         st.markdown(html_minha_acao, unsafe_allow_html=True)
 
 
-def _renderizar_cards_validar_producao(df_pessoa: pd.DataFrame):
-    """Renderiza os cards para validar em produção usando status_cat."""
-    has_status_cat = 'status_cat' in df_pessoa.columns
-    df_valprod = df_pessoa[df_pessoa['projeto'] == 'VALPROD'] if 'projeto' in df_pessoa.columns else pd.DataFrame()
+def _renderizar_cards_validar_producao(df_todos: pd.DataFrame, df_pessoa: pd.DataFrame, pessoa_selecionada: str):
+    """Renderiza os cards para validar em produção usando status_cat.
     
-    with st.expander("🔍 Cards para Validar em Produção", expanded=False):
-        if not df_valprod.empty:
-            # Filtra pendentes usando status_cat se disponível
-            if has_status_cat:
-                df_pendentes = df_valprod[~df_valprod['status_cat'].isin(['done', 'valprod_aprovado'])]
-            else:
-                df_pendentes = df_valprod[~df_valprod['status'].str.lower().str.contains('aprovado|validado|concluído', na=False)]
-            
-            if not df_pendentes.empty:
-                st.markdown(f"##### 🔍 {len(df_pendentes)} cards pendentes de validação")
-                
-                html_valprod = '<div class="scroll-container" style="max-height: 400px;">'
-                for _, card in df_pendentes.iterrows():
-                    dias = (datetime.now() - pd.to_datetime(card['criado'])).days if pd.notna(card.get('criado')) else 0
-                    cor = "#ef4444" if dias > 7 else "#f59e0b" if dias > 3 else "#22c55e"
-                    tipo = str(card.get('tipo', 'TAREFA'))
-                    tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#6366f1" if tipo == "SUGESTÃO" else "#64748b"
-                    titulo = str(card.get('titulo', card.get('resumo', '')))[:70]
-                    tempo_atualizacao = formatar_tempo_relativo(card.get('atualizado')) if 'atualizado' in card else ""
-                    status_card = str(card.get('status', 'N/A'))
-                    sufixo = '...' if len(str(card.get('titulo', ''))) > 70 else ''
-                    card_link = card_link_com_popup(card['ticket_id'], 'VALPROD')
-                    
-                    html_valprod += '<div class="card-lista" style="border-left-color: ' + cor + ';">'
-                    html_valprod += '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">'
-                    html_valprod += '<span style="background: ' + tipo_cor + '; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">' + tipo + '</span>'
-                    html_valprod += card_link
-                    html_valprod += '<span style="color: #64748b; font-size: 0.75em; margin-left: auto;">🕐 ' + tempo_atualizacao + '</span>'
-                    html_valprod += '</div>'
-                    html_valprod += '<div style="color: #374151; font-size: 0.9em; line-height: 1.4;">' + titulo + sufixo + '</div>'
-                    html_valprod += '<div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: ' + status_card + ' • Criado: ' + str(dias) + 'd atrás</div>'
-                    html_valprod += '</div>'
-                html_valprod += '</div>'
-                st.markdown(html_valprod, unsafe_allow_html=True)
-            else:
-                st.success("✅ Nenhum card pendente de validação em produção!")
-        else:
+    Busca cards VALPROD onde a pessoa está relacionada de qualquer forma.
+    """
+    has_status_cat = 'status_cat' in df_todos.columns
+    
+    # Busca VALPROD de TODAS as formas que a pessoa pode estar envolvida
+    df_valprod_base = df_todos[df_todos['projeto'] == 'VALPROD'] if 'projeto' in df_todos.columns else pd.DataFrame()
+    
+    if df_valprod_base.empty:
+        with st.expander("🔍 Cards para Validar em Produção (VALPROD)", expanded=False):
             st.info("ℹ️ Nenhum card encontrado no projeto VALPROD.")
+        return
+    
+    # Filtra cards VALPROD onde a pessoa está relacionada (relator, qa, dev, representante)
+    mask_relator = df_valprod_base['relator'] == pessoa_selecionada
+    mask_qa = df_valprod_base['qa'] == pessoa_selecionada if 'qa' in df_valprod_base.columns else False
+    mask_dev = df_valprod_base['desenvolvedor'] == pessoa_selecionada if 'desenvolvedor' in df_valprod_base.columns else False
+    mask_rep = df_valprod_base['representante_cliente'] == pessoa_selecionada if 'representante_cliente' in df_valprod_base.columns else False
+    
+    df_valprod = df_valprod_base[mask_relator | mask_qa | mask_dev | mask_rep].copy()
+    
+    # Total de VALPROD relacionados à pessoa
+    total_valprod = len(df_valprod)
+    
+    with st.expander(f"🔍 Cards para Validar em Produção (VALPROD) ({total_valprod})", expanded=total_valprod > 0):
+        if df_valprod.empty:
+            st.info(f"ℹ️ Nenhum card VALPROD encontrado para {pessoa_selecionada}.")
+            return
+        
+        # Filtra pendentes usando status_cat se disponível
+        if has_status_cat:
+            df_pendentes = df_valprod[~df_valprod['status_cat'].isin(['done', 'valprod_aprovado'])]
+            df_aprovados = df_valprod[df_valprod['status_cat'].isin(['done', 'valprod_aprovado'])]
+        else:
+            df_pendentes = df_valprod[~df_valprod['status'].str.lower().str.contains('aprovado|validado|concluído', na=False)]
+            df_aprovados = df_valprod[df_valprod['status'].str.lower().str.contains('aprovado|validado|concluído', na=False)]
+        
+        # Métricas
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("⏳ Pendentes", len(df_pendentes), delta=None)
+        with col2:
+            st.metric("✅ Aprovados", len(df_aprovados), delta=None)
+        
+        if not df_pendentes.empty:
+            st.markdown(f"##### ⏳ {len(df_pendentes)} cards pendentes de validação em produção")
+            
+            html_valprod = '<div class="scroll-container" style="max-height: 450px;">'
+            for _, card in df_pendentes.iterrows():
+                dias = (datetime.now() - pd.to_datetime(card['criado'])).days if pd.notna(card.get('criado')) else 0
+                cor = "#ef4444" if dias > 7 else "#f59e0b" if dias > 3 else "#22c55e"
+                tipo = str(card.get('tipo', 'TAREFA'))
+                tipo_cor = "#ef4444" if tipo == "HOTFIX" else "#f97316" if tipo == "BUG" else "#6366f1" if tipo == "SUGESTÃO" else "#64748b"
+                titulo = str(card.get('titulo', card.get('resumo', '')))[:70]
+                tempo_atualizacao = formatar_tempo_relativo(card.get('atualizado')) if 'atualizado' in card else ""
+                status_card = str(card.get('status', 'N/A'))
+                sufixo = '...' if len(str(card.get('titulo', ''))) > 70 else ''
+                relator_card = str(card.get('relator', ''))
+                card_link = card_link_com_popup(card['ticket_id'], 'VALPROD')
+                
+                # Identifica papel da pessoa no card
+                papeis = []
+                if card.get('relator') == pessoa_selecionada:
+                    papeis.append("Relator")
+                if card.get('qa') == pessoa_selecionada:
+                    papeis.append("QA")
+                if card.get('desenvolvedor') == pessoa_selecionada:
+                    papeis.append("Dev")
+                if card.get('representante_cliente') == pessoa_selecionada:
+                    papeis.append("Rep.Cliente")
+                papel_str = " / ".join(papeis) if papeis else ""
+                
+                html_valprod += '<div style="background: #fef3c7; border-left: 4px solid ' + cor + '; padding: 12px; margin: 8px 0; border-radius: 0 8px 8px 0;">'
+                html_valprod += '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap;">'
+                html_valprod += '<span style="background: #8b5cf6; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">VALPROD</span>'
+                html_valprod += '<span style="background: ' + tipo_cor + '; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">' + tipo + '</span>'
+                html_valprod += card_link
+                if papel_str:
+                    html_valprod += '<span style="background: #dbeafe; color: #1d4ed8; padding: 2px 6px; border-radius: 4px; font-size: 10px;">👤 ' + papel_str + '</span>'
+                html_valprod += '<span style="color: #64748b; font-size: 0.75em; margin-left: auto;">🕐 ' + tempo_atualizacao + '</span>'
+                html_valprod += '</div>'
+                html_valprod += '<div style="color: #92400e; font-size: 0.9em; line-height: 1.4; font-weight: 500;">' + titulo + sufixo + '</div>'
+                html_valprod += '<div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: ' + status_card + ' • Criado há ' + str(dias) + ' dias</div>'
+                html_valprod += '</div>'
+            html_valprod += '</div>'
+            st.markdown(html_valprod, unsafe_allow_html=True)
+        else:
+            st.success("✅ Todos os cards VALPROD foram validados!")
+        
+        # Mostra aprovados em subseção colapsável
+        if not df_aprovados.empty:
+            with st.expander(f"✅ Cards Aprovados ({len(df_aprovados)})", expanded=False):
+                for _, card in df_aprovados.head(10).iterrows():
+                    titulo = str(card.get('titulo', card.get('resumo', '')))[:50]
+                    st.markdown(f"✓ **{card['ticket_id']}** - {titulo}...")
 
 
 def _renderizar_cards_concluidos(df_pessoa: pd.DataFrame):
