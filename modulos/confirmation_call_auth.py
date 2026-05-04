@@ -490,7 +490,7 @@ def tela_login():
         
         # Container fixo para mensagens
         msg_container = st.empty()
-        msg_container.info("Insira suas credenciais para acessar o dashboard")
+        msg_container.info("🔑 Use suas credenciais do **ConfirmationCall** para acessar")
         
         # Form simplificado - sem seleção de ambiente
         with st.form("login_form", clear_on_submit=False):
