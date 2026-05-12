@@ -1173,6 +1173,24 @@ def processar_issue_unica(issue: Dict) -> Dict:
         elif isinstance(qa_f, list) and qa_f:
             qa = qa_f[0].get('displayName', 'Não atribuído')
     
+    # Representante do Cliente
+    rep_cliente_f = f.get(CUSTOM_FIELDS['representante_cliente'])
+    representante_cliente = 'Não atribuído'
+    if rep_cliente_f:
+        if isinstance(rep_cliente_f, dict):
+            representante_cliente = rep_cliente_f.get('displayName', 'Não atribuído')
+        elif isinstance(rep_cliente_f, list) and rep_cliente_f:
+            representante_cliente = rep_cliente_f[0].get('displayName', 'Não atribuído')
+    
+    # Revisores
+    revisores_f = f.get(CUSTOM_FIELDS['revisores'], [])
+    revisores = []
+    if revisores_f:
+        if isinstance(revisores_f, list):
+            revisores = [r.get('displayName', '') for r in revisores_f if r.get('displayName')]
+        elif isinstance(revisores_f, dict):
+            revisores = [revisores_f.get('displayName', '')]
+    
     # Produto
     produto_f = f.get(CUSTOM_FIELDS['produto'], [])
     produtos = [p.get('value', '') for p in produto_f] if produto_f else []
@@ -1257,6 +1275,8 @@ def processar_issue_unica(issue: Dict) -> Dict:
         'desenvolvedor': dev,
         'relator': relator,
         'qa': qa,
+        'representante_cliente': representante_cliente,
+        'revisores': revisores,
         'sp': int(sp) if sp else 0,
         'sp_original': sp_original,
         'sp_estimado': sp_estimado,
@@ -1390,6 +1410,24 @@ def processar_issues(issues: List[Dict]) -> pd.DataFrame:
             elif isinstance(qa_f, list) and qa_f:
                 qa = qa_f[0].get('displayName', 'Não atribuído')
         
+        # Representante do Cliente
+        rep_cliente_f = f.get(CUSTOM_FIELDS['representante_cliente'])
+        representante_cliente = 'Não atribuído'
+        if rep_cliente_f:
+            if isinstance(rep_cliente_f, dict):
+                representante_cliente = rep_cliente_f.get('displayName', 'Não atribuído')
+            elif isinstance(rep_cliente_f, list) and rep_cliente_f:
+                representante_cliente = rep_cliente_f[0].get('displayName', 'Não atribuído')
+        
+        # Revisores
+        revisores_f = f.get(CUSTOM_FIELDS['revisores'], [])
+        revisores = []
+        if revisores_f:
+            if isinstance(revisores_f, list):
+                revisores = [r.get('displayName', '') for r in revisores_f if r.get('displayName')]
+            elif isinstance(revisores_f, dict):
+                revisores = [revisores_f.get('displayName', '')]
+        
         # Produto
         produto_f = f.get(CUSTOM_FIELDS['produto'], [])
         produtos = [p.get('value', '') for p in produto_f] if produto_f else []
@@ -1501,6 +1539,8 @@ def processar_issues(issues: List[Dict]) -> pd.DataFrame:
             'desenvolvedor': dev,
             'relator': relator,
             'qa': qa,
+            'representante_cliente': representante_cliente,
+            'revisores': revisores,
             'sp': int(sp) if sp else 0,
             'sp_original': sp_original,
             'bugs': int(bugs) if bugs else 0,

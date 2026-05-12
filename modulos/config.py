@@ -45,6 +45,8 @@ CUSTOM_FIELDS = {
     "importancia": "customfield_10522",
     "sla_status": "customfield_11124",
     "ambiente_desenvolvido": "customfield_10586",
+    "representante_cliente": "customfield_10388",
+    "revisores": "customfield_10991",
 }
 
 # ==============================================================================

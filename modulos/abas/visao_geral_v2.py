@@ -984,7 +984,12 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # ==== 4. MÉTRICAS TÉCNICAS ====
+    # ==== 4. CARDS VALIDADOS POR RELEASE ====
+    _renderizar_cards_validados_por_release(df)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # ==== 5. MÉTRICAS TÉCNICAS ====
     with st.expander("🔬 Métricas Técnicas", expanded=False):
         # Explicação das métricas
         st.markdown("""
@@ -1098,7 +1103,7 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
             else:
                 st.info("Nenhum card com sprint definida")
     
-    # ==== 7. GRÁFICOS ====
+    # ==== 8. GRÁFICOS ====
     with st.expander("📊 Visualizações", expanded=False):
         col1, col2 = st.columns(2)
         
@@ -1161,3 +1166,215 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
                     st.info("Sem dados de prioridade")
             else:
                 st.info("Dados de prioridade não disponíveis")
+
+
+def _renderizar_cards_validados_por_release(df: pd.DataFrame):
+    """Renderiza seção de Cards Validados por Release com filtros avançados."""
+    import re
+    
+    def extrair_numero_sprint(sprint_name: str) -> str:
+        """Extrai apenas o número da sprint."""
+        if not sprint_name or sprint_name == 'Sem Sprint':
+            return ''
+        nums = re.findall(r'\d+', str(sprint_name))
+        return nums[-1] if nums else str(sprint_name)
+    
+    with st.expander("✅ Cards Validados por Release", expanded=True):
+        st.markdown("""
+        <div style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 12px; border-radius: 0 8px 8px 0; margin-bottom: 16px;">
+            <div style="font-weight: 600; color: #166534;">📦 Histórico de Entregas por Release</div>
+            <div style="font-size: 13px; color: #15803d;">Visualize os cards validados por sprint/release. Para ver todas as releases, selecione "Todo período" na barra lateral.</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # ==== COLETA SPRINTS DO DF ATUAL ====
+        sprints_map = {}  # numero -> nome_original
+        if 'sprint' in df.columns:
+            for s in df['sprint'].dropna().unique():
+                if s and s != 'Sem Sprint':
+                    num = extrair_numero_sprint(s)
+                    if num:
+                        sprints_map[num] = s
+        
+        # Ordena números de forma decrescente
+        sprints_numeros = sorted(sprints_map.keys(), key=lambda x: int(x) if x.isdigit() else 0, reverse=True)
+        
+        # Filtros em colunas
+        col_sprint, col_pessoas = st.columns([1, 2])
+        
+        with col_sprint:
+            if sprints_numeros:
+                default_sprint = [sprints_numeros[0]] if sprints_numeros else []
+                
+                sprints_selecionadas_num = st.multiselect(
+                    "🏃 Release",
+                    options=sprints_numeros,
+                    default=default_sprint,
+                    key="filtro_sprints_release_multi",
+                    help="Selecione uma ou mais releases"
+                )
+                # Converte números de volta para nomes originais
+                sprints_selecionadas = [sprints_map[n] for n in sprints_selecionadas_num if n in sprints_map]
+            else:
+                sprints_selecionadas = []
+                st.warning("Nenhuma release encontrada. Altere o período na barra lateral.")
+        
+        with col_pessoas:
+            pessoas_set = set()
+            for col in ['desenvolvedor', 'qa', 'relator', 'representante_cliente']:
+                if col in df.columns:
+                    for val in df[col].dropna().unique():
+                        if val and val not in ['Não atribuído', 'Não informado']:
+                            pessoas_set.add(str(val))
+            
+            if 'revisores' in df.columns:
+                for revisores_lista in df['revisores'].dropna():
+                    if isinstance(revisores_lista, list):
+                        for rev in revisores_lista:
+                            if rev:
+                                pessoas_set.add(str(rev))
+            
+            pessoas_disponiveis = sorted(list(pessoas_set))
+            
+            pessoas_selecionadas = st.multiselect(
+                "👥 Filtrar por Pessoa (opcional)",
+                options=pessoas_disponiveis,
+                default=[],
+                key="filtro_pessoas_release",
+                help="Filtra cards onde a pessoa participou"
+            )
+        
+        if not sprints_selecionadas:
+            st.warning("⚠️ Selecione pelo menos uma release para visualizar os cards.")
+            return
+        
+        # Aplica filtros
+        df_validados = df[df['status_cat'] == 'done'].copy() if 'status_cat' in df.columns else df.copy()
+        
+        if 'sprint' in df_validados.columns:
+            df_validados = df_validados[df_validados['sprint'].isin(sprints_selecionadas)]
+        
+        if pessoas_selecionadas:
+            def pessoa_envolvida(row):
+                envolvidos = set()
+                for col in ['desenvolvedor', 'qa', 'relator', 'representante_cliente']:
+                    val = row.get(col)
+                    if pd.notna(val):
+                        envolvidos.add(str(val))
+                revisores = row.get('revisores', [])
+                if isinstance(revisores, list):
+                    envolvidos.update([str(r) for r in revisores if r])
+                return bool(envolvidos.intersection(set(pessoas_selecionadas)))
+            
+            df_validados = df_validados[df_validados.apply(pessoa_envolvida, axis=1)]
+        
+        # Métricas
+        if not df_validados.empty:
+            total_cards = len(df_validados)
+            total_sp = int(df_validados['sp'].sum()) if 'sp' in df_validados.columns else 0
+            total_bugs = int(df_validados['bugs'].sum()) if 'bugs' in df_validados.columns else 0
+            media_lead_time = df_validados['lead_time'].mean() if 'lead_time' in df_validados.columns else 0
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("📋 Cards", total_cards)
+            with col2:
+                st.metric("🎯 Story Points", total_sp)
+            with col3:
+                st.metric("🐛 Bugs", total_bugs)
+            with col4:
+                st.metric("⏱️ Lead Time", f"{media_lead_time:.1f}d")
+            
+            # Opções de ordenação
+            col_ord, col_dir = st.columns([2, 1])
+            with col_ord:
+                ordenar_por = st.selectbox(
+                    "🔃 Ordenar por",
+                    options=['resolutiondate', 'sp', 'bugs', 'lead_time', 'prioridade'],
+                    format_func=lambda x: {
+                        'resolutiondate': '📅 Data de Conclusão',
+                        'sp': '🎯 Story Points',
+                        'bugs': '🐛 Bugs',
+                        'lead_time': '⏱️ Lead Time',
+                        'prioridade': '📊 Prioridade'
+                    }.get(x, x),
+                    key="ordenar_cards_release",
+                    label_visibility="collapsed"
+                )
+            with col_dir:
+                ordem_asc = st.checkbox("⬆️ Crescente", value=False, key="ordem_asc_release")
+            
+            st.markdown("---")
+            
+            # Ordenar conforme seleção
+            if ordenar_por == 'prioridade':
+                # Ordenação especial por prioridade (Highest > High > Medium > Low > Lowest)
+                prio_ordem = {'Highest': 1, 'High': 2, 'Medium': 3, 'Low': 4, 'Lowest': 5}
+                df_validados['_prio_ordem'] = df_validados['prioridade'].map(prio_ordem).fillna(6)
+                df_validados = df_validados.sort_values('_prio_ordem', ascending=ordem_asc)
+                df_validados = df_validados.drop(columns=['_prio_ordem'])
+            elif ordenar_por in df_validados.columns:
+                df_validados = df_validados.sort_values(ordenar_por, ascending=ordem_asc, na_position='last')
+            
+            # Container com scroll usando st.container
+            container = st.container(height=450)
+            
+            jira_base = "https://ninatecnologia.atlassian.net/browse"
+            
+            with container:
+                for _, row in df_validados.head(50).iterrows():
+                    ticket_id = str(row.get('ticket_id', ''))
+                    titulo = str(row.get('titulo', ''))
+                    titulo_curto = (titulo[:55] + '...') if len(titulo) > 55 else titulo
+                    dev = str(row.get('desenvolvedor', '-'))
+                    qa = str(row.get('qa', '-'))
+                    relator = str(row.get('relator', '-'))
+                    sp = row.get('sp', 0)
+                    bugs = int(row.get('bugs', 0))
+                    lead_time = row.get('lead_time', 0)
+                    tipo = str(row.get('tipo', 'TAREFA'))
+                    projeto = str(row.get('projeto', 'SD'))
+                    sprint_num = extrair_numero_sprint(str(row.get('sprint', '')))
+                    prioridade = str(row.get('prioridade', 'Medium'))
+                    
+                    # Cores
+                    projeto_cores = {'PB': '#8b5cf6', 'QA': '#22c55e', 'VALPROD': '#f59e0b', 'SD': '#3b82f6'}
+                    tipo_cores = {'HOTFIX': '#ef4444', 'BUG': '#f97316', 'SUGESTÃO': '#8b5cf6', 'TAREFA': '#3b82f6', 'MELHORIA': '#22c55e'}
+                    prio_map = {'Highest': ('🔴', '#dc2626'), 'High': ('🟠', '#ea580c'), 'Medium': ('🟡', '#ca8a04'), 'Low': ('🟢', '#16a34a'), 'Lowest': ('⚪', '#6b7280')}
+                    
+                    p_cor = projeto_cores.get(projeto, '#6b7280')
+                    t_cor = tipo_cores.get(tipo, '#3b82f6')
+                    prio_icon, prio_cor = prio_map.get(prioridade, ('⚪', '#6b7280'))
+                    
+                    link_jira = f'{jira_base}/{ticket_id}'
+                    link_nina = f'?card={ticket_id}&projeto={projeto}'
+                    
+                    # Badges HTML
+                    bugs_badge = f'<span style="background:#fef2f2;color:#dc2626;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">🐛 {bugs}</span>' if bugs > 0 else ''
+                    
+                    # Card HTML completo e fechado
+                    html = f'''<div style="padding:10px 12px;margin:6px 0;border-radius:8px;border-left:4px solid {p_cor};background:#f8fafc;">
+<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
+<span class="card-link-wrapper"><a href="{link_jira}" target="_blank" class="card-link-id" style="color:{p_cor};font-weight:700;font-size:13px;">{ticket_id}</a><a href="{link_nina}" class="card-action-btn card-action-nina">📊</a></span>
+<span style="background:{p_cor}15;color:{p_cor};padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">{projeto}</span>
+<span style="background:{t_cor}15;color:{t_cor};padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">{tipo}</span>
+<span style="color:{prio_cor};font-size:11px;">{prio_icon} {prioridade}</span>
+{bugs_badge}
+<span style="background:#e0e7ff;color:#4338ca;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:500;margin-left:auto;">R{sprint_num}</span>
+</div>
+<div style="font-size:12px;color:#1e293b;line-height:1.3;font-weight:500;margin-bottom:4px;">{titulo_curto}</div>
+<div style="display:flex;align-items:center;gap:8px;font-size:10px;color:#64748b;flex-wrap:wrap;">
+<span style="background:#f5f3ff;color:#7c3aed;padding:2px 5px;border-radius:3px;">{sp} SP</span>
+<span>⏱️{lead_time:.0f}d</span>
+<span style="color:#e2e8f0;">|</span>
+<span>👨‍💻 {dev}</span>
+<span>🔬 {qa}</span>
+<span>📝 {relator}</span>
+</div>
+</div>'''
+                    st.markdown(html, unsafe_allow_html=True)
+            
+            if len(df_validados) > 50:
+                st.caption(f"📋 Mostrando 50 de {len(df_validados)} cards")
+        else:
+            st.info("ℹ️ Nenhum card validado encontrado com os filtros selecionados.")
