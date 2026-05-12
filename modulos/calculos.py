@@ -1144,6 +1144,12 @@ def processar_issue_unica(issue: Dict) -> Dict:
             sprint_atual = sprint_f_ordenado[0] if sprint_f_ordenado else None
     
     sprint = sprint_atual.get('name', 'Sem Sprint') if sprint_atual else 'Sem Sprint'
+    # Histórico de sprints ordenado por ID (mais antiga primeiro)
+    sprint_historico = []
+    if sprint_f:
+        sprint_f_ordenado = sorted(sprint_f, key=lambda x: x.get('id', 0))
+        sprint_historico = [s.get('name', '') for s in sprint_f_ordenado if s.get('name')]
+    
     sprint_end = None
     sprint_state = sprint_atual.get('state', '') if sprint_atual else ''
     if sprint_atual and sprint_atual.get('endDate'):
@@ -1285,6 +1291,7 @@ def processar_issue_unica(issue: Dict) -> Dict:
         'sp_estimado': sp_estimado,
         'bugs': int(bugs) if bugs else 0,
         'sprint': sprint,
+        'sprint_historico': sprint_historico,
         'prioridade': f.get('priority', {}).get('name', 'Média') if f.get('priority') else 'Média',
         'complexidade': complexidade,
         'produto': produto,
@@ -1374,6 +1381,12 @@ def processar_issues(issues: List[Dict]) -> pd.DataFrame:
                 sprint_atual = sprint_f_ordenado[0] if sprint_f_ordenado else None
         
         sprint = sprint_atual.get('name', 'Sem Sprint') if sprint_atual else 'Sem Sprint'
+        # Histórico de sprints ordenado por ID (mais antiga primeiro)
+        sprint_historico = []
+        if sprint_f:
+            sprint_f_hist = sorted(sprint_f, key=lambda x: x.get('id', 0))
+            sprint_historico = [s.get('name', '') for s in sprint_f_hist if s.get('name')]
+        
         sprint_id = sprint_atual.get('id') if sprint_atual else None
         sprint_state = sprint_atual.get('state', '') if sprint_atual else ''
         sprint_start = None
@@ -1551,6 +1564,7 @@ def processar_issues(issues: List[Dict]) -> pd.DataFrame:
             'sp_original': sp_original,
             'bugs': int(bugs) if bugs else 0,
             'sprint': sprint,
+            'sprint_historico': sprint_historico,
             'sprint_id': sprint_id,
             'sprint_state': sprint_state,
             'sprint_start': sprint_start,

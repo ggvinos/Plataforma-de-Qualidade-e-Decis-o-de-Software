@@ -1337,6 +1337,15 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
                     sprint_num = extrair_numero_sprint(str(row.get('sprint', '')))
                     prioridade = str(row.get('prioridade', 'Medium'))
                     
+                    # Histórico de sprints
+                    sprint_hist = row.get('sprint_historico', [])
+                    if isinstance(sprint_hist, list) and len(sprint_hist) > 1:
+                        # Extrai apenas números e mostra histórico
+                        hist_nums = [extrair_numero_sprint(s) for s in sprint_hist if s]
+                        sprint_display = ' → '.join(hist_nums) if hist_nums else sprint_num
+                    else:
+                        sprint_display = sprint_num
+                    
                     # Cores
                     projeto_cores = {'PB': '#8b5cf6', 'QA': '#22c55e', 'VALPROD': '#f59e0b', 'SD': '#3b82f6'}
                     tipo_cores = {'HOTFIX': '#ef4444', 'BUG': '#f97316', 'SUGESTÃO': '#8b5cf6', 'TAREFA': '#3b82f6', 'MELHORIA': '#22c55e'}
@@ -1352,15 +1361,17 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
                     # Badges HTML
                     bugs_badge = f'<span style="background:#fef2f2;color:#dc2626;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">🐛 {bugs}</span>' if bugs > 0 else ''
                     
-                    # Card HTML completo e fechado
+                    # Card HTML - Layout reorganizado
                     html = f'''<div style="padding:10px 12px;margin:6px 0;border-radius:8px;border-left:4px solid {p_cor};background:#f8fafc;">
-<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px;">
+<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
 <span class="card-link-wrapper"><a href="{link_jira}" target="_blank" class="card-link-id" style="color:{p_cor};font-weight:700;font-size:13px;">{ticket_id}</a><a href="{link_nina}" class="card-action-btn card-action-nina">📊</a></span>
 <span style="background:{p_cor}15;color:{p_cor};padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">{projeto}</span>
 <span style="background:{t_cor}15;color:{t_cor};padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">{tipo}</span>
 <span style="color:{prio_cor};font-size:11px;">{prio_icon} {prioridade}</span>
 {bugs_badge}
-<span style="background:#e0e7ff;color:#4338ca;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:500;margin-left:auto;">R{sprint_num}</span>
+</div>
+<span style="background:#e0e7ff;color:#4338ca;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:500;white-space:nowrap;">📦 {sprint_display}</span>
 </div>
 <div style="font-size:12px;color:#1e293b;line-height:1.3;font-weight:500;margin-bottom:4px;">{titulo_curto}</div>
 <div style="display:flex;align-items:center;gap:8px;font-size:10px;color:#64748b;flex-wrap:wrap;">
