@@ -1133,12 +1133,15 @@ def processar_issue_unica(issue: Dict) -> Dict:
     sprint_f = f.get(CUSTOM_FIELDS['sprint'], [])
     sprint_atual = None
     if sprint_f:
+        # Primeiro tenta encontrar sprint ativa
         for s in sprint_f:
             if s.get('state') == 'active':
                 sprint_atual = s
                 break
+        # Se não tem sprint ativa, pega a mais recente por ID (maior ID = mais recente)
         if not sprint_atual:
-            sprint_atual = sprint_f[-1]
+            sprint_f_ordenado = sorted(sprint_f, key=lambda x: x.get('id', 0), reverse=True)
+            sprint_atual = sprint_f_ordenado[0] if sprint_f_ordenado else None
     
     sprint = sprint_atual.get('name', 'Sem Sprint') if sprint_atual else 'Sem Sprint'
     sprint_end = None
@@ -1360,12 +1363,15 @@ def processar_issues(issues: List[Dict]) -> pd.DataFrame:
         sprint_f = f.get(CUSTOM_FIELDS['sprint'], [])
         sprint_atual = None
         if sprint_f:
+            # Primeiro tenta encontrar sprint ativa
             for s in sprint_f:
                 if s.get('state') == 'active':
                     sprint_atual = s
                     break
+            # Se não tem sprint ativa, pega a mais recente por ID (maior ID = mais recente)
             if not sprint_atual:
-                sprint_atual = sprint_f[-1]
+                sprint_f_ordenado = sorted(sprint_f, key=lambda x: x.get('id', 0), reverse=True)
+                sprint_atual = sprint_f_ordenado[0] if sprint_f_ordenado else None
         
         sprint = sprint_atual.get('name', 'Sem Sprint') if sprint_atual else 'Sem Sprint'
         sprint_id = sprint_atual.get('id') if sprint_atual else None
