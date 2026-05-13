@@ -1294,29 +1294,6 @@ def main():
         
         df = processar_issues(issues)
         
-        # ===== AVISO INFORMATIVO (dispensável) =====
-        if 'aviso_fechado' not in st.session_state:
-            st.session_state.aviso_fechado = False
-        
-        if not st.session_state.aviso_fechado:
-            aviso_col1, aviso_col2 = st.columns([0.95, 0.05])
-            with aviso_col1:
-                st.markdown("""
-                <div style="background: linear-gradient(90deg, #d1fae5 0%, #ecfdf5 100%); 
-                            border-left: 4px solid #10b981; 
-                            padding: 8px 12px; 
-                            border-radius: 0 8px 8px 0; 
-                            font-size: 0.85em;">
-                    <span style="color: #065f46;">
-                        📊 <strong>Dados sincronizados com o Jira!</strong> Métricas calculadas em tempo real a partir dos cards do projeto.
-                    </span>
-                </div>
-                """, unsafe_allow_html=True)
-            with aviso_col2:
-                if st.button("✕", key="fechar_aviso", help="Fechar aviso"):
-                    st.session_state.aviso_fechado = True
-                    st.rerun()
-        
         # Adiciona coluna de projeto ao df principal
         df['projeto'] = projeto
         

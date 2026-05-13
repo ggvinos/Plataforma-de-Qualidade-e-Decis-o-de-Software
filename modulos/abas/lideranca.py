@@ -119,7 +119,6 @@ def aba_lideranca(df: pd.DataFrame):
     
     # Layout
     _renderizar_decisao_release(decisao, decisao_cor, decisao_msg, health, total_cards, pct_conclusao, fk, mat, dias_release)
-    _renderizar_esforco_time(df)
     
     # Grid de Problemas | Ações | Progresso (movido da Visão Geral)
     st.markdown("<div style='margin: 16px 0;'></div>", unsafe_allow_html=True)
@@ -136,6 +135,7 @@ def aba_lideranca(df: pd.DataFrame):
         dias_total=dias_total
     )
     
+    _renderizar_esforco_time(df)
     _renderizar_composicao_health(health)
     _renderizar_pontos_atencao(df)
     _renderizar_interacao_qa_dev(df)
