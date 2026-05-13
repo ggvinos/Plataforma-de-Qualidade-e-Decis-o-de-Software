@@ -1270,34 +1270,35 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
             with col4:
                 st.metric("⏱️ Lead Time", f"{media_lead_time:.1f}d")
             
-            # ==== MAPA DE IMPACTO POR MÓDULO ====
+            # ==== MAPA DE IMPACTO POR PRODUTO/MÓDULO ====
             st.markdown("---")
-            st.markdown("##### 🗺️ Mapa de Impacto por Módulo")
-            st.caption("Visualize quais áreas do sistema foram alteradas nesta release")
+            st.markdown("##### 🗺️ Mapa de Impacto por Produto")
+            st.caption("Visualize quais produtos/módulos do sistema foram alterados nesta release")
             
-            # Extrai componentes dos cards
-            componentes_data = []
+            # Extrai produto dos cards (campo customfield_10102 no Jira → 'produto' no DataFrame)
+            produtos_data = []
+            sem_produto_count = 0
             for _, row in df_validados.iterrows():
-                comps = row.get('componentes', [])
-                if isinstance(comps, list) and comps:
-                    for comp in comps:
-                        if comp:
-                            componentes_data.append({
-                                'componente': comp,
-                                'tipo': row.get('tipo', 'TAREFA'),
-                                'sp': row.get('sp', 0),
-                                'ticket_id': row.get('ticket_id', '')
-                            })
+                produto = row.get('produto', '')
+                if produto and produto.strip() and produto not in ['Não informado', 'Não atribuído', '']:
+                    produtos_data.append({
+                        'produto': produto.strip(),
+                        'tipo': row.get('tipo', 'TAREFA'),
+                        'sp': row.get('sp', 0),
+                        'ticket_id': row.get('ticket_id', '')
+                    })
+                else:
+                    sem_produto_count += 1
             
-            if componentes_data:
-                df_comp = pd.DataFrame(componentes_data)
+            if produtos_data:
+                df_prod = pd.DataFrame(produtos_data)
                 
-                # Agrupa por componente e tipo
-                df_agg = df_comp.groupby(['componente', 'tipo']).agg({
+                # Agrupa por produto e tipo
+                df_agg = df_prod.groupby(['produto', 'tipo']).agg({
                     'ticket_id': 'count',
                     'sp': 'sum'
                 }).reset_index()
-                df_agg.columns = ['Módulo', 'Tipo', 'Cards', 'SP']
+                df_agg.columns = ['Produto', 'Tipo', 'Cards', 'SP']
                 
                 # Cores por tipo
                 tipo_cores = {
@@ -1308,10 +1309,10 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
                     'SUGESTÃO': '#8b5cf6'
                 }
                 
-                # Ordena por total de cards por módulo
-                modulo_totais = df_agg.groupby('Módulo')['Cards'].sum().sort_values(ascending=True)
-                df_agg['Módulo'] = pd.Categorical(df_agg['Módulo'], categories=modulo_totais.index, ordered=True)
-                df_agg = df_agg.sort_values('Módulo')
+                # Ordena por total de cards por produto
+                produto_totais = df_agg.groupby('Produto')['Cards'].sum().sort_values(ascending=True)
+                df_agg['Produto'] = pd.Categorical(df_agg['Produto'], categories=produto_totais.index, ordered=True)
+                df_agg = df_agg.sort_values('Produto')
                 
                 col_graf, col_resumo = st.columns([2, 1])
                 
@@ -1319,7 +1320,7 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
                     fig = px.bar(
                         df_agg, 
                         x='Cards', 
-                        y='Módulo', 
+                        y='Produto', 
                         color='Tipo',
                         orientation='h',
                         color_discrete_map=tipo_cores,
@@ -1327,7 +1328,7 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
                         title=''
                     )
                     fig.update_layout(
-                        height=max(200, len(modulo_totais) * 40),
+                        height=max(200, len(produto_totais) * 40),
                         showlegend=True,
                         legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
                         margin=dict(l=0, r=0, t=30, b=0),
@@ -1339,28 +1340,37 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
                     st.plotly_chart(fig, use_container_width=True)
                 
                 with col_resumo:
-                    st.markdown("**📊 Resumo por Módulo**")
-                    for modulo in modulo_totais.index[::-1]:  # Top módulos primeiro
-                        df_mod = df_agg[df_agg['Módulo'] == modulo]
+                    st.markdown("**📊 Resumo por Produto**")
+                    for produto in produto_totais.index[::-1]:  # Top produtos primeiro
+                        df_mod = df_agg[df_agg['Produto'] == produto]
                         total_cards = df_mod['Cards'].sum()
                         total_sp = df_mod['SP'].sum()
                         tipos_str = ', '.join([f"{r['Cards']} {r['Tipo'].lower()}" for _, r in df_mod.iterrows()])
                         
                         st.markdown(f"""
                         <div style="background:#f8fafc;border-radius:8px;padding:8px 12px;margin:4px 0;border-left:3px solid #3b82f6;">
-                            <div style="font-weight:600;color:#1e293b;font-size:13px;">{modulo}</div>
+                            <div style="font-weight:600;color:#1e293b;font-size:13px;">{produto}</div>
                             <div style="font-size:11px;color:#64748b;">{total_cards} cards • {total_sp} SP</div>
                             <div style="font-size:10px;color:#94a3b8;">{tipos_str}</div>
                         </div>
                         """, unsafe_allow_html=True)
+                    
+                    # Mostra cards sem produto
+                    if sem_produto_count > 0:
+                        st.markdown(f"""
+                        <div style="background:#fef3c7;border-radius:8px;padding:8px 12px;margin:8px 0 4px 0;border-left:3px solid #f59e0b;">
+                            <div style="font-weight:600;color:#92400e;font-size:12px;">⚠️ Sem produto definido</div>
+                            <div style="font-size:11px;color:#b45309;">{sem_produto_count} card(s)</div>
+                        </div>
+                        """, unsafe_allow_html=True)
             else:
-                # Sem componentes - mostra dica
-                st.markdown("""
+                # Todos os cards sem produto
+                st.markdown(f"""
                 <div style="background:#fefce8;border-left:4px solid #eab308;padding:12px 16px;border-radius:0 8px 8px 0;">
-                    <div style="font-weight:600;color:#854d0e;font-size:13px;">📦 Componentes não preenchidos</div>
+                    <div style="font-weight:600;color:#854d0e;font-size:13px;">📦 Produtos não preenchidos</div>
                     <div style="font-size:12px;color:#a16207;margin-top:4px;">
-                        Para visualizar o mapa de impacto, preencha o campo <b>Components</b> nos cards do Jira.<br>
-                        Exemplos: <code>NinaChat</code>, <code>NinaPay</code>, <code>API</code>, <code>Portal</code>
+                        {len(df_validados)} cards validados sem o campo <b>Produto</b> preenchido no Jira.<br>
+                        Preencha o campo "Produto" nos cards para visualizar o mapa de impacto.
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
