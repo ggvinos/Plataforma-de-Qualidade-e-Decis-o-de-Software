@@ -1270,6 +1270,103 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
             with col4:
                 st.metric("⏱️ Lead Time", f"{media_lead_time:.1f}d")
             
+            # ==== MAPA DE IMPACTO POR MÓDULO ====
+            st.markdown("---")
+            st.markdown("##### 🗺️ Mapa de Impacto por Módulo")
+            st.caption("Visualize quais áreas do sistema foram alteradas nesta release")
+            
+            # Extrai componentes dos cards
+            componentes_data = []
+            for _, row in df_validados.iterrows():
+                comps = row.get('componentes', [])
+                if isinstance(comps, list) and comps:
+                    for comp in comps:
+                        if comp:
+                            componentes_data.append({
+                                'componente': comp,
+                                'tipo': row.get('tipo', 'TAREFA'),
+                                'sp': row.get('sp', 0),
+                                'ticket_id': row.get('ticket_id', '')
+                            })
+            
+            if componentes_data:
+                df_comp = pd.DataFrame(componentes_data)
+                
+                # Agrupa por componente e tipo
+                df_agg = df_comp.groupby(['componente', 'tipo']).agg({
+                    'ticket_id': 'count',
+                    'sp': 'sum'
+                }).reset_index()
+                df_agg.columns = ['Módulo', 'Tipo', 'Cards', 'SP']
+                
+                # Cores por tipo
+                tipo_cores = {
+                    'HOTFIX': '#ef4444',
+                    'BUG': '#f97316', 
+                    'TAREFA': '#3b82f6',
+                    'MELHORIA': '#22c55e',
+                    'SUGESTÃO': '#8b5cf6'
+                }
+                
+                # Ordena por total de cards por módulo
+                modulo_totais = df_agg.groupby('Módulo')['Cards'].sum().sort_values(ascending=True)
+                df_agg['Módulo'] = pd.Categorical(df_agg['Módulo'], categories=modulo_totais.index, ordered=True)
+                df_agg = df_agg.sort_values('Módulo')
+                
+                col_graf, col_resumo = st.columns([2, 1])
+                
+                with col_graf:
+                    fig = px.bar(
+                        df_agg, 
+                        x='Cards', 
+                        y='Módulo', 
+                        color='Tipo',
+                        orientation='h',
+                        color_discrete_map=tipo_cores,
+                        hover_data=['SP'],
+                        title=''
+                    )
+                    fig.update_layout(
+                        height=max(200, len(modulo_totais) * 40),
+                        showlegend=True,
+                        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+                        margin=dict(l=0, r=0, t=30, b=0),
+                        xaxis_title='',
+                        yaxis_title='',
+                        bargap=0.3
+                    )
+                    fig.update_traces(texttemplate='%{x}', textposition='outside')
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                with col_resumo:
+                    st.markdown("**📊 Resumo por Módulo**")
+                    for modulo in modulo_totais.index[::-1]:  # Top módulos primeiro
+                        df_mod = df_agg[df_agg['Módulo'] == modulo]
+                        total_cards = df_mod['Cards'].sum()
+                        total_sp = df_mod['SP'].sum()
+                        tipos_str = ', '.join([f"{r['Cards']} {r['Tipo'].lower()}" for _, r in df_mod.iterrows()])
+                        
+                        st.markdown(f"""
+                        <div style="background:#f8fafc;border-radius:8px;padding:8px 12px;margin:4px 0;border-left:3px solid #3b82f6;">
+                            <div style="font-weight:600;color:#1e293b;font-size:13px;">{modulo}</div>
+                            <div style="font-size:11px;color:#64748b;">{total_cards} cards • {total_sp} SP</div>
+                            <div style="font-size:10px;color:#94a3b8;">{tipos_str}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+            else:
+                # Sem componentes - mostra dica
+                st.markdown("""
+                <div style="background:#fefce8;border-left:4px solid #eab308;padding:12px 16px;border-radius:0 8px 8px 0;">
+                    <div style="font-weight:600;color:#854d0e;font-size:13px;">📦 Componentes não preenchidos</div>
+                    <div style="font-size:12px;color:#a16207;margin-top:4px;">
+                        Para visualizar o mapa de impacto, preencha o campo <b>Components</b> nos cards do Jira.<br>
+                        Exemplos: <code>NinaChat</code>, <code>NinaPay</code>, <code>API</code>, <code>Portal</code>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("---")
+            
             # Opções de ordenação
             col_ord, col_dir = st.columns([2, 1])
             with col_ord:
