@@ -37,6 +37,7 @@ from modulos.widgets import (
 from modulos.utils import card_link_com_popup
 from modulos.graficos import criar_grafico_concentracao
 from modulos._abas_legacy import exibir_historico_validacoes
+from modulos.abas.visao_geral_v2 import identificar_gargalos, renderizar_grid_principal
 
 
 # Helper global para mini-cards harmonizados
@@ -96,9 +97,45 @@ def aba_lideranca(df: pd.DataFrame):
         decisao_cor = "green"
         decisao_msg = "Sprint progredindo conforme esperado"
     
+    # Cálculos para o grid de problemas/ações/progresso
+    gargalos = identificar_gargalos(df)
+    em_andamento = len(df[df['status_cat'].isin(['development', 'testing', 'waiting_qa'])])
+    
+    # Dias da sprint
+    if 'sprint_end' in df.columns and df['sprint_end'].notna().any():
+        sprint_end = df['sprint_end'].dropna().iloc[0]
+        if 'sprint_start' in df.columns and df['sprint_start'].notna().any():
+            sprint_start = df['sprint_start'].dropna().iloc[0]
+            dias_total = (sprint_end - sprint_start).days if sprint_end and sprint_start else 14
+            dias_passados = (datetime.now() - sprint_start).days if sprint_start else 7
+        else:
+            dias_total = 14
+            dias_passados = 7
+    else:
+        dias_total = 14
+        dias_passados = 7
+    
+    pct_esperado = (dias_passados / dias_total * 100) if dias_total > 0 else 50
+    
     # Layout
     _renderizar_decisao_release(decisao, decisao_cor, decisao_msg, health, total_cards, pct_conclusao, fk, mat, dias_release)
     _renderizar_esforco_time(df)
+    
+    # Grid de Problemas | Ações | Progresso (movido da Visão Geral)
+    st.markdown("<div style='margin: 16px 0;'></div>", unsafe_allow_html=True)
+    st.markdown("##### 📋 Situação da Sprint")
+    renderizar_grid_principal(
+        gargalos=gargalos,
+        pct_conclusao=pct_conclusao,
+        pct_esperado=pct_esperado,
+        bugs_total=bugs_total,
+        concluidos=concluidos,
+        em_andamento=em_andamento,
+        total=total_cards,
+        dias_passados=dias_passados,
+        dias_total=dias_total
+    )
+    
     _renderizar_composicao_health(health)
     _renderizar_pontos_atencao(df)
     _renderizar_interacao_qa_dev(df)

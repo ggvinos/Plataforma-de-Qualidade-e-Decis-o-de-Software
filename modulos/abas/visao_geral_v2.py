@@ -963,33 +963,18 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
     
     st.markdown("<div style='margin-bottom: 16px;'></div>", unsafe_allow_html=True)
     
-    # ==== 2. GRID PRINCIPAL: [ Problemas | Ações | Progresso ] ====
-    renderizar_grid_principal(
-        gargalos=gargalos,
-        pct_conclusao=pct_conclusao,
-        pct_esperado=pct_esperado,
-        bugs_total=bugs_total,
-        concluidos=concluidos,
-        em_andamento=em_andamento,
-        total=total,
-        dias_passados=dias_passados,
-        dias_total=dias_total
-    )
-    
-    st.markdown("<div style='margin-bottom: 16px;'></div>", unsafe_allow_html=True)
-    
-    # ==== 3. INDICADORES COMPACTOS ====
+    # ==== 2. INDICADORES COMPACTOS ====
     st.markdown("##### 📈 Indicadores")
     renderizar_indicadores_compactos(df, total, concluidos, pct_conclusao, sp_total, bugs_total, dias_restantes, pct_esperado)
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # ==== 4. CARDS VALIDADOS POR RELEASE ====
+    # ==== 3. CARDS VALIDADOS POR RELEASE ====
     _renderizar_cards_validados_por_release(df)
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # ==== 5. MÉTRICAS TÉCNICAS ====
+    # ==== 4. MÉTRICAS TÉCNICAS ====
     with st.expander("🔬 Métricas Técnicas", expanded=False):
         # Explicação das métricas
         st.markdown("""
@@ -1103,7 +1088,7 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
             else:
                 st.info("Nenhum card com sprint definida")
     
-    # ==== 8. GRÁFICOS ====
+    # ==== 7. GRÁFICOS ====
     with st.expander("📊 Visualizações", expanded=False):
         col1, col2 = st.columns(2)
         
