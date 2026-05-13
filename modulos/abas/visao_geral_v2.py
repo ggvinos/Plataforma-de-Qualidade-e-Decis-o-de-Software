@@ -1280,11 +1280,12 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
             sem_produto_count = 0
             for _, row in df_validados.iterrows():
                 produto = row.get('produto', '')
-                if produto and produto.strip() and produto not in ['Não informado', 'Não atribuído', '']:
+                if produto and produto.strip() and produto not in ['Não informado', 'Não atribuído', '', 'Não definido']:
                     produtos_data.append({
                         'produto': produto.strip(),
                         'tipo': row.get('tipo', 'TAREFA'),
                         'sp': row.get('sp', 0),
+                        'bugs': row.get('bugs', 0),  # Bugs encontrados na validação
                         'ticket_id': row.get('ticket_id', '')
                     })
                 else:
@@ -1296,9 +1297,18 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
                 # Agrupa por produto e tipo
                 df_agg = df_prod.groupby(['produto', 'tipo']).agg({
                     'ticket_id': 'count',
-                    'sp': 'sum'
+                    'sp': 'sum',
+                    'bugs': 'sum'
                 }).reset_index()
-                df_agg.columns = ['Produto', 'Tipo', 'Cards', 'SP']
+                df_agg.columns = ['Produto', 'Tipo', 'Cards', 'SP', 'Bugs']
+                
+                # Resumo por produto (totais)
+                df_resumo = df_prod.groupby('produto').agg({
+                    'ticket_id': 'count',
+                    'sp': 'sum',
+                    'bugs': 'sum'
+                }).reset_index()
+                df_resumo.columns = ['Produto', 'Total Cards', 'Total SP', 'Total Bugs']
                 
                 # Cores por tipo
                 tipo_cores = {
@@ -1342,14 +1352,27 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
                 with col_resumo:
                     st.markdown("**📊 Resumo por Produto**")
                     for produto in produto_totais.index[::-1]:  # Top produtos primeiro
+                        # Dados do resumo (totais corretos)
+                        resumo_prod = df_resumo[df_resumo['Produto'] == produto]
+                        if not resumo_prod.empty:
+                            total_cards = int(resumo_prod['Total Cards'].iloc[0])
+                            total_sp = int(resumo_prod['Total SP'].iloc[0])
+                            total_bugs = int(resumo_prod['Total Bugs'].iloc[0])
+                        else:
+                            total_cards = 0
+                            total_sp = 0
+                            total_bugs = 0
+                        
+                        # Tipos (detalhamento por tipo de card)
                         df_mod = df_agg[df_agg['Produto'] == produto]
-                        total_cards = df_mod['Cards'].sum()
-                        total_sp = df_mod['SP'].sum()
-                        tipos_str = ', '.join([f"{r['Cards']} {r['Tipo'].lower()}" for _, r in df_mod.iterrows()])
+                        tipos_str = ', '.join([f"{int(r['Cards'])} {r['Tipo'].lower()}" for _, r in df_mod.iterrows()])
+                        
+                        # Badge de bugs se houver
+                        bugs_badge = f'<span style="background:#fef2f2;color:#dc2626;padding:1px 5px;border-radius:3px;font-size:10px;margin-left:4px;">🐛 {total_bugs}</span>' if total_bugs > 0 else ''
                         
                         st.markdown(f"""
                         <div style="background:#f8fafc;border-radius:8px;padding:8px 12px;margin:4px 0;border-left:3px solid #3b82f6;">
-                            <div style="font-weight:600;color:#1e293b;font-size:13px;">{produto}</div>
+                            <div style="font-weight:600;color:#1e293b;font-size:13px;">{produto}{bugs_badge}</div>
                             <div style="font-size:11px;color:#64748b;">{total_cards} cards • {total_sp} SP</div>
                             <div style="font-size:10px;color:#94a3b8;">{tipos_str}</div>
                         </div>
