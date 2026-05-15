@@ -31,7 +31,7 @@ def criar_card_indicador(
     valor: int, 
     percentual: float, 
     cor: str = "#3b82f6",
-    icone: str = "📊",
+    icone: str = "",
     tendencia: str = None,  # "up", "down", "stable"
     destaque: bool = False
 ) -> str:
@@ -122,13 +122,13 @@ def calcular_metricas_fluxo(df: pd.DataFrame) -> Dict:
     
     # Categorias principais do fluxo
     categorias = {
-        'backlog': {'nome': 'Backlog', 'icone': '📋', 'cor': '#64748b'},
-        'development': {'nome': 'Desenvolvimento', 'icone': '💻', 'cor': '#3b82f6'},
-        'code_review': {'nome': 'Code Review', 'icone': '👀', 'cor': '#8b5cf6'},
-        'waiting_qa': {'nome': 'Aguardando QA', 'icone': '⏳', 'cor': '#f59e0b'},
-        'testing': {'nome': 'Em Teste', 'icone': '🧪', 'cor': '#06b6d4'},
-        'done': {'nome': 'Concluído', 'icone': '✅', 'cor': '#22c55e'},
-        'blocked': {'nome': 'Bloqueado', 'icone': '🚫', 'cor': '#ef4444'},
+        'backlog': {'nome': 'Backlog', 'icone': '', 'cor': '#64748b'},
+        'development': {'nome': 'Desenvolvimento', 'icone': '', 'cor': '#3b82f6'},
+        'code_review': {'nome': 'Code Review', 'icone': '', 'cor': '#8b5cf6'},
+        'waiting_qa': {'nome': 'Aguardando QA', 'icone': '', 'cor': '#f59e0b'},
+        'testing': {'nome': 'Em Teste', 'icone': '', 'cor': '#06b6d4'},
+        'done': {'nome': 'Concluído', 'icone': '', 'cor': '#22c55e'},
+        'blocked': {'nome': 'Bloqueado', 'icone': '', 'cor': '#ef4444'},
     }
     
     metricas = {}
@@ -183,7 +183,7 @@ def criar_secao_alertas(df: pd.DataFrame) -> List[Dict]:
     if bloqueados > 0:
         alertas.append({
             'tipo': 'critical' if bloqueados > 3 else 'warning',
-            'titulo': f'🚫 {bloqueados} card(s) bloqueado(s)',
+            'titulo': f'{bloqueados} card(s) bloqueado(s)',
             'descricao': 'Requer atenção imediata para destravar o fluxo',
             'acao': 'Ver bloqueados'
         })
@@ -193,7 +193,7 @@ def criar_secao_alertas(df: pd.DataFrame) -> List[Dict]:
     if fila_qa > 5:
         alertas.append({
             'tipo': 'warning',
-            'titulo': f'⏳ {fila_qa} cards aguardando QA',
+            'titulo': f'{fila_qa} cards aguardando QA',
             'descricao': 'Fila de validação acima do ideal',
             'acao': 'Priorizar QA'
         })
@@ -203,7 +203,7 @@ def criar_secao_alertas(df: pd.DataFrame) -> List[Dict]:
     if em_review > 5:
         alertas.append({
             'tipo': 'warning',
-            'titulo': f'👀 {em_review} cards em Code Review',
+            'titulo': f'{em_review} cards em Code Review',
             'descricao': 'Acúmulo de revisões pendentes',
             'acao': 'Acelerar reviews'
         })
@@ -213,7 +213,7 @@ def criar_secao_alertas(df: pd.DataFrame) -> List[Dict]:
     if gov['sp']['pct'] < 50:
         alertas.append({
             'tipo': 'info',
-            'titulo': f"📊 {gov['sp']['pct']:.0f}% cards com SP",
+            'titulo': f"{gov['sp']['pct']:.0f}% cards com SP",
             'descricao': 'Story Points incompletos prejudicam métricas',
             'acao': 'Preencher SP'
         })
@@ -224,7 +224,7 @@ def criar_secao_alertas(df: pd.DataFrame) -> List[Dict]:
     if pct_concluido >= 70:
         alertas.append({
             'tipo': 'success',
-            'titulo': f'✅ {pct_concluido:.0f}% da sprint concluída',
+            'titulo': f'{pct_concluido:.0f}% da sprint concluída',
             'descricao': 'Excelente progresso!',
             'acao': None
         })
@@ -249,7 +249,7 @@ def aba_central_decisao(df: pd.DataFrame, ultima_atualizacao: datetime):
     ">
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <h2 style="margin: 0; font-size: 24px; font-weight: 700;">🎯 Central de Decisão</h2>
+                <h2 style="margin: 0; font-size: 24px; font-weight: 700;">Central de Decisão</h2>
                 <p style="margin: 4px 0 0 0; opacity: 0.8; font-size: 14px;">
                     Visão consolidada de todos os indicadores
                 </p>
@@ -272,7 +272,7 @@ def aba_central_decisao(df: pd.DataFrame, ultima_atualizacao: datetime):
     # ===== SEÇÃO 1: FLUXO DE DESENVOLVIMENTO =====
     st.markdown("""
     <div style="margin-bottom: 12px;">
-        <span style="font-size: 16px; font-weight: 600; color: #1f2937;">📊 Status do Fluxo</span>
+        <span style="font-size: 16px; font-weight: 600; color: #1f2937;">Status do Fluxo</span>
         <span style="font-size: 12px; color: #6b7280; margin-left: 8px;">Pipeline de desenvolvimento</span>
     </div>
     """, unsafe_allow_html=True)
@@ -311,7 +311,7 @@ def aba_central_decisao(df: pd.DataFrame, ultima_atualizacao: datetime):
             gap: 12px;
             animation: fadeInUp 0.4s ease-out;
         ">
-            <span style="font-size: 24px;">🚫</span>
+            <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#ef4444;flex-shrink:0;"></span>
             <div>
                 <div style="font-weight: 600; color: #dc2626;">{m['quantidade']} Card(s) Bloqueado(s)</div>
                 <div style="font-size: 12px; color: #991b1b;">Requer atenção imediata</div>
@@ -334,7 +334,7 @@ def aba_central_decisao(df: pd.DataFrame, ultima_atualizacao: datetime):
             animation: fadeInUp 0.4s ease-out;
         ">
             <div style="font-size: 14px; font-weight: 600; color: #0369a1; margin-bottom: 12px;">
-                💻 Desenvolvimento
+                Desenvolvimento
             </div>
         """, unsafe_allow_html=True)
         
@@ -355,7 +355,7 @@ def aba_central_decisao(df: pd.DataFrame, ultima_atualizacao: datetime):
             animation: fadeInUp 0.45s ease-out;
         ">
             <div style="font-size: 14px; font-weight: 600; color: #15803d; margin-bottom: 12px;">
-                🧪 Qualidade
+                Qualidade
             </div>
         """, unsafe_allow_html=True)
         
@@ -376,7 +376,7 @@ def aba_central_decisao(df: pd.DataFrame, ultima_atualizacao: datetime):
             animation: fadeInUp 0.5s ease-out;
         ">
             <div style="font-size: 14px; font-weight: 600; color: #7c3aed; margin-bottom: 12px;">
-                📈 Visão Geral
+                Visão Geral
             </div>
         """, unsafe_allow_html=True)
         
@@ -394,7 +394,7 @@ def aba_central_decisao(df: pd.DataFrame, ultima_atualizacao: datetime):
     if alertas:
         st.markdown("""
         <div style="margin-bottom: 12px;">
-            <span style="font-size: 16px; font-weight: 600; color: #1f2937;">⚡ Alertas e Recomendações</span>
+            <span style="font-size: 16px; font-weight: 600; color: #1f2937;">Alertas e Recomendações</span>
         </div>
         """, unsafe_allow_html=True)
         
@@ -427,7 +427,7 @@ def aba_central_decisao(df: pd.DataFrame, ultima_atualizacao: datetime):
             """, unsafe_allow_html=True)
     
     # ===== SEÇÃO 4: MÉTRICAS DE QUALIDADE =====
-    with st.expander("🔬 Métricas Técnicas de Qualidade", expanded=False):
+    with st.expander("Métricas Técnicas de Qualidade", expanded=False):
         col1, col2, col3, col4 = st.columns(4)
         
         # FPY

@@ -43,16 +43,16 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
     """
     ctx = obter_contexto_periodo()
     
-    st.markdown("### 🎯 Suporte e Implantação")
+    st.markdown("### Suporte e Implantação")
     st.caption(f"Acompanhe seus cards em todos os projetos: SD, QA, PB e VALPROD • **{ctx['emoji']} {ctx['titulo']}**")
     
     if df_todos is None or df_todos.empty:
-        st.warning("⚠️ Nenhum card encontrado nos projetos.")
+        st.warning(" Nenhum card encontrado nos projetos.")
         return
     
     # Verifica se a coluna 'relator' existe
     if 'relator' not in df_todos.columns:
-        st.warning("⚠️ Coluna 'relator' não encontrada nos dados.")
+        st.warning(" Coluna 'relator' não encontrada nos dados.")
         return
     
     # ========== SELETOR DE PESSOA (igual QA/Dev) ==========
@@ -86,20 +86,20 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
     
     # Verifica se tem pessoa na URL (link compartilhado)
     pessoa_url = st.query_params.get("pessoa", None)
-    pessoa_index = 0  # "👥 Ver Todos" é sempre index 0
+    pessoa_index = 0 # " Ver Todos" é sempre index 0
     if pessoa_url and pessoa_url in relatores:
-        pessoa_index = relatores.index(pessoa_url) + 1  # +1 porque "👥 Ver Todos" é index 0
+        pessoa_index = relatores.index(pessoa_url) + 1 # +1 porque " Ver Todos" é index 0
     
     # SELETOR DE PESSOA (NÃO atualiza query_params - apenas o botão Copiar Link faz isso)
     pessoa_selecionada = st.selectbox(
-        "👤 Selecione a pessoa",
-        options=["👥 Ver Todos"] + relatores,
+        " Selecione a pessoa",
+        options=[" Ver Todos"] + relatores,
         index=pessoa_index,
         key="pessoa_suporte"
     )
     
     # ========== VISÃO GERAL (quando seleciona "Ver Todos") ==========
-    if pessoa_selecionada == "👥 Ver Todos":
+    if pessoa_selecionada == " Ver Todos":
         st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
         _renderizar_visao_geral(df_todos)
         return
@@ -116,7 +116,7 @@ def aba_suporte_implantacao(df_todos: pd.DataFrame):
     df_pessoa = df_todos[mask_relator | mask_qa | mask_dev | mask_rep].copy()
     
     if df_pessoa.empty:
-        st.warning(f"⚠️ Nenhum card encontrado para **{pessoa_selecionada}** no período selecionado.")
+        st.warning(f" Nenhum card encontrado para **{pessoa_selecionada}** no período selecionado.")
         return
     
     _renderizar_visao_individual(df_todos, df_pessoa, pessoa_selecionada)
@@ -135,7 +135,7 @@ def _renderizar_visao_geral(df_todos: pd.DataFrame):
         return f'<div style="display: flex; gap: 8px; margin-bottom: 8px;">{"".join(cards_html)}</div>'
     
     # ===== INDICADORES DO TIME =====
-    st.markdown("##### 📊 Indicadores do Time")
+    st.markdown("##### Indicadores do Time")
     
     total_cards = len(df_todos)
     total_sd = len(df_todos[df_todos['projeto'] == 'SD']) if 'projeto' in df_todos.columns else 0
@@ -150,18 +150,18 @@ def _renderizar_visao_geral(df_todos: pd.DataFrame):
     pct_vp = f"{(total_valprod/total_cards*100):.0f}%" if total_cards > 0 else "0%"
     
     cards_linha1 = [
-        mini_card(str(total_sd), "📋 SD", pct_sd, "#3b82f6"),
-        mini_card(str(total_qa), "🔬 QA", pct_qa, "#22c55e"),
-        mini_card(str(total_pb), "📦 PB", pct_pb, "#f59e0b"),
-        mini_card(str(total_valprod), "✅ VALPROD", pct_vp, "#8b5cf6"),
-        mini_card(str(pessoas_unicas), "👥 Pessoas", "no time", "#6b7280"),
+        mini_card(str(total_sd), " SD", pct_sd, "#3b82f6"),
+        mini_card(str(total_qa), " QA", pct_qa, "#22c55e"),
+        mini_card(str(total_pb), " PB", pct_pb, "#f59e0b"),
+        mini_card(str(total_valprod), " VALPROD", pct_vp, "#8b5cf6"),
+        mini_card(str(pessoas_unicas), " Pessoas", "no time", "#6b7280"),
     ]
     st.markdown(renderizar_linha(cards_linha1), unsafe_allow_html=True)
     
     st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
     
     # ===== GRÁFICO: CARDS POR PROJETO E STATUS - EM EXPANDER =====
-    with st.expander("📊 Distribuição de Cards", expanded=False):
+    with st.expander(" Distribuição de Cards", expanded=False):
         st.caption("Gráficos mostrando como os cards estão distribuídos entre projetos e status")
         
         col_graf1, col_graf2 = st.columns(2)
@@ -175,7 +175,7 @@ def _renderizar_visao_geral(df_todos: pd.DataFrame):
                 cores_projeto = {'SD': '#3b82f6', 'QA': '#22c55e', 'PB': '#f59e0b', 'VALPROD': '#8b5cf6'}
                 
                 fig_pizza = px.pie(projeto_counts, values='count', names='projeto',
-                                   title='📊 Cards por Projeto',
+                                   title=' Cards por Projeto',
                                    color='projeto',
                                    color_discrete_map=cores_projeto)
                 fig_pizza.update_layout(height=350)
@@ -188,7 +188,7 @@ def _renderizar_visao_geral(df_todos: pd.DataFrame):
                 status_counts.columns = ['status', 'count']
                 
                 fig_bar = px.bar(status_counts, x='count', y='status', orientation='h',
-                                 title='📋 Top 10 Status',
+                                 title=' Top 10 Status',
                                  color='count',
                                  color_continuous_scale='Blues')
                 fig_bar.update_layout(height=350, showlegend=False)
@@ -204,14 +204,14 @@ def _renderizar_visao_geral(df_todos: pd.DataFrame):
                 
                 if not status_por_projeto.empty:
                     fig_stacked = px.bar(status_por_projeto, x='projeto', y='count', color='status',
-                                         title='📊 Cards por Projeto e Status',
+                                         title=' Cards por Projeto e Status',
                                          labels={'projeto': 'Projeto', 'count': 'Cards', 'status': 'Status'})
                     fig_stacked.update_layout(height=400, showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=-0.3))
                     st.plotly_chart(fig_stacked, use_container_width=True)
         
         with col_graf4:
             # Top Relatores (filtra bots e automações)
-            st.markdown("##### 👥 Top 15 Pessoas com Mais Cards")
+            st.markdown("##### Top 15 Pessoas com Mais Cards")
             if 'relator' in df_todos.columns:
                 # Lista de nomes a filtrar (bots, automações, etc)
                 bots_filter = ['automation for jira', 'jira automation', 'system', 'admin', 
@@ -274,13 +274,13 @@ def _renderizar_visao_geral(df_todos: pd.DataFrame):
     _renderizar_action_center(df_todos, df_aguard_resp, df_valprod_pend, df_pb_aguard)
     
     # ===== GRÁFICOS: TIPOS E IDADE - EM EXPANDER =====
-    with st.expander("📊 Análise de Distribuição", expanded=False):
+    with st.expander(" Análise de Distribuição", expanded=False):
         st.caption("Visualize a distribuição dos cards por **tipo** (Bug, Hotfix, Tarefa) e por **idade** (quanto tempo desde a criação)")
         
         col_tipo1, col_tipo2 = st.columns(2)
         
         with col_tipo1:
-            st.markdown("##### 🏷️ Distribuição por Tipo")
+            st.markdown("##### Distribuição por Tipo")
             st.caption("Mostra a proporção de cada tipo de card (Hotfix, Bug, Tarefa, etc)")
             if 'tipo' in df_todos.columns:
                 tipo_counts = df_todos['tipo'].value_counts().reset_index()
@@ -295,7 +295,7 @@ def _renderizar_visao_geral(df_todos: pd.DataFrame):
                 st.plotly_chart(fig_tipo, use_container_width=True)
         
         with col_tipo2:
-            st.markdown("##### 📅 Cards por Idade")
+            st.markdown("##### Cards por Idade")
             st.caption("Quanto tempo os cards estão abertos. Cards antigos (> 3 meses) precisam de atenção!")
             if 'criado' in df_todos.columns:
                 df_com_idade = df_todos.copy()
@@ -429,9 +429,9 @@ def _renderizar_card_action(card: pd.Series, idx: int):
     
     # Cores por classificação
     cores_class = {
-        'critico': ('#dc2626', 'rgba(220,38,38,0.06)', 'rgba(220,38,38,0.10)', '🔴'),
-        'atencao': ('#d97706', 'rgba(217,119,6,0.06)', 'rgba(217,119,6,0.10)', '🟡'),
-        'ok': ('#16a34a', 'rgba(22,163,74,0.06)', 'rgba(22,163,74,0.10)', '🟢'),
+        'critico': ('#dc2626', 'rgba(220,38,38,0.06)', 'rgba(220,38,38,0.10)', ''),
+        'atencao': ('#d97706', 'rgba(217,119,6,0.06)', 'rgba(217,119,6,0.10)', ''),
+        'ok': ('#16a34a', 'rgba(22,163,74,0.06)', 'rgba(22,163,74,0.10)', ''),
     }
     borda, bg, bg_hover, emoji = cores_class.get(classificacao, cores_class['ok'])
     
@@ -463,25 +463,25 @@ def _renderizar_card_action(card: pd.Series, idx: int):
     ambiente_badge = ''
     amb_lower = ambiente.lower()
     if 'produção' in amb_lower or 'producao' in amb_lower:
-        ambiente_badge = '<span style="background:#fef2f2;color:#dc2626;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;border:1px solid #fecaca;">🔴 PROD</span>'
+        ambiente_badge = '<span style="background:#fef2f2;color:#dc2626;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;border:1px solid #fecaca;"> PROD</span>'
     elif 'homologação' in amb_lower or 'homologacao' in amb_lower:
-        ambiente_badge = '<span style="background:#fffbeb;color:#d97706;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;border:1px solid #fde68a;">🟡 HML</span>'
+        ambiente_badge = '<span style="background:#fffbeb;color:#d97706;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;border:1px solid #fde68a;"> HML</span>'
     elif 'develop' in amb_lower:
-        ambiente_badge = '<span style="background:#f0fdf4;color:#16a34a;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;border:1px solid #bbf7d0;">🟢 DEV</span>'
+        ambiente_badge = '<span style="background:#f0fdf4;color:#16a34a;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;border:1px solid #bbf7d0;"> DEV</span>'
     
     # Badges adicionais
-    bugs_badge = f'<span style="background:#fef2f2;color:#dc2626;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;">🐛 {bugs}</span>' if bugs > 0 else ''
+    bugs_badge = f'<span style="background:#fef2f2;color:#dc2626;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;"> {bugs}</span>' if bugs > 0 else ''
     inativo_badge = ''
     if dias_inativo >= 7:
         inativo_cor = '#dc2626' if dias_inativo >= 14 else '#d97706'
-        inativo_badge = f'<span style="background:#fff7ed;color:{inativo_cor};padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;">⏱️ {dias_inativo}d parado</span>'
+        inativo_badge = f'<span style="background:#fff7ed;color:{inativo_cor};padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;"> {dias_inativo}d parado</span>'
     
     jira_base = "https://ninatecnologia.atlassian.net/browse"
     link_jira = f'{jira_base}/{ticket_id}' if ticket_id else '#'
     link_nina = f'?card={ticket_id}&projeto={projeto}' if ticket_id else '#'
     
     # Card HTML - TICKET_ID PRIMEIRO, título completo, SEM emoji
-    st.markdown(f'<div style="padding:14px 16px;margin:8px 0;border-radius:10px;border-left:4px solid {borda};background:{bg};box-shadow:0 1px 3px rgba(0,0,0,0.08);transition:all 0.2s ease;" onmouseover="this.style.background=\'{bg_hover}\';this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.1)\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.background=\'{bg}\';this.style.boxShadow=\'0 1px 3px rgba(0,0,0,0.08)\';this.style.transform=\'translateY(0)\'"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;"><span class="card-link-wrapper"><a href="{link_jira}" target="_blank" class="card-link-id" style="color:{ticket_cor};font-weight:700;font-size:14px;">{ticket_id}</a><a href="{link_nina}" class="card-action-btn card-action-nina">📊 NinaDash</a></span><span style="background:{projeto_bg};color:{ticket_cor};padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700;border:1px solid {ticket_cor}20;">{projeto}</span><span style="background:{tipo_bg};color:{tipo_cor};padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;">{tipo}</span>{ambiente_badge}{bugs_badge}{inativo_badge}<span style="background:#f1f5f9;color:#475569;padding:3px 10px;border-radius:6px;font-size:10px;font-weight:500;margin-left:auto;">{origem}</span></div><div style="font-size:13px;color:#1e293b;line-height:1.5;font-weight:500;">{titulo}</div><div style="font-size:12px;color:#64748b;margin-top:6px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><span style="opacity:0.8;">👤</span> <span style="font-weight:500;">{responsavel}</span><span style="opacity:0.7;">📍 {status}</span><span style="color:#94a3b8;font-size:11px;margin-left:auto;">Score: {score}</span></div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="padding:14px 16px;margin:8px 0;border-radius:10px;border-left:4px solid {borda};background:{bg};box-shadow:0 1px 3px rgba(0,0,0,0.08);transition:all 0.2s ease;" onmouseover="this.style.background=\'{bg_hover}\';this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.1)\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.background=\'{bg}\';this.style.boxShadow=\'0 1px 3px rgba(0,0,0,0.08)\';this.style.transform=\'translateY(0)\'"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;"><span class="card-link-wrapper"><a href="{link_jira}" target="_blank" class="card-link-id" style="color:{ticket_cor};font-weight:700;font-size:14px;">{ticket_id}</a><a href="{link_nina}" class="card-action-btn card-action-nina"> NinaDash</a></span><span style="background:{projeto_bg};color:{ticket_cor};padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700;border:1px solid {ticket_cor}20;">{projeto}</span><span style="background:{tipo_bg};color:{tipo_cor};padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;">{tipo}</span>{ambiente_badge}{bugs_badge}{inativo_badge}<span style="background:#f1f5f9;color:#475569;padding:3px 10px;border-radius:6px;font-size:10px;font-weight:500;margin-left:auto;">{origem}</span></div><div style="font-size:13px;color:#1e293b;line-height:1.5;font-weight:500;">{titulo}</div><div style="font-size:12px;color:#64748b;margin-top:6px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><span style="opacity:0.8;"></span> <span style="font-weight:500;">{responsavel}</span><span style="opacity:0.7;"> {status}</span><span style="color:#94a3b8;font-size:11px;margin-left:auto;">Score: {score}</span></div></div>', unsafe_allow_html=True)
 
 
 def _renderizar_action_center(df_todos: pd.DataFrame, df_aguard_resp: pd.DataFrame, df_valprod_pend: pd.DataFrame, df_pb_aguard: pd.DataFrame):
@@ -495,23 +495,23 @@ def _renderizar_action_center(df_todos: pd.DataFrame, df_aguard_resp: pd.DataFra
     """
     # ===== PREPARA DADOS =====
     # Checkbox para modo de visualização
-    mostrar_todos = st.checkbox("📦 Mostrar todos os cards (incluindo concluídos)", value=False, key="ac_mostrar_todos")
+    mostrar_todos = st.checkbox(" Mostrar todos os cards (incluindo concluídos)", value=False, key="ac_mostrar_todos")
     
     # Seleciona dataset baseado no toggle
     if mostrar_todos:
         if df_todos.empty:
-            st.info("✅ Nenhum card encontrado.")
+            st.info(" Nenhum card encontrado.")
             return
         df_action = df_todos.copy()
     else:
         dfs = [df for df in [df_aguard_resp, df_valprod_pend, df_pb_aguard] if not df.empty]
         if not dfs:
-            st.info("✅ Nenhum card aguardando ação no momento.")
+            st.info(" Nenhum card aguardando ação no momento.")
             return
         df_action = pd.concat(dfs).drop_duplicates(subset=['ticket_id']) if 'ticket_id' in dfs[0].columns else pd.concat(dfs)
     
     if df_action.empty:
-        st.info("✅ Nenhum card encontrado.")
+        st.info(" Nenhum card encontrado.")
         return
     
     # Calcula priorização
@@ -527,17 +527,17 @@ def _renderizar_action_center(df_todos: pd.DataFrame, df_aguard_resp: pd.DataFra
     
     # ===== HEADER COMPACTO =====
     st.markdown(f'''<div style="display:flex;align-items:center;gap:16px;padding:12px 16px;background:linear-gradient(90deg,#f8fafc,#f1f5f9);border-radius:10px;margin:8px 0 16px 0;">
-<span style="font-size:20px;font-weight:700;color:#1e293b;">📋 Central de Cards</span>
-<span style="background:#fef2f2;color:#dc2626;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;">🔴 {n_critico}</span>
-<span style="background:#fffbeb;color:#d97706;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;">🟡 {n_atencao}</span>
-<span style="background:#f0fdf4;color:#16a34a;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;">🟢 {n_ok}</span>
-<span style="margin-left:auto;color:#64748b;font-size:13px;">⚠️ Filtros da sidebar ativos</span>
+<span style="font-size:20px;font-weight:700;color:#1e293b;"> Central de Cards</span>
+<span style="background:#fef2f2;color:#dc2626;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;"> {n_critico}</span>
+<span style="background:#fffbeb;color:#d97706;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;"> {n_atencao}</span>
+<span style="background:#f0fdf4;color:#16a34a;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;"> {n_ok}</span>
+<span style="margin-left:auto;color:#64748b;font-size:13px;"> Filtros da sidebar ativos</span>
 </div>''', unsafe_allow_html=True)
     
     # ===== CONTROLES: Ordenação + Total =====
     col_ord1, col_ord2, col_ord3 = st.columns([2, 1, 1])
     with col_ord1:
-        ordenar_por = st.selectbox("🔃 Ordenar", 
+        ordenar_por = st.selectbox(" Ordenar", 
                                     options=['score', 'data_criacao', 'data_atualizacao', 'projeto', 'prioridade'],
                                     format_func=lambda x: {
                                         'score': 'Criticidade', 'data_criacao': 'Data Criação',
@@ -553,46 +553,46 @@ def _renderizar_action_center(df_todos: pd.DataFrame, df_aguard_resp: pd.DataFra
         st.markdown(f"<div style='padding:8px;text-align:right;'><b>{len(df_action)}</b> cards</div>", unsafe_allow_html=True)
     
     # ===== FILTROS EM EXPANDER =====
-    with st.expander("⚙️ Filtros avançados", expanded=False):
+    with st.expander(" Filtros avançados", expanded=False):
         # Linha 1: Pessoas
         col_f1, col_f2, col_f3, col_f4 = st.columns(4)
         with col_f1:
             opcoes_dev = sorted([x for x in df_action.get('desenvolvedor', pd.Series()).dropna().unique() if x and x != 'Não atribuído'])
-            f_dev = st.multiselect("👤 Responsável", options=opcoes_dev, key="ac_filtro_dev")
+            f_dev = st.multiselect(" Responsável", options=opcoes_dev, key="ac_filtro_dev")
         with col_f2:
             opcoes_qa = sorted([x for x in df_action.get('qa', pd.Series()).dropna().unique() if x and x != 'Não atribuído'])
-            f_qa = st.multiselect("🧪 QA", options=opcoes_qa, key="ac_filtro_qa")
+            f_qa = st.multiselect(" QA", options=opcoes_qa, key="ac_filtro_qa")
         with col_f3:
             opcoes_rel = sorted([x for x in df_action.get('relator', pd.Series()).dropna().unique() if x and x != 'Não informado'])
-            f_rel = st.multiselect("📝 Relator", options=opcoes_rel, key="ac_filtro_relator")
+            f_rel = st.multiselect(" Relator", options=opcoes_rel, key="ac_filtro_relator")
         with col_f4:
             opcoes_rep = sorted([x for x in df_action.get('representante_cliente', pd.Series()).dropna().unique() if x and x != 'Não atribuído'])
-            f_rep = st.multiselect("🤝 Representante", options=opcoes_rep, key="ac_filtro_rep")
+            f_rep = st.multiselect(" Representante", options=opcoes_rep, key="ac_filtro_rep")
         
         # Linha 2: Projeto, Cliente, Status
         col_f5, col_f6, col_f7 = st.columns(3)
         with col_f5:
             opcoes_proj = sorted(df_action.get('projeto', pd.Series()).dropna().unique().tolist())
-            f_proj = st.multiselect("📁 Projeto", options=opcoes_proj, key="ac_filtro_projeto")
+            f_proj = st.multiselect(" Projeto", options=opcoes_proj, key="ac_filtro_projeto")
         with col_f6:
             opcoes_cliente = sorted([x for x in df_action.get('tema_principal', pd.Series()).dropna().unique() if x and x not in ['Não informado', 'Interno', '']])
-            f_cliente = st.multiselect("🏢 Cliente", options=opcoes_cliente, key="ac_filtro_cliente")
+            f_cliente = st.multiselect(" Cliente", options=opcoes_cliente, key="ac_filtro_cliente")
         with col_f7:
             opcoes_status = sorted(df_action.get('status', pd.Series()).dropna().unique().tolist())
-            f_status = st.multiselect("📍 Status", options=opcoes_status, key="ac_filtro_status",
+            f_status = st.multiselect(" Status", options=opcoes_status, key="ac_filtro_status",
                                        format_func=lambda x: x.capitalize() if x else x)
         
         # Linha 3: Tipo, Prioridade, Criticidade
         col_f8, col_f9, col_f10 = st.columns(3)
         with col_f8:
             opcoes_tipo = sorted(df_action.get('tipo', pd.Series()).dropna().unique().tolist())
-            f_tipo = st.multiselect("🏷️ Tipo", options=opcoes_tipo, key="ac_filtro_tipo")
+            f_tipo = st.multiselect(" Tipo", options=opcoes_tipo, key="ac_filtro_tipo")
         with col_f9:
             opcoes_prio = sorted([x for x in df_action.get('prioridade', pd.Series()).dropna().unique() if x])
-            f_prio = st.multiselect("🎯 Prioridade", options=opcoes_prio, key="ac_filtro_prio")
+            f_prio = st.multiselect(" Prioridade", options=opcoes_prio, key="ac_filtro_prio")
         with col_f10:
-            f_classe = st.multiselect("⚡ Criticidade", options=['critico', 'atencao', 'ok'], 
-                                       format_func=lambda x: {'critico': '🔴 Crítico', 'atencao': '🟡 Atenção', 'ok': '🟢 OK'}[x],
+            f_classe = st.multiselect(" Criticidade", options=['critico', 'atencao', 'ok'], 
+                                       format_func=lambda x: {'critico': ' Crítico', 'atencao': ' Atenção', 'ok': ' OK'}[x],
                                        key="ac_filtro_classe")
     
     # Verifica se existem filtros (fora do expander)
@@ -634,7 +634,7 @@ def _renderizar_action_center(df_todos: pd.DataFrame, df_aguard_resp: pd.DataFra
     filtros_ativos = sum([bool(f_dev), bool(f_qa), bool(f_rel), bool(f_rep), bool(f_proj), 
                           bool(f_cliente), bool(f_status), bool(f_tipo), bool(f_prio), bool(f_classe)])
     if filtros_ativos > 0:
-        st.caption(f"🔍 {filtros_ativos} filtro(s) ativo(s) — {len(df_filtrado)} de {len(df_action)} cards")
+        st.caption(f" {filtros_ativos} filtro(s) ativo(s) — {len(df_filtrado)} de {len(df_action)} cards")
     
     # ===== ORDENAÇÃO =====
     ascending = (ordem == 'asc')
@@ -680,13 +680,13 @@ def _renderizar_action_center(df_todos: pd.DataFrame, df_aguard_resp: pd.DataFra
     if total_paginas > 1:
         col_prev, col_pg, col_next = st.columns([1, 2, 1])
         with col_prev:
-            if st.button("◀ Anterior", key="ac_prev", disabled=pagina_atual <= 1):
+            if st.button(" Anterior", key="ac_prev", disabled=pagina_atual <= 1):
                 st.session_state.ac_pagina = pagina_atual - 1
                 st.rerun()
         with col_pg:
             st.markdown(f"<div style='text-align:center;padding:8px;'>Página {pagina_atual} de {total_paginas} • {inicio+1}-{fim} de {total_cards}</div>", unsafe_allow_html=True)
         with col_next:
-            if st.button("Próxima ▶", key="ac_next", disabled=pagina_atual >= total_paginas):
+            if st.button("Próxima ", key="ac_next", disabled=pagina_atual >= total_paginas):
                 st.session_state.ac_pagina = pagina_atual + 1
                 st.rerun()
     
@@ -741,11 +741,11 @@ def _renderizar_lista_cards_aguardando(df_cards: pd.DataFrame, projeto_default: 
         if ambiente:
             amb_lower = str(ambiente).lower()
             if 'produção' in amb_lower or 'producao' in amb_lower:
-                ambiente_badge = '<span style="background:#fef2f2;color:#dc2626;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fecaca;">🔴 PROD</span>'
+                ambiente_badge = '<span style="background:#fef2f2;color:#dc2626;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fecaca;"> PROD</span>'
             elif 'homologação' in amb_lower or 'homologacao' in amb_lower:
-                ambiente_badge = '<span style="background:#fffbeb;color:#d97706;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fde68a;">🟡 HML</span>'
+                ambiente_badge = '<span style="background:#fffbeb;color:#d97706;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fde68a;"> HML</span>'
             elif 'develop' in amb_lower:
-                ambiente_badge = '<span style="background:#f0fdf4;color:#16a34a;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #bbf7d0;">🟢 DEV</span>'
+                ambiente_badge = '<span style="background:#f0fdf4;color:#16a34a;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #bbf7d0;"> DEV</span>'
         
         link_jira = f'{jira_base}/{ticket_id}'
         
@@ -763,7 +763,7 @@ def _renderizar_lista_cards_aguardando(df_cards: pd.DataFrame, projeto_default: 
     </div>
     <div style="font-size:13px;color:#1e293b;line-height:1.5;font-weight:500;">{titulo_card}{"..." if len(str(card.get("titulo", ""))) > 75 else ""}</div>
     <div style="font-size:12px;color:#64748b;margin-top:6px;display:flex;align-items:center;gap:4px;">
-        <span style="opacity:0.8;">👤</span> <span style="font-weight:500;">{responsavel}</span>
+        <span style="opacity:0.8;"></span> <span style="font-weight:500;">{responsavel}</span>
     </div>
 </div>'''
     
@@ -773,7 +773,7 @@ def _renderizar_lista_cards_aguardando(df_cards: pd.DataFrame, projeto_default: 
     
     # Mostra quantos cards não foram exibidos
     if len(df_cards) > limite:
-        st.caption(f"📌 Mais {len(df_cards) - limite} cards ocultos. Use o checkbox acima para ver todos.")
+        st.caption(f" Mais {len(df_cards) - limite} cards ocultos. Use o checkbox acima para ver todos.")
 
 
 def _renderizar_visao_individual(df_todos: pd.DataFrame, df_pessoa: pd.DataFrame, pessoa_selecionada: str):
@@ -785,7 +785,7 @@ def _renderizar_visao_individual(df_todos: pd.DataFrame, df_pessoa: pd.DataFrame
     col_titulo, col_copiar = st.columns([3, 1])
     
     with col_titulo:
-        st.markdown(f"### 👤 Métricas de {pessoa_selecionada}")
+        st.markdown(f"### Métricas de {pessoa_selecionada}")
     
     with col_copiar:
         # Botão Copiar Link (IGUAL QA - mesmo estilo e altura)
@@ -802,16 +802,16 @@ def _renderizar_visao_individual(df_todos: pd.DataFrame, df_pessoa: pd.DataFrame
             font-weight: 500;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             transition: all 0.2s ease;
-        ">📋 Copiar Link</button>
+        "> Copiar Link</button>
         <script>
             document.getElementById('copyBtnSuporteIndividual').addEventListener('click', function() {{
                 var url = '{share_url}';
                 var btn = this;
                 navigator.clipboard.writeText(url).then(function() {{
-                    btn.innerHTML = '✅ Copiado!';
+                    btn.innerHTML = ' Copiado!';
                     btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
                     setTimeout(function() {{
-                        btn.innerHTML = '📋 Copiar Link';
+                        btn.innerHTML = ' Copiar Link';
                         btn.style.background = 'linear-gradient(135deg, #AF0C37 0%, #8B0A2C 100%)';
                     }}, 2000);
                 }}).catch(function() {{
@@ -821,10 +821,10 @@ def _renderizar_visao_individual(df_todos: pd.DataFrame, df_pessoa: pd.DataFrame
                     temp.select();
                     document.execCommand('copy');
                     document.body.removeChild(temp);
-                    btn.innerHTML = '✅ Copiado!';
+                    btn.innerHTML = ' Copiado!';
                     btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
                     setTimeout(function() {{
-                        btn.innerHTML = '📋 Copiar Link';
+                        btn.innerHTML = ' Copiar Link';
                         btn.style.background = 'linear-gradient(135deg, #AF0C37 0%, #8B0A2C 100%)';
                     }}, 2000);
                 }});
@@ -882,7 +882,7 @@ def _renderizar_metricas_pessoa(df_pessoa: pd.DataFrame):
     def renderizar_linha(cards_html):
         return f'<div style="display: flex; gap: 8px; margin-bottom: 8px;">{"".join(cards_html)}</div>'
     
-    st.markdown("##### 📊 Meus Cards por Status")
+    st.markdown("##### Meus Cards por Status")
     
     # Usa status_cat para consistência com outras abas
     has_status_cat = 'status_cat' in df_pessoa.columns
@@ -925,18 +925,18 @@ def _renderizar_metricas_pessoa(df_pessoa: pd.DataFrame):
     cor_valprod = "#ef4444" if pendentes_valprod > 0 else "#8b5cf6"
     
     cards_linha1 = [
-        mini_card(str(em_dev), "💻 Em Dev", "desenvolvimento", cor_dev),
-        mini_card(str(aguardando_qa), "⏳ Aguard. QA", "na fila", cor_qa),
-        mini_card(str(em_teste), "🧪 Em Teste", "validando", cor_teste),
-        mini_card(str(pendentes_valprod), "🔍 Val. Prod", "pendentes", cor_valprod),
-        mini_card(str(concluidos), "✅ Concluídos", "finalizados", "#22c55e"),
+        mini_card(str(em_dev), " Em Dev", "desenvolvimento", cor_dev),
+        mini_card(str(aguardando_qa), " Aguard. QA", "na fila", cor_qa),
+        mini_card(str(em_teste), " Em Teste", "validando", cor_teste),
+        mini_card(str(pendentes_valprod), " Val. Prod", "pendentes", cor_valprod),
+        mini_card(str(concluidos), " Concluídos", "finalizados", "#22c55e"),
     ]
     st.markdown(renderizar_linha(cards_linha1), unsafe_allow_html=True)
     
     # Linha 2: Detalhamento se houver bloqueados ou por projeto
     if bloqueados > 0:
         st.markdown("<div style='margin-top: 12px;'></div>", unsafe_allow_html=True)
-        cards_extra = [mini_card(str(bloqueados), "🚫 Bloqueados", "impeditivos", "#ef4444")]
+        cards_extra = [mini_card(str(bloqueados), " Bloqueados", "impeditivos", "#ef4444")]
         st.markdown(renderizar_linha(cards_extra), unsafe_allow_html=True)
     
     st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
@@ -1005,11 +1005,11 @@ def _renderizar_cards_aguardando_minha_acao(df_todos: pd.DataFrame, df_pessoa: p
     # ===== RENDERIZAÇÃO =====
     total_acao = len(df_minha_acao)
     cor_titulo = "#ef4444" if total_acao > 0 else "#22c55e"
-    icone = "⚠️" if total_acao > 0 else "✅"
+    icone = "" if total_acao > 0 else ""
     
     with st.expander(f"{icone} O que você precisa fazer ({total_acao})", expanded=total_acao > 0):
         if total_acao == 0:
-            st.success("✅ Nenhum card aguardando sua ação no momento!")
+            st.success(" Nenhum card aguardando sua ação no momento!")
             return
         
         # Mostra resumo por papel
@@ -1019,11 +1019,11 @@ def _renderizar_cards_aguardando_minha_acao(df_todos: pd.DataFrame, df_pessoa: p
         
         cols_resumo = st.columns(3)
         with cols_resumo[0]:
-            st.metric("🔬 Para Validar (QA)", n_qa)
+            st.metric(" Para Validar (QA)", n_qa)
         with cols_resumo[1]:
-            st.metric("🔄 Voltaram (Correção)", n_voltar)
+            st.metric(" Voltaram (Correção)", n_voltar)
         with cols_resumo[2]:
-            st.metric("👤 Rep. Cliente", n_rep)
+            st.metric(" Rep. Cliente", n_rep)
         
         st.markdown("---")
         
@@ -1045,15 +1045,15 @@ def _renderizar_cards_aguardando_minha_acao(df_todos: pd.DataFrame, df_pessoa: p
             cor_papel = "#8b5cf6"
             if card.get('qa') == pessoa_selecionada and card['ticket_id'] in df_validar_qa['ticket_id'].values if not df_validar_qa.empty else False:
                 papeis.append("QA")
-                acao_necessaria = "👉 VALIDAR"
+                acao_necessaria = " VALIDAR"
                 cor_papel = "#06b6d4"
             if card['ticket_id'] in df_voltar_dev['ticket_id'].values if not df_voltar_dev.empty else False:
                 papeis.append("Dev")
-                acao_necessaria = "👉 CORRIGIR"
+                acao_necessaria = " CORRIGIR"
                 cor_papel = "#ef4444"
             if card.get('representante_cliente') == pessoa_selecionada:
                 papeis.append("Rep. Cliente")
-                acao_necessaria = "👉 APROVAR"
+                acao_necessaria = " APROVAR"
                 cor_papel = "#f59e0b"
             
             papel_texto = " • ".join(papeis) if papeis else "Validador"
@@ -1074,7 +1074,7 @@ def _renderizar_cards_aguardando_minha_acao(df_todos: pd.DataFrame, df_pessoa: p
             html_minha_acao += '<span style="background: ' + tipo_cor + '; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">' + tipo + '</span>'
             html_minha_acao += '<span style="background: ' + cor_papel + '; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;">' + acao_necessaria + '</span>'
             html_minha_acao += card_link
-            html_minha_acao += '<span style="color: #7c3aed; font-size: 0.75em; margin-left: auto;">🕐 ' + tempo_atualizacao + '</span>'
+            html_minha_acao += '<span style="color: #7c3aed; font-size: 0.75em; margin-left: auto;"> ' + tempo_atualizacao + '</span>'
             html_minha_acao += '</div>'
             html_minha_acao += '<div style="color: #374151; font-size: 0.9em; line-height: 1.4;">' + titulo + sufixo + '</div>'
             html_minha_acao += '<div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Por: ' + relator + ' • ' + papel_texto + ' • ' + status_card + '</div>'
@@ -1095,7 +1095,7 @@ def _renderizar_cards_validar_producao(df_todos: pd.DataFrame, df_pessoa: pd.Dat
     df_valprod_base = df_todos[df_todos['projeto'] == 'VALPROD'] if 'projeto' in df_todos.columns else pd.DataFrame()
     
     if df_valprod_base.empty:
-        with st.expander("🔍 Cards para Validar em Produção (VALPROD)", expanded=False):
+        with st.expander(" Cards para Validar em Produção (VALPROD)", expanded=False):
             st.info("ℹ️ Nenhum card encontrado no projeto VALPROD.")
         return
     
@@ -1110,7 +1110,7 @@ def _renderizar_cards_validar_producao(df_todos: pd.DataFrame, df_pessoa: pd.Dat
     # Total de VALPROD relacionados à pessoa
     total_valprod = len(df_valprod)
     
-    with st.expander(f"🔍 Cards para Validar em Produção (VALPROD) ({total_valprod})", expanded=total_valprod > 0):
+    with st.expander(f" Cards para Validar em Produção (VALPROD) ({total_valprod})", expanded=total_valprod > 0):
         if df_valprod.empty:
             st.info(f"ℹ️ Nenhum card VALPROD encontrado para {pessoa_selecionada}.")
             return
@@ -1126,12 +1126,12 @@ def _renderizar_cards_validar_producao(df_todos: pd.DataFrame, df_pessoa: pd.Dat
         # Métricas
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("⏳ Pendentes", len(df_pendentes), delta=None)
+            st.metric(" Pendentes", len(df_pendentes), delta=None)
         with col2:
-            st.metric("✅ Aprovados", len(df_aprovados), delta=None)
+            st.metric(" Aprovados", len(df_aprovados), delta=None)
         
         if not df_pendentes.empty:
-            st.markdown(f"##### ⏳ {len(df_pendentes)} cards pendentes de validação em produção")
+            st.markdown(f"##### {len(df_pendentes)} cards pendentes de validação em produção")
             
             html_valprod = '<div class="scroll-container" style="max-height: 450px;">'
             for _, card in df_pendentes.iterrows():
@@ -1164,8 +1164,8 @@ def _renderizar_cards_validar_producao(df_todos: pd.DataFrame, df_pessoa: pd.Dat
                 html_valprod += '<span style="background: ' + tipo_cor + '; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">' + tipo + '</span>'
                 html_valprod += card_link
                 if papel_str:
-                    html_valprod += '<span style="background: #dbeafe; color: #1d4ed8; padding: 2px 6px; border-radius: 4px; font-size: 10px;">👤 ' + papel_str + '</span>'
-                html_valprod += '<span style="color: #64748b; font-size: 0.75em; margin-left: auto;">🕐 ' + tempo_atualizacao + '</span>'
+                    html_valprod += '<span style="background: #dbeafe; color: #1d4ed8; padding: 2px 6px; border-radius: 4px; font-size: 10px;"> ' + papel_str + '</span>'
+                html_valprod += '<span style="color: #64748b; font-size: 0.75em; margin-left: auto;"> ' + tempo_atualizacao + '</span>'
                 html_valprod += '</div>'
                 html_valprod += '<div style="color: #92400e; font-size: 0.9em; line-height: 1.4; font-weight: 500;">' + titulo + sufixo + '</div>'
                 html_valprod += '<div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: ' + status_card + ' • Criado há ' + str(dias) + ' dias</div>'
@@ -1173,21 +1173,21 @@ def _renderizar_cards_validar_producao(df_todos: pd.DataFrame, df_pessoa: pd.Dat
             html_valprod += '</div>'
             st.markdown(html_valprod, unsafe_allow_html=True)
         else:
-            st.success("✅ Todos os cards VALPROD foram validados!")
+            st.success(" Todos os cards VALPROD foram validados!")
         
         # Mostra aprovados em subseção colapsável
         if not df_aprovados.empty:
-            with st.expander(f"✅ Cards Aprovados ({len(df_aprovados)})", expanded=False):
+            with st.expander(f" Cards Aprovados ({len(df_aprovados)})", expanded=False):
                 for _, card in df_aprovados.head(10).iterrows():
                     titulo = str(card.get('titulo', card.get('resumo', '')))[:50]
-                    st.markdown(f"✓ **{card['ticket_id']}** - {titulo}...")
+                    st.markdown(f" **{card['ticket_id']}** - {titulo}...")
 
 
 def _renderizar_cards_concluidos(df_pessoa: pd.DataFrame):
     """Renderiza os cards concluídos usando status_cat para consistência."""
     has_status_cat = 'status_cat' in df_pessoa.columns
     
-    with st.expander("✅ Cards Concluídos", expanded=False):
+    with st.expander(" Cards Concluídos", expanded=False):
         # Filtra cards concluídos usando status_cat se disponível
         if has_status_cat:
             df_concluidos_lista = df_pessoa[df_pessoa['status_cat'].isin(['done', 'valprod_aprovado'])]
@@ -1196,7 +1196,7 @@ def _renderizar_cards_concluidos(df_pessoa: pd.DataFrame):
                 'concluído|finalizado|done|aprovado|validado|resolvido|closed|encerrado', na=False)]
         
         if not df_concluidos_lista.empty:
-            st.markdown(f"##### ✅ {len(df_concluidos_lista)} cards concluídos")
+            st.markdown(f"##### {len(df_concluidos_lista)} cards concluídos")
             
             # Ordena por data de criação (mais recente primeiro)
             df_concluidos_sorted = df_concluidos_lista.sort_values('criado', ascending=False) if 'criado' in df_concluidos_lista.columns else df_concluidos_lista
@@ -1220,7 +1220,7 @@ def _renderizar_cards_concluidos(df_pessoa: pd.DataFrame):
                 html_concluidos += '<span style="background: ' + projeto_cor + '; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">' + projeto + '</span>'
                 html_concluidos += '<span style="background: ' + tipo_cor + '; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">' + tipo + '</span>'
                 html_concluidos += card_link
-                html_concluidos += '<span style="background: #22c55e; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: auto;">✓ Concluído</span>'
+                html_concluidos += '<span style="background: #22c55e; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: auto;"> Concluído</span>'
                 html_concluidos += '</div>'
                 html_concluidos += '<div style="color: #166534; font-size: 0.9em; line-height: 1.4;">' + titulo + sufixo + '</div>'
                 html_concluidos += '<div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: ' + status + '</div>'
@@ -1240,7 +1240,7 @@ def _renderizar_onde_estao_meus_cards(df_pessoa: pd.DataFrame):
     
     has_status_cat = 'status_cat' in df_pessoa.columns
     
-    with st.expander("📊 Onde estão meus cards? (Fluxo de Status)", expanded=False):
+    with st.expander(" Onde estão meus cards? (Fluxo de Status)", expanded=False):
         if has_status_cat:
             col_graf, col_lista = st.columns([1, 1])
             
@@ -1266,7 +1266,7 @@ def _renderizar_onde_estao_meus_cards(df_pessoa: pd.DataFrame):
                         color_discrete_map={
                             row['nome']: row['cor'] for _, row in status_counts.iterrows()
                         },
-                        title='📊 Meus Cards por Status (Mesmo critério da Visão Geral)'
+                        title=' Meus Cards por Status (Mesmo critério da Visão Geral)'
                     )
                     fig.update_layout(
                         height=350, 
@@ -1277,7 +1277,7 @@ def _renderizar_onde_estao_meus_cards(df_pessoa: pd.DataFrame):
                     st.plotly_chart(fig, use_container_width=True)
             
             with col_lista:
-                st.markdown("##### 📋 Detalhamento por Status")
+                st.markdown("##### Detalhamento por Status")
                 
                 # Agrupa por status_cat para mostrar fluxo
                 fluxo_ordem = ['backlog', 'development', 'code_review', 'waiting_qa', 'testing', 'done', 'blocked', 'rejected']
@@ -1309,13 +1309,13 @@ def _renderizar_onde_estao_meus_cards(df_pessoa: pd.DataFrame):
                     
                     if not status_por_projeto.empty:
                         fig = px.bar(status_por_projeto, x='projeto', y='count', color='status',
-                                     title='📊 Cards por Projeto e Status',
+                                     title=' Cards por Projeto e Status',
                                      labels={'projeto': 'Projeto', 'count': 'Cards', 'status': 'Status'})
                         fig.update_layout(height=350, showlegend=True)
                         st.plotly_chart(fig, use_container_width=True)
                 
                 with col_lista:
-                    st.markdown("##### 📋 Detalhamento por Status")
+                    st.markdown("##### Detalhamento por Status")
                     
                     for projeto in ['SD', 'QA', 'PB', 'VALPROD']:
                         df_proj = df_pessoa[df_pessoa['projeto'] == projeto]
@@ -1327,7 +1327,7 @@ def _renderizar_onde_estao_meus_cards(df_pessoa: pd.DataFrame):
                                       "#ef4444" if 'reprovado' in status.lower() or 'impedido' in status.lower() else \
                                       "#f59e0b" if 'aguardando' in status.lower() else \
                                       "#3b82f6"
-                                st.markdown(f"<span style='color: {cor};'>●</span> {status}: **{count}**", unsafe_allow_html=True)
+                                st.markdown(f"<span style='color: {cor};'></span> {status}: **{count}**", unsafe_allow_html=True)
                             st.markdown("")
 
 
@@ -1335,7 +1335,7 @@ def _renderizar_cards_aguardando_resposta(df_pessoa: pd.DataFrame):
     """Renderiza os cards aguardando resposta usando status_cat para consistência."""
     has_status_cat = 'status_cat' in df_pessoa.columns
     
-    with st.expander("💬 Cards Aguardando Resposta", expanded=False):
+    with st.expander(" Cards Aguardando Resposta", expanded=False):
         # Cards com status "aguardando" - usando status_cat se disponível
         if has_status_cat:
             df_aguardando = df_pessoa[df_pessoa['status_cat'].isin([
@@ -1346,7 +1346,7 @@ def _renderizar_cards_aguardando_resposta(df_pessoa: pd.DataFrame):
             df_aguardando = df_pessoa[df_pessoa['status'].str.lower().str.contains(filtro_aguardando, na=False, regex=True)]
         
         if not df_aguardando.empty:
-            st.markdown(f"##### 💬 {len(df_aguardando)} cards aguardando algum retorno")
+            st.markdown(f"##### {len(df_aguardando)} cards aguardando algum retorno")
             
             for _, card in df_aguardando.iterrows():
                 projeto = card.get('projeto', 'SD')
@@ -1361,23 +1361,23 @@ def _renderizar_cards_aguardando_resposta(df_pessoa: pd.DataFrame):
                         <span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{projeto}</span>
                         <span style="background: {tipo_cor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">{tipo}</span>
                         {card_link_com_popup(card['ticket_id'], projeto)}
-                        <span style="color: #64748b; font-size: 0.75em; margin-left: auto;">🕐 {tempo_atualizacao}</span>
+                        <span style="color: #64748b; font-size: 0.75em; margin-left: auto;"> {tempo_atualizacao}</span>
                     </div>
                     <div style="color: #92400e; font-size: 0.9em; line-height: 1.4;">{titulo}{'...' if len(card.get('titulo', '')) > 70 else ''}</div>
                     <div style="color: #64748b; font-size: 0.8em; margin-top: 4px;">Status: {card.get('status', '')}</div>
                 </div>
                 """, unsafe_allow_html=True)
         else:
-            st.success("✅ Nenhum card aguardando resposta!")
+            st.success(" Nenhum card aguardando resposta!")
 
 
 def _renderizar_cards_pb(df_pessoa: pd.DataFrame):
     """Renderiza os cards no Product Backlog."""
     df_pb = df_pessoa[df_pessoa['projeto'] == 'PB'] if 'projeto' in df_pessoa.columns else pd.DataFrame()
     
-    with st.expander("📋 Meus Cards no Product Backlog", expanded=False):
+    with st.expander(" Meus Cards no Product Backlog", expanded=False):
         if not df_pb.empty:
-            st.markdown(f"##### 📦 {len(df_pb)} cards no PB")
+            st.markdown(f"##### {len(df_pb)} cards no PB")
             
             # Agrupar por status
             status_counts = df_pb['status'].value_counts()
@@ -1419,9 +1419,9 @@ def _renderizar_cards_sd_qa(df_pessoa: pd.DataFrame):
     df_qa = df_pessoa[df_pessoa['projeto'] == 'QA'] if 'projeto' in df_pessoa.columns else pd.DataFrame()
     df_dev = pd.concat([df_sd, df_qa]) if not df_sd.empty or not df_qa.empty else pd.DataFrame()
     
-    with st.expander("📋 Meus Cards em Desenvolvimento (SD/QA)", expanded=False):
+    with st.expander(" Meus Cards em Desenvolvimento (SD/QA)", expanded=False):
         if not df_dev.empty:
-            st.markdown(f"##### 💻 {len(df_dev)} cards em SD/QA")
+            st.markdown(f"##### {len(df_dev)} cards em SD/QA")
             
             # Agrupar por status
             status_counts = df_dev['status'].value_counts()
@@ -1461,43 +1461,43 @@ def _renderizar_cards_sd_qa(df_pessoa: pd.DataFrame):
 
 def _renderizar_tooltip_sobre():
     """Renderiza o tooltip explicativo sobre a aba."""
-    with st.expander("ℹ️ Sobre esta Aba", expanded=False):
+    with st.expander("Sobre esta Aba", expanded=False):
         st.markdown("""
-        ### 🎯 Suporte e Implantação — O que analisamos?
+        ### Suporte e Implantação — O que analisamos?
         
         Esta aba foi criada para você acompanhar **seus cards em todos os projetos**.
         
-        **⚠️ IMPORTANTE: Consistência com a Visão Geral**
+        ** IMPORTANTE: Consistência com a Visão Geral**
         
         Todos os números aqui usam os **mesmos critérios** da Visão Geral:
         
         | Status mostrado | O que significa (status_cat) |
         |-----------------|------------------------------|
-        | **💻 Em Dev** | Em andamento ou Code Review |
-        | **⏳ Aguard. QA** | Aguardando Validação (fila do QA) |
-        | **🧪 Em Teste** | Em Validação (QA validando) |
-        | **✅ Concluído** | Concluído (pronto) |
-        | **🚫 Bloqueado** | Impedido ou Reprovado |
+        | ** Em Dev** | Em andamento ou Code Review |
+        | ** Aguard. QA** | Aguardando Validação (fila do QA) |
+        | ** Em Teste** | Em Validação (QA validando) |
+        | ** Concluído** | Concluído (pronto) |
+        | ** Bloqueado** | Impedido ou Reprovado |
         
-        ### 📋 Seções Disponíveis
+        ### Seções Disponíveis
         
         | Seção | O que mostra |
         |-------|--------------|
-        | **⚠️ O que você precisa fazer** | Cards onde você precisa agir (validar, corrigir, aprovar) |
-        | **🔍 Cards para Validar em Produção** | Cards do VALPROD que você precisa testar em produção |
-        | **✅ Cards Concluídos** | Cards finalizados com sucesso |
-        | **📊 Onde estão meus cards?** | Visão geral por status (mesmo critério da Visão Geral) |
-        | **💬 Cards Aguardando Resposta** | Cards que precisam de retorno de alguém |
+        | ** O que você precisa fazer** | Cards onde você precisa agir (validar, corrigir, aprovar) |
+        | ** Cards para Validar em Produção** | Cards do VALPROD que você precisa testar em produção |
+        | ** Cards Concluídos** | Cards finalizados com sucesso |
+        | ** Onde estão meus cards?** | Visão geral por status (mesmo critério da Visão Geral) |
+        | ** Cards Aguardando Resposta** | Cards que precisam de retorno de alguém |
         
-        ### 🎯 Dicas de Uso:
+        ### Dicas de Uso:
         - Selecione seu nome para ver **seus cards específicos**
         - A seção "**O que você precisa fazer**" mostra suas pendências
-        - Cards com **👉 VALIDAR** = você é o QA responsável
-        - Cards com **👉 CORRIGIR** = voltou para você (foi reprovado)
-        - Cards com **👉 APROVAR** = você é representante do cliente
+        - Cards com ** VALIDAR** = você é o QA responsável
+        - Cards com ** CORRIGIR** = voltou para você (foi reprovado)
+        - Cards com ** APROVAR** = você é representante do cliente
         - Copie o link para compartilhar sua visão com outros
         
-        ### 🔄 Por que os números são iguais à Visão Geral?
+        ### Por que os números são iguais à Visão Geral?
         
         Usamos `status_cat` (categoria do status) em vez de procurar por texto no nome do status.
         Isso garante que "3 em desenvolvimento" aqui seja **exatamente** igual a "3 em desenvolvimento" na Visão Geral.

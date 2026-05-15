@@ -232,7 +232,7 @@ def renderizar_aba_com_permissao(nome_aba: str, funcao_aba, *args, **kwargs):
     try:
         funcao_aba(*args, **kwargs)
     except Exception as e:
-        st.error(f"❌ Erro na aba {nome_aba}: {str(e)}")
+        st.error(f"Erro na aba {nome_aba}: {str(e)}")
 
 
 def construir_abas_permitidas(projeto: str) -> list:
@@ -246,27 +246,27 @@ def construir_abas_permitidas(projeto: str) -> list:
     if projeto == "PB":
         # Todas as abas possíveis para PB - experiência 100% focada em Produto
         todas_abas = [
-            ("📊 Visão Geral", "visao_geral", aba_backlog),    # Funil de Produto + KPIs
-            ("📦 Demandas", "produto", aba_produto_pb),        # Análise de Demandas
-            ("📈 Evolução", "historico", aba_historico_pb),    # Evolução do Backlog
-            ("ℹ️ Sobre", "sobre", aba_sobre),
-            ("⚙️ Admin", "admin", aba_admin),
+            ("Visão Geral", "visao_geral", aba_backlog),
+            ("Demandas", "produto", aba_produto_pb),
+            ("Evolução", "historico", aba_historico_pb),
+            ("Sobre", "sobre", aba_sobre),
+            ("Admin", "admin", aba_admin),
         ]
     else:
         # Todas as abas possíveis para SD/QA/DVG
         todas_abas = [
-            ("🎯 Central", "central_decisao", aba_central_decisao),
-            ("📊 Visão Geral", "visao_geral", aba_visao_geral_v2),
-            ("🔬 QA", "qa", aba_qa),
-            ("👨‍💻 Dev", "dev", aba_dev),
-            ("🎯 Suporte/Implantação", "suporte", aba_suporte_implantacao),
-            ("🏢 Clientes", "clientes", aba_clientes),
-            ("📋 Governança", "governanca", aba_governanca),
-            ("📦 Produto", "produto", aba_produto),
-            ("📈 Histórico", "historico", aba_historico),
-            ("🎯 Liderança", "lideranca", aba_lideranca),
-            ("ℹ️ Sobre", "sobre", aba_sobre),
-            ("⚙️ Admin", "admin", aba_admin),
+            ("Central", "central_decisao", aba_central_decisao),
+            ("Visão Geral", "visao_geral", aba_visao_geral_v2),
+            ("QA", "qa", aba_qa),
+            ("Dev", "dev", aba_dev),
+            ("Suporte/Implantação", "suporte", aba_suporte_implantacao),
+            ("Clientes", "clientes", aba_clientes),
+            ("Governança", "governanca", aba_governanca),
+            ("Produto", "produto", aba_produto),
+            ("Histórico", "historico", aba_historico),
+            ("Liderança", "lideranca", aba_lideranca),
+            ("Sobre", "sobre", aba_sobre),
+            ("Admin", "admin", aba_admin),
         ]
     
     # Filtra apenas as abas que o usuário tem permissão
@@ -302,12 +302,6 @@ if user_email:
 else:
     st.session_state.user_permissions = None
 
-# Mostra aviso se usuário não está mapeado
-if st.session_state.get("user_permissions") and not st.session_state.user_permissions.get("is_mapeado", True):
-    st.warning("""
-    ⚠️ **Perfil não mapeado** - Seu acesso está limitado às abas Visão Geral e Sobre.  
-    Entre em contato com um administrador para configurar seu perfil de acesso.
-    """)
 
 # ==============================================================================
 # LOADING VISUAL DURANTE INICIALIZAÇÃO
@@ -959,7 +953,10 @@ def main():
         
         # Usuário com múltiplos papéis
         renderizar_usuario_sidebar(colaborador_data, is_mapeado)
-        
+
+        if not is_mapeado:
+            st.warning("Perfil não mapeado. Acesso limitado — entre em contato com um administrador.")
+
         # ================================================================
         # BLOCO 2: ATUALIZAR JIRA (separado)
         # ================================================================
@@ -970,15 +967,15 @@ def main():
         erro_att = st.session_state.get('erro_atualizacao', False)
         
         if atualizando:
-            st.button("🔄 Atualizando...", use_container_width=True, disabled=True, key="btn_att_jira")
+            st.button("Atualizando...", use_container_width=True, disabled=True, key="btn_att_jira")
         elif erro_att:
-            if st.button("⚠️ Erro - Tentar novamente", use_container_width=True, type="secondary", key="btn_att_jira"):
+            if st.button("Erro — Tentar novamente", use_container_width=True, type="secondary", key="btn_att_jira"):
                 st.session_state.erro_atualizacao = False
                 st.session_state.atualizando_jira = True
                 st.cache_data.clear()
                 st.rerun()
         else:
-            if st.button("🔄 Atualizar dados", use_container_width=True, type="primary", key="btn_att_jira"):
+            if st.button("Atualizar dados", use_container_width=True, type="primary", key="btn_att_jira"):
                 st.session_state.atualizando_jira = True
                 st.cache_data.clear()
                 st.rerun()
@@ -1001,7 +998,7 @@ def main():
             """, unsafe_allow_html=True)
         
         if not verificar_credenciais():
-            st.error("⚠️ Credenciais Jira não configuradas!")
+            st.error("Credenciais Jira não configuradas!")
             st.markdown("""
             Configure em `.streamlit/secrets.toml`:
             ```toml
@@ -1016,7 +1013,7 @@ def main():
         # BLOCO 3: BUSCA RÁPIDA
         # ================================================================
         st.markdown("<div style='border-top: 1px solid #e5e7eb; margin: 12px 0 8px 0;'></div>", unsafe_allow_html=True)
-        st.markdown("<p style='font-size: 11px; font-weight: 600; color: #6b7280; margin: 0 0 6px 0; letter-spacing: 0.5px;'>🔍 BUSCA RÁPIDA</p>", unsafe_allow_html=True)
+        st.markdown("<p style='font-size: 11px; font-weight: 600; color: #6b7280; margin: 0 0 6px 0; letter-spacing: 0.5px;'>BUSCA RÁPIDA</p>", unsafe_allow_html=True)
         
         # Projeto para busca
         projetos_lista = ["SD", "QA", "PB", "VALPROD"]
@@ -1055,7 +1052,7 @@ def main():
                 )
             
             # Botão de buscar (submete com Enter também)
-            buscar_clicado = st.form_submit_button("🔍 Buscar", use_container_width=True)
+            buscar_clicado = st.form_submit_button("Buscar", use_container_width=True)
             
             if buscar_clicado:
                 if numero_card_input:
@@ -1080,13 +1077,13 @@ def main():
                 transition: all 0.2s ease;
             ">
                 <span style="color: #92400e; font-size: 12px; font-weight: 500;">
-                    📍 <b>{st.session_state.card_buscado.upper()}</b>
+                    <b>{st.session_state.card_buscado.upper()}</b>
                 </span>
             </div>
             """, unsafe_allow_html=True)
             
             # Botão para voltar ao dashboard
-            if st.button("⬅️ Voltar", type="secondary", use_container_width=True, key="btn_voltar"):
+            if st.button("Voltar", type="secondary", use_container_width=True, key="btn_voltar"):
                 st.session_state.busca_ativa = False
                 st.session_state.card_buscado = ""
                 st.session_state.projeto_buscado = "SD"
@@ -1098,10 +1095,9 @@ def main():
         # ================================================================
         if not st.session_state.busca_ativa:
             st.markdown("<div style='border-top: 1px solid #e5e7eb; margin: 12px 0 8px 0;'></div>", unsafe_allow_html=True)
-            st.markdown("<p style='font-size: 11px; font-weight: 600; color: #6b7280; margin: 0 0 8px 0; letter-spacing: 0.5px;'>📌 CONTEXTO ATUAL</p>", unsafe_allow_html=True)
-            
-            # Toggle para ver todos os projetos (útil para Suporte, Clientes, Central)
-            ver_todos_projetos = st.checkbox("📊 Ver todos os projetos", value=False, key="ver_todos_projetos",
+            st.markdown("<p style='font-size: 11px; font-weight: 600; color: #6b7280; margin: 0 0 8px 0; letter-spacing: 0.5px;'>CONTEXTO ATUAL</p>", unsafe_allow_html=True)
+
+            ver_todos_projetos = st.checkbox("Ver todos os projetos", value=False, key="ver_todos_projetos",
                                               help="Ativa nas abas Suporte, Clientes e Central para ver SD+QA+PB juntos")
             
             # Cores por projeto
@@ -1112,7 +1108,7 @@ def main():
                 # Mostra badge informativo em vez do seletor
                 st.markdown(f'''
                 <div style="background:linear-gradient(90deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:8px;">
-                    <div style="font-size:11px;color:#166534;font-weight:600;">📁 Projetos: SD + QA + PB</div>
+                    <div style="font-size:11px;color:#166534;font-weight:600;">Projetos: SD + QA + PB</div>
                     <div style="font-size:10px;color:#15803d;margin-top:2px;">Ideal para Suporte e Central de Cards</div>
                 </div>
                 ''', unsafe_allow_html=True)
@@ -1125,7 +1121,7 @@ def main():
                 
                 col_label, col_valor = st.columns([1.2, 2])
                 with col_label:
-                    st.markdown("<span style='font-size: 12px; color: #6b7280;'>📁 Projeto</span>", unsafe_allow_html=True)
+                    st.markdown("<span style='font-size: 12px; color: #6b7280;'>Projeto</span>", unsafe_allow_html=True)
                 with col_valor:
                     projeto = st.selectbox(
                         "Projeto", 
@@ -1140,7 +1136,7 @@ def main():
             
             col_label2, col_valor2 = st.columns([1.2, 2])
             with col_label2:
-                st.markdown("<span style='font-size: 12px; color: #6b7280;'>📅 Período</span>", unsafe_allow_html=True)
+                st.markdown("<span style='font-size: 12px; color: #6b7280;'>Período</span>", unsafe_allow_html=True)
             with col_valor2:
                 filtro_sprint = st.selectbox(
                     "Período",
@@ -1175,16 +1171,15 @@ def main():
         st.query_params["projeto"] = projeto_busca
         
         # Busca o card específico (sem filtros de período)
-        with st.spinner(f"🔍 Buscando {busca_card}..."):
+        with st.spinner(f"Buscando {busca_card}..."):
             issue, links, comentarios, historico_transicoes = buscar_card_especifico(busca_card)
-        
+
         if issue:
-            # Processa o card encontrado
             card_data = processar_issue_unica(issue)
             exibir_card_detalhado_v2(card_data, links, comentarios, historico_transicoes, projeto_busca)
         else:
-            st.warning(f"⚠️ Card **{busca_card}** não encontrado.")
-            st.info("💡 Verifique se o ID está correto. O card será buscado em todo o histórico do projeto.")
+            st.warning(f"Card **{busca_card}** não encontrado.")
+            st.info("Verifique se o ID está correto. O card será buscado em todo o histórico do projeto.")
     
     # ===== MODO DASHBOARD NORMAL =====
     else:
@@ -1246,7 +1241,7 @@ def main():
             <div class="loading-container">
                 <div class="loading-spinner"></div>
                 <div style="color: #AF0C37; font-size: 1.5em; font-weight: bold;">Carregando NinaDash</div>
-                <div class="loading-text">🔄 Conectando ao Jira...</div>
+                <div class="loading-text">Conectando ao Jira...</div>
                 <div class="loading-subtext">Buscando dados do projeto """ + projeto + """</div>
                 <div style="color: #aaa; font-size: 0.8em; margin-top: 15px;">Isso pode levar alguns segundos...</div>
             </div>
@@ -1272,7 +1267,6 @@ def main():
         if issues is None:
             st.markdown("""
             <div style="text-align: center; padding: 60px 20px;">
-                <div style="font-size: 4em; margin-bottom: 20px;">⚠️</div>
                 <h2 style="color: #dc2626; margin-bottom: 10px;">Não foi possível conectar ao Jira</h2>
                 <p style="color: #666; margin-bottom: 5px;">O servidor demorou muito para responder (timeout).</p>
                 <p style="color: #888; font-size: 0.9em;">Isso pode acontecer quando há muitos dados ou a conexão está lenta.</p>
@@ -1281,15 +1275,15 @@ def main():
             
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
-                if st.button("🔄 Tentar Novamente", use_container_width=True, type="primary"):
+                if st.button("Tentar Novamente", use_container_width=True, type="primary"):
                     st.cache_data.clear()
                     st.rerun()
-            
-            st.info("💡 **Dica:** Tente selecionar um período menor (ex: Sprint Ativa ou Últimos 30 dias)")
+
+            st.info("Tente selecionar um período menor (ex: Sprint Ativa ou Últimos 30 dias)")
             st.stop()
-        
+
         if len(issues) == 0:
-            st.warning("⚠️ Nenhum card encontrado para os filtros selecionados")
+            st.warning("Nenhum card encontrado para os filtros selecionados")
             st.stop()
         
         df = processar_issues(issues)
@@ -1384,7 +1378,7 @@ def main():
                 st.markdown(f"""
                 <div style="background: #dbeafe; border-radius: 4px; padding: 4px 8px; margin: -8px 0 4px 0; text-align: center;">
                     <span style="font-size: 11px; color: #1d4ed8;">
-                        📦 {filtro_produto}
+                        {filtro_produto}
                     </span>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1392,7 +1386,7 @@ def main():
                 st.markdown("""
                 <div style="background: #f3f4f6; border-radius: 4px; padding: 4px 8px; margin: -8px 0 4px 0; text-align: center;">
                     <span style="font-size: 11px; color: #6b7280;">
-                        📦 Todos os produtos
+                        Todos os produtos
                     </span>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1428,7 +1422,7 @@ def main():
         abas_permitidas = construir_abas_permitidas(projeto)
         
         if not abas_permitidas:
-            st.warning("⚠️ Você não tem acesso a nenhuma aba. Entre em contato com um administrador.")
+            st.warning("Você não tem acesso a nenhuma aba. Entre em contato com um administrador.")
         else:
             # Cria as abas dinamicamente
             nomes_abas = [aba[0] for aba in abas_permitidas]

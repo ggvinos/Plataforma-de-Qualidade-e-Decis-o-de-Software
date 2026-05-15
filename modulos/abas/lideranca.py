@@ -37,7 +37,7 @@ from modulos.widgets import (
 from modulos.utils import card_link_com_popup
 from modulos.graficos import criar_grafico_concentracao
 from modulos._abas_legacy import exibir_historico_validacoes
-from modulos.abas.visao_geral_v2 import identificar_gargalos, renderizar_grid_principal
+from modulos.abas.visao_geral_v2 import identificar_gargalos, renderizar_grid_principal, obter_decisao_release
 
 
 # Helper global para mini-cards harmonizados
@@ -65,7 +65,7 @@ def aba_lideranca(df: pd.DataFrame):
     """Aba de Liderança com decisões estratégicas."""
     ctx = obter_contexto_periodo()
     
-    st.markdown("### 🎯 Painel de Liderança")
+    st.markdown("### Painel de Liderança")
     st.caption(f"Visão executiva para tomada de decisão - Go/No-Go de release • **{ctx['emoji']} {ctx['titulo']}**")
     
     # Health Score
@@ -80,23 +80,10 @@ def aba_lideranca(df: pd.DataFrame):
     fk = calcular_fator_k(sp_total, bugs_total)
     mat = classificar_maturidade(fk)
     
-    # Card de decisão
+    # Card de decisão — usa mesma lógica da Visão Geral para consistência
     dias_release = df['dias_ate_release'].max() if 'dias_ate_release' in df.columns else 10
-    bloqueados = len(df[df['status_cat'].isin(['blocked', 'rejected'])])
-    
-    if bloqueados > 0 or pct_conclusao < 30:
-        decisao = "🛑 ATENÇÃO NECESSÁRIA"
-        decisao_cor = "red"
-        decisao_msg = "Cards bloqueados ou taxa de conclusão muito baixa - avaliar riscos"
-    elif pct_conclusao < 50 and dias_release < 3:
-        decisao = "⚠️ REVISAR ESCOPO"
-        decisao_cor = "yellow"
-        decisao_msg = "Pouco tempo e muitos cards pendentes - considerar redução de escopo"
-    else:
-        decisao = "✅ NO CAMINHO"
-        decisao_cor = "green"
-        decisao_msg = "Sprint progredindo conforme esperado"
-    
+    decisao_info = obter_decisao_release(health['score'], dias_release, pct_conclusao, bugs_total)
+
     # Cálculos para o grid de problemas/ações/progresso
     gargalos = identificar_gargalos(df)
     em_andamento = len(df[df['status_cat'].isin(['development', 'testing', 'waiting_qa'])])
@@ -118,11 +105,11 @@ def aba_lideranca(df: pd.DataFrame):
     pct_esperado = (dias_passados / dias_total * 100) if dias_total > 0 else 50
     
     # Layout
-    _renderizar_decisao_release(decisao, decisao_cor, decisao_msg, health, total_cards, pct_conclusao, fk, mat, dias_release)
+    _renderizar_decisao_release(decisao_info, health, total_cards, pct_conclusao, fk, mat, dias_release)
     
     # Grid de Problemas | Ações | Progresso (movido da Visão Geral)
     st.markdown("<div style='margin: 16px 0;'></div>", unsafe_allow_html=True)
-    st.markdown("##### 📋 Situação da Sprint")
+    st.markdown("##### Situação da Sprint")
     renderizar_grid_principal(
         gargalos=gargalos,
         pct_conclusao=pct_conclusao,
@@ -148,49 +135,61 @@ def aba_lideranca(df: pd.DataFrame):
     _renderizar_exportacao(df, health)
 
 
-def _renderizar_decisao_release(decisao, decisao_cor, decisao_msg, health, total_cards, pct_conclusao, fk, mat, dias_release):
+def _renderizar_decisao_release(decisao_info, health, total_cards, pct_conclusao, fk, mat, dias_release):
     """Renderiza a seção de decisão Go/No-Go."""
-    
-    # ===== INDICADORES PRINCIPAIS (SEMPRE VISÍVEIS) =====
-    st.markdown("##### 🚦 Decisão de Release")
-    
-    # Badge de decisão
-    cores_badge = {"red": "#ef4444", "yellow": "#f59e0b", "green": "#22c55e"}
-    cor_hex = cores_badge.get(decisao_cor, "#6b7280")
+
+    st.markdown("##### Decisão de Release")
+
+    cor_hex = decisao_info["cor"]
+    decisao_label = decisao_info["decisao"]
+    decisao_msg = decisao_info["motivo"]
+    problemas = decisao_info.get("problemas", [])
+    acao = decisao_info.get("acao", "")
+
     st.markdown(f"""
-    <div style="background: {cor_hex}15; border: 2px solid {cor_hex}; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
-        <span style="font-size: 20px; font-weight: 700; color: {cor_hex};">{decisao}</span>
+    <div style="background: {cor_hex}15; border: 2px solid {cor_hex}; border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 20px; font-weight: 700; color: {cor_hex};">{decisao_label}</span>
         <span style="font-size: 13px; color: #374151;">{decisao_msg}</span>
     </div>
     """, unsafe_allow_html=True)
+
+    if problemas:
+        itens = "".join(f"<li style='margin: 2px 0; color: #374151;'>{p}</li>" for p in problemas)
+        st.markdown(f"""
+        <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px;">
+            <div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 6px;">Pontos identificados:</div>
+            <ul style="margin: 0; padding-left: 16px; font-size: 13px;">{itens}</ul>
+            <div style="font-size: 12px; color: #6b7280; margin-top: 8px; border-top: 1px solid #e5e7eb; padding-top: 6px;">Ação: {acao}</div>
+        </div>
+        """, unsafe_allow_html=True)
     
     col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
         cor = _cor_status_inv(health['score'], 75, 50)
-        st.markdown(_mini_card(f"{health['score']:.0f}", "🏥 Health Score", health['status'], cor), unsafe_allow_html=True)
+        st.markdown(_mini_card(f"{health['score']:.0f}", " Health Score", health['status'], cor), unsafe_allow_html=True)
     
     with col2:
-        st.markdown(_mini_card(str(total_cards), "📋 Cards", "total sprint", "#3b82f6"), unsafe_allow_html=True)
+        st.markdown(_mini_card(str(total_cards), " Cards", "total sprint", "#3b82f6"), unsafe_allow_html=True)
     
     with col3:
         cor = _cor_status_inv(pct_conclusao, 70, 40)
-        st.markdown(_mini_card(f"{pct_conclusao:.0f}%", "✅ Conclusão", "done/total", cor), unsafe_allow_html=True)
+        st.markdown(_mini_card(f"{pct_conclusao:.0f}%", " Conclusão", "done/total", cor), unsafe_allow_html=True)
     
     with col4:
         cor = _cor_status_inv(fk, 3, 2)
-        st.markdown(_mini_card(f"{fk:.1f}", "🏆 Fator K", mat['selo'], cor), unsafe_allow_html=True)
+        st.markdown(_mini_card(f"{fk:.1f}", " Fator K", mat['selo'], cor), unsafe_allow_html=True)
     
     with col5:
         cor = _cor_status(dias_release, 3, 5) if dias_release else "#6b7280"
-        st.markdown(_mini_card(str(dias_release), "⏱️ Dias Release", "restantes", cor), unsafe_allow_html=True)
+        st.markdown(_mini_card(str(dias_release), " Dias Release", "restantes", cor), unsafe_allow_html=True)
     
     st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
 
 
 def _renderizar_composicao_health(health: dict):
     """Renderiza a composição do Health Score em expander separado."""
-    with st.expander("📊 Composição do Health Score", expanded=False):
+    with st.expander(" Composição do Health Score", expanded=False):
         nomes = {'conclusao': 'Conclusão', 'ddp': 'DDP', 'fpy': 'FPY', 'gargalos': 'Gargalos', 'lead_time': 'Lead Time'}
         cols = st.columns(5)
         
@@ -198,20 +197,20 @@ def _renderizar_composicao_health(health: dict):
             with cols[i]:
                 pct = det['score'] / det['peso'] * 100 if det['peso'] > 0 else 0
                 cor = _cor_status_inv(pct, 70, 40)
-                st.markdown(_mini_card(f"{det['score']:.0f}/{det['peso']}", f"📊 {nomes.get(key, key)}", f"{pct:.0f}%", cor), unsafe_allow_html=True)
+                st.markdown(_mini_card(f"{det['score']:.0f}/{det['peso']}", f" {nomes.get(key, key)}", f"{pct:.0f}%", cor), unsafe_allow_html=True)
         
         mostrar_tooltip("health_score")
 
 
 def _renderizar_pontos_atencao(df: pd.DataFrame):
     """Renderiza a seção de pontos de atenção."""
-    with st.expander("🚨 Pontos de Atenção", expanded=False):
+    with st.expander(" Pontos de Atenção", expanded=False):
         # Cards bloqueados
         bloqueados_df = df[df['status_cat'].isin(['blocked', 'rejected'])]
         if not bloqueados_df.empty:
             st.markdown(f"""
             <div class="alert-critical">
-                <b>🚫 {len(bloqueados_df)} card(s) bloqueado(s)/reprovado(s)</b>
+                <b> {len(bloqueados_df)} card(s) bloqueado(s)/reprovado(s)</b>
             </div>
             """, unsafe_allow_html=True)
             mostrar_lista_df_completa(bloqueados_df, "Cards Bloqueados/Reprovados")
@@ -221,7 +220,7 @@ def _renderizar_pontos_atencao(df: pd.DataFrame):
         if not alta_prio.empty:
             st.markdown(f"""
             <div class="alert-warning">
-                <b>⚠️ {len(alta_prio)} card(s) de alta prioridade em andamento</b>
+                <b> {len(alta_prio)} card(s) de alta prioridade em andamento</b>
             </div>
             """, unsafe_allow_html=True)
             mostrar_lista_df_completa(alta_prio, "Alta Prioridade Pendentes")
@@ -234,7 +233,7 @@ def _renderizar_pontos_atencao(df: pd.DataFrame):
         if not fora_janela.empty:
             st.markdown(f"""
             <div class="alert-critical">
-                <b>🚨 {len(fora_janela)} card(s) SEM TEMPO para validação nesta sprint!</b>
+                <b> {len(fora_janela)} card(s) SEM TEMPO para validação nesta sprint!</b>
                 <p style="font-size: 12px; margin-top: 5px;">Considerar para próxima sprint baseado na complexidade de teste.</p>
             </div>
             """, unsafe_allow_html=True)
@@ -254,19 +253,19 @@ def _renderizar_pontos_atencao(df: pd.DataFrame):
         if not em_risco.empty:
             st.markdown(f"""
             <div class="alert-warning">
-                <b>⚠️ {len(em_risco)} card(s) EM RISCO - no limite de tempo!</b>
+                <b> {len(em_risco)} card(s) EM RISCO - no limite de tempo!</b>
             </div>
             """, unsafe_allow_html=True)
         
         if bloqueados_df.empty and alta_prio.empty and fora_janela.empty and em_risco.empty:
-            st.success("✅ Nenhum ponto crítico identificado!")
+            st.success(" Nenhum ponto crítico identificado!")
 
 
 def _renderizar_esforco_time(df: pd.DataFrame):
     """Renderiza a seção de esforço do time."""
     
     # ===== INDICADORES DE ESFORÇO (SEMPRE VISÍVEIS) =====
-    st.markdown("##### 💪 Esforço do Time")
+    st.markdown("##### Esforço do Time")
     
     devs_ativos = df[df['desenvolvedor'] != 'Não atribuído']['desenvolvedor'].nunique()
     qas_ativos = df[df['qa'] != 'Não atribuído']['qa'].nunique()
@@ -278,31 +277,31 @@ def _renderizar_esforco_time(df: pd.DataFrame):
     col1, col2, col3, col4, col5, col6 = st.columns(6)
     
     with col1:
-        st.markdown(_mini_card(str(devs_ativos), "👨‍💻 DEVs", "ativos", "#3b82f6"), unsafe_allow_html=True)
+        st.markdown(_mini_card(str(devs_ativos), " DEVs", "ativos", "#3b82f6"), unsafe_allow_html=True)
     
     with col2:
-        st.markdown(_mini_card(str(qas_ativos), "🔬 QAs", "ativos", "#8b5cf6"), unsafe_allow_html=True)
+        st.markdown(_mini_card(str(qas_ativos), " QAs", "ativos", "#8b5cf6"), unsafe_allow_html=True)
     
     with col3:
-        st.markdown(_mini_card(f"{media_cards_dev:.1f}", "📋 Cards/DEV", "média", "#6b7280"), unsafe_allow_html=True)
+        st.markdown(_mini_card(f"{media_cards_dev:.1f}", " Cards/DEV", "média", "#6b7280"), unsafe_allow_html=True)
     
     with col4:
-        st.markdown(_mini_card(f"{media_cards_qa:.1f}", "📋 Cards/QA", "média", "#6b7280"), unsafe_allow_html=True)
+        st.markdown(_mini_card(f"{media_cards_qa:.1f}", " Cards/QA", "média", "#6b7280"), unsafe_allow_html=True)
     
     with col5:
-        st.markdown(_mini_card(str(throughput), "✅ Throughput", "cards done", "#22c55e"), unsafe_allow_html=True)
+        st.markdown(_mini_card(str(throughput), " Throughput", "cards done", "#22c55e"), unsafe_allow_html=True)
     
     with col6:
-        st.markdown(_mini_card(str(sp_entregues), "📐 SP Entregues", "story points", "#22c55e"), unsafe_allow_html=True)
+        st.markdown(_mini_card(str(sp_entregues), " SP Entregues", "story points", "#22c55e"), unsafe_allow_html=True)
     
     st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
     
     # Detalhes em expander
-    with st.expander("📊 Distribuição de Carga DEV/QA", expanded=False):
+    with st.expander(" Distribuição de Carga DEV/QA", expanded=False):
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("**📊 Carga por Desenvolvedor**")
+            st.markdown("** Carga por Desenvolvedor**")
             dev_carga = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor').agg({
                 'ticket_id': 'count',
                 'sp': 'sum',
@@ -320,7 +319,7 @@ def _renderizar_esforco_time(df: pd.DataFrame):
                 st.info("Sem dados de desenvolvedores")
         
         with col2:
-            st.markdown("**📊 Carga por QA**")
+            st.markdown("** Carga por QA**")
             qa_carga = df[df['qa'] != 'Não atribuído'].groupby('qa').agg({
                 'ticket_id': 'count',
                 'sp': 'sum',
@@ -340,7 +339,7 @@ def _renderizar_esforco_time(df: pd.DataFrame):
 
 def _renderizar_interacao_qa_dev(df: pd.DataFrame):
     """Renderiza a seção de interação QA x DEV."""
-    with st.expander("🤝 Interação QA x DEV", expanded=False):
+    with st.expander(" Interação QA x DEV", expanded=False):
         st.caption("Acompanhe a colaboração entre QAs e Desenvolvedores")
         
         # Filtra apenas cards com QA e DEV atribuídos
@@ -359,17 +358,17 @@ def _renderizar_interacao_qa_dev(df: pd.DataFrame):
             col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown("**📋 Top 10 Parcerias QA-DEV**")
+                st.markdown("** Top 10 Parcerias QA-DEV**")
                 st.dataframe(matriz.sort_values('Cards', ascending=False).head(10), hide_index=True, use_container_width=True)
             
             with col2:
-                st.markdown("**⚠️ Parcerias com Maior Retrabalho**")
+                st.markdown("** Parcerias com Maior Retrabalho**")
                 # Ordena por bugs (mais bugs = mais retrabalho)
                 matriz_bugs = matriz[matriz['Bugs'] > 0].sort_values('Bugs', ascending=False).head(10)
                 if not matriz_bugs.empty:
                     st.dataframe(matriz_bugs, hide_index=True, use_container_width=True)
                 else:
-                    st.success("✅ Nenhuma parceria com bugs significativos!")
+                    st.success(" Nenhuma parceria com bugs significativos!")
             
             # Resumo de colaboração
             st.markdown("---")
@@ -377,29 +376,29 @@ def _renderizar_interacao_qa_dev(df: pd.DataFrame):
             
             with col1:
                 total_parcerias = len(matriz)
-                st.markdown(_mini_card(str(total_parcerias), "🤝 Parcerias", "QA-DEV", "#3b82f6"), unsafe_allow_html=True)
+                st.markdown(_mini_card(str(total_parcerias), " Parcerias", "QA-DEV", "#3b82f6"), unsafe_allow_html=True)
             
             with col2:
                 media_cards_parceria = matriz['Cards'].mean()
-                st.markdown(_mini_card(f"{media_cards_parceria:.1f}", "📋 Média", "cards/parceria", "#6b7280"), unsafe_allow_html=True)
+                st.markdown(_mini_card(f"{media_cards_parceria:.1f}", " Média", "cards/parceria", "#6b7280"), unsafe_allow_html=True)
             
             with col3:
                 parcerias_sem_bugs = len(matriz[matriz['Bugs'] == 0])
                 pct_sem_bugs = parcerias_sem_bugs / total_parcerias * 100 if total_parcerias > 0 else 0
                 cor = _cor_status_inv(pct_sem_bugs, 70, 40)
-                st.markdown(_mini_card(f"{pct_sem_bugs:.0f}%", "✅ Sem Bugs", "parcerias", cor), unsafe_allow_html=True)
+                st.markdown(_mini_card(f"{pct_sem_bugs:.0f}%", " Sem Bugs", "parcerias", cor), unsafe_allow_html=True)
             
             with col4:
                 fk_medio = matriz['FK'].mean()
                 cor = _cor_status_inv(fk_medio, 3, 2)
-                st.markdown(_mini_card(f"{fk_medio:.1f}", "🏆 FK Médio", "parcerias", cor), unsafe_allow_html=True)
+                st.markdown(_mini_card(f"{fk_medio:.1f}", " FK Médio", "parcerias", cor), unsafe_allow_html=True)
         else:
-            st.info("💡 Sem dados de interação QA-DEV. Verifique se os cards têm QA e Desenvolvedor atribuídos.")
+            st.info(" Sem dados de interação QA-DEV. Verifique se os cards têm QA e Desenvolvedor atribuídos.")
 
 
 def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
     """Renderiza a seção de análise de concentração de conhecimento."""
-    with st.expander("🔄 Análise de Concentração de Conhecimento (Rodízio)", expanded=False):
+    with st.expander(" Análise de Concentração de Conhecimento (Rodízio)", expanded=False):
         st.caption("Identifique riscos de conhecimento centralizado e planeje rodízios para distribuir expertise no time")
         
         # Calcula métricas de concentração
@@ -419,12 +418,12 @@ def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             cor = "#ef4444" if total_criticos > 0 else "#22c55e"
-            st.markdown(_mini_card(str(total_criticos), "🚨 Críticos", "≥80% conc.", cor), unsafe_allow_html=True)
+            st.markdown(_mini_card(str(total_criticos), " Críticos", "≥80% conc.", cor), unsafe_allow_html=True)
         with col2:
             cor = "#f59e0b" if total_atencao > 0 else "#22c55e"
-            st.markdown(_mini_card(str(total_atencao), "⚠️ Atenção", "60-79% conc.", cor), unsafe_allow_html=True)
+            st.markdown(_mini_card(str(total_atencao), " Atenção", "60-79% conc.", cor), unsafe_allow_html=True)
         with col3:
-            st.markdown(_mini_card(str(total_recomendacoes), "💡 Sugestões", "rodízio", "#3b82f6"), unsafe_allow_html=True)
+            st.markdown(_mini_card(str(total_recomendacoes), " Sugestões", "rodízio", "#3b82f6"), unsafe_allow_html=True)
         with col4:
             # Calcula score geral de distribuição
             total_indices = len(concentracao['indices'].get('dev_produto', {})) + len(concentracao['indices'].get('qa_produto', {}))
@@ -432,15 +431,15 @@ def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
             indices_saudaveis += sum(1 for d in concentracao['indices'].get('qa_produto', {}).values() if d['concentracao_pct'] < 60)
             score_distribuicao = (indices_saudaveis / total_indices * 100) if total_indices > 0 else 100
             cor = _cor_status_inv(score_distribuicao, 70, 40)
-            st.markdown(_mini_card(f"{score_distribuicao:.0f}%", "📊 Distribuição", "saudável", cor), unsafe_allow_html=True)
+            st.markdown(_mini_card(f"{score_distribuicao:.0f}%", " Distribuição", "saudável", cor), unsafe_allow_html=True)
         
         st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
         
         # Status geral
         if total_criticos == 0 and total_atencao == 0:
-            st.success("✅ **Excelente!** Conhecimento bem distribuído no time. Nenhuma concentração crítica detectada.")
+            st.success(" **Excelente!** Conhecimento bem distribuído no time. Nenhuma concentração crítica detectada.")
         elif total_criticos > 0:
-            st.error(f"🚨 **Atenção necessária:** {total_criticos} área(s) com concentração crítica de conhecimento.")
+            st.error(f" **Atenção necessária:** {total_criticos} área(s) com concentração crítica de conhecimento.")
         
         st.markdown("---")
         
@@ -454,14 +453,14 @@ def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
         
         with col_filtro1:
             filtro_tipo = st.selectbox(
-                "📋 Filtrar por tipo:",
+                " Filtrar por tipo:",
                 ["Todos", "Apenas DEV", "Apenas QA"],
                 key="filtro_tipo_concentracao"
             )
         
         with col_filtro2:
             filtro_pessoas = st.multiselect(
-                "👤 Filtrar por pessoa(s):",
+                " Filtrar por pessoa(s):",
                 options=todas_pessoas,
                 default=[],
                 placeholder="Todas as pessoas",
@@ -470,7 +469,7 @@ def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
         
         with col_filtro3:
             filtro_contexto = st.selectbox(
-                "🏷️ Filtrar por contexto:",
+                " Filtrar por contexto:",
                 ["Todos", "Apenas Produto", "Apenas Cliente"],
                 key="filtro_contexto_concentracao"
             )
@@ -562,11 +561,11 @@ def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
         
         # Exibe alertas críticos
         if todos_alertas_criticos:
-            with st.expander(f"🚨 Alertas Críticos ({len(todos_alertas_criticos)})", expanded=False):
+            with st.expander(f" Alertas Críticos ({len(todos_alertas_criticos)})", expanded=False):
                 for pessoa, alertas in sorted(criticos_por_pessoa.items()):
-                    st.markdown(f"**👤 {pessoa}** ({len(alertas)} alerta(s)):")
+                    st.markdown(f"** {pessoa}** ({len(alertas)} alerta(s)):")
                     for alerta in alertas:
-                        icone = "📦" if alerta['contexto'] == 'produto' else "🏢"
+                        icone = "" if alerta['contexto'] == 'produto' else ""
                         st.markdown(f"""
                         <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 8px 12px; margin: 4px 0; border-radius: 4px;">
                             {icone} <b>{alerta['nome']}</b>: {alerta['pct']}% de concentração
@@ -576,11 +575,11 @@ def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
         
         # Exibe alertas de atenção
         if todos_alertas_atencao:
-            with st.expander(f"⚠️ Pontos de Atenção ({len(todos_alertas_atencao)})", expanded=False):
+            with st.expander(f" Pontos de Atenção ({len(todos_alertas_atencao)})", expanded=False):
                 for pessoa, alertas in sorted(atencao_por_pessoa.items()):
-                    st.markdown(f"**👤 {pessoa}** ({len(alertas)} ponto(s)):")
+                    st.markdown(f"** {pessoa}** ({len(alertas)} ponto(s)):")
                     for alerta in alertas:
-                        icone = "📦" if alerta['contexto'] == 'produto' else "🏢"
+                        icone = "" if alerta['contexto'] == 'produto' else ""
                         st.markdown(f"""
                         <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 8px 12px; margin: 4px 0; border-radius: 4px;">
                             {icone} <b>{alerta['nome']}</b>: {alerta['pct']}% de concentração
@@ -590,7 +589,7 @@ def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
         
         # ===== RECOMENDAÇÕES DE RODÍZIO (EM EXPANDER) =====
         if concentracao['recomendacoes']:
-            with st.expander(f"💡 Recomendações de Rodízio ({len(concentracao['recomendacoes'])})", expanded=False):
+            with st.expander(f" Recomendações de Rodízio ({len(concentracao['recomendacoes'])})", expanded=False):
                 for rec in concentracao['recomendacoes']:
                     if rec['tipo'] == 'geral':
                         st.warning(rec['msg'])
@@ -604,17 +603,17 @@ def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
         st.markdown("---")
         
         # ===== TABS PARA MATRIZES =====
-        tab_dev, tab_qa = st.tabs(["👨‍💻 Concentração DEV", "🔬 Concentração QA"])
+        tab_dev, tab_qa = st.tabs([" Concentração DEV", " Concentração QA"])
         
         with tab_dev:
             # Verifica se filtro de tipo permite mostrar DEV
             if filtro_tipo == "Apenas QA":
-                st.info("🔍 Filtro 'Apenas QA' selecionado. Mude para 'Todos' ou 'Apenas DEV' para ver dados de desenvolvedores.")
+                st.info(" Filtro 'Apenas QA' selecionado. Mude para 'Todos' ou 'Apenas DEV' para ver dados de desenvolvedores.")
             else:
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    st.markdown("#### 📦 DEV x Produto")
+                    st.markdown("#### DEV x Produto")
                     if not matriz_dev_produto_filtrada.empty:
                         fig = criar_grafico_concentracao(
                             matriz_dev_produto_filtrada, 
@@ -624,13 +623,13 @@ def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
                         st.plotly_chart(fig, use_container_width=True)
                         
                         # Tabela resumo
-                        with st.expander("📊 Ver dados detalhados", expanded=False):
+                        with st.expander(" Ver dados detalhados", expanded=False):
                             st.dataframe(dev_produto_filtrado, hide_index=True, use_container_width=True)
                     else:
                         st.info("Sem dados de DEV x Produto para os filtros selecionados")
                 
                 with col2:
-                    st.markdown("#### 🏢 DEV x Cliente")
+                    st.markdown("#### DEV x Cliente")
                     if not matriz_dev_cliente_filtrada.empty:
                         fig = criar_grafico_concentracao(
                             matriz_dev_cliente_filtrada, 
@@ -639,20 +638,20 @@ def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
                         )
                         st.plotly_chart(fig, use_container_width=True)
                         
-                        with st.expander("📊 Ver dados detalhados", expanded=False):
+                        with st.expander(" Ver dados detalhados", expanded=False):
                             st.dataframe(dev_cliente_filtrado, hide_index=True, use_container_width=True)
                     else:
                         st.info("Sem dados de DEV x Cliente para os filtros selecionados")
                 
                 # Índices de concentração DEV (em expander)
-                with st.expander("📈 Índices de Concentração (DEV)", expanded=False):
+                with st.expander(" Índices de Concentração (DEV)", expanded=False):
                     col1, col2 = st.columns(2)
                     
                     with col1:
                         st.markdown("**Por Produto:**")
                         if indices_dev_produto_filtrado:
                             for produto, dados in indices_dev_produto_filtrado.items():
-                                cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
+                                cor = '' if dados['concentracao_pct'] >= 80 else '' if dados['concentracao_pct'] >= 60 else ''
                                 st.markdown(f"{cor} **{produto}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} = {dados['concentracao_pct']}%)")
                         else:
                             st.info("Nenhum índice para os filtros selecionados")
@@ -661,7 +660,7 @@ def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
                         st.markdown("**Por Cliente:**")
                         if indices_dev_cliente_filtrado:
                             for cliente, dados in indices_dev_cliente_filtrado.items():
-                                cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
+                                cor = '' if dados['concentracao_pct'] >= 80 else '' if dados['concentracao_pct'] >= 60 else ''
                                 st.markdown(f"{cor} **{cliente}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} = {dados['concentracao_pct']}%)")
                         else:
                             st.info("Nenhum índice para os filtros selecionados")
@@ -669,16 +668,16 @@ def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
         with tab_qa:
             # Verifica se filtro de tipo permite mostrar QA
             if filtro_tipo == "Apenas DEV":
-                st.info("🔍 Filtro 'Apenas DEV' selecionado. Mude para 'Todos' ou 'Apenas QA' para ver dados de QAs.")
+                st.info(" Filtro 'Apenas DEV' selecionado. Mude para 'Todos' ou 'Apenas QA' para ver dados de QAs.")
             else:
                 # Info sobre QAs principais
                 if concentracao['qas_principais']:
-                    st.info(f"📋 **QAs considerados:** {', '.join(concentracao['qas_principais'])} (baseado no volume de validações)")
+                    st.info(f" **QAs considerados:** {', '.join(concentracao['qas_principais'])} (baseado no volume de validações)")
                 
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    st.markdown("#### 📦 QA x Produto")
+                    st.markdown("#### QA x Produto")
                     if not matriz_qa_produto_filtrada.empty:
                         fig = criar_grafico_concentracao(
                             matriz_qa_produto_filtrada, 
@@ -687,13 +686,13 @@ def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
                         )
                         st.plotly_chart(fig, use_container_width=True)
                         
-                        with st.expander("📊 Ver dados detalhados", expanded=False):
+                        with st.expander(" Ver dados detalhados", expanded=False):
                             st.dataframe(qa_produto_filtrado, hide_index=True, use_container_width=True)
                     else:
                         st.info("Sem dados de QA x Produto para os filtros selecionados")
                 
                 with col2:
-                    st.markdown("#### 🏢 QA x Cliente")
+                    st.markdown("#### QA x Cliente")
                     if not matriz_qa_cliente_filtrada.empty:
                         fig = criar_grafico_concentracao(
                             matriz_qa_cliente_filtrada, 
@@ -702,20 +701,20 @@ def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
                         )
                         st.plotly_chart(fig, use_container_width=True)
                         
-                        with st.expander("📊 Ver dados detalhados", expanded=False):
+                        with st.expander(" Ver dados detalhados", expanded=False):
                             st.dataframe(qa_cliente_filtrado, hide_index=True, use_container_width=True)
                     else:
                         st.info("Sem dados de QA x Cliente para os filtros selecionados")
                 
                 # Índices de concentração QA (em expander)
-                with st.expander("📈 Índices de Concentração (QA)", expanded=False):
+                with st.expander(" Índices de Concentração (QA)", expanded=False):
                     col1, col2 = st.columns(2)
                     
                     with col1:
                         st.markdown("**Por Produto:**")
                         if indices_qa_produto_filtrado:
                             for produto, dados in indices_qa_produto_filtrado.items():
-                                cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
+                                cor = '' if dados['concentracao_pct'] >= 80 else '' if dados['concentracao_pct'] >= 60 else ''
                                 st.markdown(f"{cor} **{produto}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} = {dados['concentracao_pct']}%)")
                         else:
                             st.info("Nenhum índice para os filtros selecionados")
@@ -724,25 +723,25 @@ def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
                         st.markdown("**Por Cliente:**")
                         if indices_qa_cliente_filtrado:
                             for cliente, dados in indices_qa_cliente_filtrado.items():
-                                cor = '🔴' if dados['concentracao_pct'] >= 80 else '🟡' if dados['concentracao_pct'] >= 60 else '🟢'
+                                cor = '' if dados['concentracao_pct'] >= 80 else '' if dados['concentracao_pct'] >= 60 else ''
                                 st.markdown(f"{cor} **{cliente}**: {dados['top_pessoa']} ({dados['top_cards']}/{dados['total_cards']} = {dados['concentracao_pct']}%)")
                         else:
                             st.info("Nenhum índice para os filtros selecionados")
         
         # ===== LEGENDA (COLAPSADA) =====
-        with st.expander("📖 Legenda e Conceitos", expanded=False):
+        with st.expander(" Legenda e Conceitos", expanded=False):
             st.markdown("""
             **Níveis de Concentração:**
-            - 🔴 **Crítico (≥80%)**: Conhecimento muito centralizado - risco alto de Bus Factor
-            - 🟡 **Atenção (60-79%)**: Concentração moderada - planejar rodízio
-            - 🟢 **Saudável (<60%)**: Conhecimento bem distribuído
+            - **Crítico (≥80%)**: Conhecimento muito centralizado - risco alto de Bus Factor
+            - **Atenção (60-79%)**: Concentração moderada - planejar rodízio
+            - **Saudável (<60%)**: Conhecimento bem distribuído
             
-            **💡 O que é Bus Factor?** 
+            ** O que é Bus Factor?** 
             É o número mínimo de pessoas que precisam "sair" para o projeto/área ficar parado. 
             Quanto mais distribuído o conhecimento, maior o Bus Factor e menor o risco.
             
             **Como usar estas informações:**
-            1. Identifique áreas com concentração crítica (🔴)
+            1. Identifique áreas com concentração crítica ()
             2. Planeje rodízios nas próximas sprints
             3. Considere pair programming para transferência de conhecimento
             4. Documente processos específicos de áreas concentradas
@@ -751,7 +750,7 @@ def _renderizar_concentracao_conhecimento(df: pd.DataFrame):
 
 def _renderizar_cards_proxima_release(df: pd.DataFrame):
     """Renderiza seção de cards que vão subir na próxima release."""
-    with st.expander("🚀 Cards na Próxima Release", expanded=True):
+    with st.expander(" Cards na Próxima Release", expanded=True):
         # Cards em homologação
         if 'ambiente' in df.columns:
             # Filtra cards em homologação (ambiente HML)
@@ -767,7 +766,7 @@ def _renderizar_cards_proxima_release(df: pd.DataFrame):
                 st.markdown(f'''
                 <div style="background: #fffbeb; border: 2px solid #d97706; border-radius: 10px; padding: 14px; text-align: center;">
                     <div style="font-size: 28px; font-weight: 700; color: #d97706;">{len(cards_hml)}</div>
-                    <div style="font-size: 13px; font-weight: 600; color: #92400e;">🟡 Em Homologação</div>
+                    <div style="font-size: 13px; font-weight: 600; color: #92400e;"> Em Homologação</div>
                     <div style="font-size: 11px; color: #b45309; margin-top: 4px;">Sobem na próxima release</div>
                 </div>
                 ''', unsafe_allow_html=True)
@@ -776,7 +775,7 @@ def _renderizar_cards_proxima_release(df: pd.DataFrame):
                 st.markdown(f'''
                 <div style="background: #f0fdf4; border: 2px solid #16a34a; border-radius: 10px; padding: 14px; text-align: center;">
                     <div style="font-size: 28px; font-weight: 700; color: #16a34a;">{len(cards_dev)}</div>
-                    <div style="font-size: 13px; font-weight: 600; color: #166534;">🟢 Em Develop</div>
+                    <div style="font-size: 13px; font-weight: 600; color: #166534;"> Em Develop</div>
                     <div style="font-size: 11px; color: #15803d; margin-top: 4px;">Ainda em testes</div>
                 </div>
                 ''', unsafe_allow_html=True)
@@ -785,7 +784,7 @@ def _renderizar_cards_proxima_release(df: pd.DataFrame):
                 st.markdown(f'''
                 <div style="background: #fef2f2; border: 2px solid #dc2626; border-radius: 10px; padding: 14px; text-align: center;">
                     <div style="font-size: 28px; font-weight: 700; color: #dc2626;">{len(cards_prod)}</div>
-                    <div style="font-size: 13px; font-weight: 600; color: #991b1b;">🔴 Em Produção</div>
+                    <div style="font-size: 13px; font-weight: 600; color: #991b1b;"> Em Produção</div>
                     <div style="font-size: 11px; color: #b91c1c; margin-top: 4px;">Já publicados</div>
                 </div>
                 ''', unsafe_allow_html=True)
@@ -793,7 +792,7 @@ def _renderizar_cards_proxima_release(df: pd.DataFrame):
             # Lista de cards em homologação
             if not cards_hml.empty:
                 st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
-                st.markdown("**🚀 Cards que sobem na próxima release:**")
+                st.markdown("** Cards que sobem na próxima release:**")
                 
                 # Usa função padrão da plataforma com botão NinaDash
                 cards_list = cards_hml.to_dict('records')
@@ -801,17 +800,17 @@ def _renderizar_cards_proxima_release(df: pd.DataFrame):
             else:
                 st.info("Nenhum card em homologação no momento")
         else:
-            st.warning("⚠️ Campo 'Ambiente' não disponível nos dados")
+            st.warning(" Campo 'Ambiente' não disponível nos dados")
             st.caption("O campo de ambiente permite identificar onde cada card está deployado")
 
 
 def _renderizar_lista_completa_por_ambiente(df: pd.DataFrame):
     """Renderiza lista completa de cards agrupados por ambiente."""
-    with st.expander("🌍 Lista de Cards por Ambiente", expanded=False):
+    with st.expander(" Lista de Cards por Ambiente", expanded=False):
         st.markdown('<div style="font-size: 13px; color: #6b7280; margin-bottom: 16px;">Visualize todos os cards organizados pelo ambiente de deploy</div>', unsafe_allow_html=True)
         
         if 'ambiente' not in df.columns:
-            st.warning("⚠️ Campo 'Ambiente' não disponível nos dados")
+            st.warning(" Campo 'Ambiente' não disponível nos dados")
             return
         
         # Classificar cards por ambiente
@@ -825,22 +824,22 @@ def _renderizar_lista_completa_por_ambiente(df: pd.DataFrame):
         st.markdown(f"""
         <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
             <div style="background: #f0fdf4; border: 1px solid #16a34a40; border-radius: 8px; padding: 8px 16px;">
-                <span style="font-weight: 600; color: #16a34a;">🟢 DEV: {len(cards_dev)}</span>
+                <span style="font-weight: 600; color: #16a34a;"> DEV: {len(cards_dev)}</span>
             </div>
             <div style="background: #fffbeb; border: 1px solid #d9770640; border-radius: 8px; padding: 8px 16px;">
-                <span style="font-weight: 600; color: #d97706;">🟡 HML: {len(cards_hml)}</span>
+                <span style="font-weight: 600; color: #d97706;"> HML: {len(cards_hml)}</span>
             </div>
             <div style="background: #fef2f2; border: 1px solid #dc262640; border-radius: 8px; padding: 8px 16px;">
-                <span style="font-weight: 600; color: #dc2626;">🔴 PROD: {len(cards_prod)}</span>
+                <span style="font-weight: 600; color: #dc2626;"> PROD: {len(cards_prod)}</span>
             </div>
             <div style="background: #f3f4f6; border: 1px solid #6b728040; border-radius: 8px; padding: 8px 16px;">
-                <span style="font-weight: 600; color: #6b7280;">⚪ Sem: {len(cards_sem)}</span>
+                <span style="font-weight: 600; color: #6b7280;"> Sem: {len(cards_sem)}</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
         
         # Seletor de ambiente
-        tab_dev, tab_hml, tab_prod, tab_sem = st.tabs(["🟢 Develop", "🟡 Homologação", "🔴 Produção", "⚪ Sem Ambiente"])
+        tab_dev, tab_hml, tab_prod, tab_sem = st.tabs([" Develop", " Homologação", " Produção", " Sem Ambiente"])
         
         with tab_dev:
             if not cards_dev.empty:
@@ -852,7 +851,7 @@ def _renderizar_lista_completa_por_ambiente(df: pd.DataFrame):
             if not cards_hml.empty:
                 st.markdown("""
                 <div style="background: #fffbeb; border: 1px solid #d97706; border-radius: 8px; padding: 10px; margin-bottom: 12px;">
-                    <span style="font-weight: 600; color: #d97706;">🚀 Estes cards sobem na próxima release</span>
+                    <span style="font-weight: 600; color: #d97706;"> Estes cards sobem na próxima release</span>
                 </div>
                 """, unsafe_allow_html=True)
                 mostrar_lista_tickets_completa(cards_hml.to_dict('records'), f"Homologação ({len(cards_hml)} cards)")
@@ -869,30 +868,30 @@ def _renderizar_lista_completa_por_ambiente(df: pd.DataFrame):
             if not cards_sem.empty:
                 st.markdown("""
                 <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 10px; margin-bottom: 12px;">
-                    <span style="font-weight: 600; color: #d97706;">⚠️ Estes cards precisam ter o ambiente preenchido</span>
+                    <span style="font-weight: 600; color: #d97706;"> Estes cards precisam ter o ambiente preenchido</span>
                 </div>
                 """, unsafe_allow_html=True)
                 mostrar_lista_tickets_completa(cards_sem.to_dict('records'), f"Sem Ambiente ({len(cards_sem)} cards)")
             else:
-                st.success("✅ Todos os cards têm ambiente preenchido")
+                st.success(" Todos os cards têm ambiente preenchido")
 
 
 def _renderizar_performance_dev(df: pd.DataFrame):
     """Renderiza a seção de performance por desenvolvedor."""
-    with st.expander("👨‍💻 Performance por Desenvolvedor", expanded=False):
+    with st.expander(" Performance por Desenvolvedor", expanded=False):
         dev_metricas = calcular_metricas_dev(df)
         st.dataframe(dev_metricas['stats'], hide_index=True, use_container_width=True)
 
 
 def _renderizar_analise_tech_lead(df: pd.DataFrame):
     """Renderiza análise específica para Tech Lead - WIP, Code Review, Velocidade."""
-    with st.expander("🎯 Análise para Tech Lead", expanded=False):
+    with st.expander(" Análise para Tech Lead", expanded=False):
         st.markdown('<div style="font-size: 13px; color: #6b7280; margin-bottom: 12px;">Visão gerencial do time de desenvolvimento: carga, WIP e velocidade</div>', unsafe_allow_html=True)
         
         col_tl1, col_tl2 = st.columns(2)
         
         with col_tl1:
-            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">📊 Distribuição de Story Points por Dev</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;"> Distribuição de Story Points por Dev</div>', unsafe_allow_html=True)
             st.markdown('<div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">Quem está assumindo mais complexidade</div>', unsafe_allow_html=True)
             sp_por_dev = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor')['sp'].sum().reset_index()
             sp_por_dev = sp_por_dev.sort_values('sp', ascending=False).head(8)
@@ -907,7 +906,7 @@ def _renderizar_analise_tech_lead(df: pd.DataFrame):
                 st.info("Sem dados de SP")
         
         with col_tl2:
-            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">🚀 Status de Entrega por Dev</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;"> Status de Entrega por Dev</div>', unsafe_allow_html=True)
             st.markdown('<div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">Progresso: Concluído vs Em andamento</div>', unsafe_allow_html=True)
             
             status_dev = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor').apply(
@@ -929,7 +928,7 @@ def _renderizar_analise_tech_lead(df: pd.DataFrame):
         col_tl3, col_tl4 = st.columns(2)
         
         with col_tl3:
-            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">⏳ Work-In-Progress (WIP) por Dev</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;"> Work-In-Progress (WIP) por Dev</div>', unsafe_allow_html=True)
             st.markdown('<div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">Quantos cards cada dev está trabalhando agora</div>', unsafe_allow_html=True)
             
             wip_devs = df[(df['desenvolvedor'] != 'Não atribuído') & 
@@ -945,10 +944,10 @@ def _renderizar_analise_tech_lead(df: pd.DataFrame):
                 fig_wip.update_traces(textposition='outside')
                 st.plotly_chart(fig_wip, use_container_width=True)
             else:
-                st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum dev com WIP no momento</div></div>', unsafe_allow_html=True)
+                st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;"></span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum dev com WIP no momento</div></div>', unsafe_allow_html=True)
         
         with col_tl4:
-            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">📈 Velocidade do Time (SP/Card)</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;"> Velocidade do Time (SP/Card)</div>', unsafe_allow_html=True)
             st.markdown('<div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">Eficiência: média de Story Points por card entregue</div>', unsafe_allow_html=True)
             
             cards_done = df[df['status_cat'] == 'done']
@@ -971,7 +970,7 @@ def _renderizar_analise_tech_lead(df: pd.DataFrame):
                 st.info("Sem cards concluídos para análise")
         
         # Cards Críticos
-        st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin: 16px 0 8px 0;">🔴 Cards Críticos (Alta Prioridade em Dev)</div>', unsafe_allow_html=True)
+        st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin: 16px 0 8px 0;"> Cards Críticos (Alta Prioridade em Dev)</div>', unsafe_allow_html=True)
         
         criticos_dev = df[(df['prioridade'].isin(['Alta', 'Muito Alta', 'Muito alto', 'Alto'])) & 
                           (df['status_cat'].isin(['development', 'code_review', 'backlog']))]
@@ -986,39 +985,39 @@ def _renderizar_analise_tech_lead(df: pd.DataFrame):
                     if ambiente:
                         ambiente_lower = ambiente.lower()
                         if 'produção' in ambiente_lower or 'producao' in ambiente_lower:
-                            ambiente_badge = '<span style="background: #fef2f2; color: #dc2626; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px;">🔴 PROD</span>'
+                            ambiente_badge = '<span style="background: #fef2f2; color: #dc2626; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px;"> PROD</span>'
                         elif 'homologação' in ambiente_lower or 'homologacao' in ambiente_lower:
-                            ambiente_badge = '<span style="background: #fffbeb; color: #d97706; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px;">🟡 HML</span>'
+                            ambiente_badge = '<span style="background: #fffbeb; color: #d97706; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px;"> HML</span>'
                         elif 'develop' in ambiente_lower:
-                            ambiente_badge = '<span style="background: #f0fdf4; color: #16a34a; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px;">🟢 DEV</span>'
-                    st.markdown(f'<div style="background: #FEF2F2; border-left: 3px solid #EF4444; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;"><div style="font-size: 13px; font-weight: 600; color: #374151;">{row["ticket_id"]}{ambiente_badge}</div><div style="font-size: 12px; color: #6b7280; margin-top: 4px;">{titulo}</div><div style="font-size: 11px; color: #9ca3af; margin-top: 6px;">⚠️ {row["prioridade"]} · 👤 {row["desenvolvedor"]} · {row["sp"]} SP</div></div>', unsafe_allow_html=True)
+                            ambiente_badge = '<span style="background: #f0fdf4; color: #16a34a; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px;"> DEV</span>'
+                    st.markdown(f'<div style="background: #FEF2F2; border-left: 3px solid #EF4444; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;"><div style="font-size: 13px; font-weight: 600; color: #374151;">{row["ticket_id"]}{ambiente_badge}</div><div style="font-size: 12px; color: #6b7280; margin-top: 4px;">{titulo}</div><div style="font-size: 11px; color: #9ca3af; margin-top: 6px;"> {row["prioridade"]} · {row["desenvolvedor"]} · {row["sp"]} SP</div></div>', unsafe_allow_html=True)
             
             if len(criticos_dev) > 6:
-                st.markdown(f'<div style="background: #FEF2F2; border-radius: 8px; padding: 10px; text-align: center; margin-top: 8px;"><span style="font-size: 13px; color: #EF4444; font-weight: 600;">⚠️ {len(criticos_dev)} cards de alta prioridade ainda em desenvolvimento!</span></div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="background: #FEF2F2; border-radius: 8px; padding: 10px; text-align: center; margin-top: 8px;"><span style="font-size: 13px; color: #EF4444; font-weight: 600;"> {len(criticos_dev)} cards de alta prioridade ainda em desenvolvimento!</span></div>', unsafe_allow_html=True)
         else:
-            st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum card crítico pendente</div></div>', unsafe_allow_html=True)
+            st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;"></span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum card crítico pendente</div></div>', unsafe_allow_html=True)
 
 
 def _renderizar_historico_validacoes_lideranca(df: pd.DataFrame):
     """Renderiza a seção de histórico de validações."""
-    with st.expander("✅ Histórico de Cards Validados", expanded=False):
+    with st.expander(" Histórico de Cards Validados", expanded=False):
         exibir_historico_validacoes(df, key_prefix="lideranca")
 
 
 def _renderizar_exportacao(df: pd.DataFrame, health: dict):
     """Renderiza a seção de exportação de dados."""
-    with st.expander("📥 Exportar Dados", expanded=False):
+    with st.expander(" Exportar Dados", expanded=False):
         col1, col2 = st.columns(2)
         
         with col1:
             csv = exportar_para_csv(df)
-            st.download_button("📄 Baixar CSV", csv, f"nina_dashboard_{datetime.now().strftime('%Y%m%d')}.csv", "text/csv")
+            st.download_button(" Baixar CSV", csv, f"nina_dashboard_{datetime.now().strftime('%Y%m%d')}.csv", "text/csv")
         
         with col2:
             try:
                 excel = exportar_para_excel(df, {'health_score': health['score']})
                 if excel:
-                    st.download_button("📊 Baixar Excel", excel, f"nina_dashboard_{datetime.now().strftime('%Y%m%d')}.xlsx", 
+                    st.download_button(" Baixar Excel", excel, f"nina_dashboard_{datetime.now().strftime('%Y%m%d')}.xlsx", 
                                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             except:
                 st.info("Instale openpyxl para exportar Excel: pip install openpyxl")

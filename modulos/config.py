@@ -92,26 +92,26 @@ STATUS_FLOW = {
 }
 
 STATUS_NOMES = {
-    "backlog": "📋 Backlog",
-    "development": "💻 Desenvolvimento",
-    "code_review": "👀 Code Review",
-    "waiting_qa": "⏳ Aguardando QA",
-    "testing": "🧪 Em Validação",
-    "done": "✅ Concluído",
-    "blocked": "🚫 Bloqueado",
-    "rejected": "❌ Reprovado",
-    "deferred": "📅 Adiado",
-    "unknown": "❓ Desconhecido",
-    "pb_revisao_produto": "📝 Revisão Produto",
-    "pb_roteiro": "📋 Em Roteiro",
-    "pb_ux": "🎨 UX/Design",
-    "pb_esforco": "⏱️ Aguarda Esforço",
-    "pb_aguarda_dev": "💻 Aguarda Dev",
-    "pb_aguardando_resposta": "💬 Aguardando Resposta",
-    "valprod_pendente": "⏳ Pendente Val Prod",
-    "valprod_validando": "🔍 Validando",
-    "valprod_aprovado": "✅ Aprovado",
-    "valprod_rejeitado": "❌ Rejeitado",
+    "backlog": "Backlog",
+    "development": "Desenvolvimento",
+    "code_review": "Code Review",
+    "waiting_qa": "Aguardando QA",
+    "testing": "Em Validação",
+    "done": "Concluído",
+    "blocked": "Bloqueado",
+    "rejected": "Reprovado",
+    "deferred": "Adiado",
+    "unknown": "Desconhecido",
+    "pb_revisao_produto": "Revisão Produto",
+    "pb_roteiro": "Em Roteiro",
+    "pb_ux": "UX/Design",
+    "pb_esforco": "Aguarda Esforço",
+    "pb_aguarda_dev": "Aguarda Dev",
+    "pb_aguardando_resposta": "Aguardando Resposta",
+    "valprod_pendente": "Pendente Val Prod",
+    "valprod_validando": "Validando",
+    "valprod_aprovado": "Aprovado",
+    "valprod_rejeitado": "Rejeitado",
 }
 
 STATUS_CORES = {
@@ -174,10 +174,10 @@ TRADUCAO_LINK_TYPES = {
 # ==============================================================================
 
 PB_FUNIL_ETAPAS = [
-    ("pb_revisao_produto", "📝 Revisão Produto"),
-    ("pb_ux", "🎨 UX/Design"),
-    ("pb_esforco", "⏱️ Aguarda Esforço"),
-    ("pb_aguarda_dev", "💻 Aguarda Dev"),
+    ("pb_revisao_produto", "Revisão Produto"),
+    ("pb_ux", "UX/Design"),
+    ("pb_esforco", "Aguarda Esforço"),
+    ("pb_aguarda_dev", "Aguarda Dev"),
 ]
 
 # ==============================================================================
@@ -206,10 +206,10 @@ TOOLTIPS = {
         "descricao": "Razão entre Story Points entregues e bugs encontrados. Quanto maior, melhor a qualidade do código.",
         "formula": "FK = SP / (Bugs + 1)",
         "interpretacao": {
-            "🥇 Gold (≥3.0)": "Excelente qualidade, código maduro",
-            "🥈 Silver (2.0-2.9)": "Boa qualidade, dentro do esperado",
-            "🥉 Bronze (1.0-1.9)": "Regular, precisa de atenção",
-            "⚠️ Risco (<1.0)": "Crítico, requer intervenção imediata"
+            "Gold (≥3.0)": "Excelente qualidade, código maduro",
+            "Silver (2.0-2.9)": "Boa qualidade, dentro do esperado",
+            "Bronze (1.0-1.9)": "Regular, precisa de atenção",
+            "Risco (<1.0)": "Crítico, requer intervenção imediata"
         },
         "fonte": "Métrica interna NINA baseada em práticas ISTQB"
     },
@@ -254,10 +254,10 @@ TOOLTIPS = {
         "descricao": "Pontuação composta que avalia a saúde geral da release.",
         "formula": "HS = (Conclusão×30 + DDP×25 + FPY×20 + Gargalos×15 + LeadTime×10) / 100",
         "interpretacao": {
-            "≥75": "🟢 Saudável",
-            "50-74": "🟡 Atenção",
-            "25-49": "🟠 Alerta",
-            "<25": "🔴 Crítico"
+            "≥75": "Saudável",
+            "50-74": "Atenção",
+            "25-49": "Alerta",
+            "<25": "Crítico"
         },
         "fonte": "ISTQB Test Process Improvement"
     },
@@ -301,22 +301,22 @@ TOOLTIPS = {
 # ==============================================================================
 
 CATEGORIAS_METRICAS = [
-    "📊 Qualidade",
-    "🚀 Produtividade", 
-    "🐛 Bugs",
-    "🔬 QA",
-    "👨‍💻 Desenvolvimento",
-    "📋 Status",
-    "📦 Produto",
-    "🎯 Concentração",
-    "🏢 Clientes",
+    "Qualidade",
+    "Produtividade",
+    "Bugs",
+    "QA",
+    "Desenvolvimento",
+    "Status",
+    "Produto",
+    "Concentração",
+    "Clientes",
 ]
 
 CATALOGO_METRICAS = {
     # === MÉTRICAS DE QUALIDADE ===
     "fator_k_geral": {
         "nome": "Fator K (Geral)",
-        "categoria": "📊 Qualidade",
+        "categoria": "Qualidade",
         "descricao": "Razão entre Story Points e Bugs do projeto inteiro",
         "tipo": "kpi",
         "parametros": [],
@@ -324,7 +324,7 @@ CATALOGO_METRICAS = {
     },
     "fator_k_dev": {
         "nome": "Fator K por Desenvolvedor",
-        "categoria": "📊 Qualidade",
+        "categoria": "Qualidade",
         "descricao": "Fator K individual de cada desenvolvedor",
         "tipo": "tabela",
         "parametros": ["desenvolvedor"],
@@ -332,7 +332,7 @@ CATALOGO_METRICAS = {
     },
     "fpy": {
         "nome": "FPY - First Pass Yield",
-        "categoria": "📊 Qualidade",
+        "categoria": "Qualidade",
         "descricao": "% de cards aprovados na primeira validação",
         "tipo": "kpi",
         "parametros": [],
@@ -340,7 +340,7 @@ CATALOGO_METRICAS = {
     },
     "ddp": {
         "nome": "DDP - Defect Detection",
-        "categoria": "📊 Qualidade",
+        "categoria": "Qualidade",
         "descricao": "% de defeitos encontrados antes da produção",
         "tipo": "kpi",
         "parametros": [],
@@ -348,7 +348,7 @@ CATALOGO_METRICAS = {
     },
     "health_score": {
         "nome": "Health Score",
-        "categoria": "📊 Qualidade",
+        "categoria": "Qualidade",
         "descricao": "Pontuação de saúde da release (0-100)",
         "tipo": "kpi",
         "parametros": [],
@@ -358,7 +358,7 @@ CATALOGO_METRICAS = {
     # === MÉTRICAS DE PRODUTIVIDADE ===
     "throughput_cards": {
         "nome": "Throughput (Cards)",
-        "categoria": "🚀 Produtividade",
+        "categoria": "Produtividade",
         "descricao": "Quantidade de cards concluídos",
         "tipo": "kpi",
         "parametros": [],
@@ -366,7 +366,7 @@ CATALOGO_METRICAS = {
     },
     "throughput_sp": {
         "nome": "Throughput (Story Points)",
-        "categoria": "🚀 Produtividade",
+        "categoria": "Produtividade",
         "descricao": "Quantidade de SP entregues",
         "tipo": "kpi",
         "parametros": [],
@@ -374,7 +374,7 @@ CATALOGO_METRICAS = {
     },
     "lead_time": {
         "nome": "Lead Time Médio",
-        "categoria": "🚀 Produtividade",
+        "categoria": "Produtividade",
         "descricao": "Tempo médio do card (criação → conclusão)",
         "tipo": "kpi",
         "parametros": [],
@@ -382,7 +382,7 @@ CATALOGO_METRICAS = {
     },
     "wip": {
         "nome": "WIP - Work In Progress",
-        "categoria": "🚀 Produtividade",
+        "categoria": "Produtividade",
         "descricao": "Cards em andamento agora",
         "tipo": "kpi",
         "parametros": [],
@@ -390,7 +390,7 @@ CATALOGO_METRICAS = {
     },
     "velocidade_media": {
         "nome": "Velocidade Média",
-        "categoria": "🚀 Produtividade",
+        "categoria": "Produtividade",
         "descricao": "SP médio por card concluído",
         "tipo": "kpi",
         "parametros": [],
@@ -400,7 +400,7 @@ CATALOGO_METRICAS = {
     # === MÉTRICAS DE BUGS ===
     "total_bugs": {
         "nome": "Total de Bugs",
-        "categoria": "🐛 Bugs",
+        "categoria": "Bugs",
         "descricao": "Quantidade total de bugs encontrados",
         "tipo": "kpi",
         "parametros": [],
@@ -408,7 +408,7 @@ CATALOGO_METRICAS = {
     },
     "densidade_bugs": {
         "nome": "Densidade de Bugs",
-        "categoria": "🐛 Bugs",
+        "categoria": "Bugs",
         "descricao": "Bugs por Story Point",
         "tipo": "kpi",
         "parametros": [],
@@ -416,7 +416,7 @@ CATALOGO_METRICAS = {
     },
     "bugs_por_dev": {
         "nome": "Bugs por Desenvolvedor",
-        "categoria": "🐛 Bugs",
+        "categoria": "Bugs",
         "descricao": "Ranking de bugs por desenvolvedor",
         "tipo": "grafico_barra",
         "parametros": [],
@@ -426,7 +426,7 @@ CATALOGO_METRICAS = {
     # === MÉTRICAS DE QA ===
     "carga_qa": {
         "nome": "Carga por QA",
-        "categoria": "🔬 QA",
+        "categoria": "QA",
         "descricao": "Cards em validação por QA",
         "tipo": "grafico_barra",
         "parametros": ["qa"],
@@ -434,7 +434,7 @@ CATALOGO_METRICAS = {
     },
     "funil_qa": {
         "nome": "Funil de QA",
-        "categoria": "🔬 QA",
+        "categoria": "QA",
         "descricao": "Status do funil de validação",
         "tipo": "grafico_funil",
         "parametros": [],
@@ -442,7 +442,7 @@ CATALOGO_METRICAS = {
     },
     "aging_qa": {
         "nome": "Aging QA",
-        "categoria": "🔬 QA",
+        "categoria": "QA",
         "descricao": "Cards aguardando validação há muito tempo",
         "tipo": "tabela",
         "parametros": [],
@@ -450,7 +450,7 @@ CATALOGO_METRICAS = {
     },
     "taxa_reprovacao": {
         "nome": "Taxa de Reprovação",
-        "categoria": "🔬 QA",
+        "categoria": "QA",
         "descricao": "% de cards reprovados",
         "tipo": "kpi",
         "parametros": [],
@@ -460,7 +460,7 @@ CATALOGO_METRICAS = {
     # === MÉTRICAS DE DESENVOLVIMENTO ===
     "ranking_devs": {
         "nome": "Ranking de Desenvolvedores",
-        "categoria": "👨‍💻 Desenvolvimento",
+        "categoria": "Desenvolvimento",
         "descricao": "Ranking por Fator K, SP e bugs",
         "tipo": "tabela",
         "parametros": [],
@@ -468,7 +468,7 @@ CATALOGO_METRICAS = {
     },
     "code_review_fila": {
         "nome": "Fila de Code Review",
-        "categoria": "👨‍💻 Desenvolvimento",
+        "categoria": "Desenvolvimento",
         "descricao": "Cards aguardando code review",
         "tipo": "lista_cards",
         "parametros": [],
@@ -476,7 +476,7 @@ CATALOGO_METRICAS = {
     },
     "cards_por_dev": {
         "nome": "Cards por Desenvolvedor",
-        "categoria": "👨‍💻 Desenvolvimento",
+        "categoria": "Desenvolvimento",
         "descricao": "Distribuição de cards por desenvolvedor",
         "tipo": "grafico_pizza",
         "parametros": [],
@@ -486,7 +486,7 @@ CATALOGO_METRICAS = {
     # === MÉTRICAS DE STATUS ===
     "cards_por_status": {
         "nome": "Cards por Status",
-        "categoria": "📋 Status",
+        "categoria": "Status",
         "descricao": "Distribuição de cards por status",
         "tipo": "grafico_barra",
         "parametros": [],
@@ -494,7 +494,7 @@ CATALOGO_METRICAS = {
     },
     "cards_aguardando_qa": {
         "nome": "Aguardando QA",
-        "categoria": "📋 Status",
+        "categoria": "Status",
         "descricao": "Cards aguardando validação",
         "tipo": "lista_cards",
         "parametros": [],
@@ -502,7 +502,7 @@ CATALOGO_METRICAS = {
     },
     "cards_impedidos": {
         "nome": "Cards Impedidos",
-        "categoria": "📋 Status",
+        "categoria": "Status",
         "descricao": "Cards com impedimentos",
         "tipo": "lista_cards",
         "parametros": [],
@@ -510,7 +510,7 @@ CATALOGO_METRICAS = {
     },
     "cards_bloqueados": {
         "nome": "Cards Bloqueados",
-        "categoria": "📋 Status",
+        "categoria": "Status",
         "descricao": "Cards bloqueados",
         "tipo": "lista_cards",
         "parametros": [],
@@ -520,7 +520,7 @@ CATALOGO_METRICAS = {
     # === MÉTRICAS DE PRODUTO ===
     "por_produto": {
         "nome": "Cards por Produto",
-        "categoria": "📦 Produto",
+        "categoria": "Produto",
         "descricao": "Distribuição por produto",
         "tipo": "grafico_pizza",
         "parametros": [],
@@ -528,7 +528,7 @@ CATALOGO_METRICAS = {
     },
     "hotfix_por_produto": {
         "nome": "Hotfixes por Produto",
-        "categoria": "📦 Produto",
+        "categoria": "Produto",
         "descricao": "Hotfixes agrupados por produto",
         "tipo": "grafico_barra",
         "parametros": [],
@@ -538,7 +538,7 @@ CATALOGO_METRICAS = {
     # === MÉTRICAS DE CONCENTRAÇÃO ===
     "concentracao_dev": {
         "nome": "Concentração DEV",
-        "categoria": "🎯 Concentração",
+        "categoria": "Concentração",
         "descricao": "Concentração de conhecimento por DEV",
         "tipo": "heatmap",
         "parametros": [],
@@ -546,7 +546,7 @@ CATALOGO_METRICAS = {
     },
     "concentracao_qa": {
         "nome": "Concentração QA",
-        "categoria": "🎯 Concentração",
+        "categoria": "Concentração",
         "descricao": "Concentração de conhecimento por QA",
         "tipo": "heatmap",
         "parametros": [],
@@ -556,7 +556,7 @@ CATALOGO_METRICAS = {
     # === MÉTRICAS DE CLIENTE ===
     "top_clientes": {
         "nome": "Top Clientes",
-        "categoria": "🏢 Clientes",
+        "categoria": "Clientes",
         "descricao": "Clientes com mais cards",
         "tipo": "grafico_barra",
         "parametros": [],
@@ -564,7 +564,7 @@ CATALOGO_METRICAS = {
     },
     "clientes_bugs": {
         "nome": "Bugs por Cliente",
-        "categoria": "🏢 Clientes",
+        "categoria": "Clientes",
         "descricao": "Clientes com mais bugs reportados",
         "tipo": "grafico_barra",
         "parametros": [],

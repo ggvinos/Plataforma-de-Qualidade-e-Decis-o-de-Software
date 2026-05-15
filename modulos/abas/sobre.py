@@ -29,15 +29,15 @@ def aba_sobre():
         </div>
         <div style="display: flex; gap: 12px; flex-wrap: wrap;">
             <div style="background: rgba(255,255,255,0.15); padding: 10px 14px; border-radius: 8px; flex: 1; min-width: 180px;">
-                <p style="margin: 0; color: #fecdd3; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">🎯 Missão</p>
+                <p style="margin: 0; color: #fecdd3; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;"> Missão</p>
                 <p style="margin: 4px 0 0 0; color: #fff; font-size: 13px; font-weight: 500;">Entregar software de qualidade com excelência operacional</p>
             </div>
             <div style="background: rgba(255,255,255,0.15); padding: 10px 14px; border-radius: 8px; flex: 1; min-width: 180px;">
-                <p style="margin: 0; color: #fecdd3; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">👁️ Visão</p>
+                <p style="margin: 0; color: #fecdd3; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;"> Visão</p>
                 <p style="margin: 4px 0 0 0; color: #fff; font-size: 13px; font-weight: 500;">Ser referência em qualidade de software no Brasil</p>
             </div>
             <div style="background: rgba(255,255,255,0.15); padding: 10px 14px; border-radius: 8px; flex: 1; min-width: 180px;">
-                <p style="margin: 0; color: #fecdd3; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">💎 Valores</p>
+                <p style="margin: 0; color: #fecdd3; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;"> Valores</p>
                 <p style="margin: 4px 0 0 0; color: #fff; font-size: 13px; font-weight: 500;">Qualidade, Transparência, Inovação</p>
             </div>
         </div>
@@ -45,7 +45,7 @@ def aba_sobre():
     """, unsafe_allow_html=True)
     
     # ===== POR QUE O NINADASH EXISTE =====
-    st.markdown("##### 🎯 Por Que o NinaDash Existe?")
+    st.markdown("##### Por Que o NinaDash Existe?")
     
     st.markdown("""
     <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
@@ -63,7 +63,7 @@ def aba_sobre():
     with col1:
         st.markdown("""
         <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; border-radius: 0 8px 8px 0;">
-            <p style="margin: 0 0 8px 0; font-weight: 600; color: #dc2626;">❌ Antes do NinaDash</p>
+            <p style="margin: 0 0 8px 0; font-weight: 600; color: #dc2626;"> Antes do NinaDash</p>
             <ul style="margin: 0; padding-left: 20px; color: #7f1d1d; font-size: 13px; line-height: 1.8;">
                 <li>Cada um olhava só o próprio Jira</li>
                 <li>Sem visão do tempo em cada status</li>
@@ -77,7 +77,7 @@ def aba_sobre():
     with col2:
         st.markdown("""
         <div style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 16px; border-radius: 0 8px 8px 0;">
-            <p style="margin: 0 0 8px 0; font-weight: 600; color: #16a34a;">✅ Com o NinaDash</p>
+            <p style="margin: 0 0 8px 0; font-weight: 600; color: #16a34a;"> Com o NinaDash</p>
             <ul style="margin: 0; padding-left: 20px; color: #166534; font-size: 13px; line-height: 1.8;">
                 <li>Visão consolidada de todos os projetos</li>
                 <li>Histórico visual de cada card</li>
@@ -91,25 +91,25 @@ def aba_sobre():
     st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
     
     # ===== FUNCIONALIDADES PRINCIPAIS =====
-    st.markdown("##### ✨ Funcionalidades Principais")
+    st.markdown("##### Funcionalidades Principais")
     
     # PESQUISA RÁPIDA DE CARD
     st.markdown("""
     <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 2px solid #3b82f6; border-radius: 16px; padding: 24px; margin-bottom: 16px;">
         <div style="display: flex; align-items: flex-start; gap: 16px;">
-            <div style="background: #3b82f6; color: white; padding: 16px; border-radius: 12px; font-size: 32px;">🔍</div>
+            <div style="background: #3b82f6; color: white; padding: 16px; border-radius: 12px; font-size: 32px;"></div>
             <div style="flex: 1;">
                 <h4 style="margin: 0 0 8px 0; color: #1e40af; font-size: 18px;">Pesquisa Rápida de Card</h4>
                 <p style="margin: 0 0 12px 0; color: #374151; font-size: 14px; line-height: 1.6;">
                     Digite o código de qualquer card (ex: SD-1234) e veja instantaneamente tudo sobre ele:
                 </p>
                 <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                    <span style="background: white; border: 1px solid #93c5fd; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #1e40af;">📊 Métricas do Card</span>
-                    <span style="background: white; border: 1px solid #93c5fd; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #1e40af;">📜 Timeline Visual</span>
-                    <span style="background: white; border: 1px solid #93c5fd; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #1e40af;">⏱️ Tempo em Cada Status</span>
-                    <span style="background: white; border: 1px solid #93c5fd; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #1e40af;">🔗 Vínculos com Outros Cards</span>
-                    <span style="background: white; border: 1px solid #93c5fd; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #1e40af;">💬 Comentários</span>
-                    <span style="background: white; border: 1px solid #93c5fd; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #1e40af;">📋 Link Compartilhável</span>
+                    <span style="background: white; border: 1px solid #93c5fd; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #1e40af;"> Métricas do Card</span>
+                    <span style="background: white; border: 1px solid #93c5fd; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #1e40af;"> Timeline Visual</span>
+                    <span style="background: white; border: 1px solid #93c5fd; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #1e40af;"> Tempo em Cada Status</span>
+                    <span style="background: white; border: 1px solid #93c5fd; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #1e40af;"> Vínculos com Outros Cards</span>
+                    <span style="background: white; border: 1px solid #93c5fd; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #1e40af;"> Comentários</span>
+                    <span style="background: white; border: 1px solid #93c5fd; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #1e40af;"> Link Compartilhável</span>
                 </div>
             </div>
         </div>
@@ -123,7 +123,7 @@ def aba_sobre():
         st.markdown("""
         <div style="background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); border: 2px solid #8b5cf6; border-radius: 16px; padding: 20px; height: 100%;">
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                <div style="background: #8b5cf6; color: white; padding: 12px; border-radius: 10px; font-size: 24px;">👨‍💻</div>
+                <div style="background: #8b5cf6; color: white; padding: 12px; border-radius: 10px; font-size: 24px;"></div>
                 <h4 style="margin: 0; color: #6d28d9; font-size: 16px;">Visão Individual do Dev</h4>
             </div>
             <p style="margin: 0 0 12px 0; color: #374151; font-size: 13px; line-height: 1.5;">
@@ -143,7 +143,7 @@ def aba_sobre():
         st.markdown("""
         <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #22c55e; border-radius: 16px; padding: 20px; height: 100%;">
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                <div style="background: #22c55e; color: white; padding: 12px; border-radius: 10px; font-size: 24px;">🔬</div>
+                <div style="background: #22c55e; color: white; padding: 12px; border-radius: 10px; font-size: 24px;"></div>
                 <h4 style="margin: 0; color: #166534; font-size: 16px;">Visão Individual do QA</h4>
             </div>
             <p style="margin: 0 0 12px 0; color: #374151; font-size: 13px; line-height: 1.5;">
@@ -175,18 +175,18 @@ def aba_sobre():
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.markdown(feature_mini("🎯", "Suporte/Implantação", "Veja onde estão seus cards em todos os projetos", "#ef4444"), unsafe_allow_html=True)
+        st.markdown(feature_mini("", "Suporte/Implantação", "Veja onde estão seus cards em todos os projetos", "#ef4444"), unsafe_allow_html=True)
     with col2:
-        st.markdown(feature_mini("🏥", "Health Score", "Score para decisão Go/No-Go de release", "#22c55e"), unsafe_allow_html=True)
+        st.markdown(feature_mini("", "Health Score", "Score para decisão Go/No-Go de release", "#22c55e"), unsafe_allow_html=True)
     with col3:
-        st.markdown(feature_mini("⏰", "Janela Release", "Monitora 3 dias úteis para validação segura", "#3b82f6"), unsafe_allow_html=True)
+        st.markdown(feature_mini("", "Janela Release", "Monitora 3 dias úteis para validação segura", "#3b82f6"), unsafe_allow_html=True)
     with col4:
-        st.markdown(feature_mini("🔗", "Links Compartilháveis", "Compartilhe visões específicas com a equipe", "#8b5cf6"), unsafe_allow_html=True)
+        st.markdown(feature_mini("", "Links Compartilháveis", "Compartilhe visões específicas com a equipe", "#8b5cf6"), unsafe_allow_html=True)
     
     st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
     
     # ===== QUEM USA =====
-    st.markdown("##### 👥 Quem Usa o NinaDash")
+    st.markdown("##### Quem Usa o NinaDash")
     
     def perfil_card(icone, nome, acoes):
         acoes_html = "".join([f'<div style="font-size: 11px; color: #64748b; padding: 2px 0;">• {a}</div>' for a in acoes])
@@ -200,22 +200,22 @@ def aba_sobre():
     
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
-        st.markdown(perfil_card("🔬", "QA", ["Priorizar validações", "Ver carga de trabalho", "Janela de release", "Bugs encontrados"]), unsafe_allow_html=True)
+        st.markdown(perfil_card("", "QA", ["Priorizar validações", "Ver carga de trabalho", "Janela de release", "Bugs encontrados"]), unsafe_allow_html=True)
     with col2:
-        st.markdown(perfil_card("👨‍💻", "Dev", ["Ver Fator K pessoal", "Cards em andamento", "Histórico de entregas", "Selo de maturidade"]), unsafe_allow_html=True)
+        st.markdown(perfil_card("", "Dev", ["Ver Fator K pessoal", "Cards em andamento", "Histórico de entregas", "Selo de maturidade"]), unsafe_allow_html=True)
     with col3:
-        st.markdown(perfil_card("🎯", "Suporte", ["Onde estão meus cards?", "Multi-projeto (SD, QA, PB)", "Status de validação", "Links rápidos"]), unsafe_allow_html=True)
+        st.markdown(perfil_card("", "Suporte", ["Onde estão meus cards?", "Multi-projeto (SD, QA, PB)", "Status de validação", "Links rápidos"]), unsafe_allow_html=True)
     with col4:
-        st.markdown(perfil_card("👔", "Liderança", ["Go/No-Go release", "Health Score", "Visão do time", "Alertas de risco"]), unsafe_allow_html=True)
+        st.markdown(perfil_card("", "Liderança", ["Go/No-Go release", "Health Score", "Visão do time", "Alertas de risco"]), unsafe_allow_html=True)
     with col5:
-        st.markdown(perfil_card("📦", "Produto", ["Funil do backlog", "Demandas por etapa", "Idade das demandas", "Priorização"]), unsafe_allow_html=True)
+        st.markdown(perfil_card("", "Produto", ["Funil do backlog", "Demandas por etapa", "Idade das demandas", "Priorização"]), unsafe_allow_html=True)
     
     st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
     
     # ===== DOCUMENTAÇÃO TÉCNICA (EXPANDIDA) =====
-    st.markdown("##### 📚 Documentação Técnica")
+    st.markdown("##### Documentação Técnica")
     
-    with st.expander("📊 Métricas e Fórmulas", expanded=False):
+    with st.expander(" Métricas e Fórmulas", expanded=False):
         st.markdown("""
         ### Fator K (Maturidade do Desenvolvedor)
         ```
@@ -224,10 +224,10 @@ def aba_sobre():
         
         | Selo | Fator K | Classificação |
         |------|---------|---------------|
-        | 🥇 Gold | ≥ 3.0 | Excelente - Referência para o time |
-        | 🥈 Silver | 2.0 - 2.9 | Bom - Acima da média |
-        | 🥉 Bronze | 1.0 - 1.9 | Regular - Acompanhar evolução |
-        | ⚠️ Risco | < 1.0 | Crítico - Requer atenção |
+        | Gold | ≥ 3.0 | Excelente - Referência para o time |
+        | Silver | 2.0 - 2.9 | Bom - Acima da média |
+        | Bronze | 1.0 - 1.9 | Regular - Acompanhar evolução |
+        | Risco | < 1.0 | Crítico - Requer atenção |
         
         ---
         
@@ -236,10 +236,10 @@ def aba_sobre():
         
         | Score | Status | Ação |
         |-------|--------|------|
-        | 🟢 ≥75 | Saudável | Release pode seguir |
-        | 🟡 50-74 | Atenção | Monitorar riscos |
-        | 🟠 25-49 | Alerta | Ação necessária |
-        | 🔴 <25 | Crítico | Avaliar adiamento |
+        | ≥75 | Saudável | Release pode seguir |
+        | 50-74 | Atenção | Monitorar riscos |
+        | 25-49 | Alerta | Ação necessária |
+        | <25 | Crítico | Avaliar adiamento |
         
         ---
         
@@ -247,7 +247,7 @@ def aba_sobre():
         Para validação segura, o card deve entrar em validação com **≥ 3 dias úteis** antes da release.
         """)
     
-    with st.expander("📑 Guia de Abas", expanded=False):
+    with st.expander(" Guia de Abas", expanded=False):
         st.markdown("""
         | Aba | Para Quem | O Que Mostra |
         |-----|-----------|--------------|
@@ -263,7 +263,7 @@ def aba_sobre():
         | **Liderança** | Gerentes | Go/No-Go, riscos, simulações |
         """)
     
-    with st.expander("🔗 Links Compartilháveis", expanded=False):
+    with st.expander(" Links Compartilháveis", expanded=False):
         st.markdown("""
         O NinaDash suporta **deep linking** para compartilhar visões específicas:
         
@@ -274,9 +274,9 @@ def aba_sobre():
         | QA específico | `?aba=qa&qa=Nome` | `?aba=qa&qa=Maria%20QA` |
         | Dev específico | `?aba=dev&dev=Nome` | `?aba=dev&dev=Pedro%20Dev` |
         
-        Use o botão **📋 Copiar Link** presente em cada aba para gerar o link automaticamente.
+        Use o botão ** Copiar Link** presente em cada aba para gerar o link automaticamente.
         """)
-        with st.expander("📚 Base Teórica (ISTQB)", expanded=False):
+        with st.expander(" Base Teórica (ISTQB)", expanded=False):
             st.markdown("""
             As métricas do NinaDash são baseadas no **ISTQB** (International Software Testing Qualifications Board), 
         um padrão internacional de qualidade de software.
@@ -295,7 +295,7 @@ def aba_sobre():
         | **Shift-Left** | Testar mais cedo | Encontrar bugs antes = mais barato |
         """)
     
-    with st.expander("🛠️ Tecnologias Utilizadas", expanded=False):
+    with st.expander(" Tecnologias Utilizadas", expanded=False):
         st.markdown("""
         | O que | Tecnologia |
         |-------|------------|
@@ -319,14 +319,14 @@ def aba_sobre():
         </div>'''
     
     with col1:
-        st.markdown(footer_card("🛠️", "Versão", "8.82", "Abril 2026"), unsafe_allow_html=True)
+        st.markdown(footer_card("", "Versão", "8.82", "Abril 2026"), unsafe_allow_html=True)
     with col2:
-        st.markdown(footer_card("👨‍💻", "Mantido por", "Vinícios Ferreira", "Time de Qualidade"), unsafe_allow_html=True)
+        st.markdown(footer_card("", "Mantido por", "Vinícios Ferreira", "Time de Qualidade"), unsafe_allow_html=True)
     with col3:
-        st.markdown(footer_card("🏢", "Desenvolvido para", "NINA Tecnologia", "Confirmation Call"), unsafe_allow_html=True)
+        st.markdown(footer_card("", "Desenvolvido para", "NINA Tecnologia", "Confirmation Call"), unsafe_allow_html=True)
     
     st.markdown("""
     <div style="text-align: center; padding: 16px; color: #94a3b8; font-size: 12px; margin-top: 16px;">
-        Feito com ❤️ em Python + Streamlit
+        Feito com em Python + Streamlit
     </div>
     """, unsafe_allow_html=True)

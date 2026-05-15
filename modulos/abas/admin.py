@@ -31,14 +31,14 @@ COLABORADORES_FILE = os.path.join(CONFIG_DIR, "colaboradores.json")
 PERMISSOES_FILE = os.path.join(CONFIG_DIR, "permissoes.json")
 
 TIMES_CONFIG = {
-    "DEV": {"cor": "#3b82f6", "icone": "👨‍💻"},
-    "QA": {"cor": "#22c55e", "icone": "🔬"},
-    "SUPORTE": {"cor": "#f59e0b", "icone": "🎧"},
-    "PRODUTO": {"cor": "#8b5cf6", "icone": "📦"},
-    "IMPLANTAÇÃO": {"cor": "#ec4899", "icone": "🚀"},
-    "LIDERANÇA": {"cor": "#ef4444", "icone": "👑"},
-    "CS": {"cor": "#06b6d4", "icone": "🤝"},
-    "COMERCIAL": {"cor": "#84cc16", "icone": "💼"},
+    "DEV": {"cor": "#3b82f6", "icone": ""},
+    "QA": {"cor": "#22c55e", "icone": ""},
+    "SUPORTE": {"cor": "#f59e0b", "icone": ""},
+    "PRODUTO": {"cor": "#8b5cf6", "icone": ""},
+    "IMPLANTAÇÃO": {"cor": "#ec4899", "icone": ""},
+    "LIDERANÇA": {"cor": "#ef4444", "icone": ""},
+    "CS": {"cor": "#06b6d4", "icone": ""},
+    "COMERCIAL": {"cor": "#84cc16", "icone": ""},
 }
 
 # ================================================================================
@@ -88,7 +88,7 @@ def aba_admin():
     # Header
     st.markdown("""
     <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 20px 24px; border-radius: 12px; margin-bottom: 20px;">
-        <h2 style="margin: 0; color: #fff; font-size: 22px;">⚙️ Painel Administrativo</h2>
+        <h2 style="margin: 0; color: #fff; font-size: 22px;"> Painel Administrativo</h2>
         <p style="margin: 4px 0 0 0; color: #94a3b8; font-size: 13px;">Colaboradores e Permissões de Acesso</p>
     </div>
     """, unsafe_allow_html=True)
@@ -99,11 +99,11 @@ def aba_admin():
     
     # Tabs
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "👥 Colaboradores", 
-        "🔗 Vincular Acessos", 
-        "➕ Novo Colaborador", 
-        "🔐 Permissões por Grupo", 
-        "📥 Exportar"
+        " Colaboradores", 
+        " Vincular Acessos", 
+        " Novo Colaborador", 
+        " Permissões por Grupo", 
+        " Exportar"
     ])
     
     # ===== TAB 1: COLABORADORES =====
@@ -114,7 +114,7 @@ def aba_admin():
         
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Total Ativos", total)
-        col2.metric("Super Admins", f"👑 {admins}")
+        col2.metric("Super Admins", f" {admins}")
         
         # Contagem por time
         contagem = {}
@@ -127,7 +127,7 @@ def aba_admin():
         st.markdown("---")
         
         # Grid de times com membros
-        st.markdown("### 📊 Distribuição por Time")
+        st.markdown("### Distribuição por Time")
         
         cols = st.columns(4)
         for i, (time, config) in enumerate(TIMES_CONFIG.items()):
@@ -153,14 +153,14 @@ def aba_admin():
         st.markdown("---")
         
         # Tabela completa com email
-        st.markdown("### 📋 Lista de Colaboradores")
+        st.markdown("### Lista de Colaboradores")
         
         # Filtro de colaboradores sem email
         sem_email = [nome for nome, dados in colaboradores.items() 
                      if not dados.get("email") and dados.get("ativo", True)]
         
         if sem_email:
-            st.warning(f"⚠️ {len(sem_email)} colaborador(es) sem email cadastrado")
+            st.warning(f" {len(sem_email)} colaborador(es) sem email cadastrado")
         
         rows = []
         for nome, dados in sorted(colaboradores.items()):
@@ -168,10 +168,10 @@ def aba_admin():
                 email = dados.get("email", "")
                 rows.append({
                     "Nome": nome,
-                    "Email": email if email else "❌ Sem email",
+                    "Email": email if email else " Sem email",
                     "Times": ", ".join(dados.get("times", [])) or "—",
                     "Perfil": dados.get("perfil_acesso", "VIEWER"),
-                    "Admin": "👑" if dados.get("is_admin") else ""
+                    "Admin": "" if dados.get("is_admin") else ""
                 })
         
         df = pd.DataFrame(rows)
@@ -180,7 +180,7 @@ def aba_admin():
         # Seção para adicionar email aos colaboradores sem email
         if sem_email:
             st.markdown("---")
-            st.markdown("### ✏️ Adicionar Email a Colaboradores")
+            st.markdown("### Adicionar Email a Colaboradores")
             st.caption("Selecione um colaborador e adicione o email corporativo.")
             
             col1, col2 = st.columns([2, 3])
@@ -199,28 +199,28 @@ def aba_admin():
                     key="email_add_colab"
                 )
             
-            if st.button("💾 Salvar Email", use_container_width=True, key="btn_salvar_email"):
+            if st.button(" Salvar Email", use_container_width=True, key="btn_salvar_email"):
                 if email_input and "@" in email_input:
                     colaboradores[colab_selecionado]["email"] = email_input.lower().strip()
                     if salvar_colaboradores(colaboradores):
-                        st.success(f"✅ Email adicionado para '{colab_selecionado}'!")
+                        st.success(f" Email adicionado para '{colab_selecionado}'!")
                         st.rerun()
                     else:
-                        st.error("❌ Erro ao salvar")
+                        st.error(" Erro ao salvar")
                 else:
-                    st.error("❌ Email inválido")
+                    st.error(" Email inválido")
     
     # ===== TAB 2: VINCULAR ACESSOS =====
     with tab2:
-        st.markdown("### 🔗 Vincular Acessos Não Mapeados")
-        st.info("💡 Usuários que acessaram o sistema mas não estão vinculados a nenhum colaborador. Vincule-os manualmente.")
+        st.markdown("### Vincular Acessos Não Mapeados")
+        st.info(" Usuários que acessaram o sistema mas não estão vinculados a nenhum colaborador. Vincule-os manualmente.")
         
         if nao_vinculados:
-            st.warning(f"⚠️ {len(nao_vinculados)} email(s) aguardando vinculação")
+            st.warning(f" {len(nao_vinculados)} email(s) aguardando vinculação")
             
             # Lista os não vinculados
             for email, dados in nao_vinculados.items():
-                with st.expander(f"📧 {email}", expanded=True):
+                with st.expander(f" {email}", expanded=True):
                     col1, col2, col3 = st.columns([2, 2, 1])
                     
                     with col1:
@@ -247,20 +247,20 @@ def aba_admin():
                             colab_vincular = None
                     
                     with col3:
-                        if sem_email and st.button("✅ Vincular", key=f"btn_vincular_{email}"):
+                        if sem_email and st.button(" Vincular", key=f"btn_vincular_{email}"):
                             if colab_vincular and colab_vincular != "-- Selecione --":
                                 if vincular_email_colaborador(email, colab_vincular):
-                                    st.success(f"✅ Vinculado!")
+                                    st.success(f" Vinculado!")
                                     st.rerun()
                                 else:
-                                    st.error("❌ Erro")
+                                    st.error(" Erro")
         else:
-            st.success("✅ Todos os acessos estão vinculados!")
+            st.success(" Todos os acessos estão vinculados!")
         
         st.markdown("---")
         
         # Histórico de acessos recentes
-        st.markdown("### 📊 Acessos Recentes")
+        st.markdown("### Acessos Recentes")
         acessos = carregar_acessos()
         ultimos = acessos.get("acessos", [])[-20:][::-1]  # Últimos 20, mais recente primeiro
         
@@ -278,8 +278,8 @@ def aba_admin():
     
     # ===== TAB 3: NOVO COLABORADOR =====
     with tab3:
-        st.markdown("### ➕ Cadastrar Novo Colaborador")
-        st.info("💡 Adicione um novo colaborador ao sistema. O email será usado para identificação no login.")
+        st.markdown("### Cadastrar Novo Colaborador")
+        st.info(" Adicione um novo colaborador ao sistema. O email será usado para identificação no login.")
         
         with st.form("form_novo_colaborador", clear_on_submit=True):
             col1, col2 = st.columns(2)
@@ -307,7 +307,7 @@ def aba_admin():
                 )
                 
                 novo_admin = st.checkbox(
-                    "👑 É Super Admin?",
+                    " É Super Admin?",
                     value=False,
                     help="Super Admins têm acesso total ao sistema"
                 )
@@ -320,7 +320,7 @@ def aba_admin():
                 help="Selecione os times aos quais o colaborador pertence"
             )
             
-            submitted = st.form_submit_button("✅ Cadastrar Colaborador", type="primary", use_container_width=True)
+            submitted = st.form_submit_button(" Cadastrar Colaborador", type="primary", use_container_width=True)
             
             if submitted:
                 # Validações
@@ -345,7 +345,7 @@ def aba_admin():
                 
                 if erros:
                     for erro in erros:
-                        st.error(f"❌ {erro}")
+                        st.error(f" {erro}")
                 else:
                     # Adiciona o colaborador
                     colaboradores[novo_nome.strip()] = {
@@ -358,16 +358,16 @@ def aba_admin():
                     }
                     
                     if salvar_colaboradores(colaboradores):
-                        st.success(f"✅ Colaborador '{novo_nome}' cadastrado com sucesso!")
+                        st.success(f" Colaborador '{novo_nome}' cadastrado com sucesso!")
                         st.balloons()
                         st.rerun()
                     else:
-                        st.error("❌ Erro ao salvar. Tente novamente.")
+                        st.error(" Erro ao salvar. Tente novamente.")
         
         st.markdown("---")
         
         # Edição rápida de emails
-        st.markdown("### ✏️ Atualizar Email de Colaborador Existente")
+        st.markdown("### Atualizar Email de Colaborador Existente")
         st.caption("Use para mapear colaboradores que ainda não têm email cadastrado.")
         
         # Lista colaboradores sem email
@@ -390,35 +390,35 @@ def aba_admin():
                     key="email_atualizar"
                 )
             
-            if st.button("💾 Atualizar Email", use_container_width=True):
+            if st.button(" Atualizar Email", use_container_width=True):
                 if email_atualizar and "@" in email_atualizar:
                     colaboradores[colab_selecionado]["email"] = email_atualizar.lower().strip()
                     if salvar_colaboradores(colaboradores):
-                        st.success(f"✅ Email atualizado para '{colab_selecionado}'!")
+                        st.success(f" Email atualizado para '{colab_selecionado}'!")
                         st.rerun()
                 else:
-                    st.error("❌ Email inválido")
+                    st.error(" Email inválido")
         else:
-            st.success("✅ Todos os colaboradores já possuem email cadastrado!")
+            st.success(" Todos os colaboradores já possuem email cadastrado!")
     
     # ===== TAB 4: PERMISSÕES =====
     with tab4:
-        st.markdown("### 🔐 Configuração de Permissões por Perfil")
-        st.info("💡 Configure quais abas cada perfil de acesso pode visualizar.")
+        st.markdown("### Configuração de Permissões por Perfil")
+        st.info(" Configure quais abas cada perfil de acesso pode visualizar.")
         
         abas_disponiveis = ["visao_geral", "qa", "dev", "suporte", "clientes", "governanca", "produto", "historico", "lideranca", "sobre", "admin"]
         abas_labels = {
-            "visao_geral": "📊 Visão Geral",
-            "qa": "🔬 QA",
-            "dev": "👨‍💻 Dev",
-            "suporte": "🎯 Suporte/Implantação",
-            "clientes": "🏢 Clientes",
-            "governanca": "📋 Governança",
-            "produto": "📦 Produto",
-            "historico": "📈 Histórico",
-            "lideranca": "🎯 Liderança",
+            "visao_geral": " Visão Geral",
+            "qa": " QA",
+            "dev": " Dev",
+            "suporte": " Suporte/Implantação",
+            "clientes": " Clientes",
+            "governanca": " Governança",
+            "produto": " Produto",
+            "historico": " Histórico",
+            "lideranca": " Liderança",
             "sobre": "ℹ️ Sobre",
-            "admin": "⚙️ Admin"
+            "admin": " Admin"
         }
         
         perfis = ["ADMIN", "LIDERANÇA", "DEV", "QA", "SUPORTE", "IMPLANTAÇÃO", "PRODUTO", "CS", "COMERCIAL", "VIEWER"]
@@ -466,7 +466,7 @@ def aba_admin():
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("💾 Salvar Permissões", type="primary", use_container_width=True):
+            if st.button(" Salvar Permissões", type="primary", use_container_width=True):
                 permissoes_editadas["_meta"] = permissoes.get("_meta", {
                     "descricao": "Configuração de permissões",
                     "atualizado": datetime.now().isoformat()
@@ -474,12 +474,12 @@ def aba_admin():
                 permissoes_editadas["_meta"]["atualizado"] = datetime.now().isoformat()
                 
                 if salvar_permissoes(permissoes_editadas):
-                    st.success("✅ Permissões salvas!")
+                    st.success(" Permissões salvas!")
                     st.rerun()
     
     # ===== TAB 5: EXPORTAR =====
     with tab5:
-        st.markdown("### 📥 Exportar Configurações")
+        st.markdown("### Exportar Configurações")
         
         col1, col2 = st.columns(2)
         
@@ -487,7 +487,7 @@ def aba_admin():
             st.markdown("#### Colaboradores")
             json_colab = json.dumps(colaboradores, ensure_ascii=False, indent=2)
             st.download_button(
-                "📥 Baixar colaboradores.json",
+                " Baixar colaboradores.json",
                 data=json_colab,
                 file_name="colaboradores.json",
                 mime="application/json",
@@ -507,7 +507,7 @@ def aba_admin():
                 })
             csv_data = pd.DataFrame(rows).to_csv(index=False)
             st.download_button(
-                "📥 Baixar colaboradores.csv",
+                " Baixar colaboradores.csv",
                 data=csv_data,
                 file_name="colaboradores.csv",
                 mime="text/csv",
@@ -518,7 +518,7 @@ def aba_admin():
             st.markdown("#### Permissões")
             json_perm = json.dumps(permissoes, ensure_ascii=False, indent=2)
             st.download_button(
-                "📥 Baixar permissoes.json",
+                " Baixar permissoes.json",
                 data=json_perm,
                 file_name="permissoes.json",
                 mime="application/json",
@@ -526,7 +526,7 @@ def aba_admin():
             )
         
         st.markdown("---")
-        st.markdown("#### 📊 Resumo")
+        st.markdown("#### Resumo")
         
         # Resumo visual
         st.markdown(f"""

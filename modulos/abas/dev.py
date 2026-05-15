@@ -47,24 +47,24 @@ def aba_dev(df: pd.DataFrame):
     """Aba de Dev - Performance, Ranking e Análise por Desenvolvedor."""
     ctx = obter_contexto_periodo()
     
-    st.markdown("### 👨‍💻 Painel de Desenvolvimento")
+    st.markdown("### Painel de Desenvolvimento")
     st.caption(f"Performance individual, ranking e métricas de maturidade • **{ctx['emoji']} {ctx['titulo']}**")
     
     devs = [d for d in df['desenvolvedor'].unique() if d != 'Não atribuído']
     
     # Suporte a query params para compartilhamento (link compartilhado)
     dev_url = st.query_params.get("dev", None)
-    opcoes_dev = ["🏆 Ranking Geral"] + sorted(devs)
+    opcoes_dev = [" Ranking Geral"] + sorted(devs)
     indice_inicial = 0
     if dev_url and dev_url in devs:
         indice_inicial = opcoes_dev.index(dev_url)
     
     # SELETOR DE DEV (NÃO atualiza query_params - apenas o botão Copiar Link faz isso)
-    dev_sel = st.selectbox("👤 Selecione o Desenvolvedor", opcoes_dev, index=indice_inicial, key="select_dev")
+    dev_sel = st.selectbox(" Selecione o Desenvolvedor", opcoes_dev, index=indice_inicial, key="select_dev")
     
     st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
     
-    if dev_sel == "🏆 Ranking Geral":
+    if dev_sel == " Ranking Geral":
         _renderizar_ranking_geral(df, devs)
     else:
         _renderizar_metricas_individuais(df, dev_sel)
@@ -97,7 +97,7 @@ def _renderizar_ranking_geral(df: pd.DataFrame, devs: list):
         return "#ef4444"
     
     # ===== INDICADORES DE DESENVOLVIMENTO =====
-    st.markdown("##### 📊 Indicadores de Desenvolvimento")
+    st.markdown("##### Indicadores de Desenvolvimento")
     
     # Métricas gerais
     total_cards = len(df[df['desenvolvedor'] != 'Não atribuído'])
@@ -111,9 +111,9 @@ def _renderizar_ranking_geral(df: pd.DataFrame, devs: list):
     
     cards_linha1 = [
         mini_card(str(total_cards), "Total Cards", f"{sp_total} SP", "#3b82f6"),
-        mini_card(str(em_dev), "🔧 Em Dev", "desenvolvimento", cor_status(em_dev, 10, 20)),
-        mini_card(str(em_cr), "👀 Code Review", "aguardando CR", cor_status(em_cr, 5, 10)),
-        mini_card(str(concluidos), "✅ Concluídos", "done", cor_status_inv(concluidos, 10, 5)),
+        mini_card(str(em_dev), " Em Dev", "desenvolvimento", cor_status(em_dev, 10, 20)),
+        mini_card(str(em_cr), " Code Review", "aguardando CR", cor_status(em_cr, 5, 10)),
+        mini_card(str(concluidos), " Concluídos", "done", cor_status_inv(concluidos, 10, 5)),
         mini_card(f"{fk_medio:.1f}", f"Fator K {mat['emoji']}", mat['selo'], cor_status_inv(fk_medio, 3, 2)),
     ]
     st.markdown(renderizar_linha(cards_linha1), unsafe_allow_html=True)
@@ -124,9 +124,9 @@ def _renderizar_ranking_geral(df: pd.DataFrame, devs: list):
     sp_bloqueado = int(cards_impedidos['sp'].sum()) + int(cards_reprovados['sp'].sum())
     
     cards_linha2 = [
-        mini_card(str(len(cards_impedidos)), "🚫 Impedidos", "bloqueados", cor_status(len(cards_impedidos), 1, 3)),
-        mini_card(str(len(cards_reprovados)), "❌ Reprovados", "falha QA", cor_status(len(cards_reprovados), 1, 3)),
-        mini_card(str(bugs_total), "🐛 Bugs", "total encontrados", cor_status(bugs_total, 10, 20)),
+        mini_card(str(len(cards_impedidos)), " Impedidos", "bloqueados", cor_status(len(cards_impedidos), 1, 3)),
+        mini_card(str(len(cards_reprovados)), " Reprovados", "falha QA", cor_status(len(cards_reprovados), 1, 3)),
+        mini_card(str(bugs_total), " Bugs", "total encontrados", cor_status(bugs_total, 10, 20)),
         mini_card(str(sp_bloqueado), "SP Travados", "imp. + repr.", cor_status(sp_bloqueado, 1, 10)),
     ]
     st.markdown(renderizar_linha(cards_linha2), unsafe_allow_html=True)
@@ -134,7 +134,7 @@ def _renderizar_ranking_geral(df: pd.DataFrame, devs: list):
     st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
     
     # Card explicativo sobre Fator K
-    with st.expander("📐 Como é calculada a Maturidade de Entrega (Fator K)?", expanded=False):
+    with st.expander(" Como é calculada a Maturidade de Entrega (Fator K)?", expanded=False):
         st.markdown("""
         O **Fator K** mede a qualidade da entrega do desenvolvedor, considerando o esforço planejado (Story Points) 
         e os bugs encontrados pelo QA.
@@ -145,15 +145,15 @@ def _renderizar_ranking_geral(df: pd.DataFrame, devs: list):
         
         | Selo | Fator K | Classificação |
         |------|---------|---------------|
-        | 🥇 Gold | ≥ 3.0 | Excelente |
-        | 🥈 Silver | 2.0 - 2.9 | Bom |
-        | 🥉 Bronze | 1.0 - 1.9 | Regular |
-        | ⚠️ Risco | < 1.0 | Crítico |
+        | Gold | ≥ 3.0 | Excelente |
+        | Silver | 2.0 - 2.9 | Bom |
+        | Bronze | 1.0 - 1.9 | Regular |
+        | Risco | < 1.0 | Crítico |
         """)
         mostrar_tooltip("fator_k")
     
     # Ranking
-    with st.expander("🏆 Ranking de Performance", expanded=False):
+    with st.expander(" Ranking de Performance", expanded=False):
         dados_dev = []
         for dev in devs:
             analise = analisar_dev_detalhado(df, dev)
@@ -187,7 +187,7 @@ def _renderizar_ranking_geral(df: pd.DataFrame, devs: list):
             st.info("Nenhum desenvolvedor com dados suficientes.")
     
     # Devs que precisam de atenção
-    with st.expander("⚠️ Desenvolvedores que Precisam de Atenção", expanded=False):
+    with st.expander(" Desenvolvedores que Precisam de Atenção", expanded=False):
         devs_atencao = [d for d in dados_dev if d['Fator K'] >= 0 and d['Fator K'] < 2 and d['Bugs'] > 0]
         
         if devs_atencao:
@@ -197,13 +197,13 @@ def _renderizar_ranking_geral(df: pd.DataFrame, devs: list):
                 df_dev_filter = df[df['desenvolvedor'] == d['Desenvolvedor']]
                 cards_problematicos = df_dev_filter[df_dev_filter['bugs'] >= 2].head(3)
                 
-                with st.expander(f"⚠️ {d['Desenvolvedor']} - FK: {d['Fator K']} | {d['Bugs']} bugs em {d['Cards']} cards"):
+                with st.expander(f" {d['Desenvolvedor']} - FK: {d['Fator K']} | {d['Bugs']} bugs em {d['Cards']} cards"):
                     if not cards_problematicos.empty:
                         st.markdown("**Cards com mais bugs:**")
                         for _, row in cards_problematicos.iterrows():
                             st.markdown(f"- [{row['ticket_id']}]({row['link']}) - {row['bugs']} bugs - {row['titulo']}")
         else:
-            st.success("✅ Todos os desenvolvedores estão com FK adequado!")
+            st.success(" Todos os desenvolvedores estão com FK adequado!")
     
     # Concentração de Conhecimento do Time DEV
     exibir_concentracao_time(df, "dev")
@@ -220,11 +220,11 @@ def _renderizar_ranking_geral(df: pd.DataFrame, devs: list):
 
 def _renderizar_analise_time(df: pd.DataFrame):
     """Renderiza análise geral do time de desenvolvimento."""
-    with st.expander("📊 Análise do Time de Desenvolvimento", expanded=False):
+    with st.expander(" Análise do Time de Desenvolvimento", expanded=False):
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">📋 Cards por Desenvolvedor</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;"> Cards por Desenvolvedor</div>', unsafe_allow_html=True)
             cards_por_dev = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor').size().reset_index(name='cards')
             if not cards_por_dev.empty:
                 cards_por_dev = cards_por_dev.nlargest(8, 'cards')
@@ -236,7 +236,7 @@ def _renderizar_analise_time(df: pd.DataFrame):
                 st.info("Sem dados de cards por desenvolvedor")
         
         with col2:
-            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">🐛 Taxa de Bugs por Card</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;"> Taxa de Bugs por Card</div>', unsafe_allow_html=True)
             taxa_bugs = df[df['desenvolvedor'] != 'Não atribuído'].groupby('desenvolvedor').agg({
                 'bugs': 'sum', 'ticket_id': 'count'
             }).reset_index()
@@ -249,7 +249,7 @@ def _renderizar_analise_time(df: pd.DataFrame):
                 fig_taxa.update_layout(height=350, showlegend=False, xaxis_title="", yaxis_title="Bugs/Card")
                 st.plotly_chart(fig_taxa, use_container_width=True)
             else:
-                st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Sem bugs registrados!</div></div>', unsafe_allow_html=True)
+                st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;"></span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Sem bugs registrados!</div></div>', unsafe_allow_html=True)
         
         # Métricas gerais do time com novo design
         st.markdown('<div style="margin-top: 16px;"></div>', unsafe_allow_html=True)
@@ -280,7 +280,7 @@ def _renderizar_code_reviews_pendentes(df: pd.DataFrame):
     """Renderiza seção de code reviews pendentes - relevante para devs."""
     code_review = df[df['status_cat'] == 'code_review']
     
-    with st.expander(f"👀 Code Reviews Pendentes ({len(code_review)})", expanded=False):
+    with st.expander(f" Code Reviews Pendentes ({len(code_review)})", expanded=False):
         st.markdown('<div style="font-size: 13px; color: #6b7280; margin-bottom: 12px;">Cards aguardando revisão de código - ajude um colega!</div>', unsafe_allow_html=True)
         
         if not code_review.empty:
@@ -294,27 +294,27 @@ def _renderizar_code_reviews_pendentes(df: pd.DataFrame):
                 st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(code_review)}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">Aguardando CR</div></div>', unsafe_allow_html=True)
             with col2:
                 cor = "#ef4444" if cr_urgente > 2 else "#f59e0b" if cr_urgente > 0 else "#22c55e"
-                st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{cr_urgente}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">🔥 Urgentes (+2d)</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{cr_urgente}</div><div style="font-size: 13px; color: #374151; font-weight: 600;"> Urgentes (+2d)</div></div>', unsafe_allow_html=True)
             with col3:
                 st.markdown(f'<div style="background: #3b82f610; border: 1px solid #3b82f640; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: #3b82f6;">{sp_em_cr}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">SP em Fila</div></div>', unsafe_allow_html=True)
             
             # Lista de cards
-            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin: 12px 0 8px 0;">📋 Cards aguardando review:</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin: 12px 0 8px 0;"> Cards aguardando review:</div>', unsafe_allow_html=True)
             
             code_review_sorted = code_review.sort_values('dias_em_status', ascending=False)
             for _, row in code_review_sorted.head(8).iterrows():
                 dias = row['dias_em_status']
                 cor = '#ef4444' if dias > 2 else '#f59e0b' if dias > 1 else '#22c55e'
-                urgente = "🔥 " if dias > 2 else ""
+                urgente = " " if dias > 2 else ""
                 ambiente = row.get('ambiente', '') if 'ambiente' in row.index else ''
                 card_link = card_link_com_popup(row['ticket_id'], ambiente=ambiente)
                 titulo = str(row['titulo'])[:50] + "..." if len(str(row['titulo'])) > 50 else str(row['titulo'])
-                st.markdown(f'<div style="background: white; border-left: 3px solid {cor}; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;"><div style="font-size: 13px; font-weight: 600; color: #374151;">{urgente}{card_link}</div><div style="font-size: 12px; color: #6b7280; margin-top: 4px;">{titulo}</div><div style="font-size: 11px; color: #9ca3af; margin-top: 6px;">👤 {row["desenvolvedor"]} · {row["sp"]} SP · <span style="color: {cor};">📅 {dias}d em CR</span></div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="background: white; border-left: 3px solid {cor}; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;"><div style="font-size: 13px; font-weight: 600; color: #374151;">{urgente}{card_link}</div><div style="font-size: 12px; color: #6b7280; margin-top: 4px;">{titulo}</div><div style="font-size: 11px; color: #9ca3af; margin-top: 6px;"> {row["desenvolvedor"]} · {row["sp"]} SP · <span style="color: {cor};"> {dias}d em CR</span></div></div>', unsafe_allow_html=True)
             
             if len(code_review) > 8:
                 st.markdown(f'<div style="font-size: 12px; color: #9ca3af; margin-top: 8px;">... e mais {len(code_review) - 8} cards em Code Review</div>', unsafe_allow_html=True)
         else:
-            st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum card aguardando Code Review!</div></div>', unsafe_allow_html=True)
+            st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;"></span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum card aguardando Code Review!</div></div>', unsafe_allow_html=True)
 
 
 def _renderizar_cards_impedidos_reprovados(df: pd.DataFrame):
@@ -323,17 +323,17 @@ def _renderizar_cards_impedidos_reprovados(df: pd.DataFrame):
     cards_reprovados_dev = df[df['status_cat'] == 'rejected']
     
     if len(cards_impedidos_dev) > 0 or len(cards_reprovados_dev) > 0:
-        with st.expander("🚨 Cards Impedidos e Reprovados", expanded=False):
+        with st.expander(" Cards Impedidos e Reprovados", expanded=False):
             # KPIs com novo design
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
                 cor = "#22c55e" if len(cards_impedidos_dev) == 0 else "#f59e0b" if len(cards_impedidos_dev) < 3 else "#ef4444"
-                st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(cards_impedidos_dev)}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">🚫 Impedidos</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(cards_impedidos_dev)}</div><div style="font-size: 13px; color: #374151; font-weight: 600;"> Impedidos</div></div>', unsafe_allow_html=True)
             
             with col2:
                 cor = "#22c55e" if len(cards_reprovados_dev) == 0 else "#f59e0b" if len(cards_reprovados_dev) < 3 else "#ef4444"
-                st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(cards_reprovados_dev)}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">❌ Reprovados</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(cards_reprovados_dev)}</div><div style="font-size: 13px; color: #374151; font-weight: 600;"> Reprovados</div></div>', unsafe_allow_html=True)
             
             with col3:
                 sp_impedido = int(cards_impedidos_dev['sp'].sum())
@@ -348,7 +348,7 @@ def _renderizar_cards_impedidos_reprovados(df: pd.DataFrame):
             col_imp, col_rep = st.columns(2)
             
             with col_imp:
-                st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">🚫 Cards Impedidos</div>', unsafe_allow_html=True)
+                st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;"> Cards Impedidos</div>', unsafe_allow_html=True)
                 if not cards_impedidos_dev.empty:
                     html_imp_dev = '<div style="max-height: 350px; overflow-y: auto;">'
                     for _, row in cards_impedidos_dev.iterrows():
@@ -361,15 +361,15 @@ def _renderizar_cards_impedidos_reprovados(df: pd.DataFrame):
                         html_imp_dev += f'<div style="background: #FEF2F2; border-left: 3px solid #EF4444; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;">'
                         html_imp_dev += f'<div style="font-size: 13px; font-weight: 600; color: #374151;">{card_link}</div>'
                         html_imp_dev += f'<div style="font-size: 12px; color: #6b7280; margin-top: 4px;">{titulo}</div>'
-                        html_imp_dev += f'<div style="font-size: 11px; color: #9ca3af; margin-top: 6px;">👤 {dev} · 🧑‍🔬 {qa} · {sp} SP</div>'
+                        html_imp_dev += f'<div style="font-size: 11px; color: #9ca3af; margin-top: 6px;"> {dev} · {qa} · {sp} SP</div>'
                         html_imp_dev += '</div>'
                     html_imp_dev += '</div>'
                     st.markdown(html_imp_dev, unsafe_allow_html=True)
                 else:
-                    st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum card impedido</div></div>', unsafe_allow_html=True)
+                    st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;"></span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum card impedido</div></div>', unsafe_allow_html=True)
             
             with col_rep:
-                st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">❌ Cards Reprovados</div>', unsafe_allow_html=True)
+                st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;"> Cards Reprovados</div>', unsafe_allow_html=True)
                 if not cards_reprovados_dev.empty:
                     html_rep_dev = '<div style="max-height: 350px; overflow-y: auto;">'
                     for _, row in cards_reprovados_dev.iterrows():
@@ -383,12 +383,12 @@ def _renderizar_cards_impedidos_reprovados(df: pd.DataFrame):
                         html_rep_dev += f'<div style="background: #FEF2F2; border-left: 3px solid #DC2626; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;">'
                         html_rep_dev += f'<div style="font-size: 13px; font-weight: 600; color: #374151;">{card_link}</div>'
                         html_rep_dev += f'<div style="font-size: 12px; color: #6b7280; margin-top: 4px;">{titulo}</div>'
-                        html_rep_dev += f'<div style="font-size: 11px; color: #9ca3af; margin-top: 6px;">👤 {dev} · 🧑‍🔬 {qa} · {sp} SP · <span style="color: #EF4444;">🐛 {bugs}</span></div>'
+                        html_rep_dev += f'<div style="font-size: 11px; color: #9ca3af; margin-top: 6px;"> {dev} · {qa} · {sp} SP · <span style="color: #EF4444;"> {bugs}</span></div>'
                         html_rep_dev += '</div>'
                     html_rep_dev += '</div>'
                     st.markdown(html_rep_dev, unsafe_allow_html=True)
                 else:
-                    st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum card reprovado</div></div>', unsafe_allow_html=True)
+                    st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;"></span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Nenhum card reprovado</div></div>', unsafe_allow_html=True)
 
 
 def _renderizar_metricas_individuais(df: pd.DataFrame, dev_sel: str):
@@ -405,7 +405,7 @@ def _renderizar_metricas_individuais(df: pd.DataFrame, dev_sel: str):
     
     col_titulo, col_share = st.columns([3, 1])
     with col_titulo:
-        st.markdown(f"### 👤 Métricas de {dev_sel}")
+        st.markdown(f"### Métricas de {dev_sel}")
     with col_share:
         # Botão Copiar Link usando components.html
         components.html(f"""
@@ -421,16 +421,16 @@ def _renderizar_metricas_individuais(df: pd.DataFrame, dev_sel: str):
             font-weight: 500;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             transition: all 0.2s ease;
-        ">📋 Copiar Link</button>
+        "> Copiar Link</button>
         <script>
             document.getElementById('copyBtnDev').addEventListener('click', function() {{
                 var url = '{share_url}';
                 var btn = this;
                 navigator.clipboard.writeText(url).then(function() {{
-                    btn.innerHTML = '✅ Copiado!';
+                    btn.innerHTML = ' Copiado!';
                     btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
                     setTimeout(function() {{
-                        btn.innerHTML = '📋 Copiar Link';
+                        btn.innerHTML = ' Copiar Link';
                         btn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
                     }}, 2000);
                 }}).catch(function() {{
@@ -440,10 +440,10 @@ def _renderizar_metricas_individuais(df: pd.DataFrame, dev_sel: str):
                     temp.select();
                     document.execCommand('copy');
                     document.body.removeChild(temp);
-                    btn.innerHTML = '✅ Copiado!';
+                    btn.innerHTML = ' Copiado!';
                     btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
                     setTimeout(function() {{
-                        btn.innerHTML = '📋 Copiar Link';
+                        btn.innerHTML = ' Copiar Link';
                         btn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
                     }}, 2000);
                 }});
@@ -508,7 +508,7 @@ def _renderizar_indicadores_individuais_dev(analise: dict, mat: dict):
     concluidos = len(df_dev[df_dev['status_cat'] == 'done'])
     
     # ===== LINHA 1: KPIs Principais =====
-    st.markdown("##### 📊 Indicadores Individuais")
+    st.markdown("##### Indicadores Individuais")
     
     cards_linha1 = [
         mini_card(str(analise['cards']), "Total Cards", f"{analise['sp_total']} SP", "#3b82f6"),
@@ -528,10 +528,10 @@ def _renderizar_indicadores_individuais_dev(analise: dict, mat: dict):
     cor_lt = "#22c55e" if tempo <= 3 else "#f59e0b" if tempo <= 7 else "#ef4444"
     
     cards_linha2 = [
-        mini_card(str(em_dev), "🔧 Em Dev", "desenvolvimento", cor_status(em_dev, 3, 5)),
-        mini_card(str(em_cr), "👀 Code Review", "aguardando", cor_status(em_cr, 2, 4)),
-        mini_card(str(len(cards_impedidos)), "🚫 Impedidos", "bloqueados", cor_status(len(cards_impedidos), 1, 2)),
-        mini_card(str(len(cards_reprovados)), "❌ Reprovados", "falha QA", cor_status(len(cards_reprovados), 1, 2)),
+        mini_card(str(em_dev), " Em Dev", "desenvolvimento", cor_status(em_dev, 3, 5)),
+        mini_card(str(em_cr), " Code Review", "aguardando", cor_status(em_cr, 2, 4)),
+        mini_card(str(len(cards_impedidos)), " Impedidos", "bloqueados", cor_status(len(cards_impedidos), 1, 2)),
+        mini_card(str(len(cards_reprovados)), " Reprovados", "falha QA", cor_status(len(cards_reprovados), 1, 2)),
         mini_card(f"{tempo:.1f}d" if isinstance(tempo, float) else f"{tempo}d", "Lead Time", "médio", cor_lt),
     ]
     st.markdown(renderizar_linha(cards_linha2), unsafe_allow_html=True)
@@ -539,17 +539,17 @@ def _renderizar_indicadores_individuais_dev(analise: dict, mat: dict):
     # Cards com problemas em expander
     if len(cards_impedidos) > 0 or len(cards_reprovados) > 0:
         st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
-        with st.expander(f"🚨 Cards com problemas ({len(cards_impedidos) + len(cards_reprovados)})", expanded=False):
+        with st.expander(f" Cards com problemas ({len(cards_impedidos) + len(cards_reprovados)})", expanded=False):
             all_problemas = pd.concat([cards_impedidos, cards_reprovados]) if not cards_reprovados.empty and not cards_impedidos.empty else (cards_impedidos if not cards_impedidos.empty else cards_reprovados)
             for _, row in all_problemas.iterrows():
-                status_icon = "🚫" if row['status_cat'] == 'blocked' else "❌"
+                status_icon = "" if row['status_cat'] == 'blocked' else ""
                 status_name = "Impedido" if row['status_cat'] == 'blocked' else "Reprovado"
                 ambiente = row.get('ambiente', '') if 'ambiente' in row.index else ''
                 card_link = card_link_com_popup(row['ticket_id'], ambiente=ambiente)
                 st.markdown(f"""
                 <div style="padding: 10px 12px; margin: 6px 0; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.08); border-radius: 6px;">
                     <strong>{status_icon}</strong> {card_link} - {row['titulo']}<br>
-                    <small style="color: #6b7280;">🧑‍🔬 QA: {row['qa']} | {status_name} | {int(row['sp'])} SP</small>
+                    <small style="color: #6b7280;"> QA: {row['qa']} | {status_name} | {int(row['sp'])} SP</small>
                 </div>
                 """, unsafe_allow_html=True)
     
@@ -581,17 +581,17 @@ def _renderizar_selo_maturidade(analise: dict, mat: dict):
             
             | Selo | Fator K | Classificação |
             |------|---------|---------------|
-            | 🥇 Gold | ≥ 3.0 | Excelente |
-            | 🥈 Silver | 2.0 - 2.9 | Bom |
-            | 🥉 Bronze | 1.0 - 1.9 | Regular |
-            | ⚠️ Risco | < 1.0 | Crítico |
+            | Gold | ≥ 3.0 | Excelente |
+            | Silver | 2.0 - 2.9 | Bom |
+            | Bronze | 1.0 - 1.9 | Regular |
+            | Risco | < 1.0 | Crítico |
             """)
 
 
 def _renderizar_resumo_semana(analise: dict, dev_sel: str):
     """Renderiza o resumo semanal do desenvolvedor."""
-    with st.expander("📅 Resumo da Semana", expanded=False):
-        st.caption("📊 Sua atividade semanal - ideal para daily/retro!")
+    with st.expander(" Resumo da Semana", expanded=False):
+        st.caption(" Sua atividade semanal - ideal para daily/retro!")
         
         hoje = datetime.now()
         
@@ -605,7 +605,7 @@ def _renderizar_resumo_semana(analise: dict, dev_sel: str):
         }
         
         semana_selecionada = st.selectbox(
-            "📆 Selecione a semana:",
+            " Selecione a semana:",
             list(semanas_opcoes.keys()),
             index=0,
             key=f"semana_dev_{dev_sel}"
@@ -624,7 +624,7 @@ def _renderizar_resumo_semana(analise: dict, dev_sel: str):
         # Exibe período selecionado
         st.markdown(f"""
         <div style="background: #f1f5f9; padding: 8px 15px; border-radius: 6px; margin-bottom: 15px; text-align: center;">
-            <span style="color: #64748b;">📅 Período: <strong>{segunda_semana.strftime('%d/%m')} (Seg)</strong> a <strong>{sexta_semana.strftime('%d/%m')} (Sex)</strong></span>
+            <span style="color: #64748b;"> Período: <strong>{segunda_semana.strftime('%d/%m')} (Seg)</strong> a <strong>{sexta_semana.strftime('%d/%m')} (Sex)</strong></span>
         </div>
         """, unsafe_allow_html=True)
         
@@ -661,22 +661,22 @@ def _renderizar_resumo_semana(analise: dict, dev_sel: str):
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.markdown(mini_card_semana(str(len(df_semana)), "📋 Trabalhados", semana_selecionada, "#3b82f6"), unsafe_allow_html=True)
+            st.markdown(mini_card_semana(str(len(df_semana)), " Trabalhados", semana_selecionada, "#3b82f6"), unsafe_allow_html=True)
         with col2:
-            st.markdown(mini_card_semana(str(len(df_done_semana)), "✅ Concluídos", "entregues", "#22c55e"), unsafe_allow_html=True)
+            st.markdown(mini_card_semana(str(len(df_done_semana)), " Concluídos", "entregues", "#22c55e"), unsafe_allow_html=True)
         with col3:
             bugs_semana = int(df_done_semana['bugs'].sum()) if not df_done_semana.empty else 0
             cor_bugs = '#22c55e' if bugs_semana == 0 else '#f59e0b' if bugs_semana < 3 else '#ef4444'
-            st.markdown(mini_card_semana(str(bugs_semana), "🐛 Bugs", "pelo QA", cor_bugs), unsafe_allow_html=True)
+            st.markdown(mini_card_semana(str(bugs_semana), " Bugs", "pelo QA", cor_bugs), unsafe_allow_html=True)
         with col4:
             sp_semana = int(df_done_semana['sp'].sum()) if not df_done_semana.empty else 0
-            st.markdown(mini_card_semana(str(sp_semana), "📐 SP", "entregues", "#22c55e"), unsafe_allow_html=True)
+            st.markdown(mini_card_semana(str(sp_semana), " SP", "entregues", "#22c55e"), unsafe_allow_html=True)
         
         st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
         
         # Evolução da Semana
-        st.markdown("**📈 Evolução da Semana**")
-        st.caption("💡 Mostra trabalho em progresso diminuindo e entregas aumentando")
+        st.markdown("** Evolução da Semana**")
+        st.caption(" Mostra trabalho em progresso diminuindo e entregas aumentando")
         
         # Calcula a evolução dia a dia
         cards_trabalho_semana = df_dev[
@@ -775,10 +775,10 @@ def _renderizar_resumo_semana(analise: dict, dev_sel: str):
             )
             st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("💡 Nenhum card em trabalho esta semana.")
+            st.info(" Nenhum card em trabalho esta semana.")
         
         # Resumo textual - PRIMEIRO na lista de expanders
-        with st.expander("📝 Resumo para Daily/Retro", expanded=False):
+        with st.expander(" Resumo para Daily/Retro", expanded=False):
             total_done = len(df_done_semana)
             total_sp = int(df_done_semana['sp'].sum()) if not df_done_semana.empty else 0
             total_bugs = int(df_done_semana['bugs'].sum()) if not df_done_semana.empty else 0
@@ -789,8 +789,8 @@ def _renderizar_resumo_semana(analise: dict, dev_sel: str):
                 df_done_semana_sorted = df_done_semana.sort_values('resolutiondate' if 'resolutiondate' in df_done_semana.columns else 'atualizado', ascending=False)
                 cards_lista = "\n".join([f"- {row['ticket_id']}: {row['titulo']}" for _, row in df_done_semana_sorted.iterrows()])
             
-            resumo_texto = f"""📊 Resumo Semanal - {dev_sel}
-📅 Período: {segunda_semana.strftime('%d/%m')} a {sexta_semana.strftime('%d/%m')}
+            resumo_texto = f""" Resumo Semanal - {dev_sel}
+ Período: {segunda_semana.strftime('%d/%m')} a {sexta_semana.strftime('%d/%m')}
 
 • {total_done} cards entregues
 • {total_sp} Story Points
@@ -803,7 +803,7 @@ Cards concluídos:
             st.code(resumo_texto, language=None)
         
         # Cards Concluídos na Semana
-        with st.expander(f"✅ Cards Concluídos na Semana ({len(df_done_semana)})", expanded=False):
+        with st.expander(f" Cards Concluídos na Semana ({len(df_done_semana)})", expanded=False):
             st.caption("Cards que você entregou esta semana")
             
             if not df_done_semana.empty:
@@ -832,18 +832,18 @@ Cards concluídos:
                     link_nina = f'?card={ticket_id}&projeto={projeto}'
                     ticket_cor = "#8b5cf6" if projeto == "PB" else "#2563eb"
                     
-                    badge_bugs = f'<span style="background:{bugs_bg};color:{bugs_cor};padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;">{"✅ Clean" if bugs == 0 else f"🐛 {bugs} bugs"}</span>'
+                    badge_bugs = f'<span style="background:{bugs_bg};color:{bugs_cor};padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;">{" Clean" if bugs == 0 else f" {bugs} bugs"}</span>'
                     
                     # Badge de ambiente
                     ambiente_badge = ''
                     if ambiente:
                         amb_lower = str(ambiente).lower()
                         if 'produção' in amb_lower or 'producao' in amb_lower:
-                            ambiente_badge = '<span style="background:#fef2f2;color:#dc2626;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fecaca;">🔴 PROD</span>'
+                            ambiente_badge = '<span style="background:#fef2f2;color:#dc2626;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fecaca;"> PROD</span>'
                         elif 'homologação' in amb_lower or 'homologacao' in amb_lower:
-                            ambiente_badge = '<span style="background:#fffbeb;color:#d97706;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fde68a;">🟡 HML</span>'
+                            ambiente_badge = '<span style="background:#fffbeb;color:#d97706;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fde68a;"> HML</span>'
                         elif 'develop' in amb_lower:
-                            ambiente_badge = '<span style="background:#f0fdf4;color:#16a34a;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #bbf7d0;">🟢 DEV</span>'
+                            ambiente_badge = '<span style="background:#f0fdf4;color:#16a34a;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #bbf7d0;"> DEV</span>'
                     
                     cards_html += f'''
 <div style="padding:14px 16px;margin:10px 0;border-radius:10px;border-left:4px solid {bugs_cor};background:rgba(139,92,246,0.04);box-shadow:0 1px 3px rgba(0,0,0,0.08);transition:all 0.2s ease;" onmouseover="this.style.background='rgba(139,92,246,0.08)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';this.style.transform='translateY(-1px)'" onmouseout="this.style.background='rgba(139,92,246,0.04)';this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)';this.style.transform='translateY(0)'">
@@ -851,7 +851,7 @@ Cards concluídos:
         <div style="display:flex;align-items:center;gap:8px;">
             <span class="card-link-wrapper">
                 <a href="{link_jira}" target="_blank" class="card-link-id" style="color:{ticket_cor};font-weight:700;font-size:13px;">{ticket_id}</a>
-                <a href="{link_nina}" target="_blank" class="card-action-btn card-action-nina">📊 NinaDash</a>
+                <a href="{link_nina}" target="_blank" class="card-action-btn card-action-nina"> NinaDash</a>
             </span>
             {ambiente_badge}
             <span style="color:#64748b;font-size:13px;"> - {titulo}...</span>
@@ -862,9 +862,9 @@ Cards concluídos:
         </div>
     </div>
     <div style="margin-top:8px;font-size:12px;color:#64748b;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-        <span>📅 {data_conclusao}</span>
-        <span>👤 QA: {qa}</span>
-        <span>⏱️ Lead Time: {lead_time}d</span>
+        <span> {data_conclusao}</span>
+        <span> QA: {qa}</span>
+        <span> Lead Time: {lead_time}d</span>
     </div>
 </div>'''
                 
@@ -872,13 +872,13 @@ Cards concluídos:
                 st.markdown(cards_html, unsafe_allow_html=True)
                 
                 if len(df_done_semana_sorted) > 20:
-                    st.caption(f"📋 Mostrando 20 de {len(df_done_semana_sorted)} cards")
+                    st.caption(f" Mostrando 20 de {len(df_done_semana_sorted)} cards")
             else:
-                st.info("💡 Nenhum card foi concluído nesta semana.")
+                st.info(" Nenhum card foi concluído nesta semana.")
         
         # Tempo de Ciclo por Card
         if not df_done_semana.empty:
-            with st.expander("⏱️ Tempo de Ciclo dos Cards da Semana", expanded=False):
+            with st.expander(" Tempo de Ciclo dos Cards da Semana", expanded=False):
                 df_tempo = df_done_semana[['ticket_id', 'titulo', 'lead_time', 'sp', 'bugs']].copy()
                 df_tempo.columns = ['Ticket', 'Título', 'Lead Time (dias)', 'SP', 'Bugs']
                 df_tempo = df_tempo.sort_values('Lead Time (dias)', ascending=False)
@@ -890,7 +890,7 @@ Cards concluídos:
                 st.markdown(f"""
                 <p style="text-align: center; margin-top: 10px;">
                     <span style="background: {cor_media}20; color: {cor_media}; padding: 5px 15px; border-radius: 20px; font-weight: bold;">
-                        ⏱️ Média de Lead Time: {media_lead:.1f} dias
+                         Média de Lead Time: {media_lead:.1f} dias
                     </span>
                 </p>
                 """, unsafe_allow_html=True)
@@ -898,7 +898,7 @@ Cards concluídos:
 
 def _renderizar_cards_dev(analise: dict):
     """Renderiza lista de cards do desenvolvedor com UI moderna."""
-    with st.expander(f"📋 Cards", expanded=False):
+    with st.expander(f" Cards", expanded=False):
         df_cards = analise['df']
         
         if not df_cards.empty:
@@ -928,27 +928,27 @@ def _renderizar_cards_dev(analise: dict):
                 if ambiente:
                     amb_lower = str(ambiente).lower()
                     if 'produção' in amb_lower or 'producao' in amb_lower:
-                        ambiente_badge = '<span style="background:#fef2f2;color:#dc2626;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fecaca;">🔴 PROD</span>'
+                        ambiente_badge = '<span style="background:#fef2f2;color:#dc2626;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fecaca;"> PROD</span>'
                     elif 'homologação' in amb_lower or 'homologacao' in amb_lower:
-                        ambiente_badge = '<span style="background:#fffbeb;color:#d97706;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fde68a;">🟡 HML</span>'
+                        ambiente_badge = '<span style="background:#fffbeb;color:#d97706;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fde68a;"> HML</span>'
                     elif 'develop' in amb_lower:
-                        ambiente_badge = '<span style="background:#f0fdf4;color:#16a34a;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #bbf7d0;">🟢 DEV</span>'
+                        ambiente_badge = '<span style="background:#f0fdf4;color:#16a34a;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #bbf7d0;"> DEV</span>'
                 
                 cards_html += f'''
 <div style="padding:14px 16px;margin:10px 0;border-radius:10px;border-left:4px solid {bugs_cor};background:rgba(248,250,252,0.8);box-shadow:0 1px 3px rgba(0,0,0,0.08);transition:all 0.2s ease;" onmouseover="this.style.background='rgba(241,245,249,1)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';this.style.transform='translateY(-1px)'" onmouseout="this.style.background='rgba(248,250,252,0.8)';this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)';this.style.transform='translateY(0)'">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
         <span class="card-link-wrapper">
             <a href="{link_jira}" target="_blank" class="card-link-id" style="color:{ticket_cor};font-weight:700;font-size:13px;">{ticket_id}</a>
-            <a href="{link_nina}" target="_blank" class="card-action-btn card-action-nina">📊 NinaDash</a>
+            <a href="{link_nina}" target="_blank" class="card-action-btn card-action-nina"> NinaDash</a>
         </span>
         {ambiente_badge}
         <span style="color:#64748b;font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"> - {titulo}...</span>
     </div>
     <div style="display:flex;align-items:center;gap:12px;font-size:12px;color:#64748b;flex-wrap:wrap;">
-        <span style="background:{bugs_bg};color:{bugs_cor};padding:3px 8px;border-radius:6px;font-weight:600;">🐛 {bugs} bugs</span>
-        <span style="background:#f5f3ff;color:#7c3aed;padding:3px 8px;border-radius:6px;font-weight:500;">📊 {sp} SP</span>
-        <span style="background:#f1f5f9;color:#475569;padding:3px 8px;border-radius:6px;font-weight:500;">📍 {status}</span>
-        <span>⏱️ {lead_time}d</span>
+        <span style="background:{bugs_bg};color:{bugs_cor};padding:3px 8px;border-radius:6px;font-weight:600;"> {bugs} bugs</span>
+        <span style="background:#f5f3ff;color:#7c3aed;padding:3px 8px;border-radius:6px;font-weight:500;"> {sp} SP</span>
+        <span style="background:#f1f5f9;color:#475569;padding:3px 8px;border-radius:6px;font-weight:500;"> {status}</span>
+        <span> {lead_time}d</span>
     </div>
 </div>'''
             
@@ -956,15 +956,15 @@ def _renderizar_cards_dev(analise: dict):
             st.markdown(cards_html, unsafe_allow_html=True)
             
             if len(df_cards) > 30:
-                st.caption(f"📋 Mostrando 30 de {len(df_cards)} cards")
+                st.caption(f" Mostrando 30 de {len(df_cards)} cards")
         else:
             st.info("Nenhum card atribuído")
 
 
 def _renderizar_throughput(analise: dict):
     """Renderiza métricas de throughput e produtividade."""
-    with st.expander("📈 Throughput e Produtividade", expanded=False):
-        st.caption("💡 **Throughput**: Vazão de entregas por período. **Fator K**: Qualidade = SP / (Bugs + 1)")
+    with st.expander(" Throughput e Produtividade", expanded=False):
+        st.caption(" **Throughput**: Vazão de entregas por período. **Fator K**: Qualidade = SP / (Bugs + 1)")
         col1, col2 = st.columns(2)
         
         with col1:
@@ -983,7 +983,7 @@ def _renderizar_throughput(analise: dict):
                     
                     if len(throughput_sem) > 1:
                         fig = px.line(throughput_sem, x='Semana', y='SP', markers=True,
-                                      title=f'📊 SP Entregues por Semana')
+                                      title=f' SP Entregues por Semana')
                         fig.update_layout(height=250, xaxis_title="Semana", yaxis_title="Story Points")
                         st.plotly_chart(fig, use_container_width=True)
                     else:
@@ -1001,7 +1001,7 @@ def _renderizar_throughput(analise: dict):
             
             st.markdown(f"""
             <div style="padding: 15px; background: rgba(100,100,100,0.1); border-radius: 8px; margin-bottom: 10px;">
-                <h4 style="margin-top: 0;">📊 Indicadores de Eficiência</h4>
+                <h4 style="margin-top: 0;"> Indicadores de Eficiência</h4>
                 <p><strong>SP Médio por Card:</strong> {sp_medio:.1f}</p>
                 <p><strong>Bugs por SP:</strong> {bugs_por_sp:.2f}</p>
                 <p><strong>Lead Time Médio:</strong> {lead_time_medio:.1f} dias</p>
@@ -1012,7 +1012,7 @@ def _renderizar_throughput(analise: dict):
 
 def _renderizar_comparativo_time(df: pd.DataFrame, analise: dict):
     """Renderiza comparativo com a média do time."""
-    with st.expander("📊 Comparativo com o Time", expanded=False):
+    with st.expander(" Comparativo com o Time", expanded=False):
         # Métricas do time
         todos_devs = df[df['status_cat'] == 'done']
         devs_list = [d for d in todos_devs['desenvolvedor'].unique() if d != 'Não atribuído']
@@ -1042,7 +1042,7 @@ def _renderizar_comparativo_time(df: pd.DataFrame, analise: dict):
 
 def _renderizar_distribuicao_status(analise: dict):
     """Renderiza distribuição por status."""
-    with st.expander("📊 Distribuição por Status", expanded=False):
+    with st.expander(" Distribuição por Status", expanded=False):
         status_count = analise['df']['status_cat'].value_counts().reset_index()
         status_count.columns = ['Status', 'Cards']
         status_count['Status'] = status_count['Status'].map(lambda x: STATUS_NOMES.get(x, x))

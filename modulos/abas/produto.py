@@ -30,7 +30,7 @@ def aba_produto(df: pd.DataFrame):
     """Aba de métricas por Produto (métricas Ellen)."""
     ctx = obter_contexto_periodo()
     
-    st.markdown("### 📦 Métricas por Produto")
+    st.markdown("### Métricas por Produto")
     st.caption(f"Visualize métricas segmentadas por produto • **{ctx['emoji']} {ctx['titulo']}**")
     
     metricas_prod = calcular_metricas_produto(df)
@@ -56,7 +56,7 @@ def aba_produto(df: pd.DataFrame):
         return "#ef4444"
     
     # ===== INDICADORES DE FLUXO =====
-    st.markdown("##### 🎯 Indicadores de Fluxo da Sprint")
+    st.markdown("##### Indicadores de Fluxo da Sprint")
     
     total_finalizados = metricas_prod['total_finalizados_mesma_sprint']
     total_done = len(df[df['status_cat'] == 'done'])
@@ -68,24 +68,24 @@ def aba_produto(df: pd.DataFrame):
     
     with col1:
         cor = cor_status_inv(pct, 70, 40)
-        st.markdown(mini_card(str(total_finalizados), "✅ Iniciados/Finalizados", f"{pct:.0f}% dos done", cor), unsafe_allow_html=True)
+        st.markdown(mini_card(str(total_finalizados), " Iniciados/Finalizados", f"{pct:.0f}% dos done", cor), unsafe_allow_html=True)
     
     with col2:
         cor = cor_status(total_fora, 3, 6)
-        st.markdown(mini_card(str(total_fora), "⚠️ Fora do Período", "adicionados depois", cor), unsafe_allow_html=True)
+        st.markdown(mini_card(str(total_fora), " Fora do Período", "adicionados depois", cor), unsafe_allow_html=True)
     
     with col3:
         cor = cor_status(total_hotfix, 5, 10)
-        st.markdown(mini_card(str(total_hotfix), "🔥 Hotfixes", "emergências", cor), unsafe_allow_html=True)
+        st.markdown(mini_card(str(total_hotfix), " Hotfixes", "emergências", cor), unsafe_allow_html=True)
     
     with col4:
-        st.markdown(mini_card(str(total_done), "📦 Concluídos", "total done", "#3b82f6"), unsafe_allow_html=True)
+        st.markdown(mini_card(str(total_done), " Concluídos", "total done", "#3b82f6"), unsafe_allow_html=True)
     
-    st.caption("💡 Cards adicionados fora do período comprometem o planejamento da sprint")
+    st.caption(" Cards adicionados fora do período comprometem o planejamento da sprint")
     st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
     
     # Cards adicionados fora do período - COM LISTAGEM COMPLETA
-    with st.expander("⚠️ Cards Adicionados Fora do Período", expanded=False):
+    with st.expander(" Cards Adicionados Fora do Período", expanded=False):
         if not metricas_prod['adicionados_fora'].empty:
             st.markdown("""
             <div class="alert-warning">
@@ -95,10 +95,10 @@ def aba_produto(df: pd.DataFrame):
             """, unsafe_allow_html=True)
             mostrar_lista_df_completa(metricas_prod['adicionados_fora'], "Cards Fora do Período")
         else:
-            st.success("✅ Nenhum card foi adicionado fora do período!")
+            st.success(" Nenhum card foi adicionado fora do período!")
     
     # Gráficos
-    with st.expander("📊 Visualizações por Produto", expanded=False):
+    with st.expander(" Visualizações por Produto", expanded=False):
         col1, col2 = st.columns(2)
         
         with col1:
@@ -110,7 +110,7 @@ def aba_produto(df: pd.DataFrame):
             st.plotly_chart(fig, use_container_width=True)
     
     # Tabela resumo por produto
-    with st.expander("📋 Resumo por Produto", expanded=False):
+    with st.expander(" Resumo por Produto", expanded=False):
         produto_stats = df.groupby('produto').agg({
             'ticket_id': 'count',
             'sp': 'sum',

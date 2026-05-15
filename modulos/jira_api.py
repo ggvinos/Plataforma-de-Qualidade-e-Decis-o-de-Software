@@ -548,7 +548,7 @@ def extrair_historico_transicoes(issue: Dict, ticket_id: str) -> List[Dict]:
                         historico.append({
                             'data': entry_date,
                             'de': from_value if from_value else 'Sem sprint',
-                            'para': f"🏃 {sprint_nova}",
+                            'para': sprint_nova,
                             'autor': author_name,
                             'tipo': 'sprint',
                             'campo': 'Sprint',
@@ -563,7 +563,7 @@ def extrair_historico_transicoes(issue: Dict, ticket_id: str) -> List[Dict]:
                             historico.append({
                                 'data': entry_date,
                                 'de': sprint_antiga,
-                                'para': f"❌ Removido de {sprint_antiga}",
+                                'para': f"Removido de {sprint_antiga}",
                                 'autor': author_name,
                                 'tipo': 'sprint',
                                 'campo': 'Sprint',
@@ -738,9 +738,9 @@ def gerar_icone_tabler(nome_icone: str, tamanho: int = 24, cor: str = "currentCo
         'eye-off': '<path d="M1 12s4 -6 11 -6 11 6 11 6M3.6 3.6l16.8 16.8M21 12s-4 6 -11 6 -11 -6 -11 -6"/>',
     }
     
-    svg_path = icones.get(nome_icone, icones['list'])  # Default para 'list' se não encontrado
-    
-    return f'<svg xmlns="http://www.w3.org/2000/svg" width="{tamanho}" height="{tamanho}" viewBox="0 0 24 24" fill="none" stroke="{cor}" stroke-width="{stroke_width}" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;">{svg_path}</svg>'
+    svg_path = icones.get(nome_icone, icones['list'])
+    style = f"display:inline-block;vertical-align:middle;fill:none;stroke:{cor};stroke-width:{stroke_width};stroke-linecap:round;stroke-linejoin:round;"
+    return f'<svg xmlns="http://www.w3.org/2000/svg" width="{tamanho}" height="{tamanho}" viewBox="0 0 24 24" style="{style}">{svg_path}</svg>'
 
 
 def gerar_icone_tabler_html(nome_icone: str, tamanho: int = 20, cor: str = "#64748b", stroke_width: float = 2) -> str:
@@ -760,7 +760,8 @@ def gerar_icone_tabler_html(nome_icone: str, tamanho: int = 20, cor: str = "#647
     }
     
     svg_path = icones.get(nome_icone, icones['list'])
-    return f'<svg xmlns="http://www.w3.org/2000/svg" width="{tamanho}" height="{tamanho}" viewBox="0 0 24 24" fill="none" stroke="{cor}" stroke-width="{stroke_width}" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:5px;">{svg_path}</svg>'
+    style = f"display:inline-block;vertical-align:middle;margin-right:5px;fill:none;stroke:{cor};stroke-width:{stroke_width};stroke-linecap:round;stroke-linejoin:round;"
+    return f'<svg xmlns="http://www.w3.org/2000/svg" width="{tamanho}" height="{tamanho}" viewBox="0 0 24 24" style="{style}">{svg_path}</svg>'
 
 
 def gerar_badge_status(status: str, icone_nome: str = None, tamanho_icone: int = 16) -> str:

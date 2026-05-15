@@ -32,18 +32,18 @@ def aba_clientes(df_todos: pd.DataFrame):
     """Aba de análise por Clientes/Temas (usa todos os projetos, ignora filtro de projeto)."""
     ctx = obter_contexto_periodo()
     
-    st.markdown("### 🏢 Análise por Cliente/Tema")
+    st.markdown("### Análise por Cliente/Tema")
     st.caption(f"Visualize métricas, responsáveis e histórico de cards por cliente • **{ctx['emoji']} {ctx['titulo']}**")
     
     # ===== AVISO SOBRE OS DADOS =====
-    st.info("📊 **Esta aba mostra dados de TODOS os projetos** (SD, QA, PB, VALPROD) independentemente do filtro da barra lateral.")
+    st.info(" **Esta aba mostra dados de TODOS os projetos** (SD, QA, PB, VALPROD) independentemente do filtro da barra lateral.")
     
     # Verifica se há cliente na URL para compartilhamento (link compartilhado)
     cliente_url = st.query_params.get("cliente", None)
     
     # Verifica se a coluna temas existe
     if 'temas' not in df_todos.columns:
-        st.warning("⚠️ Dados de clientes/temas não disponíveis")
+        st.warning(" Dados de clientes/temas não disponíveis")
         return
     
     # Explode temas para análise
@@ -86,14 +86,14 @@ def aba_clientes(df_todos: pd.DataFrame):
     clientes_unicos = clientes_count.index.tolist()
     
     # Determinar índice inicial baseado na URL (se veio de link compartilhado)
-    opcoes_cliente = ["👀 Visão Geral do Time"] + clientes_unicos
+    opcoes_cliente = [" Visão Geral do Time"] + clientes_unicos
     indice_inicial = 0
     if cliente_url and cliente_url in clientes_unicos:
         indice_inicial = opcoes_cliente.index(cliente_url)
     
     # ===== SELETOR DE CLIENTE (igual QA/Dev) =====
     cliente_selecionado = st.selectbox(
-        "🔍 Selecione ou pesquise um cliente",
+        " Selecione ou pesquise um cliente",
         options=opcoes_cliente,
         index=indice_inicial,
         key="select_cliente_aba"
@@ -101,7 +101,7 @@ def aba_clientes(df_todos: pd.DataFrame):
     
     st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
     
-    if cliente_selecionado == "👀 Visão Geral do Time":
+    if cliente_selecionado == " Visão Geral do Time":
         _renderizar_visao_geral(df_temas, clientes_unicos)
     else:
         _renderizar_cliente_selecionado(df_temas, cliente_selecionado)
@@ -124,7 +124,7 @@ def _renderizar_visao_geral(df_temas: pd.DataFrame, clientes_unicos: list):
         return "#ef4444"
     
     # ===== INDICADORES GERAIS =====
-    st.markdown("##### 📊 Indicadores de Clientes")
+    st.markdown("##### Indicadores de Clientes")
     
     total_cards = len(df_temas)
     total_clientes = len(clientes_unicos)
@@ -137,26 +137,26 @@ def _renderizar_visao_geral(df_temas: pd.DataFrame, clientes_unicos: list):
     col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
-        st.markdown(mini_card(str(total_clientes), "🏢 Clientes", "ativos", "#3b82f6"), unsafe_allow_html=True)
+        st.markdown(mini_card(str(total_clientes), " Clientes", "ativos", "#3b82f6"), unsafe_allow_html=True)
     
     with col2:
-        st.markdown(mini_card(str(total_cards), "📋 Total Cards", "no período", "#6b7280"), unsafe_allow_html=True)
+        st.markdown(mini_card(str(total_cards), " Total Cards", "no período", "#6b7280"), unsafe_allow_html=True)
     
     with col3:
         cor = cor_status_inv(pct_pago, 30, 15)
-        st.markdown(mini_card(str(total_dev_pago), "💰 Dev. Pago", f"{pct_pago}%", cor), unsafe_allow_html=True)
+        st.markdown(mini_card(str(total_dev_pago), " Dev. Pago", f"{pct_pago}%", cor), unsafe_allow_html=True)
     
     with col4:
-        st.markdown(mini_card(str(total_sp), "📐 Story Points", "total", "#8b5cf6"), unsafe_allow_html=True)
+        st.markdown(mini_card(str(total_sp), " Story Points", "total", "#8b5cf6"), unsafe_allow_html=True)
     
     with col5:
         cor = cor_status_inv(pct_concluido, 70, 40)
-        st.markdown(mini_card(f"{pct_concluido}%", "✅ Conclusão", f"{total_concluidos} cards", cor), unsafe_allow_html=True)
+        st.markdown(mini_card(f"{pct_concluido}%", " Conclusão", f"{total_concluidos} cards", cor), unsafe_allow_html=True)
     
     st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
     
     # ===== TOP CLIENTES =====
-    with st.expander("📊 Top 15 Clientes por Volume de Cards", expanded=False):
+    with st.expander(" Top 15 Clientes por Volume de Cards", expanded=False):
         # Ranking de clientes com desenvolvimento pago
         # Constrói dicionário de agregação dinamicamente com colunas existentes
         agg_dict = {'ticket_id': 'count'}
@@ -225,7 +225,7 @@ def _renderizar_visao_geral(df_temas: pd.DataFrame, clientes_unicos: list):
     
     # ===== DESENVOLVIMENTO PAGO VS OUTROS =====
     if 'dev_pago' in df_temas.columns:
-        with st.expander("💰 Análise de Desenvolvimento Pago", expanded=False):
+        with st.expander(" Análise de Desenvolvimento Pago", expanded=False):
             st.caption("Cards com label indicando desenvolvimento pago")
             
             col1, col2 = st.columns(2)
@@ -233,12 +233,12 @@ def _renderizar_visao_geral(df_temas: pd.DataFrame, clientes_unicos: list):
             with col1:
                 # Gráfico de pizza: Pago vs Não Pago
                 pago_count = df_temas.groupby('dev_pago').size().reset_index(name='Cards')
-                pago_count['Categoria'] = pago_count['dev_pago'].apply(lambda x: '💰 Desenvolvimento Pago' if x else '🔧 Outros')
+                pago_count['Categoria'] = pago_count['dev_pago'].apply(lambda x: ' Desenvolvimento Pago' if x else ' Outros')
                 
                 fig_pago = px.pie(pago_count, values='Cards', names='Categoria',
                                   title='Distribuição: Pago vs Outros',
                                   color='Categoria',
-                                  color_discrete_map={'💰 Desenvolvimento Pago': '#22c55e', '🔧 Outros': '#6b7280'})
+                                  color_discrete_map={' Desenvolvimento Pago': '#22c55e', ' Outros': '#6b7280'})
                 fig_pago.update_layout(height=350)
                 st.plotly_chart(fig_pago, use_container_width=True)
             
@@ -260,7 +260,7 @@ def _renderizar_visao_geral(df_temas: pd.DataFrame, clientes_unicos: list):
                     st.info("ℹ️ Nenhum card com label de desenvolvimento pago encontrado")
     
     # ===== CLIENTES COM MAIS BUGS =====
-    with st.expander("🐛 Clientes com Mais Bugs Encontrados", expanded=False):
+    with st.expander(" Clientes com Mais Bugs Encontrados", expanded=False):
         if 'bugs' in df_temas.columns:
             clientes_bugs = df_temas.groupby('temas')['bugs'].sum().reset_index()
             clientes_bugs = clientes_bugs[clientes_bugs['bugs'] > 0].sort_values('bugs', ascending=False).head(10)
@@ -294,7 +294,7 @@ def _renderizar_cliente_selecionado(df_temas: pd.DataFrame, cliente_selecionado:
     
     col_titulo, col_share = st.columns([3, 1])
     with col_titulo:
-        st.markdown(f"### 🏢 {cliente_selecionado}")
+        st.markdown(f"### {cliente_selecionado}")
     with col_share:
         # Botão Copiar Link usando components.html (mesmo padrão do QA/Dev)
         components.html(f"""
@@ -310,16 +310,16 @@ def _renderizar_cliente_selecionado(df_temas: pd.DataFrame, cliente_selecionado:
             font-weight: 500;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             transition: all 0.2s ease;
-        ">📋 Copiar Link</button>
+        "> Copiar Link</button>
         <script>
             document.getElementById('copyBtnCliente').addEventListener('click', function() {{
                 var url = '{share_url}';
                 var btn = this;
                 navigator.clipboard.writeText(url).then(function() {{
-                    btn.innerHTML = '✅ Copiado!';
+                    btn.innerHTML = ' Copiado!';
                     btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
                     setTimeout(function() {{
-                        btn.innerHTML = '📋 Copiar Link';
+                        btn.innerHTML = ' Copiar Link';
                         btn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
                     }}, 2000);
                 }}).catch(function() {{
@@ -329,10 +329,10 @@ def _renderizar_cliente_selecionado(df_temas: pd.DataFrame, cliente_selecionado:
                     temp.select();
                     document.execCommand('copy');
                     document.body.removeChild(temp);
-                    btn.innerHTML = '✅ Copiado!';
+                    btn.innerHTML = ' Copiado!';
                     btn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
                     setTimeout(function() {{
-                        btn.innerHTML = '📋 Copiar Link';
+                        btn.innerHTML = ' Copiar Link';
                         btn.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
                     }}, 2000);
                 }});
@@ -370,37 +370,37 @@ def _renderizar_cliente_selecionado(df_temas: pd.DataFrame, cliente_selecionado:
     pct_concluido = int(total_concluidos / total_cards * 100) if total_cards > 0 else 0
     pct_pago = int(total_dev_pago / total_cards * 100) if total_cards > 0 else 0
     
-    st.markdown("##### 📊 Métricas do Cliente")
+    st.markdown("##### Métricas do Cliente")
     col1, col2, col3, col4, col5, col6 = st.columns(6)
     
     with col1:
-        st.markdown(mini_card(str(total_cards), "📋 Cards", "total", "#3b82f6"), unsafe_allow_html=True)
+        st.markdown(mini_card(str(total_cards), " Cards", "total", "#3b82f6"), unsafe_allow_html=True)
     
     with col2:
         cor = cor_status_inv(pct_concluido, 70, 40)
-        st.markdown(mini_card(f"{pct_concluido}%", "✅ Concluídos", f"{total_concluidos} cards", cor), unsafe_allow_html=True)
+        st.markdown(mini_card(f"{pct_concluido}%", " Concluídos", f"{total_concluidos} cards", cor), unsafe_allow_html=True)
     
     with col3:
         cor = "#f59e0b" if total_em_andamento > 0 else "#6b7280"
-        st.markdown(mini_card(str(total_em_andamento), "🔄 Andamento", "em progresso", cor), unsafe_allow_html=True)
+        st.markdown(mini_card(str(total_em_andamento), " Andamento", "em progresso", cor), unsafe_allow_html=True)
     
     with col4:
-        st.markdown(mini_card(str(total_sp), "📐 SP", "story points", "#8b5cf6"), unsafe_allow_html=True)
+        st.markdown(mini_card(str(total_sp), " SP", "story points", "#8b5cf6"), unsafe_allow_html=True)
     
     with col5:
         cor = cor_status(total_bugs, 1, 5)
-        st.markdown(mini_card(str(total_bugs), "🐛 Bugs", "encontrados", cor), unsafe_allow_html=True)
+        st.markdown(mini_card(str(total_bugs), " Bugs", "encontrados", cor), unsafe_allow_html=True)
     
     with col6:
         cor = "#22c55e" if total_dev_pago > 0 else "#6b7280"
-        st.markdown(mini_card(str(total_dev_pago), "💰 Dev Pago", f"{pct_pago}%", cor), unsafe_allow_html=True)
+        st.markdown(mini_card(str(total_dev_pago), " Dev Pago", f"{pct_pago}%", cor), unsafe_allow_html=True)
     
     st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
     
     # ===== PROJETOS DO CLIENTE =====
     if 'projeto' in df_cliente.columns:
         projetos_cliente = df_cliente['projeto'].value_counts()
-        st.markdown(f"**📂 Presença em Projetos:** {', '.join([f'{proj} ({qtd})' for proj, qtd in projetos_cliente.items()])}")
+        st.markdown(f"** Presença em Projetos:** {', '.join([f'{proj} ({qtd})' for proj, qtd in projetos_cliente.items()])}")
     
     st.markdown("---")
     
@@ -408,7 +408,7 @@ def _renderizar_cliente_selecionado(df_temas: pd.DataFrame, cliente_selecionado:
     col_status, col_tipo = st.columns(2)
     
     with col_status:
-        st.markdown("##### 📊 Distribuição por Status")
+        st.markdown("##### Distribuição por Status")
         if 'status_cat' in df_cliente.columns:
             status_count = df_cliente.groupby('status_cat').size().reset_index(name='Cards')
             status_count['Status'] = status_count['status_cat'].map(STATUS_NOMES)
@@ -421,7 +421,7 @@ def _renderizar_cliente_selecionado(df_temas: pd.DataFrame, cliente_selecionado:
             st.caption("Dados de status não disponíveis")
     
     with col_tipo:
-        st.markdown("##### 📋 Distribuição por Tipo")
+        st.markdown("##### Distribuição por Tipo")
         if 'tipo' in df_cliente.columns:
             tipo_count = df_cliente.groupby('tipo').size().reset_index(name='Cards')
             
@@ -435,12 +435,12 @@ def _renderizar_cliente_selecionado(df_temas: pd.DataFrame, cliente_selecionado:
     st.markdown("---")
     
     # ===== QUEM MAIS TRATA ESSE CLIENTE =====
-    st.markdown("##### 👥 Pessoas que mais tratam este cliente")
+    st.markdown("##### Pessoas que mais tratam este cliente")
     
     col_relator, col_dev, col_qa = st.columns(3)
     
     with col_relator:
-        st.markdown("**📝 Relatores (criadores)**")
+        st.markdown("** Relatores (criadores)**")
         if 'relator' in df_cliente.columns:
             relatores = df_cliente['relator'].value_counts().head(5)
             for nome, qtd in relatores.items():
@@ -450,7 +450,7 @@ def _renderizar_cliente_selecionado(df_temas: pd.DataFrame, cliente_selecionado:
             st.caption("Dados não disponíveis")
     
     with col_dev:
-        st.markdown("**👨‍💻 Desenvolvedores**")
+        st.markdown("** Desenvolvedores**")
         if 'desenvolvedor' in df_cliente.columns:
             devs = df_cliente['desenvolvedor'].value_counts().head(5)
             for nome, qtd in devs.items():
@@ -461,7 +461,7 @@ def _renderizar_cliente_selecionado(df_temas: pd.DataFrame, cliente_selecionado:
             st.caption("Dados não disponíveis")
     
     with col_qa:
-        st.markdown("**🔬 QAs responsáveis**")
+        st.markdown("** QAs responsáveis**")
         if 'qa' in df_cliente.columns:
             qas = df_cliente['qa'].value_counts().head(5)
             for nome, qtd in qas.items():
@@ -474,7 +474,7 @@ def _renderizar_cliente_selecionado(df_temas: pd.DataFrame, cliente_selecionado:
     st.markdown("---")
     
     # ===== DESENVOLVIMENTO PAGO =====
-    st.markdown("##### 💰 Análise de Desenvolvimento Pago")
+    st.markdown("##### Análise de Desenvolvimento Pago")
     
     col_pago1, col_pago2 = st.columns(2)
     
@@ -488,7 +488,7 @@ def _renderizar_cliente_selecionado(df_temas: pd.DataFrame, cliente_selecionado:
         
         st.markdown(f"""
         <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 15px; margin-bottom: 10px;">
-            <div style="font-size: 24px; font-weight: bold; color: #22c55e;">💰 {len(cards_pagos)}</div>
+            <div style="font-size: 24px; font-weight: bold; color: #22c55e;"> {len(cards_pagos)}</div>
             <div style="color: #166534;">Cards de Desenvolvimento Pago</div>
             <div style="color: #6b7280; font-size: 12px; margin-top: 5px;">
                 {int(len(cards_pagos)/total_cards*100) if total_cards > 0 else 0}% do total | {sp_pagos} SP
@@ -498,7 +498,7 @@ def _renderizar_cliente_selecionado(df_temas: pd.DataFrame, cliente_selecionado:
         
         st.markdown(f"""
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px;">
-            <div style="font-size: 24px; font-weight: bold; color: #6b7280;">🔧 {len(cards_outros)}</div>
+            <div style="font-size: 24px; font-weight: bold; color: #6b7280;"> {len(cards_outros)}</div>
             <div style="color: #475569;">Outros (Manutenção/Suporte)</div>
             <div style="color: #6b7280; font-size: 12px; margin-top: 5px;">
                 {int(len(cards_outros)/total_cards*100) if total_cards > 0 else 0}% do total | {sp_outros} SP
@@ -521,7 +521,7 @@ def _renderizar_cliente_selecionado(df_temas: pd.DataFrame, cliente_selecionado:
     st.markdown("---")
     
     # ===== TIMELINE DE CARDS =====
-    st.markdown("##### 📅 Timeline de Cards")
+    st.markdown("##### Timeline de Cards")
     
     # Agrupa por mês
     if 'criado' in df_cliente.columns:
@@ -546,7 +546,7 @@ def _renderizar_cliente_selecionado(df_temas: pd.DataFrame, cliente_selecionado:
     st.markdown("---")
     
     # ===== ÚLTIMOS CARDS DO CLIENTE =====
-    st.markdown("##### 📄 Últimos 10 Cards")
+    st.markdown("##### Últimos 10 Cards")
     
     # Ordena por data de atualização
     if 'atualizado' in df_cliente.columns:
@@ -572,7 +572,7 @@ def _renderizar_cliente_selecionado(df_temas: pd.DataFrame, cliente_selecionado:
         
         # Tag de desenvolvimento pago
         is_pago = card.get('dev_pago', False)
-        tag_pago = '<span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px; margin-left: 5px;">💰 PAGO</span>' if is_pago else ''
+        tag_pago = '<span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 3px; font-size: 10px; margin-left: 5px;"> PAGO</span>' if is_pago else ''
         
         # Escapa caracteres especiais HTML
         titulo = html_lib.escape(str(card.get('titulo', card.get('summary', 'Sem título'))))
@@ -593,7 +593,7 @@ def _renderizar_cliente_selecionado(df_temas: pd.DataFrame, cliente_selecionado:
 <span style="background: {status_cor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap;">{status_nome}</span>
 </div>
 <div style="margin-top: 5px; font-size: 12px; color: #94a3b8;">
-👤 {relator} → 👨‍💻 {dev} → 🔬 {qa} | {tempo}
+ {relator} → {dev} → {qa} | {tempo}
 </div>
 </div>'''
         st.markdown(html_card, unsafe_allow_html=True)

@@ -43,6 +43,7 @@ from modulos.jira_api import (
 
 from modulos.processamento import aplicar_filtros_widget
 from modulos.helpers import criar_card_metrica, gerar_html_card_ticket, formatar_tempo_relativo
+from modulos.icons import lucide_icon, LUCIDE_ICONS
 
 
 # ==============================================================================
@@ -53,15 +54,15 @@ def mostrar_tooltip(metrica_key: str):
     """Mostra tooltip explicativo de uma métrica."""
     if metrica_key not in TOOLTIPS:
         return
-    
+
     tooltip = TOOLTIPS[metrica_key]
-    with st.expander(f"ℹ️ O que é {tooltip['titulo']}?", expanded=False):
+    with st.expander(f"O que é {tooltip['titulo']}?", expanded=False):
         st.markdown(f"**{tooltip['descricao']}**")
         st.code(tooltip['formula'], language="text")
         st.markdown("**Interpretação:**")
         for nivel, desc in tooltip['interpretacao'].items():
             st.markdown(f"- {nivel}: {desc}")
-        st.caption(f"📚 Fonte: {tooltip['fonte']}")
+        st.caption(f"Fonte: {tooltip['fonte']}")
 
 
 # ==============================================================================
@@ -71,49 +72,49 @@ def mostrar_tooltip(metrica_key: str):
 # Tipos de consulta disponíveis
 TIPOS_CONSULTA = {
     "cards_pessoa": {
-        "nome": "📋 Cards de uma Pessoa",
+        "nome": "Cards de uma Pessoa",
         "descricao": "Lista de cards filtrados por pessoa (responsável, QA, relator)",
         "filtros": ["pessoa", "papel_pessoa", "status", "periodo"],
         "visualizacao": "lista_cards"
     },
     "metricas_pessoa": {
-        "nome": "📊 Métricas de uma Pessoa", 
+        "nome": "Métricas de uma Pessoa",
         "descricao": "KPIs e métricas agregadas para uma pessoa específica",
         "filtros": ["pessoa", "papel_pessoa", "periodo"],
         "visualizacao": "metricas"
     },
     "cards_status": {
-        "nome": "🏷️ Cards por Status",
+        "nome": "Cards por Status",
         "descricao": "Cards filtrados por status específico",
         "filtros": ["status", "pessoa", "periodo"],
         "visualizacao": "lista_cards"
     },
     "cards_produto": {
-        "nome": "📦 Cards por Produto",
+        "nome": "Cards por Produto",
         "descricao": "Cards filtrados por produto",
         "filtros": ["produto", "status", "pessoa", "periodo"],
         "visualizacao": "lista_cards"
     },
     "comparativo_pessoas": {
-        "nome": "⚖️ Comparativo entre Pessoas",
+        "nome": "Comparativo entre Pessoas",
         "descricao": "Compare métricas entre várias pessoas",
         "filtros": ["pessoas_multiplas", "papel_pessoa", "periodo"],
         "visualizacao": "comparativo"
     },
     "tendencia_periodo": {
-        "nome": "📈 Tendência por Período",
+        "nome": "Tendência por Período",
         "descricao": "Evolução de métricas ao longo do tempo",
         "filtros": ["metrica", "pessoa", "periodo_range"],
         "visualizacao": "grafico_linha"
     },
     "bugs_analise": {
-        "nome": "🐛 Análise de Bugs",
+        "nome": "Análise de Bugs",
         "descricao": "Bugs encontrados com filtros avançados",
         "filtros": ["pessoa", "papel_pessoa", "produto", "periodo"],
         "visualizacao": "lista_cards_bugs"
     },
     "fator_k_detalhado": {
-        "nome": "🎯 Fator K Detalhado",
+        "nome": "Fator K Detalhado",
         "descricao": "Análise detalhada do Fator K por pessoa/produto",
         "filtros": ["pessoa", "produto", "periodo"],
         "visualizacao": "metricas_fk"
@@ -123,22 +124,22 @@ TIPOS_CONSULTA = {
 # Status disponíveis para filtro
 STATUS_FILTRO = {
     "todos": "Todos os status",
-    "concluido": "✅ Concluído",
-    "em_andamento": "🔄 Em Andamento",
-    "em_validacao": "🧪 Em Validação/QA",
-    "aguardando_qa": "⏳ Aguardando QA",
-    "code_review": "👀 Code Review",
-    "impedido": "🚫 Impedido/Bloqueado",
-    "reprovado": "❌ Reprovado",
-    "backlog": "📋 Backlog",
+    "concluido": "Concluído",
+    "em_andamento": "Em Andamento",
+    "em_validacao": "Em Validação/QA",
+    "aguardando_qa": "Aguardando QA",
+    "code_review": "Code Review",
+    "impedido": "Impedido/Bloqueado",
+    "reprovado": "Reprovado",
+    "backlog": "Backlog",
 }
 
 # Papéis de pessoa
 PAPEIS_PESSOA = {
     "qualquer": "Qualquer papel",
-    "responsavel": "👨‍💻 Responsável/Dev",
-    "qa": "🔬 QA Responsável",
-    "relator": "📝 Relator/Criador",
+    "responsavel": "Responsável/Dev",
+    "qa": "QA Responsável",
+    "relator": "Relator/Criador",
 }
 
 # Períodos predefinidos
@@ -149,7 +150,7 @@ PERIODOS_PREDEFINIDOS = {
     "ultimo_mes": "Último Mês",
     "ultimos_3_meses": "Últimos 3 Meses",
     "todo_periodo": "Todo o Período",
-    "personalizado": "📅 Período Personalizado",
+    "personalizado": "Período Personalizado",
 }
 
 # ===============================================================================
@@ -159,112 +160,112 @@ PERIODOS_PREDEFINIDOS = {
 CATALOGO_WIDGETS = {
     # === KPIs SIMPLES ===
     "kpi_total_cards": {
-        "nome": "📋 Total de Cards",
-        "categoria": "📊 KPIs",
+        "nome": "Total de Cards",
+        "categoria": "KPIs",
         "descricao": "Total de cards no período",
         "tipo": "kpi",
         "filtros": ["pessoa", "status", "periodo"],
     },
     "kpi_story_points": {
-        "nome": "⭐ Story Points",
-        "categoria": "📊 KPIs",
+        "nome": "Story Points",
+        "categoria": "KPIs",
         "descricao": "Total de Story Points",
         "tipo": "kpi",
         "filtros": ["pessoa", "status", "periodo"],
     },
     "kpi_bugs": {
-        "nome": "🐛 Total de Bugs",
-        "categoria": "📊 KPIs",
+        "nome": "Total de Bugs",
+        "categoria": "KPIs",
         "descricao": "Quantidade de bugs encontrados",
         "tipo": "kpi",
         "filtros": ["pessoa", "periodo"],
     },
     "kpi_fator_k": {
-        "nome": "🎯 Fator K",
-        "categoria": "📊 KPIs",
+        "nome": "Fator K",
+        "categoria": "KPIs",
         "descricao": "Razão SP/Bugs (qualidade)",
         "tipo": "kpi",
         "filtros": ["pessoa", "periodo"],
     },
     "kpi_fpy": {
-        "nome": "✅ FPY",
-        "categoria": "📊 KPIs",
+        "nome": "FPY",
+        "categoria": "KPIs",
         "descricao": "First Pass Yield - % aprovados de primeira",
         "tipo": "kpi",
         "filtros": ["pessoa", "periodo"],
     },
     "kpi_taxa_conclusao": {
-        "nome": "🏁 Taxa de Conclusão",
-        "categoria": "📊 KPIs",
+        "nome": "Taxa de Conclusão",
+        "categoria": "KPIs",
         "descricao": "% de cards concluídos",
         "tipo": "kpi",
         "filtros": ["pessoa", "periodo"],
     },
-    
+
     # === GRÁFICOS ===
     "grafico_status": {
-        "nome": "📊 Gráfico por Status",
-        "categoria": "📈 Gráficos",
+        "nome": "Gráfico por Status",
+        "categoria": "Gráficos",
         "descricao": "Distribuição de cards por status",
         "tipo": "grafico_barra",
         "filtros": ["pessoa", "periodo"],
     },
     "grafico_produto": {
-        "nome": "📦 Gráfico por Produto",
-        "categoria": "📈 Gráficos",
+        "nome": "Gráfico por Produto",
+        "categoria": "Gráficos",
         "descricao": "Distribuição de cards por produto",
         "tipo": "grafico_barra",
         "filtros": ["pessoa", "periodo"],
     },
     "grafico_responsavel": {
-        "nome": "👤 Gráfico por Responsável",
-        "categoria": "📈 Gráficos",
+        "nome": "Gráfico por Responsável",
+        "categoria": "Gráficos",
         "descricao": "Cards por responsável",
         "tipo": "grafico_barra",
         "filtros": ["status", "periodo"],
     },
     "grafico_bugs_dev": {
-        "nome": "🐛 Bugs por Dev",
-        "categoria": "📈 Gráficos",
+        "nome": "Bugs por Dev",
+        "categoria": "Gráficos",
         "descricao": "Bugs encontrados por desenvolvedor",
         "tipo": "grafico_barra",
         "filtros": ["periodo"],
     },
-    
+
     # === TABELAS ===
     "tabela_ranking_devs": {
-        "nome": "🏆 Ranking Devs",
-        "categoria": "📋 Tabelas",
+        "nome": "Ranking Devs",
+        "categoria": "Tabelas",
         "descricao": "Ranking de desenvolvedores por Fator K",
         "tipo": "tabela",
         "filtros": ["periodo"],
     },
     "tabela_cards_recentes": {
-        "nome": "🕐 Cards Recentes",
-        "categoria": "📋 Tabelas",
+        "nome": "Cards Recentes",
+        "categoria": "Tabelas",
         "descricao": "Últimos cards atualizados",
         "tipo": "tabela",
         "filtros": ["pessoa", "status"],
     },
     "tabela_aging": {
-        "nome": "⏰ Aging",
-        "categoria": "📋 Tabelas",
+        "nome": "Aging",
+        "categoria": "Tabelas",
         "descricao": "Cards há muito tempo parados",
         "tipo": "tabela",
         "filtros": ["status"],
     },
-    
+
     # === LISTAS ===
     "lista_cards_pessoa": {
-        "nome": "📋 Cards de uma Pessoa",
-        "categoria": "📝 Listas",
+        "nome": "Cards de uma Pessoa",
+        "categoria": "Listas",
         "descricao": "Lista de cards de uma pessoa específica",
         "tipo": "lista",
         "filtros": ["pessoa", "papel_pessoa", "status", "periodo"],
     },
     "lista_bugs": {
-        "nome": "🐛 Lista de Bugs",
-        "categoria": "📝 Listas",
+        "nome": "Lista de Bugs",
+        "categoria": "Listas",
         "descricao": "Lista de bugs encontrados",
         "tipo": "lista",
         "filtros": ["pessoa", "periodo"],
@@ -294,14 +295,13 @@ def renderizar_widget(widget: Dict, df: pd.DataFrame, idx: int, total: int):
         
         with col_titulo:
             st.markdown(f"#### {widget_info.get('nome', tipo)}")
-            # Mostra filtros ativos
             filtros_texto = []
             if filtros.get('pessoa') and filtros['pessoa'] != 'Todos':
-                filtros_texto.append(f"👤 {filtros['pessoa']}")
+                filtros_texto.append(filtros['pessoa'])
             if filtros.get('status') and filtros['status'] != 'todos':
-                filtros_texto.append(f"🏷️ {STATUS_FILTRO.get(filtros['status'], filtros['status'])}")
+                filtros_texto.append(STATUS_FILTRO.get(filtros['status'], filtros['status']))
             if filtros.get('periodo'):
-                filtros_texto.append(f"📅 {PERIODOS_PREDEFINIDOS.get(filtros['periodo'], filtros['periodo'])}")
+                filtros_texto.append(PERIODOS_PREDEFINIDOS.get(filtros['periodo'], filtros['periodo']))
             if filtros_texto:
                 st.caption(" | ".join(filtros_texto))
         
@@ -309,16 +309,16 @@ def renderizar_widget(widget: Dict, df: pd.DataFrame, idx: int, total: int):
             col_up, col_down, col_del = st.columns(3)
             with col_up:
                 if idx > 0:
-                    if st.button("⬆️", key=f"up_{widget['id']}", help="Mover para cima"):
+                    if st.button("↑", key=f"up_{widget['id']}", help="Mover para cima"):
                         mover_widget_cima(widget['id'])
                         st.rerun()
             with col_down:
                 if idx < total - 1:
-                    if st.button("⬇️", key=f"down_{widget['id']}", help="Mover para baixo"):
+                    if st.button("↓", key=f"down_{widget['id']}", help="Mover para baixo"):
                         mover_widget_baixo(widget['id'])
                         st.rerun()
             with col_del:
-                if st.button("🗑️", key=f"del_{widget['id']}", help="Remover"):
+                if st.button("×", key=f"del_{widget['id']}", help="Remover"):
                     remover_widget(widget['id'])
                     st.rerun()
         
@@ -453,7 +453,7 @@ def renderizar_lista_widget(tipo: str, df: pd.DataFrame, filtros: Dict):
             with col2:
                 titulo = str(row.get('resumo', ''))[:60]
                 st.markdown(f"{titulo}")
-                st.caption(f"👤 {row.get('responsavel', 'N/A')} | 📌 {row.get('status', 'N/A')}")
+                st.caption(f"{row.get('responsavel', 'N/A')} | {row.get('status', 'N/A')}")
         
         if len(df) > 15:
             st.caption(f"... e mais {len(df) - 15} cards")
@@ -465,15 +465,15 @@ def renderizar_resultado_consulta(df_filtrado: pd.DataFrame, tipo: str, filtros:
     """Renderiza o resultado da consulta."""
     
     if df_filtrado.empty:
-        st.warning("⚠️ Nenhum resultado encontrado para os filtros selecionados.")
+        st.warning("Nenhum resultado encontrado para os filtros selecionados.")
         return
-    
+
     consulta = TIPOS_CONSULTA.get(tipo, {})
     visualizacao = consulta.get('visualizacao', 'lista_cards')
-    
+
     # === VISUALIZAÇÃO: LISTA DE CARDS ===
     if visualizacao in ['lista_cards', 'lista_cards_bugs']:
-        st.markdown(f"### 📋 {len(df_filtrado)} Cards Encontrados")
+        st.markdown(f"### {len(df_filtrado)} Cards Encontrados")
         
         # Métricas resumo
         col1, col2, col3, col4 = st.columns(4)
@@ -500,11 +500,11 @@ def renderizar_resultado_consulta(df_filtrado: pd.DataFrame, tipo: str, filtros:
                 with col2:
                     titulo = str(row.get('resumo', ''))[:80]
                     st.markdown(f"{titulo}")
-                    st.caption(f"📌 {row.get('status', 'N/A')} | 👤 {row.get('responsavel', 'N/A')}")
+                    st.caption(f"{row.get('status', 'N/A')} | {row.get('responsavel', 'N/A')}")
                 with col3:
                     sp = row.get('story_points', 0)
                     bugs = row.get('bugs_encontrados', 0)
-                    st.markdown(f"**{sp} SP** | 🐛 {bugs}")
+                    st.markdown(f"**{sp} SP** | {bugs} bugs")
             st.markdown("---")
         
         if len(df_filtrado) > 50:
@@ -512,7 +512,7 @@ def renderizar_resultado_consulta(df_filtrado: pd.DataFrame, tipo: str, filtros:
     
     # === VISUALIZAÇÃO: MÉTRICAS ===
     elif visualizacao == 'metricas':
-        st.markdown("### 📊 Métricas Calculadas")
+        st.markdown("### Métricas Calculadas")
         
         # KPIs principais
         col1, col2, col3, col4 = st.columns(4)
@@ -554,7 +554,7 @@ def renderizar_resultado_consulta(df_filtrado: pd.DataFrame, tipo: str, filtros:
         
         # Gráfico de status
         st.markdown("---")
-        st.markdown("#### 📈 Distribuição por Status")
+        st.markdown("#### Distribuição por Status")
         status_counts = df_filtrado['status'].value_counts()
         fig = px.bar(x=status_counts.index, y=status_counts.values, labels={'x': 'Status', 'y': 'Quantidade'})
         fig.update_layout(height=300)
@@ -562,7 +562,7 @@ def renderizar_resultado_consulta(df_filtrado: pd.DataFrame, tipo: str, filtros:
     
     # === VISUALIZAÇÃO: COMPARATIVO ===
     elif visualizacao == 'comparativo':
-        st.markdown("### ⚖️ Comparativo")
+        st.markdown("### Comparativo")
         
         pessoas = filtros.get('pessoas_multiplas', [])
         if not pessoas:
@@ -593,7 +593,7 @@ def renderizar_resultado_consulta(df_filtrado: pd.DataFrame, tipo: str, filtros:
     
     # === VISUALIZAÇÃO: FATOR K DETALHADO ===
     elif visualizacao == 'metricas_fk':
-        st.markdown("### 🎯 Análise Fator K Detalhado")
+        st.markdown("### Análise Fator K Detalhado")
         
         # Por desenvolvedor
         fk_dev = df_filtrado.groupby('responsavel').agg({
@@ -619,7 +619,7 @@ def renderizar_resultado_consulta(df_filtrado: pd.DataFrame, tipo: str, filtros:
 def renderizar_metrica_personalizada(metrica_key: str, df: pd.DataFrame):
     """Renderiza uma métrica do catálogo no dashboard personalizado."""
     if metrica_key not in CATALOGO_METRICAS:
-        st.warning(f"⚠️ Métrica '{metrica_key}' não encontrada")
+        st.warning(f"Métrica '{metrica_key}' não encontrada")
         return
     
     metrica = CATALOGO_METRICAS[metrica_key]
@@ -715,7 +715,7 @@ def mostrar_header_nina():
         <div class="nina-logo">{logo_svg}</div>
         <div>
             <p class="nina-title"><span class="nina-highlight">NinaDash</span> — Dashboard de Qualidade e Decisão de Software</p>
-            <p class="nina-subtitle">📊 Visibilidade, métricas e decisões inteligentes para todo o time</p>
+            <p class="nina-subtitle">Visibilidade, métricas e decisões inteligentes para todo o time</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -738,7 +738,8 @@ def mostrar_indicador_atualizacao(ultima_atualizacao: datetime):
         texto = f"Dados de {int(diff)} min atrás"
         classe = "update-badge update-badge-stale"
     
-    st.markdown(f'<span class="{classe}">🕐 {texto}</span>', unsafe_allow_html=True)
+    icone = lucide_icon("clock", 12, "currentColor")
+    st.markdown(f'<span class="{classe}" style="display:inline-flex;align-items:center;gap:4px;">{icone} {texto}</span>', unsafe_allow_html=True)
 
 
 
@@ -767,7 +768,7 @@ def mostrar_lista_tickets_completa(items: list, titulo: str, mostrar_todos: bool
     
     total = len(items)
     
-    with st.expander(f"📋 {titulo} ({total} cards)", expanded=False):
+    with st.expander(f"{titulo} ({total} cards)", expanded=False):
         # Checkbox para mostrar todos
         if total > 5:
             mostrar_todos = st.checkbox(f"Mostrar todos os {total} cards", key=f"mostrar_todos_{titulo}", value=mostrar_todos)
@@ -789,7 +790,7 @@ def mostrar_lista_tickets_completa(items: list, titulo: str, mostrar_todos: bool
         st.markdown(html_lista, unsafe_allow_html=True)
         
         if not mostrar_todos and total > 5:
-            st.caption(f"📌 Mais {total - 5} cards ocultos. Marque acima para ver todos.")
+            st.caption(f"Mais {total - 5} cards ocultos. Marque acima para ver todos.")
 
 
 
@@ -836,7 +837,7 @@ def renderizar_lista_com_scroll(df: pd.DataFrame, titulo: str = None, max_height
     mostrar_todos = False
     if mostrar_checkbox and total > limite_inicial:
         mostrar_todos = st.checkbox(
-            f"📋 Ver todos os {total} cards", 
+            f"Ver todos os {total} cards",
             key=f"{key_prefix}_ver_todos_{titulo or 'lista'}",
             value=False
         )
@@ -909,11 +910,11 @@ def renderizar_lista_com_scroll(df: pd.DataFrame, titulo: str = None, max_height
         if ambiente:
             ambiente_lower = str(ambiente).lower()
             if 'produção' in ambiente_lower or 'producao' in ambiente_lower:
-                ambiente_badge = '<span style="background:#fef2f2;color:#dc2626;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fecaca;">🔴 PROD</span>'
+                ambiente_badge = '<span style="background:#fef2f2;color:#dc2626;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fecaca;display:inline-flex;align-items:center;gap:4px;"><span style="width:6px;height:6px;border-radius:50%;background:#dc2626;display:inline-block;flex-shrink:0;"></span>PROD</span>'
             elif 'homologação' in ambiente_lower or 'homologacao' in ambiente_lower:
-                ambiente_badge = '<span style="background:#fffbeb;color:#d97706;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fde68a;">🟡 HML</span>'
+                ambiente_badge = '<span style="background:#fffbeb;color:#d97706;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #fde68a;display:inline-flex;align-items:center;gap:4px;"><span style="width:6px;height:6px;border-radius:50%;background:#d97706;display:inline-block;flex-shrink:0;"></span>HML</span>'
             elif 'develop' in ambiente_lower:
-                ambiente_badge = '<span style="background:#f0fdf4;color:#16a34a;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #bbf7d0;">🟢 DEV</span>'
+                ambiente_badge = '<span style="background:#f0fdf4;color:#16a34a;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid #bbf7d0;display:inline-flex;align-items:center;gap:4px;"><span style="width:6px;height:6px;border-radius:50%;background:#16a34a;display:inline-block;flex-shrink:0;"></span>DEV</span>'
         
         # Links Jira e NinaDash
         link_jira = f'{jira_base}/{ticket_id}'
@@ -940,14 +941,14 @@ def renderizar_lista_com_scroll(df: pd.DataFrame, titulo: str = None, max_height
         <span style="background:{tipo_bg};color:{tipo_cor};padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;">{tipo}</span>
         <span class="card-link-wrapper">
             <a href="{link_jira}" target="_blank" class="card-link-id" style="color:{ticket_cor};font-weight:700;font-size:13px;">{ticket_id}</a>
-            <a href="{link_nina}" target="_blank" class="card-action-btn card-action-nina">📊 NinaDash</a>
+            <a href="{link_nina}" target="_blank" class="card-action-btn card-action-nina">NinaDash</a>
         </span>
         {ambiente_badge}
         <span style="background:#f1f5f9;color:#475569;padding:3px 10px;border-radius:6px;font-size:10px;font-weight:500;margin-left:auto;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{card.get('status', '')}">{status}</span>
     </div>
     <div style="font-size:13px;color:#1e293b;line-height:1.5;font-weight:500;">{titulo_card}{"..." if len(str(card.get("titulo", ""))) > 75 else ""}</div>
     <div style="font-size:12px;color:#64748b;margin-top:6px;display:flex;align-items:center;gap:4px;">
-        <span style="opacity:0.8;">👤</span> <span style="font-weight:500;">{responsavel}</span>
+        {lucide_icon("user", 12, "#94a3b8")} <span style="font-weight:500;">{responsavel}</span>
     </div>
     {info_extra}
 </div>'''
@@ -957,7 +958,7 @@ def renderizar_lista_com_scroll(df: pd.DataFrame, titulo: str = None, max_height
     st.markdown(cards_html, unsafe_allow_html=True)
     
     if not mostrar_todos and total > limite_inicial:
-        st.caption(f"📌 Mais {total - limite_inicial} cards ocultos. Marque acima para ver todos.")
+        st.caption(f"Mais {total - limite_inicial} cards ocultos. Marque acima para ver todos.")
 
 
 def exibir_concentracao_time(df: pd.DataFrame, tipo: str = "dev"):
@@ -988,49 +989,56 @@ def exibir_concentracao_time(df: pd.DataFrame, tipo: str = "dev"):
     
     titulo_tipo = "DEV" if tipo == "dev" else "QA"
     
-    with st.expander(f"🔄 Concentração de Conhecimento ({titulo_tipo})", expanded=False):
+    with st.expander(f"Concentração de Conhecimento ({titulo_tipo})", expanded=False):
         st.markdown('<div style="font-size: 13px; color: #6b7280; margin-bottom: 12px;">Identifique riscos de conhecimento centralizado no time</div>', unsafe_allow_html=True)
-        
-        # Cards resumo com novo design
+
+        # Cards resumo
         col1, col2, col3 = st.columns(3)
-        
+
         with col1:
             cor = "#EF4444" if len(alertas_criticos) > 0 else "#22C55E"
-            st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(alertas_criticos)}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">🚨 Críticos</div><div style="font-size: 11px; color: #9ca3af;">≥80% concentração</div></div>', unsafe_allow_html=True)
-        
+            icone_html = lucide_icon("alert-triangle", 14, cor)
+            st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(alertas_criticos)}</div><div style="font-size: 13px; color: #374151; font-weight: 600; display:flex; align-items:center; justify-content:center; gap:4px;">{icone_html} Críticos</div><div style="font-size: 11px; color: #9ca3af;">≥80% concentração</div></div>', unsafe_allow_html=True)
+
         with col2:
             cor = "#F59E0B" if len(alertas_atencao) > 0 else "#22C55E"
-            st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(alertas_atencao)}</div><div style="font-size: 13px; color: #374151; font-weight: 600;">⚠️ Atenção</div><div style="font-size: 11px; color: #9ca3af;">60-79% concentração</div></div>', unsafe_allow_html=True)
-        
+            icone_html = lucide_icon("alert-triangle", 14, cor)
+            st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{len(alertas_atencao)}</div><div style="font-size: 13px; color: #374151; font-weight: 600; display:flex; align-items:center; justify-content:center; gap:4px;">{icone_html} Atenção</div><div style="font-size: 11px; color: #9ca3af;">60-79% concentração</div></div>', unsafe_allow_html=True)
+
         with col3:
             total_areas = len(indices_produto) + len(indices_cliente)
             areas_ok = sum(1 for d in indices_produto.values() if d['concentracao_pct'] < 60)
             areas_ok += sum(1 for d in indices_cliente.values() if d['concentracao_pct'] < 60)
             pct_ok = (areas_ok / total_areas * 100) if total_areas > 0 else 100
             cor = "#22C55E" if pct_ok >= 70 else "#F59E0B" if pct_ok >= 40 else "#EF4444"
-            st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{pct_ok:.0f}%</div><div style="font-size: 13px; color: #374151; font-weight: 600;">✅ Bem Distribuído</div></div>', unsafe_allow_html=True)
-        
-        # Lista de alertas se houver
+            icone_html = lucide_icon("check-circle", 14, cor)
+            st.markdown(f'<div style="background: {cor}10; border: 1px solid {cor}40; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 12px;"><div style="font-size: 24px; font-weight: 700; color: {cor};">{pct_ok:.0f}%</div><div style="font-size: 13px; color: #374151; font-weight: 600; display:flex; align-items:center; justify-content:center; gap:4px;">{icone_html} Bem Distribuído</div></div>', unsafe_allow_html=True)
+
+        # Lista de alertas
         if alertas_criticos or alertas_atencao:
             if alertas_criticos:
-                st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin: 16px 0 8px 0;">🚨 Concentração Crítica</div>', unsafe_allow_html=True)
-                for a in alertas_criticos[:3]:  # Mostra top 3
-                    icone = "📦" if a['contexto'] == 'produto' else "🏢"
-                    st.markdown(f'<div style="background: #FEF2F2; border-left: 3px solid #EF4444; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;"><div style="font-size: 13px; color: #374151;"><b>{a["pessoa"]}</b> domina <span style="color: #EF4444; font-weight: 700;">{a["pct"]}%</span> de \'{a["nome"]}\'</div><div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">{icone} {a["contexto"].capitalize()}</div></div>', unsafe_allow_html=True)
+                icone_sec = lucide_icon("alert-triangle", 14, "#EF4444")
+                st.markdown(f'<div style="font-size: 14px; font-weight: 600; color: #374151; margin: 16px 0 8px 0; display:flex; align-items:center; gap:6px;">{icone_sec} Concentração Crítica</div>', unsafe_allow_html=True)
+                for a in alertas_criticos[:3]:
+                    ctx_icon = lucide_icon("package", 11, "#9ca3af") if a['contexto'] == 'produto' else lucide_icon("building-2", 11, "#9ca3af")
+                    st.markdown(f'<div style="background: #FEF2F2; border-left: 3px solid #EF4444; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;"><div style="font-size: 13px; color: #374151;"><b>{a["pessoa"]}</b> domina <span style="color: #EF4444; font-weight: 700;">{a["pct"]}%</span> de \'{a["nome"]}\'</div><div style="font-size: 11px; color: #9ca3af; margin-top: 4px; display:flex; align-items:center; gap:4px;">{ctx_icon} {a["contexto"].capitalize()}</div></div>', unsafe_allow_html=True)
                 if len(alertas_criticos) > 3:
                     st.markdown(f'<div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">... e mais {len(alertas_criticos) - 3} alertas críticos</div>', unsafe_allow_html=True)
-            
+
             if alertas_atencao:
-                st.markdown('<div style="font-size: 14px; font-weight: 600; color: #374151; margin: 16px 0 8px 0;">⚠️ Pontos de Atenção</div>', unsafe_allow_html=True)
+                icone_sec = lucide_icon("alert-triangle", 14, "#F59E0B")
+                st.markdown(f'<div style="font-size: 14px; font-weight: 600; color: #374151; margin: 16px 0 8px 0; display:flex; align-items:center; gap:6px;">{icone_sec} Pontos de Atenção</div>', unsafe_allow_html=True)
                 for a in alertas_atencao[:3]:
-                    icone = "📦" if a['contexto'] == 'produto' else "🏢"
-                    st.markdown(f'<div style="background: #FFFBEB; border-left: 3px solid #F59E0B; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;"><div style="font-size: 13px; color: #374151;"><b>{a["pessoa"]}</b> tem <span style="color: #F59E0B; font-weight: 700;">{a["pct"]}%</span> de \'{a["nome"]}\'</div><div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">{icone} {a["contexto"].capitalize()}</div></div>', unsafe_allow_html=True)
+                    ctx_icon = lucide_icon("package", 11, "#9ca3af") if a['contexto'] == 'produto' else lucide_icon("building-2", 11, "#9ca3af")
+                    st.markdown(f'<div style="background: #FFFBEB; border-left: 3px solid #F59E0B; border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px;"><div style="font-size: 13px; color: #374151;"><b>{a["pessoa"]}</b> tem <span style="color: #F59E0B; font-weight: 700;">{a["pct"]}%</span> de \'{a["nome"]}\'</div><div style="font-size: 11px; color: #9ca3af; margin-top: 4px; display:flex; align-items:center; gap:4px;">{ctx_icon} {a["contexto"].capitalize()}</div></div>', unsafe_allow_html=True)
                 if len(alertas_atencao) > 3:
                     st.markdown(f'<div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">... e mais {len(alertas_atencao) - 3} pontos de atenção</div>', unsafe_allow_html=True)
         else:
-            st.markdown('<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 13px; color: #166534; margin-top: 4px;">Conhecimento bem distribuído no time!</div></div>', unsafe_allow_html=True)
-        
-        st.markdown('<div style="background: #F8FAFC; border-radius: 8px; padding: 12px; margin-top: 16px;"><div style="font-size: 12px; color: #6b7280;">💡 Veja análise completa na aba <b>Liderança</b> → seção \'Análise de Concentração\'</div></div>', unsafe_allow_html=True)
+            chk_icon = lucide_icon("check-circle", 18, "#166534")
+            st.markdown(f'<div style="background: #F0FDF4; border-radius: 8px; padding: 16px; text-align: center; display:flex; align-items:center; justify-content:center; gap:8px;">{chk_icon}<div style="font-size: 13px; color: #166534;">Conhecimento bem distribuído no time!</div></div>', unsafe_allow_html=True)
+
+        info_icon = lucide_icon("info", 12, "#6b7280")
+        st.markdown(f'<div style="background: #F8FAFC; border-radius: 8px; padding: 12px; margin-top: 16px;"><div style="font-size: 12px; color: #6b7280; display:flex; align-items:center; gap:6px;">{info_icon} Veja análise completa na aba <b>Liderança</b> → seção \'Análise de Concentração\'</div></div>', unsafe_allow_html=True)
 
 
 def exibir_concentracao_simplificada(df: pd.DataFrame, pessoa: str, tipo: str = "dev", expanded: bool = False):
@@ -1049,39 +1057,37 @@ def exibir_concentracao_simplificada(df: pd.DataFrame, pessoa: str, tipo: str = 
     if concentracao['total_cards'] == 0:
         return
     
-    titulo_emoji = "📦" if tipo == "dev" else "🔬"
-    
-    with st.expander(f"{titulo_emoji} Áreas de Atuação", expanded=expanded):
-        # Produtos
+    with st.expander("Áreas de Atuação", expanded=expanded):
         col1, col2 = st.columns(2)
-        
+
         with col1:
-            st.markdown("**📦 Por Produto:**")
-            produtos = concentracao['produtos'][:5]  # Top 5
+            st.markdown("**Por Produto:**")
+            produtos = concentracao['produtos'][:5]
             if produtos:
                 for p in produtos:
-                    cor = '🔴' if p['pct'] >= 80 else '🟡' if p['pct'] >= 60 else '🟢'
-                    st.markdown(f"{cor} **{p['nome']}**: {p['cards']} cards ({p['pct']}%)")
+                    nivel = "Crítico" if p['pct'] >= 80 else "Atenção" if p['pct'] >= 60 else "OK"
+                    cor_texto = "#dc2626" if p['pct'] >= 80 else "#d97706" if p['pct'] >= 60 else "#16a34a"
+                    st.markdown(f"**{p['nome']}**: {p['cards']} cards ({p['pct']}%) — <span style='color:{cor_texto};font-size:11px;'>{nivel}</span>", unsafe_allow_html=True)
             else:
                 st.info("Sem dados de produto")
-        
+
         with col2:
-            st.markdown("**🏢 Por Cliente:**")
+            st.markdown("**Por Cliente:**")
             clientes = [c for c in concentracao['clientes'][:5] if c['nome'] not in ['Sem cliente', 'Interno/Plataforma']]
             if clientes:
                 for c in clientes:
-                    cor = '🔴' if c['pct'] >= 80 else '🟡' if c['pct'] >= 60 else '🟢'
-                    st.markdown(f"{cor} **{c['nome']}**: {c['cards']} cards ({c['pct']}%)")
+                    nivel = "Crítico" if c['pct'] >= 80 else "Atenção" if c['pct'] >= 60 else "OK"
+                    cor_texto = "#dc2626" if c['pct'] >= 80 else "#d97706" if c['pct'] >= 60 else "#16a34a"
+                    st.markdown(f"**{c['nome']}**: {c['cards']} cards ({c['pct']}%) — <span style='color:{cor_texto};font-size:11px;'>{nivel}</span>", unsafe_allow_html=True)
             else:
                 st.info("Sem dados de cliente específico")
-        
-        # Alertas de concentração
+
         if concentracao['alertas']:
             st.markdown("---")
-            st.markdown("**⚠️ Pontos de atenção (concentração ≥60%):**")
+            st.markdown("**Pontos de atenção (concentração ≥60%):**")
             for alerta in concentracao['alertas']:
-                icone = "📦" if alerta['tipo'] == 'produto' else "🏢"
-                st.warning(f"{icone} Alta concentração em **{alerta['nome']}** ({alerta['pct']}% dos cards)")
+                ctx = "Produto" if alerta['tipo'] == 'produto' else "Cliente"
+                st.warning(f"Alta concentração em **{alerta['nome']}** ({alerta['pct']}% dos cards) — {ctx}")
 
 
 # ==============================================================================

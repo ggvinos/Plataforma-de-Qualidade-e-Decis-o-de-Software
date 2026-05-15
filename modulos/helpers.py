@@ -40,11 +40,44 @@ from modulos.jira_api import (
     gerar_icone_tabler, gerar_icone_tabler_html, gerar_badge_status, obter_icone_status,
     extrair_historico_transicoes, extrair_texto_adf
 )
+from modulos.icons import lucide_icon
 
 
 # ==============================================================================
 # FUNÇÕES DO MÓDULO
 # ==============================================================================
+
+_COR_HEX = {
+    "blue":   "#3b82f6",
+    "green":  "#22c55e",
+    "red":    "#ef4444",
+    "orange": "#f97316",
+    "purple": "#8b5cf6",
+    "gray":   "#64748b",
+    "yellow": "#f59e0b",
+    "cyan":   "#06b6d4",
+}
+
+
+def _detectar_icone(titulo: str) -> str:
+    t = titulo.lower()
+    if any(k in t for k in ["card", "ticket", "tarefa"]):           return "clipboard-list"
+    if any(k in t for k in ["bug", "defeito"]):                      return "bug"
+    if any(k in t for k in ["fpy", "first pass"]):                   return "check-circle"
+    if any(k in t for k in ["fator k", " fk"]):                      return "target"
+    if any(k in t for k in ["lead time", "tempo", "dias"]):          return "timer"
+    if any(k in t for k in ["story point", " sp"]):                  return "bar-chart-2"
+    if any(k in t for k in ["ddp", "detec"]):                        return "shield-check"
+    if any(k in t for k in ["health", "saúde"]):                     return "activity"
+    if any(k in t for k in ["conclu", "throughput", "entregue"]):    return "check-circle"
+    if any(k in t for k in ["bloquead", "impedi"]):                  return "ban"
+    if any(k in t for k in ["reprovad"]):                            return "x-circle"
+    if any(k in t for k in ["qa", "validaç", "teste"]):              return "flask-conical"
+    if any(k in t for k in ["dev", "code review", "revisão"]):       return "code-2"
+    if any(k in t for k in ["produto"]):                              return "package"
+    if any(k in t for k in ["client", "empresa"]):                   return "building-2"
+    if any(k in t for k in ["ranking", "trofé"]):                    return "trophy"
+    return "bar-chart-2"
 
 def obter_contexto_periodo() -> dict:
     """
@@ -72,27 +105,27 @@ def obter_contexto_periodo() -> dict:
         contexto["titulo"] = "Todo o Período"
         contexto["titulo_curto"] = "Histórico"
         contexto["descricao"] = "Todos os cards do projeto, sem filtro de período"
-        contexto["emoji"] = "📆"
+        contexto["emoji"] = ""
     elif filtro == "Sprint Ativa":
         contexto["titulo"] = "Sprint Ativa"
         contexto["titulo_curto"] = "Sprint"
         contexto["descricao"] = "Cards da sprint atualmente em andamento"
-        contexto["emoji"] = "🏃"
+        contexto["emoji"] = ""
     elif filtro == "Últimos 30 dias":
         contexto["titulo"] = "Últimos 30 dias"
         contexto["titulo_curto"] = "30 dias"
         contexto["descricao"] = "Cards criados nos últimos 30 dias"
-        contexto["emoji"] = "📅"
+        contexto["emoji"] = ""
     elif filtro == "Últimos 90 dias":
         contexto["titulo"] = "Últimos 90 dias"
         contexto["titulo_curto"] = "90 dias"
         contexto["descricao"] = "Cards criados nos últimos 90 dias"
-        contexto["emoji"] = "🗓️"
+        contexto["emoji"] = ""
     else:
         contexto["titulo"] = filtro
         contexto["titulo_curto"] = filtro
         contexto["descricao"] = f"Período: {filtro}"
-        contexto["emoji"] = "📊"
+        contexto["emoji"] = ""
     
     return contexto
 
@@ -718,11 +751,13 @@ def formatar_tempo_relativo(dt: datetime) -> str:
 
 
 def criar_card_metrica(valor: str, titulo: str, cor: str = "blue", subtitulo: str = "", tooltip_key: str = ""):
-    """Cria card de métrica visual. tooltip_key é ignorado (usar st.metric com help para tooltips)."""
-    # Sempre mostra sublabel para manter altura uniforme
+    """Cria card de métrica visual com ícone Lucide."""
     sublabel_content = subtitulo if subtitulo else "&nbsp;"
+    hex_cor = _COR_HEX.get(cor, "#3b82f6")
+    icone_html = lucide_icon(_detectar_icone(titulo), size=20, color=hex_cor)
     st.markdown(f"""
     <div class="status-card status-{cor}">
+        <div style="display:flex;justify-content:center;margin-bottom:4px;opacity:0.85;">{icone_html}</div>
         <p class="big-number">{valor}</p>
         <p class="card-label">{titulo}</p>
         <p class="card-sublabel">{sublabel_content}</p>
@@ -767,35 +802,34 @@ def gerar_badge_ambiente(ambiente: str, compacto: bool = False) -> str:
     
     ambiente_lower = ambiente.lower()
     
+    dot = '<span style="width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0;margin-right:4px;background:{c};"></span>'
+
     if 'produção' in ambiente_lower or 'producao' in ambiente_lower:
-        cor = "#dc2626"  # Vermelho
+        cor = "#dc2626"
         bg = "#fef2f2"
-        emoji = "🔴"
         texto = "PROD" if compacto else "Produção"
         titulo = "Em Produção - Card já está impactando clientes"
     elif 'homologação' in ambiente_lower or 'homologacao' in ambiente_lower:
-        cor = "#d97706"  # Laranja/Amarelo
+        cor = "#d97706"
         bg = "#fffbeb"
-        emoji = "🟡"
         texto = "HML" if compacto else "Homologação"
         titulo = "Em Homologação - Vai subir na próxima release"
     elif 'develop' in ambiente_lower:
-        cor = "#16a34a"  # Verde
+        cor = "#16a34a"
         bg = "#f0fdf4"
-        emoji = "🟢"
         texto = "DEV" if compacto else "Develop"
         titulo = "Em Develop - Ainda em desenvolvimento/testes"
     else:
-        cor = "#6b7280"  # Cinza
+        cor = "#6b7280"
         bg = "#f9fafb"
-        emoji = "⚪"
         texto = ambiente[:10] if compacto else ambiente
         titulo = f"Ambiente: {ambiente}"
-    
+
+    indicator = dot.format(c=cor)
     if compacto:
-        return f'<span title="{titulo}" style="background: {bg}; color: {cor}; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; border: 1px solid {cor}20;">{emoji} {texto}</span>'
+        return f'<span title="{titulo}" style="background: {bg}; color: {cor}; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; border: 1px solid {cor}20; display:inline-flex; align-items:center;">{indicator}{texto}</span>'
     else:
-        return f'<span title="{titulo}" style="background: {bg}; color: {cor}; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; border: 1px solid {cor}30;">{emoji} {texto}</span>'
+        return f'<span title="{titulo}" style="background: {bg}; color: {cor}; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; border: 1px solid {cor}30; display:inline-flex; align-items:center;">{indicator}{texto}</span>'
 
 
 def obter_info_ambiente(ambiente: str) -> dict:

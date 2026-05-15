@@ -113,17 +113,17 @@ def criar_grafico_funil_qa(metricas_qa: Dict) -> go.Figure:
     """Cria gráfico de funil de validação QA."""
     funil = metricas_qa['funil']
     
-    labels = ['⏳ Aguardando QA', '🧪 Em Validação', '✅ Concluído']
+    labels = ['Aguardando QA', 'Em Validação', 'Concluído']
     values = [funil['waiting_qa'], funil['testing'], funil['done']]
     colors = ['#f59e0b', '#06b6d4', '#22c55e']
-    
+
     if funil['blocked'] > 0:
-        labels.append('🚫 Bloqueado')
+        labels.append('Bloqueado')
         values.append(funil['blocked'])
         colors.append('#ef4444')
-    
+
     if funil['rejected'] > 0:
-        labels.append('❌ Reprovado')
+        labels.append('Reprovado')
         values.append(funil['rejected'])
         colors.append('#dc2626')
     
@@ -158,7 +158,7 @@ def criar_grafico_tendencia_fator_k(df_tendencia: pd.DataFrame) -> go.Figure:
     fig.add_hline(y=1.0, line_dash="dash", line_color="#f97316", annotation_text="Bronze (≥1.0)")
     
     fig.update_layout(
-        title="📈 Evolução do Fator K (Maturidade)",
+        title="Evolução do Fator K (Maturidade)",
         xaxis_title="Sprint", yaxis_title="Fator K",
         hovermode='x unified', template='plotly_white', height=350
     )
@@ -187,7 +187,7 @@ def criar_grafico_tendencia_qualidade(df_tendencia: pd.DataFrame) -> go.Figure:
     fig.add_hline(y=85, line_dash="dot", line_color="#3b82f6", annotation_text="Meta DDP (85%)")
     
     fig.update_layout(
-        title="📊 Evolução de Qualidade (FPY e DDP)",
+        title="Evolução de Qualidade (FPY e DDP)",
         xaxis_title="Sprint", yaxis_title="Percentual (%)",
         hovermode='x unified', template='plotly_white', height=350,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
@@ -215,7 +215,7 @@ def criar_grafico_tendencia_bugs(df_tendencia: pd.DataFrame) -> go.Figure:
     ))
     
     fig.update_layout(
-        title="🐛 Bugs por Sprint",
+        title="Bugs por Sprint",
         xaxis_title="Sprint", yaxis_title="Quantidade de Bugs",
         template='plotly_white', height=350, showlegend=True
     )
@@ -241,7 +241,7 @@ def criar_grafico_tendencia_health(df_tendencia: pd.DataFrame) -> go.Figure:
     fig.add_hline(y=50, line_dash="dash", line_color="#eab308", annotation_text="Atenção (≥50)")
     
     fig.update_layout(
-        title="🏥 Evolução do Health Score",
+        title="Evolução do Health Score",
         xaxis_title="Sprint", yaxis_title="Health Score",
         template='plotly_white', height=350
     )
@@ -267,7 +267,7 @@ def criar_grafico_throughput(df_tendencia: pd.DataFrame) -> go.Figure:
     ))
     
     fig.update_layout(
-        title="📦 Throughput por Sprint",
+        title="Throughput por Sprint",
         xaxis_title="Sprint",
         yaxis=dict(title="Cards", side='left'),
         yaxis2=dict(title="Story Points", side='right', overlaying='y'),
@@ -319,7 +319,7 @@ def criar_grafico_reprovacao(df_tendencia: pd.DataFrame) -> go.Figure:
     fig.add_hline(y=10, line_dash="dash", line_color="#22c55e", annotation_text="Meta (≤10%)")
     
     fig.update_layout(
-        title="❌ Taxa de Reprovação por Sprint",
+        title="Taxa de Reprovação por Sprint",
         xaxis_title="Sprint", yaxis_title="% Reprovados",
         template='plotly_white', height=350
     )
@@ -363,7 +363,7 @@ def criar_grafico_hotfix_por_produto(df: pd.DataFrame) -> go.Figure:
     
     fig = px.pie(
         data, values='count', names='produto',
-        title='🔥 Hotfixes por Produto',
+        title='Hotfixes por Produto',
         color_discrete_sequence=px.colors.qualitative.Set2
     )
     fig.update_layout(height=350)
@@ -391,7 +391,7 @@ def criar_grafico_aging_backlog(faixas: Dict) -> go.Figure:
     ))
     
     fig.update_layout(
-        title="📊 Distribuição por Idade no Backlog",
+        title="Distribuição por Idade no Backlog",
         xaxis_title="Faixa de Idade",
         yaxis_title="Quantidade de Cards",
         height=350,
@@ -431,7 +431,7 @@ def criar_grafico_prioridade_backlog(por_prioridade: Dict) -> go.Figure:
     ))
     
     fig.update_layout(
-        title="🎯 Distribuição por Prioridade",
+        title="Distribuição por Prioridade",
         height=350,
         margin=dict(l=20, r=20, t=50, b=20)
     )
@@ -464,7 +464,7 @@ def criar_grafico_tipo_backlog(por_tipo: Dict) -> go.Figure:
     ))
     
     fig.update_layout(
-        title="📋 Distribuição por Tipo",
+        title="Distribuição por Tipo",
         xaxis_title="Quantidade",
         height=300,
         margin=dict(l=20, r=20, t=50, b=20)
@@ -494,7 +494,7 @@ def criar_grafico_backlog_por_produto(df_produto: pd.DataFrame) -> go.Figure:
     ))
     
     fig.update_layout(
-        title="📦 Backlog por Produto",
+        title="Backlog por Produto",
         xaxis_title="Produto",
         yaxis_title="Quantidade de Cards",
         height=350,

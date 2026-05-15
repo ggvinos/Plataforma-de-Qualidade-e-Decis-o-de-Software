@@ -48,7 +48,7 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
     # Header integrado: Título + Botão de atualizar com indicador
     col1, col2 = st.columns([3, 1])
     with col1:
-        st.markdown("### 📊 Visão Geral da Sprint")
+        st.markdown("### Visão Geral da Sprint")
     with col2:
         # Botão integrado com última atualização
         agora = datetime.now()
@@ -60,7 +60,7 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
         else:
             tempo_texto = f"há {int(diff/60)}h"
         
-        if st.button(f"🔄 Atualizar ({tempo_texto})", type="secondary", use_container_width=True):
+        if st.button(f" Atualizar ({tempo_texto})", type="secondary", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
     
@@ -96,25 +96,25 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
         
         if dias_diff < 0:
             dias_atraso = abs(dias_diff)
-            release_info = f"🚨 Release ATRASADA ({dias_atraso}d)"
+            release_info = f" Release ATRASADA ({dias_atraso}d)"
             cor_barra = "#ef4444"  # Vermelho
             release_bold = "bold"
         elif dias_diff == 0:
             # Release é HOJE
-            release_info = "⚡ Release HOJE!"
+            release_info = " Release HOJE!"
             cor_barra = "#f59e0b"  # Amarelo/Laranja
             release_bold = "bold"
         else:
             # Dias restantes
-            release_info = f"📅 {dias_diff} dias até a release"
+            release_info = f" {dias_diff} dias até a release"
             cor_barra = "#AF0C37"  # Cor padrão
     else:
-        release_info = "📅 Data não definida"
+        release_info = " Data não definida"
         cor_barra = "#64748b"  # Cinza
     
     st.markdown(f"""
     <div style="background: {cor_barra}; color: white; padding: 15px 20px; border-radius: 10px; margin-bottom: 20px;">
-        <span style="font-size: 18px; font-weight: bold;">🚀 {sprint_atual}</span>
+        <span style="font-size: 18px; font-weight: bold;"> {sprint_atual}</span>
         <span style="float: right; font-weight: {release_bold};">{release_info}</span>
     </div>
     """, unsafe_allow_html=True)
@@ -124,7 +124,7 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
     if gov['sp']['pct'] < 50:
         st.markdown(f"""
         <div class="alert-critical">
-            <b>⚠️ ALERTA: Apenas {gov['sp']['pct']:.0f}% dos cards têm Story Points preenchidos!</b>
+            <b> ALERTA: Apenas {gov['sp']['pct']:.0f}% dos cards têm Story Points preenchidos!</b>
             <p>Isso impacta diretamente nas métricas de capacidade, qualidade e decisões de release.</p>
         </div>
         """, unsafe_allow_html=True)
@@ -136,7 +136,7 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
     sp_total = int(df['sp'].sum())
     bugs_total = int(df['bugs'].sum())
     
-    st.markdown("#### 📈 Resumo da Sprint")
+    st.markdown("#### Resumo da Sprint")
     col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
@@ -161,7 +161,7 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
             criar_card_metrica("—", "Dias p/ Release", "blue", "não definido")
     
     # ===== BARRA DE PROGRESSO VISUAL DA SPRINT =====
-    st.markdown("#### 📊 Progresso da Sprint")
+    st.markdown("#### Progresso da Sprint")
     
     # Calcular métricas por status
     em_dev = len(df[df['status_cat'] == 'development'])
@@ -178,9 +178,9 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
     st.markdown(f"""
     <div style="margin-bottom: 20px;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
-            <span>✅ Concluído: <b>{concluidos}</b></span>
-            <span>🔄 Em Andamento: <b>{em_andamento}</b></span>
-            <span>📋 Total: <b>{total}</b></span>
+            <span> Concluído: <b>{concluidos}</b></span>
+            <span> Em Andamento: <b>{em_andamento}</b></span>
+            <span> Total: <b>{total}</b></span>
         </div>
         <div style="background: #e5e7eb; border-radius: 10px; height: 30px; overflow: hidden; position: relative;">
             <div style="background: linear-gradient(90deg, #22c55e, #16a34a); width: {pct_done}%; height: 100%; display: inline-block; transition: width 0.5s;"></div>
@@ -188,15 +188,15 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
             <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-weight: bold; color: #374151;">{pct_done:.0f}% concluído</span>
         </div>
         <div style="display: flex; gap: 20px; margin-top: 8px; font-size: 12px; color: #6b7280;">
-            <span>🟢 Concluído ({concluidos})</span>
-            <span>🔵 Em Andamento ({em_andamento})</span>
+            <span> Concluído ({concluidos})</span>
+            <span> Em Andamento ({em_andamento})</span>
             <span>⬜ Pendente ({total - concluidos - em_andamento})</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
     
     # ===== MÉTRICAS TÉCNICAS (PARA QUEM QUISER VER) =====
-    with st.expander("🔬 Métricas Técnicas de Qualidade", expanded=False):
+    with st.expander(" Métricas Técnicas de Qualidade", expanded=False):
         st.caption("Indicadores avançados para análise detalhada de qualidade")
         
         fpy = calcular_fpy(df)
@@ -242,7 +242,7 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
             mostrar_tooltip("fator_k")
     
     # ===== CARDS POR STATUS (2 COLUNAS - MAIS ESPAÇO) =====
-    with st.expander("📋 Cards por Status", expanded=False):
+    with st.expander(" Cards por Status", expanded=False):
         status_counts = df.groupby('status_cat').size().to_dict()
         
         # Agrupamento em 2 colunas para melhor legibilidade
@@ -277,7 +277,7 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
     # ===== NOVA SEÇÃO ELLEN: ANÁLISE DE SPRINT =====
     projeto_atual = df['projeto'].iloc[0] if not df.empty else 'SD'
     if projeto_atual in ['SD', 'QA']:
-        with st.expander("🎯 Análise de Sprint - Planejamento vs Entrega", expanded=False):
+        with st.expander(" Análise de Sprint - Planejamento vs Entrega", expanded=False):
             st.markdown("#### Planejamento vs Entrega da Sprint")
             
             # Separar cards por categoria
@@ -316,20 +316,20 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
                 # Tabela de cards fora do planejamento
                 if not adicionados_depois.empty:
                     st.markdown("---")
-                    st.markdown("##### 🚨 Cards Fora do Planejamento Original")
+                    st.markdown("##### Cards Fora do Planejamento Original")
                     st.caption("Cards adicionados após o início da sprint comprometem a previsibilidade")
                     
                     # Construir HTML completo em string única
                     html_cards = '<div class="scroll-container" style="max-height: 400px;">'
                     for _, card in adicionados_depois.iterrows():
                         if card['tipo'] == 'HOTFIX':
-                            categoria = "🔥 Hotfix/Hotfeature"
+                            categoria = " Hotfix/Hotfeature"
                             cor_tag = "#f97316"
                         elif card['tem_link_pb']:
-                            categoria = "📋 Puxado do PB"
+                            categoria = " Puxado do PB"
                             cor_tag = "#3b82f6"
                         else:
-                            categoria = "➕ Criação Direta"
+                            categoria = " Criação Direta"
                             cor_tag = "#8b5cf6"
                         
                         ambiente = card.get('ambiente', '')
@@ -348,7 +348,7 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
                 # Cards por origem do PB
                 if not com_link_pb.empty:
                     st.markdown("---")
-                    st.markdown("##### 📋 Cards Originados do Product Backlog")
+                    st.markdown("##### Cards Originados do Product Backlog")
                     
                     # Agrupar por produto
                     por_produto = com_link_pb.groupby('produto').agg({
@@ -364,7 +364,7 @@ def aba_visao_geral(df: pd.DataFrame, ultima_atualizacao: datetime):
                 st.info("Nenhum card com sprint definida no período")
     
     # Gráficos
-    with st.expander("📊 Gráficos de Distribuição", expanded=False):
+    with st.expander(" Gráficos de Distribuição", expanded=False):
         col1, col2 = st.columns(2)
         
         with col1:

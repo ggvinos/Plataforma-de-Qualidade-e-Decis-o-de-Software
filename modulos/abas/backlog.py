@@ -63,7 +63,7 @@ def aba_backlog(df: pd.DataFrame, projeto: str = "PB"):
     """Aba de análise do Product Backlog (PB) - Visão de Produto."""
     ctx = obter_contexto_periodo()
     
-    st.markdown("### 📋 Product Backlog - Visão de Produto")
+    st.markdown("### Product Backlog - Visão de Produto")
     st.caption(f"Funil de produto, saúde do backlog e análise de demandas • **{ctx['emoji']} {ctx['titulo']}**")
     
     # Calcular métricas de backlog
@@ -100,7 +100,7 @@ def aba_backlog(df: pd.DataFrame, projeto: str = "PB"):
 
 def _renderizar_funil_produto(df: pd.DataFrame):
     """Renderiza o funil de produto visual com as 5 etapas."""
-    st.markdown("##### 🎯 Funil de Produto")
+    st.markdown("##### Funil de Produto")
     
     # Cores do funil (4 etapas - baseado nos status reais do Jira PB)
     cores_funil = {
@@ -142,7 +142,7 @@ def _renderizar_funil_produto(df: pd.DataFrame):
     # Setas entre as etapas (indicador de fluxo)
     st.markdown(f'''
     <div style="text-align: center; margin: 8px 0 16px 0; color: #9ca3af; font-size: 12px;">
-        📝 → 📋 → 🎨 → ⏱️ → 💻 → 🚀 <span style="color: #22c55e; font-weight: 600;">Desenvolvimento</span>
+         → → → → → <span style="color: #22c55e; font-weight: 600;">Desenvolvimento</span>
     </div>
     ''', unsafe_allow_html=True)
     
@@ -151,7 +151,7 @@ def _renderizar_funil_produto(df: pd.DataFrame):
 
 def _renderizar_kpis_produto(df: pd.DataFrame, metricas: dict):
     """Renderiza os KPIs principais de Produto."""
-    st.markdown("##### 📊 Indicadores de Produto")
+    st.markdown("##### Indicadores de Produto")
     
     # Calcular métricas
     total_backlog = metricas['total_itens']
@@ -170,48 +170,48 @@ def _renderizar_kpis_produto(df: pd.DataFrame, metricas: dict):
     col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
-        st.markdown(_mini_card(str(total_backlog), "📋 No Backlog", "itens pendentes", "#3b82f6"), unsafe_allow_html=True)
+        st.markdown(_mini_card(str(total_backlog), " No Backlog", "itens pendentes", "#3b82f6"), unsafe_allow_html=True)
     
     with col2:
-        st.markdown(_mini_card(str(sp_pendentes), "📊 SP Pendentes", "story points", "#8b5cf6"), unsafe_allow_html=True)
+        st.markdown(_mini_card(str(sp_pendentes), " SP Pendentes", "story points", "#8b5cf6"), unsafe_allow_html=True)
     
     with col3:
         cor = _cor_status(idade_media, 30, 60)
-        st.markdown(_mini_card(f"{idade_media:.0f}d", "⏱️ Idade Média", "dias no backlog", cor), unsafe_allow_html=True)
+        st.markdown(_mini_card(f"{idade_media:.0f}d", " Idade Média", "dias no backlog", cor), unsafe_allow_html=True)
     
     with col4:
         cor = _cor_status(cards_alta_prio, 5, 10)
-        st.markdown(_mini_card(str(cards_alta_prio), "🔴 Alta Prioridade", "urgentes", cor), unsafe_allow_html=True)
+        st.markdown(_mini_card(str(cards_alta_prio), " Alta Prioridade", "urgentes", cor), unsafe_allow_html=True)
     
     with col5:
         cor = _cor_status(pct_sem_sp, 20, 40)
-        st.markdown(_mini_card(f"{pct_sem_sp:.0f}%", "❓ Sem Estimativa", "a refinar", cor), unsafe_allow_html=True)
+        st.markdown(_mini_card(f"{pct_sem_sp:.0f}%", " Sem Estimativa", "a refinar", cor), unsafe_allow_html=True)
     
     st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
 
 
 def _renderizar_saude_backlog(metricas: dict):
     """Renderiza o score de saúde do backlog."""
-    with st.expander("🏥 Saúde do Backlog", expanded=True):
+    with st.expander(" Saúde do Backlog", expanded=True):
         score = metricas['score_saude']
         status = metricas['status_saude']
         
         # Determinar cor e emoji baseado no score
         if score >= 75:
             cor_score = "#22c55e"
-            emoji_score = "🟢"
+            emoji_score = ""
             msg = "Backlog saudável! Continue monitorando."
         elif score >= 50:
             cor_score = "#f59e0b"
-            emoji_score = "🟡"
+            emoji_score = ""
             msg = "Backlog precisa de atenção. Revise a priorização."
         elif score >= 25:
             cor_score = "#f97316"
-            emoji_score = "🟠"
+            emoji_score = ""
             msg = "Backlog com problemas. Agende grooming urgente!"
         else:
             cor_score = "#ef4444"
-            emoji_score = "🔴"
+            emoji_score = ""
             msg = "Backlog crítico! Reavaliação completa necessária."
         
         col1, col2 = st.columns([1, 2])
@@ -229,7 +229,7 @@ def _renderizar_saude_backlog(metricas: dict):
         with col2:
             st.markdown(f'''
             <div style="background: #f8fafc; border-radius: 12px; padding: 16px; height: 100%;">
-                <h4 style="margin: 0 0 12px 0; color: #374151;">📋 O que compõe o score?</h4>
+                <h4 style="margin: 0 0 12px 0; color: #374151;"> O que compõe o score?</h4>
                 <ul style="margin: 0; padding-left: 20px; color: #4b5563; font-size: 14px; line-height: 1.8;">
                     <li><strong>Idade média</strong> - Penaliza se > 30 dias</li>
                     <li><strong>Cards sem estimativa</strong> - Penaliza se > 20%</li>
@@ -238,14 +238,14 @@ def _renderizar_saude_backlog(metricas: dict):
                 </ul>
                 <div style="background: {cor_score}20; border-left: 4px solid {cor_score}; padding: 10px 12px; 
                             margin-top: 12px; border-radius: 0 8px 8px 0;">
-                    <span style="font-size: 13px; color: #374151;"><strong>💡 Recomendação:</strong> {msg}</span>
+                    <span style="font-size: 13px; color: #374151;"><strong> Recomendação:</strong> {msg}</span>
                 </div>
             </div>
             ''', unsafe_allow_html=True)
         
         # Recomendações automáticas
         if metricas.get('recomendacoes'):
-            st.markdown("##### 💡 Ações Recomendadas")
+            st.markdown("##### Ações Recomendadas")
             for rec in metricas['recomendacoes'][:3]:  # Top 3
                 classe_cor = "#ef4444" if rec['criticidade'] == 'alta' else "#f59e0b"
                 st.markdown(f'''
@@ -259,7 +259,7 @@ def _renderizar_saude_backlog(metricas: dict):
 
 def _renderizar_aging(df: pd.DataFrame, metricas: dict):
     """Renderiza análise de aging (envelhecimento)."""
-    with st.expander("📊 Análise de Envelhecimento (Aging)", expanded=False):
+    with st.expander(" Análise de Envelhecimento (Aging)", expanded=False):
         col1, col2 = st.columns(2)
         
         with col1:
@@ -269,30 +269,30 @@ def _renderizar_aging(df: pd.DataFrame, metricas: dict):
             st.plotly_chart(fig, use_container_width=True)
         
         with col2:
-            st.markdown("##### 📈 Métricas de Aging")
+            st.markdown("##### Métricas de Aging")
             
             c1, c2 = st.columns(2)
             with c1:
-                st.metric("📅 Mais Antigo", f"{metricas['mais_antigo']} dias")
-                st.metric("⏰ Cards > 60 dias", f"{faixas['61-90'] + faixas['90+']}")
+                st.metric(" Mais Antigo", f"{metricas['mais_antigo']} dias")
+                st.metric(" Cards > 60 dias", f"{faixas['61-90'] + faixas['90+']}")
             with c2:
-                st.metric("🗑️ Cards > 90 dias", f"{faixas['90+']}")
-                st.metric("📊 Idade Mediana", f"{metricas['idade_mediana']:.0f} dias")
+                st.metric(" Cards > 90 dias", f"{faixas['90+']}")
+                st.metric(" Idade Mediana", f"{metricas['idade_mediana']:.0f} dias")
             
             if faixas['90+'] > 0:
-                st.warning(f"⚠️ **{faixas['90+']} cards** estão há mais de 90 dias no backlog - candidatos a descarte!")
+                st.warning(f" **{faixas['90+']} cards** estão há mais de 90 dias no backlog - candidatos a descarte!")
         
         # Cards aging detalhados
         if not metricas['cards_aging'].empty:
-            st.markdown("##### 📋 Cards Mais Antigos (> 60 dias)")
+            st.markdown("##### Cards Mais Antigos (> 60 dias)")
             cards_aging = metricas['cards_aging'].head(10)
             mostrar_lista_tickets_completa(cards_aging.to_dict('records'), "Cards Aging")
 
 
 def _renderizar_visao_clientes(df: pd.DataFrame):
     """Renderiza visão de demandas por cliente/tema."""
-    with st.expander("👥 Demandas por Cliente/Tema", expanded=False):
-        st.markdown("##### 📊 Distribuição por Cliente")
+    with st.expander(" Demandas por Cliente/Tema", expanded=False):
+        st.markdown("##### Distribuição por Cliente")
         st.caption("*Demandas internas (nina, interna) não são exibidas pois beneficiam todos os clientes*")
         
         if 'temas' not in df.columns:
@@ -322,14 +322,14 @@ def _renderizar_visao_clientes(df: pd.DataFrame):
             tema_counts = tema_counts.sort_values('Cards', ascending=False)
             
             fig = px.bar(tema_counts.head(10), x='Cliente', y='Cards',
-                         title='📊 Top 10 Clientes (por Cards)',
+                         title=' Top 10 Clientes (por Cards)',
                          color='SP Total', color_continuous_scale='Blues')
             fig.update_layout(height=350, showlegend=False)
             st.plotly_chart(fig, use_container_width=True)
         
         with col2:
             # Tabela resumo
-            st.markdown("##### 📋 Resumo por Cliente")
+            st.markdown("##### Resumo por Cliente")
             df_display = tema_counts.head(15).copy()
             df_display['SP Total'] = df_display['SP Total'].astype(int)
             st.dataframe(df_display, hide_index=True, use_container_width=True)
@@ -341,13 +341,13 @@ def _renderizar_visao_clientes(df: pd.DataFrame):
             pct_top = (top_cliente['Cards'] / total_cards * 100) if total_cards > 0 else 0
             
             if pct_top > 30:
-                st.warning(f"⚠️ **{top_cliente['Cliente']}** representa {pct_top:.0f}% do backlog ({top_cliente['Cards']} cards)")
+                st.warning(f" **{top_cliente['Cliente']}** representa {pct_top:.0f}% do backlog ({top_cliente['Cards']} cards)")
 
 
 def _renderizar_projecao_capacidade(df: pd.DataFrame, metricas: dict):
     """Renderiza projeção de capacidade para zerar o backlog."""
-    with st.expander("📈 Projeção de Capacidade", expanded=False):
-        st.markdown("##### 🎯 Quanto tempo para entregar o backlog?")
+    with st.expander(" Projeção de Capacidade", expanded=False):
+        st.markdown("##### Quanto tempo para entregar o backlog?")
         
         sp_pendentes = metricas['sp_pendentes']
         total_cards = metricas['total_itens']
@@ -372,28 +372,28 @@ def _renderizar_projecao_capacidade(df: pd.DataFrame, metricas: dict):
         with col1:
             sprints_sp = sp_pendentes / velocidade_sp if velocidade_sp > 0 else 0
             cor = _cor_status(sprints_sp, 3, 6)
-            st.markdown(_mini_card(f"{sprints_sp:.1f}", "📊 Sprints (SP)", f"{sp_pendentes} SP / {velocidade_sp} vel", cor), unsafe_allow_html=True)
+            st.markdown(_mini_card(f"{sprints_sp:.1f}", " Sprints (SP)", f"{sp_pendentes} SP / {velocidade_sp} vel", cor), unsafe_allow_html=True)
         
         with col2:
             sprints_cards = total_cards / throughput if throughput > 0 else 0
             cor = _cor_status(sprints_cards, 3, 6)
-            st.markdown(_mini_card(f"{sprints_cards:.1f}", "📋 Sprints (Cards)", f"{total_cards} / {throughput} throughput", cor), unsafe_allow_html=True)
+            st.markdown(_mini_card(f"{sprints_cards:.1f}", " Sprints (Cards)", f"{total_cards} / {throughput} throughput", cor), unsafe_allow_html=True)
         
         with col3:
             semanas = max(sprints_sp, sprints_cards) * 2  # Sprints de 2 semanas
             cor = _cor_status(semanas, 6, 12)
-            st.markdown(_mini_card(f"{semanas:.0f}", "📅 Semanas", "estimativa total", cor), unsafe_allow_html=True)
+            st.markdown(_mini_card(f"{semanas:.0f}", " Semanas", "estimativa total", cor), unsafe_allow_html=True)
         
-        st.caption(f"💡 *Baseado na velocidade atual: {velocidade_sp} SP/sprint, {throughput} cards/sprint*")
+        st.caption(f" *Baseado na velocidade atual: {velocidade_sp} SP/sprint, {throughput} cards/sprint*")
         
         # Alerta se backlog muito grande
         if sprints_sp > 6:
-            st.warning(f"⚠️ Backlog levará **{sprints_sp:.0f} sprints** (~{semanas:.0f} semanas) para ser entregue. Considere repriorizar!")
+            st.warning(f" Backlog levará **{sprints_sp:.0f} sprints** (~{semanas:.0f} semanas) para ser entregue. Considere repriorizar!")
 
 
 def _renderizar_cards_por_etapa(df: pd.DataFrame):
     """Renderiza cards agrupados por etapa do funil."""
-    with st.expander("📦 Cards por Etapa do Funil", expanded=False):
+    with st.expander(" Cards por Etapa do Funil", expanded=False):
         # Criar tabs para cada etapa
         tab_names = [nome for _, nome in PB_FUNIL_ETAPAS]
         tabs = st.tabs(tab_names)
@@ -408,12 +408,12 @@ def _renderizar_cards_por_etapa(df: pd.DataFrame):
                     # KPIs da etapa
                     col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.metric("📋 Cards", len(cards_etapa))
+                        st.metric(" Cards", len(cards_etapa))
                     with col2:
-                        st.metric("📊 SP Total", int(cards_etapa['sp'].sum()))
+                        st.metric(" SP Total", int(cards_etapa['sp'].sum()))
                     with col3:
                         idade_media = (datetime.now() - pd.to_datetime(cards_etapa['criado'])).dt.days.mean()
-                        st.metric("⏱️ Idade Média", f"{idade_media:.0f}d")
+                        st.metric(" Idade Média", f"{idade_media:.0f}d")
                     
                     # Lista de cards
                     mostrar_lista_tickets_completa(cards_etapa.to_dict('records'), f"Cards em {nome}")
@@ -421,11 +421,11 @@ def _renderizar_cards_por_etapa(df: pd.DataFrame):
 
 def _renderizar_cards_problematicos(metricas: dict):
     """Renderiza cards que precisam de atenção."""
-    with st.expander("⚠️ Cards que Precisam de Atenção", expanded=False):
+    with st.expander(" Cards que Precisam de Atenção", expanded=False):
         tab_sem_sp, tab_sem_resp, tab_estagnados = st.tabs([
-            f"📝 Sem Estimativa ({len(metricas['cards_sem_sp'])})",
-            f"👤 Sem Responsável ({len(metricas['cards_sem_responsavel'])})",
-            f"⏸️ Estagnados ({len(metricas['cards_estagnados'])})"
+            f" Sem Estimativa ({len(metricas['cards_sem_sp'])})",
+            f" Sem Responsável ({len(metricas['cards_sem_responsavel'])})",
+            f" Estagnados ({len(metricas['cards_estagnados'])})"
         ])
         
         with tab_sem_sp:
@@ -434,7 +434,7 @@ def _renderizar_cards_problematicos(metricas: dict):
                 st.caption("Estes cards não podem ser planejados corretamente sem estimativa")
                 mostrar_lista_tickets_completa(metricas['cards_sem_sp'].to_dict('records'), "Sem Estimativa")
             else:
-                st.success("✅ Todos os cards têm estimativa!")
+                st.success(" Todos os cards têm estimativa!")
         
         with tab_sem_resp:
             if not metricas['cards_sem_responsavel'].empty:
@@ -442,7 +442,7 @@ def _renderizar_cards_problematicos(metricas: dict):
                 st.caption("Estes cards estão 'órfãos' - ninguém é dono deles")
                 mostrar_lista_tickets_completa(metricas['cards_sem_responsavel'].to_dict('records'), "Sem Responsável")
             else:
-                st.success("✅ Todos os cards têm responsável!")
+                st.success(" Todos os cards têm responsável!")
         
         with tab_estagnados:
             if not metricas['cards_estagnados'].empty:
@@ -450,29 +450,29 @@ def _renderizar_cards_problematicos(metricas: dict):
                 st.caption("Podem estar esquecidos ou bloqueados")
                 mostrar_lista_tickets_completa(metricas['cards_estagnados'].to_dict('records'), "Estagnados")
             else:
-                st.success("✅ Nenhum card estagnado!")
+                st.success(" Nenhum card estagnado!")
 
 
 def _renderizar_sobre():
     """Renderiza informações sobre esta aba."""
-    with st.expander("ℹ️ Sobre esta Aba", expanded=False):
+    with st.expander("Sobre esta Aba", expanded=False):
         st.markdown("""
-        ### 📋 Product Backlog - Visão de Produto
+        ### Product Backlog - Visão de Produto
         
         Esta aba foi criada para ajudar o **Product Owner** e o **Time de Produto** na gestão do backlog:
         
         | Seção | O que mostra |
         |-------|--------------|
-        | **🎯 Funil de Produto** | Cards em cada etapa do fluxo de produto |
-        | **📊 Indicadores** | KPIs principais: total, SP, idade, prioridade |
-        | **🏥 Saúde** | Score de 0-100 baseado em múltiplos fatores |
-        | **📊 Aging** | Cards antigos que precisam de decisão |
-        | **👥 Clientes** | Demandas por cliente/tema |
-        | **📈 Projeção** | Quantas sprints para entregar o backlog |
-        | **📦 Por Etapa** | Lista de cards em cada fase do funil |
-        | **⚠️ Problemáticos** | Cards sem SP, sem responsável, estagnados |
+        | ** Funil de Produto** | Cards em cada etapa do fluxo de produto |
+        | ** Indicadores** | KPIs principais: total, SP, idade, prioridade |
+        | ** Saúde** | Score de 0-100 baseado em múltiplos fatores |
+        | ** Aging** | Cards antigos que precisam de decisão |
+        | ** Clientes** | Demandas por cliente/tema |
+        | ** Projeção** | Quantas sprints para entregar o backlog |
+        | ** Por Etapa** | Lista de cards em cada fase do funil |
+        | ** Problemáticos** | Cards sem SP, sem responsável, estagnados |
         
-        ### 🎯 Decisões suportadas:
+        ### Decisões suportadas:
         - **O que priorizar?** → Ver cards por prioridade e idade
         - **O que descartar?** → Cards > 90 dias, baixa prioridade
         - **Backlog saudável?** → Health Score
@@ -492,11 +492,11 @@ def aba_produto_pb(df: pd.DataFrame, projeto: str = "PB"):
     """
     ctx = obter_contexto_periodo()
     
-    st.markdown("### 📦 Análise de Demandas")
+    st.markdown("### Análise de Demandas")
     st.caption(f"Entenda a composição e origem das demandas do backlog • **{ctx['emoji']} {ctx['titulo']}**")
     
     # ===== SEÇÃO 1: DISTRIBUIÇÃO POR TIPO =====
-    st.markdown("##### 📊 Distribuição por Tipo de Demanda")
+    st.markdown("##### Distribuição por Tipo de Demanda")
     
     # Contar por tipo
     tipos = df['tipo'].value_counts().reset_index()
@@ -542,15 +542,15 @@ def aba_produto_pb(df: pd.DataFrame, projeto: str = "PB"):
     st.markdown("<div style='margin: 20px 0;'></div>", unsafe_allow_html=True)
     
     # ===== SEÇÃO 2: DEMANDAS POR PRIORIDADE =====
-    st.markdown("##### 🎯 Priorização do Backlog")
+    st.markdown("##### Priorização do Backlog")
     
     # Mapa de prioridades
     mapa_prio = {
-        'Highest': ('🔴', '#ef4444', 1), 'High': ('🟠', '#f97316', 2),
-        'Crítica': ('🔴', '#ef4444', 1), 'Muito Alta': ('🟠', '#f97316', 2),
-        'Alta': ('🟠', '#f97316', 2), 'Medium': ('🟡', '#f59e0b', 3),
-        'Média': ('🟡', '#f59e0b', 3), 'Low': ('🟢', '#22c55e', 4),
-        'Baixa': ('🟢', '#22c55e', 4), 'Lowest': ('⚪', '#9ca3af', 5)
+        'Highest': ('', '#ef4444', 1), 'High': ('', '#f97316', 2),
+        'Crítica': ('', '#ef4444', 1), 'Muito Alta': ('', '#f97316', 2),
+        'Alta': ('', '#f97316', 2), 'Medium': ('', '#f59e0b', 3),
+        'Média': ('', '#f59e0b', 3), 'Low': ('', '#22c55e', 4),
+        'Baixa': ('', '#22c55e', 4), 'Lowest': ('', '#9ca3af', 5)
     }
     
     # Status que estão no backlog (não finalizados)
@@ -565,7 +565,7 @@ def aba_produto_pb(df: pd.DataFrame, projeto: str = "PB"):
     for i, (_, row) in enumerate(prioridades.head(5).iterrows()):
         prio = row['Prioridade']
         qtd = row['Quantidade']
-        emoji, cor, _ = mapa_prio.get(prio, ('⚪', '#9ca3af', 5))
+        emoji, cor, _ = mapa_prio.get(prio, ('', '#9ca3af', 5))
         
         with cols[i]:
             st.markdown(_mini_card(str(qtd), f"{emoji} {prio}", "pendentes", cor), unsafe_allow_html=True)
@@ -573,12 +573,12 @@ def aba_produto_pb(df: pd.DataFrame, projeto: str = "PB"):
     # Alertas de priorização
     altas = len(df_pendentes[df_pendentes['prioridade'].isin(['Highest', 'High', 'Crítica', 'Muito Alta', 'Alta'])])
     if altas > 10:
-        st.warning(f"⚠️ **{altas} demandas** de alta prioridade pendentes. Considere revisar priorização!")
+        st.warning(f" **{altas} demandas** de alta prioridade pendentes. Considere revisar priorização!")
     
     st.markdown("<div style='margin: 20px 0;'></div>", unsafe_allow_html=True)
     
     # ===== SEÇÃO 3: REPROVAÇÕES E CANCELAMENTOS =====
-    with st.expander("❌ Demandas Reprovadas/Canceladas", expanded=False):
+    with st.expander(" Demandas Reprovadas/Canceladas", expanded=False):
         df_reprovados = df[df['status_cat'].isin(['reprovado', 'cancelado', 'descartado'])]
         
         if len(df_reprovados) > 0:
@@ -587,11 +587,11 @@ def aba_produto_pb(df: pd.DataFrame, projeto: str = "PB"):
             # Motivos (se disponível no resumo)
             col1, col2 = st.columns(2)
             with col1:
-                st.metric("📋 Total Reprovados", len(df_reprovados))
+                st.metric(" Total Reprovados", len(df_reprovados))
                 if 'criado' in df_reprovados.columns:
                     ultimos_30d = len(df_reprovados[pd.to_datetime(df_reprovados['criado']) >= 
                                                     datetime.now() - timedelta(days=30)])
-                    st.metric("📅 Últimos 30 dias", ultimos_30d)
+                    st.metric(" Últimos 30 dias", ultimos_30d)
             
             with col2:
                 # Por tipo
@@ -601,10 +601,10 @@ def aba_produto_pb(df: pd.DataFrame, projeto: str = "PB"):
             
             mostrar_lista_df_completa(df_reprovados, "Demandas Reprovadas")
         else:
-            st.success("✅ Nenhuma demanda reprovada/cancelada registrada")
+            st.success(" Nenhuma demanda reprovada/cancelada registrada")
     
     # ===== SEÇÃO 4: PENDENTE DE REFINAMENTO =====
-    with st.expander("📝 Pendente de Refinamento", expanded=True):
+    with st.expander(" Pendente de Refinamento", expanded=True):
         # Cards sem SP ou em revisão de produto
         cards_refinamento = df_pendentes[
             (df_pendentes['sp'] == 0) | 
@@ -615,22 +615,22 @@ def aba_produto_pb(df: pd.DataFrame, projeto: str = "PB"):
         with col1:
             sem_sp = len(df_pendentes[df_pendentes['sp'] == 0])
             cor = _cor_status(sem_sp, 5, 10)
-            st.markdown(_mini_card(str(sem_sp), "❓ Sem Estimativa", "precisa refinar", cor), unsafe_allow_html=True)
+            st.markdown(_mini_card(str(sem_sp), " Sem Estimativa", "precisa refinar", cor), unsafe_allow_html=True)
         
         with col2:
             em_revisao = len(df_pendentes[df_pendentes['status_cat'] == 'pb_revisao_produto'])
-            st.markdown(_mini_card(str(em_revisao), "📝 Em Revisão", "aguarda produto", "#6366f1"), unsafe_allow_html=True)
+            st.markdown(_mini_card(str(em_revisao), " Em Revisão", "aguarda produto", "#6366f1"), unsafe_allow_html=True)
         
         with col3:
             aguarda_ux = len(df_pendentes[df_pendentes['status_cat'] == 'pb_ux'])
-            st.markdown(_mini_card(str(aguarda_ux), "🎨 Aguarda UX", "precisa design", "#ec4899"), unsafe_allow_html=True)
+            st.markdown(_mini_card(str(aguarda_ux), " Aguarda UX", "precisa design", "#ec4899"), unsafe_allow_html=True)
         
         if not cards_refinamento.empty:
-            st.markdown("##### 📋 Cards que Precisam de Refinamento")
+            st.markdown("##### Cards que Precisam de Refinamento")
             mostrar_lista_df_completa(cards_refinamento.head(20), "Pendentes de Refinamento")
     
     # ===== SEÇÃO 5: POR QUEM CRIOU =====
-    with st.expander("👤 Demandas por Solicitante", expanded=False):
+    with st.expander(" Demandas por Solicitante", expanded=False):
         if 'relator' in df.columns:
             por_criador = df_pendentes['relator'].value_counts().head(10).reset_index()
             por_criador.columns = ['Solicitante', 'Demandas']
@@ -652,7 +652,7 @@ def aba_historico_pb(df: pd.DataFrame, projeto: str = "PB"):
     """
     ctx = obter_contexto_periodo()
     
-    st.markdown("### 📈 Evolução do Backlog de Produto")
+    st.markdown("### Evolução do Backlog de Produto")
     st.caption(f"Acompanhe a evolução do time de produto ao longo do tempo • **{ctx['emoji']} {ctx['titulo']}**")
     
     # Preparar dados
@@ -672,14 +672,14 @@ def aba_historico_pb(df: pd.DataFrame, projeto: str = "PB"):
     
     # Etapas do funil PB
     etapas_funil = [
-        ('pb_revisao_produto', '📝 Revisão', '#6366f1'),
-        ('pb_ux', '🎨 UX', '#ec4899'),
-        ('pb_esforco', '⏱️ Esforço', '#f97316'),
-        ('pb_aguarda_dev', '💻 Aguarda Dev', '#22c55e'),
+        ('pb_revisao_produto', ' Revisão', '#6366f1'),
+        ('pb_ux', ' UX', '#ec4899'),
+        ('pb_esforco', ' Esforço', '#f97316'),
+        ('pb_aguarda_dev', ' Aguarda Dev', '#22c55e'),
     ]
     
     # ===== SEÇÃO 1: KPIs GERAIS DO BACKLOG =====
-    st.markdown("##### 📊 Visão Geral do Backlog")
+    st.markdown("##### Visão Geral do Backlog")
     
     total_geral = len(df)
     total_funil = sum(len(df[df['status_cat'] == s]) for s, _, _ in etapas_funil)
@@ -695,25 +695,25 @@ def aba_historico_pb(df: pd.DataFrame, projeto: str = "PB"):
     col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
-        st.markdown(_mini_card(str(total_geral), "📋 Total Cards", "no backlog", "#3b82f6"), unsafe_allow_html=True)
+        st.markdown(_mini_card(str(total_geral), " Total Cards", "no backlog", "#3b82f6"), unsafe_allow_html=True)
     
     with col2:
-        st.markdown(_mini_card(str(sp_total), "📊 Story Points", "total", "#8b5cf6"), unsafe_allow_html=True)
+        st.markdown(_mini_card(str(sp_total), " Story Points", "total", "#8b5cf6"), unsafe_allow_html=True)
     
     with col3:
-        st.markdown(_mini_card(str(total_funil), "🔄 No Funil", "em processo", "#f97316"), unsafe_allow_html=True)
+        st.markdown(_mini_card(str(total_funil), " No Funil", "em processo", "#f97316"), unsafe_allow_html=True)
     
     with col4:
-        st.markdown(_mini_card(str(total_convertido), "✅ Prontos", "aguardando dev", "#22c55e"), unsafe_allow_html=True)
+        st.markdown(_mini_card(str(total_convertido), " Prontos", "aguardando dev", "#22c55e"), unsafe_allow_html=True)
     
     with col5:
         cor_idade = "#22c55e" if idade_media < 60 else "#f59e0b" if idade_media < 120 else "#ef4444"
-        st.markdown(_mini_card(f"{idade_media:.0f}d", "📅 Idade Média", "do backlog", cor_idade), unsafe_allow_html=True)
+        st.markdown(_mini_card(f"{idade_media:.0f}d", " Idade Média", "do backlog", cor_idade), unsafe_allow_html=True)
     
     st.markdown("<div style='margin: 24px 0;'></div>", unsafe_allow_html=True)
     
     # ===== SEÇÃO 2: EVOLUÇÃO POR MÊS =====
-    with st.expander("📈 Evolução Mensal do Backlog", expanded=True):
+    with st.expander(" Evolução Mensal do Backlog", expanded=True):
         st.markdown("""
         **Como o backlog evoluiu nos últimos meses?**
         
@@ -760,13 +760,13 @@ def aba_historico_pb(df: pd.DataFrame, projeto: str = "PB"):
             # Gráfico de barras agrupadas
             fig = go.Figure()
             fig.add_trace(go.Bar(
-                name='📥 Criados',
+                name=' Criados',
                 x=df_evolucao['Mês'],
                 y=df_evolucao['Criados'],
                 marker_color='#3b82f6'
             ))
             fig.add_trace(go.Bar(
-                name='✅ Convertidos (→ Dev)',
+                name=' Convertidos (→ Dev)',
                 x=df_evolucao['Mês'],
                 y=df_evolucao['Convertidos'],
                 marker_color='#22c55e'
@@ -791,16 +791,16 @@ def aba_historico_pb(df: pd.DataFrame, projeto: str = "PB"):
                 media_convertidos = sum(d['Convertidos'] for d in dados_evolucao) / len(dados_evolucao)
                 
                 if media_criados > media_convertidos * 1.2:
-                    st.warning(f"⚠️ **Backlog crescendo**: Média de {media_criados:.0f} criados/mês vs {media_convertidos:.0f} convertidos/mês")
+                    st.warning(f" **Backlog crescendo**: Média de {media_criados:.0f} criados/mês vs {media_convertidos:.0f} convertidos/mês")
                 elif media_convertidos > media_criados * 1.2:
-                    st.success(f"✅ **Backlog diminuindo**: Média de {media_convertidos:.0f} convertidos/mês vs {media_criados:.0f} criados/mês")
+                    st.success(f" **Backlog diminuindo**: Média de {media_convertidos:.0f} convertidos/mês vs {media_criados:.0f} criados/mês")
                 else:
-                    st.info(f"➡️ **Backlog estável**: ~{media_criados:.0f} criados e ~{media_convertidos:.0f} convertidos/mês")
+                    st.info(f" **Backlog estável**: ~{media_criados:.0f} criados e ~{media_convertidos:.0f} convertidos/mês")
         else:
             st.info("Sem dados de criação para análise mensal")
     
     # ===== SEÇÃO 3: THROUGHPUT DO FUNIL =====
-    with st.expander("🎯 Distribuição no Funil de Produto", expanded=True):
+    with st.expander(" Distribuição no Funil de Produto", expanded=True):
         st.markdown("""
         **Quantos cards estão em cada etapa do funil?**
         """)
@@ -836,7 +836,7 @@ def aba_historico_pb(df: pd.DataFrame, projeto: str = "PB"):
             st.plotly_chart(fig, use_container_width=True)
     
     # ===== SEÇÃO 4: TEMPO MÉDIO POR ETAPA =====
-    with st.expander("⏱️ Tempo Médio por Etapa", expanded=False):
+    with st.expander(" Tempo Médio por Etapa", expanded=False):
         st.markdown("""
         **Quanto tempo os cards ficam em cada etapa?**
         
@@ -875,12 +875,12 @@ def aba_historico_pb(df: pd.DataFrame, projeto: str = "PB"):
             # Alertas
             for t in tempos:
                 if t['Média (dias)'] > 30:
-                    st.warning(f"⚠️ **{t['Etapa']}**: {t['Cards']} cards há mais de {t['Média (dias)']:.0f} dias em média!")
+                    st.warning(f" **{t['Etapa']}**: {t['Cards']} cards há mais de {t['Média (dias)']:.0f} dias em média!")
         else:
             st.info("Sem dados de tempo por etapa disponíveis")
     
     # ===== SEÇÃO 5: CARDS MAIS ANTIGOS =====
-    with st.expander("🗓️ Cards Mais Antigos no Backlog", expanded=False):
+    with st.expander(" Cards Mais Antigos no Backlog", expanded=False):
         df_funil = df[df['status_cat'].isin([s for s, _, _ in etapas_funil])]
         
         if not df_funil.empty and 'dias_em_status' in df_funil.columns:
@@ -894,7 +894,7 @@ def aba_historico_pb(df: pd.DataFrame, projeto: str = "PB"):
             
             # Resumo por etapa
             st.markdown("---")
-            st.markdown("**📊 Resumo de Aging por Etapa:**")
+            st.markdown("** Resumo de Aging por Etapa:**")
             for status_cat, nome, cor in etapas_funil:
                 df_etapa = df_funil[df_funil['status_cat'] == status_cat]
                 if not df_etapa.empty:
@@ -916,7 +916,7 @@ def aba_historico_pb(df: pd.DataFrame, projeto: str = "PB"):
             st.info("Nenhum card no funil ou sem dados de tempo")
     
     # ===== SEÇÃO 6: DISTRIBUIÇÃO POR TIPO E PRIORIDADE =====
-    with st.expander("📊 Composição do Backlog", expanded=False):
+    with st.expander(" Composição do Backlog", expanded=False):
         col1, col2 = st.columns(2)
         
         with col1:

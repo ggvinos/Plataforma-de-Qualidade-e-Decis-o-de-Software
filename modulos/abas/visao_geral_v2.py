@@ -119,13 +119,13 @@ def avaliar_status_sprint(pct_atual: float, pct_esperado: float) -> dict:
     diff = pct_atual - pct_esperado
     
     if diff >= 5:
-        return {"status": "adiantado", "emoji": "🚀", "cor": CORES_DECISAO["saudavel"], "texto": "Adiantado"}
+        return {"status": "adiantado", "emoji": "", "cor": CORES_DECISAO["saudavel"], "texto": "Adiantado"}
     elif diff >= -5:
-        return {"status": "no_ritmo", "emoji": "✅", "cor": CORES_DECISAO["saudavel"], "texto": "No Ritmo"}
+        return {"status": "no_ritmo", "emoji": "", "cor": CORES_DECISAO["saudavel"], "texto": "No Ritmo"}
     elif diff >= -15:
-        return {"status": "atencao", "emoji": "⚠️", "cor": CORES_DECISAO["atencao"], "texto": "Levemente Atrasado"}
+        return {"status": "atencao", "emoji": "", "cor": CORES_DECISAO["atencao"], "texto": "Levemente Atrasado"}
     else:
-        return {"status": "atrasado", "emoji": "🚨", "cor": CORES_DECISAO["critico"], "texto": "Atrasado"}
+        return {"status": "atrasado", "emoji": "", "cor": CORES_DECISAO["critico"], "texto": "Atrasado"}
 
 
 def obter_decisao_release(health_score: float, dias_restantes: int, pct_conclusao: float, bugs: int) -> dict:
@@ -189,7 +189,7 @@ def obter_decisao_release(health_score: float, dias_restantes: int, pct_conclusa
             "decisao": "GO",
             "cor": CORES_DECISAO["saudavel"],
             "gradiente": GRADIENTES_DECISAO["go"],
-            "emoji": "✅",
+            "emoji": "",
             "motivo": "Todos os indicadores estão dentro do esperado",
             "problemas": [],
             "acao": "Manter acompanhamento regular"
@@ -199,7 +199,7 @@ def obter_decisao_release(health_score: float, dias_restantes: int, pct_conclusa
             "decisao": "ATENÇÃO",
             "cor": CORES_DECISAO["atencao"],
             "gradiente": GRADIENTES_DECISAO["atencao"],
-            "emoji": "⚠️",
+            "emoji": "",
             "motivo": "Alguns indicadores precisam de monitoramento",
             "problemas": problemas,
             "acao": "Revisar itens sinalizados e acompanhar evolução"
@@ -209,7 +209,7 @@ def obter_decisao_release(health_score: float, dias_restantes: int, pct_conclusa
             "decisao": "RISCO",
             "cor": CORES_DECISAO["alerta"],
             "gradiente": GRADIENTES_DECISAO["risco"],
-            "emoji": "🚨",
+            "emoji": "",
             "motivo": "Existem riscos significativos para a release",
             "problemas": problemas,
             "acao": "Convocar reunião de alinhamento e priorizar resolução"
@@ -219,7 +219,7 @@ def obter_decisao_release(health_score: float, dias_restantes: int, pct_conclusa
             "decisao": "NO-GO",
             "cor": CORES_DECISAO["critico"],
             "gradiente": GRADIENTES_DECISAO["nogo"],
-            "emoji": "🛑",
+            "emoji": "",
             "motivo": "A release não deve prosseguir sem intervenção",
             "problemas": problemas,
             "acao": "URGENTE: Escalar para liderança e definir plano de ação"
@@ -307,7 +307,7 @@ def identificar_gargalos(df: pd.DataFrame) -> list:
                 gargalos.append({
                     "tipo": "code_review",
                     "severidade": "alerta" if len(cards_cr_antigos) <= 3 else "critico",
-                    "titulo": f"📝 {len(cards_cr_antigos)} cards parados em Code Review",
+                    "titulo": f" {len(cards_cr_antigos)} cards parados em Code Review",
                     "cards": cards_cr_antigos,
                     "acao": "Priorizar revisão de código com os desenvolvedores"
                 })
@@ -322,7 +322,7 @@ def identificar_gargalos(df: pd.DataFrame) -> list:
         gargalos.append({
             "tipo": "bloqueio",
             "severidade": "critico",
-            "titulo": f"🚫 {len(bloqueados)} cards bloqueados/reprovados",
+            "titulo": f" {len(bloqueados)} cards bloqueados/reprovados",
             "cards": cards_bloqueados,
             "acao": "Resolver impedimentos imediatamente"
         })
@@ -333,7 +333,7 @@ def identificar_gargalos(df: pd.DataFrame) -> list:
         gargalos.append({
             "tipo": "fila_qa",
             "severidade": "alerta" if len(em_fila_qa) <= 15 else "critico",
-            "titulo": f"⏳ {len(em_fila_qa)} cards aguardando validação",
+            "titulo": f" {len(em_fila_qa)} cards aguardando validação",
             "cards": [{'ticket_id': row['ticket_id'], 'titulo': str(row.get('titulo', ''))[:50], 'ambiente': row.get('ambiente', '')} for _, row in em_fila_qa.head(5).iterrows()],
             "acao": "Aumentar capacidade de QA ou redistribuir carga"
         })
@@ -348,7 +348,7 @@ def identificar_gargalos(df: pd.DataFrame) -> list:
         gargalos.append({
             "tipo": "qualidade",
             "severidade": "alerta",
-            "titulo": f"🐛 {len(cards_com_bugs)} cards com 3+ bugs",
+            "titulo": f" {len(cards_com_bugs)} cards com 3+ bugs",
             "cards": cards_problematicos,
             "acao": "Analisar padrão de bugs e revisar código"
         })
@@ -359,7 +359,7 @@ def identificar_gargalos(df: pd.DataFrame) -> list:
         gargalos.append({
             "tipo": "governanca",
             "severidade": "atencao",
-            "titulo": f"📊 Apenas {gov['sp']['pct']:.0f}% dos cards têm Story Points",
+            "titulo": f" Apenas {gov['sp']['pct']:.0f}% dos cards têm Story Points",
             "cards": [],
             "acao": "Solicitar preenchimento de SP para métricas confiáveis"
         })
@@ -411,7 +411,7 @@ def renderizar_decisao_inline(decisao: dict, health_score: float, pct_conclusao:
             'acao': 'Escalar para liderança imediatamente',
             'acao2': 'Convocar reunião de crise com o time',
             'acao3': 'Definir plano de ação e responsáveis',
-            'icone': '✕',
+            'icone': '',
         },
         'RISCO': {
             'subtitulo': 'Riscos identificados',
@@ -420,7 +420,7 @@ def renderizar_decisao_inline(decisao: dict, health_score: float, pct_conclusao:
             'acao': 'Convocar reunião de alinhamento urgente',
             'acao2': 'Priorizar resolução dos bloqueios',
             'acao3': 'Revisar escopo se necessário',
-            'icone': '⚠',
+            'icone': '',
         },
         'ATENÇÃO': {
             'subtitulo': 'Monitoramento ativo',
@@ -438,7 +438,7 @@ def renderizar_decisao_inline(decisao: dict, health_score: float, pct_conclusao:
             'acao': 'Prosseguir com a release',
             'acao2': 'Comunicar stakeholders',
             'acao3': 'Preparar rollback se necessário',
-            'icone': '✓',
+            'icone': '',
         },
     }
     txt = textos.get(tipo_decisao, textos['GO'])
@@ -457,7 +457,7 @@ def renderizar_decisao_inline(decisao: dict, health_score: float, pct_conclusao:
 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px;">
 
 <div>
-<div style="font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; height: 16px;">🚦 Decisão</div>
+<div style="font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; height: 16px;"> Decisão</div>
 <div style="background: white; border: 2px solid {cores['primary']}40; border-radius: 8px; padding: 16px; text-align: center;">
 <div style="background: {cores['primary']}; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px;">
 <span style="color: white; font-size: 18px; font-weight: bold;">{txt['icone']}</span>
@@ -472,7 +472,7 @@ def renderizar_decisao_inline(decisao: dict, health_score: float, pct_conclusao:
 <div style="display: flex; flex-direction: column; gap: 6px;">
 <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 10px;">
 <div style="display: flex; align-items: flex-start; gap: 8px;">
-<span style="color: {cores['primary']}; font-size: 14px;">⚠️</span>
+<span style="color: {cores['primary']}; font-size: 14px;"></span>
 <div>
 <div style="font-size: 12px; color: #9CA3AF; text-transform: uppercase;">Motivo principal</div>
 <div style="font-size: 13px; color: #374151; line-height: 1.4;">{txt['motivo']}</div>
@@ -496,19 +496,19 @@ def renderizar_decisao_inline(decisao: dict, health_score: float, pct_conclusao:
 <div style="display: flex; flex-direction: column; gap: 6px;">
 <div style="background: {cores['bg']}; border: 1px solid {cores['border']}; border-radius: 8px; padding: 10px;">
 <div style="display: flex; align-items: flex-start; gap: 8px;">
-<span style="font-size: 14px;">💡</span>
+<span style="font-size: 14px;"></span>
 <div style="font-size: 13px; color: #374151; line-height: 1.4;">{txt['acao']}</div>
 </div>
 </div>
 <div style="background: {cores['bg']}; border: 1px solid {cores['border']}; border-radius: 8px; padding: 10px;">
 <div style="display: flex; align-items: flex-start; gap: 8px;">
-<span style="font-size: 14px;">📋</span>
+<span style="font-size: 14px;"></span>
 <div style="font-size: 13px; color: #374151; line-height: 1.4;">{txt['acao2']}</div>
 </div>
 </div>
 <div style="background: {cores['bg']}; border: 1px solid {cores['border']}; border-radius: 8px; padding: 10px;">
 <div style="display: flex; align-items: flex-start; gap: 8px;">
-<span style="font-size: 14px;">👥</span>
+<span style="font-size: 14px;"></span>
 <div style="font-size: 13px; color: #374151; line-height: 1.4;">{txt['acao3']}</div>
 </div>
 </div>
@@ -519,19 +519,19 @@ def renderizar_decisao_inline(decisao: dict, health_score: float, pct_conclusao:
 <div style="font-size: 13px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; height: 16px;">Cenário</div>
 <div style="display: flex; gap: 6px;">
 <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 12px 10px; text-align: center; flex: 1; display: flex; flex-direction: column; justify-content: center;">
-<span style="font-size: 18px; color: {health_cor};">❤️</span>
+<span style="font-size: 18px; color: {health_cor};"></span>
 <div style="font-size: 11px; color: #9CA3AF; margin-top: 4px;">Health</div>
 <div style="font-size: 24px; font-weight: 700; color: {health_cor}; margin-top: 2px;">{health_score:.0f}</div>
 <div style="font-size: 12px; color: {health_var_cor}; font-weight: 500; margin-top: 2px;">{health_var}</div>
 </div>
 <div style="display: flex; flex-direction: column; gap: 6px; flex: 1;">
 <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 10px 8px; text-align: center; flex: 1; display: flex; flex-direction: column; justify-content: center;">
-<span style="font-size: 14px; color: {prog_cor};">📊</span>
+<span style="font-size: 14px; color: {prog_cor};"></span>
 <div style="font-size: 10px; color: #9CA3AF; margin-top: 2px;">Progresso</div>
 <div style="font-size: 15px; font-weight: 700; color: #374151;">{pct_conclusao:.0f}%</div>
 </div>
 <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 10px 8px; text-align: center; flex: 1; display: flex; flex-direction: column; justify-content: center;">
-<span style="font-size: 14px; color: {atraso_cor};">⏱️</span>
+<span style="font-size: 14px; color: {atraso_cor};"></span>
 <div style="font-size: 10px; color: #9CA3AF; margin-top: 2px;">{"Atraso" if dias_val < 0 else "Restante"}</div>
 <div style="font-size: 15px; font-weight: 700; color: {atraso_cor};">{abs(dias_val) if dias_val < 0 else dias_val}d</div>
 </div>
@@ -553,14 +553,14 @@ def renderizar_grid_principal(gargalos: list, pct_conclusao: float, pct_esperado
     
     # ========== COLUNA 1: PROBLEMAS ==========
     with col1:
-        st.markdown('<div style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">🔥 Problemas</div>', unsafe_allow_html=True)
+        st.markdown('<div style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;"> Problemas</div>', unsafe_allow_html=True)
         
         problemas = []
         for g in gargalos[:4]:
             sev = g["severidade"]
             badge = "CRÍTICO" if sev == "critico" else "ALERTA" if sev == "alerta" else "ATENÇÃO"
             badge_cor = "#dc2626" if sev == "critico" else "#ea580c" if sev == "alerta" else "#d97706"
-            titulo = g["titulo"].replace("📝 ", "").replace("🚫 ", "").replace("⏳ ", "").replace("🐛 ", "").replace("📊 ", "")[:40]
+            titulo = g["titulo"].replace(" ", "").replace(" ", "").replace(" ", "").replace(" ", "").replace(" ", "")[:40]
             problemas.append((titulo, badge, badge_cor, sev))
         
         if pct_conclusao < 60:
@@ -570,7 +570,7 @@ def renderizar_grid_principal(gargalos: list, pct_conclusao: float, pct_esperado
             problemas.insert(0, (f"Apenas {pct_conclusao:.0f}% concluído", badge, badge_cor, sev))
         
         if not problemas:
-            st.markdown('<div style="background: #f0fdf4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 12px; color: #166534; margin-top: 4px;">Sem problemas</div></div>', unsafe_allow_html=True)
+            st.markdown('<div style="background: #f0fdf4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;"></span><div style="font-size: 12px; color: #166534; margin-top: 4px;">Sem problemas</div></div>', unsafe_allow_html=True)
         else:
             for titulo, badge, badge_cor, sev in problemas[:4]:
                 borda_peso = "3px" if sev == "critico" else "2px"
@@ -579,7 +579,7 @@ def renderizar_grid_principal(gargalos: list, pct_conclusao: float, pct_esperado
     
     # ========== COLUNA 2: AÇÕES ==========
     with col2:
-        st.markdown('<div style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">📌 Ações Prioritárias</div>', unsafe_allow_html=True)
+        st.markdown('<div style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;"> Ações Prioritárias</div>', unsafe_allow_html=True)
         
         acoes = []
         for g in gargalos:
@@ -610,7 +610,7 @@ def renderizar_grid_principal(gargalos: list, pct_conclusao: float, pct_esperado
                 vistas.add(a)
         
         if not acoes_unicas:
-            st.markdown('<div style="background: #f0fdf4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;">✅</span><div style="font-size: 12px; color: #166534; margin-top: 4px;">Nenhuma ação urgente</div></div>', unsafe_allow_html=True)
+            st.markdown('<div style="background: #f0fdf4; border-radius: 8px; padding: 16px; text-align: center;"><span style="font-size: 18px;"></span><div style="font-size: 12px; color: #166534; margin-top: 4px;">Nenhuma ação urgente</div></div>', unsafe_allow_html=True)
         else:
             for i, (acao, resp) in enumerate(acoes_unicas[:4], 1):
                 cor_num = "#dc2626" if i == 1 else "#ea580c" if i == 2 else "#6b7280"
@@ -619,21 +619,21 @@ def renderizar_grid_principal(gargalos: list, pct_conclusao: float, pct_esperado
     
     # ========== COLUNA 3: PROGRESSO ==========
     with col3:
-        st.markdown('<div style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">📊 Progresso</div>', unsafe_allow_html=True)
+        st.markdown('<div style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;"> Progresso</div>', unsafe_allow_html=True)
         
         atraso = pct_conclusao - pct_esperado
         if atraso >= 0:
             atraso_cor = "#22c55e"
             impacto = "No ritmo"
-            impacto_icon = "✅"
+            impacto_icon = ""
         elif atraso >= -15:
             atraso_cor = "#f59e0b"
             impacto = "Leve atraso"
-            impacto_icon = "⚠️"
+            impacto_icon = ""
         else:
             atraso_cor = "#ef4444"
             impacto = "Risco de não entrega"
-            impacto_icon = "🚨"
+            impacto_icon = ""
         
         tempo_info = f"Dia {dias_passados}/{dias_total}" if dias_passados is not None and dias_total else ""
         
@@ -647,7 +647,7 @@ def renderizar_grid_principal(gargalos: list, pct_conclusao: float, pct_esperado
 <div style="position: absolute; left: {min(100, max(0, pct_esperado))}%; top: -2px; bottom: -2px; width: 2px; background: #374151;"></div>
 </div>
 <div style="display: flex; justify-content: space-between; font-size: 12px; color: #6b7280; margin-bottom: 8px;">
-<span>✅ {concluidos}</span><span>🔄 {em_andamento}</span><span>📋 {total}</span>
+<span> {concluidos}</span><span> {em_andamento}</span><span> {total}</span>
 </div>
 <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #f3f4f6;">
 <span style="font-size: 12px; color: #6b7280;">Meta: {pct_esperado:.0f}%</span>
@@ -898,14 +898,14 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
     
     # Monta os badges baseado no contexto
     if ctx["eh_sprint"]:
-        sprint_badge = f'<span class="badge-sprint">🏃 {sprint_atual}</span>'
+        sprint_badge = f'<span class="badge-sprint"> {sprint_atual}</span>'
         
         if dias_restantes is not None and dias_restantes < 0:
-            status_badge = f'<span class="badge-status-red">🚨 RELEASE ATRASADA | {abs(dias_restantes)}d</span>'
+            status_badge = f'<span class="badge-status-red"> RELEASE ATRASADA | {abs(dias_restantes)}d</span>'
         elif dias_restantes == 0:
-            status_badge = '<span class="badge-status-yellow">⚡ HOJE</span>'
+            status_badge = '<span class="badge-status-yellow"> HOJE</span>'
         elif dias_restantes is not None and dias_restantes <= 2:
-            status_badge = f'<span class="badge-status-orange">⏰ {dias_restantes}d restantes</span>'
+            status_badge = f'<span class="badge-status-orange"> {dias_restantes}d restantes</span>'
         elif dias_restantes is not None:
             status_badge = f'<span class="badge-status-gray">{dias_restantes}d restantes</span>'
         else:
@@ -919,11 +919,11 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
     # Layout em 3 colunas: título | badges | botão - tudo na mesma linha
     col_titulo, col_badges, col_btn = st.columns([3, 5, 1])
     with col_titulo:
-        st.markdown(f'<div class="header-title-box"><span class="header-title">🎯 Central de Decisão</span></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="header-title-box"><span class="header-title"> Central de Decisão</span></div>', unsafe_allow_html=True)
     with col_badges:
         st.markdown(f'<div class="header-badges-box">{badges_html}</div>', unsafe_allow_html=True)
     with col_btn:
-        if st.button(f"🔄", help=f"Última atualização: {tempo_texto}", type="secondary", use_container_width=True, key="btn_refresh_header"):
+        if st.button(f"", help=f"Última atualização: {tempo_texto}", type="secondary", use_container_width=True, key="btn_refresh_header"):
             st.cache_data.clear()
             st.rerun()
     
@@ -964,7 +964,7 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
     st.markdown("<div style='margin-bottom: 16px;'></div>", unsafe_allow_html=True)
     
     # ==== 2. INDICADORES COMPACTOS ====
-    st.markdown("##### 📈 Indicadores")
+    st.markdown("##### Indicadores")
     renderizar_indicadores_compactos(df, total, concluidos, pct_conclusao, sp_total, bugs_total, dias_restantes, pct_esperado)
     
     st.markdown("<br>", unsafe_allow_html=True)
@@ -975,11 +975,11 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
     st.markdown("<br>", unsafe_allow_html=True)
     
     # ==== 4. MÉTRICAS TÉCNICAS ====
-    with st.expander("🔬 Métricas Técnicas", expanded=False):
+    with st.expander(" Métricas Técnicas", expanded=False):
         # Explicação das métricas
         st.markdown("""
         <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;">
-            <div style="font-size: 13px; font-weight: 600; color: #0369a1; margin-bottom: 8px;">📚 O que cada métrica significa:</div>
+            <div style="font-size: 13px; font-weight: 600; color: #0369a1; margin-bottom: 8px;"> O que cada métrica significa:</div>
             <div style="font-size: 12px; color: #334155; line-height: 1.8;">
                 <b>FPY (First Pass Yield)</b> — % de cards aprovados na primeira tentativa de QA. Quanto maior, menos retrabalho.<br>
                 <b>DDP (Defect Detection Percentage)</b> — % de bugs encontrados pelo QA antes de ir para produção. Quanto maior, melhor a cobertura.<br>
@@ -1019,11 +1019,11 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
             st.markdown(mini_tech_card(f"{fk:.1f}", f"FK {mat['emoji']}", mat['selo'], cor_fk), unsafe_allow_html=True)
     
     # ==== 5. CARDS POR STATUS ====
-    with st.expander("📋 Distribuição por Status", expanded=False):
+    with st.expander(" Distribuição por Status", expanded=False):
         status_counts = df.groupby('status_cat').size().to_dict()
         
         # Legenda do fluxo
-        st.markdown('<div style="background: #f8fafc; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;"><div style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">📌 Fluxo de trabalho:</div><div style="font-size: 12px; color: #6b7280; line-height: 1.6;">🟣 <b>Desenvolvimento</b> → 🩷 <b>Code Review</b> (revisão de código) → 🟠 <b>Aguardando QA</b> (na fila) → 🔵 <b>Em Teste</b> (QA testando) → 🟢 <b>Concluído</b></div></div>', unsafe_allow_html=True)
+        st.markdown('<div style="background: #f8fafc; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;"><div style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;"> Fluxo de trabalho:</div><div style="font-size: 12px; color: #6b7280; line-height: 1.6;"> <b>Desenvolvimento</b> → <b>Code Review</b> (revisão de código) → <b>Aguardando QA</b> (na fila) → <b>Em Teste</b> (QA testando) → <b>Concluído</b></div></div>', unsafe_allow_html=True)
         
         etapas = [
             ('development', 'Desenvolvimento', '#8b5cf6'),
@@ -1042,7 +1042,7 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
                 html = f'<div style="text-align: center; padding: 12px 8px; background: {cor}10; border-radius: 8px; border: 1px solid {cor}40; margin-bottom: 12px;"><div style="font-size: 22px; font-weight: 700; color: {cor};">{count}</div><div style="font-size: 12px; color: {cor}; font-weight: 600;">{nome}</div><div style="font-size: 11px; color: #9ca3af;">{pct:.0f}%</div></div>'
                 st.markdown(html, unsafe_allow_html=True)
         
-        st.markdown('<div style="font-size: 13px; font-weight: 600; color: #374151; margin: 8px 0;">🔍 Filtrar cards por etapa:</div>', unsafe_allow_html=True)
+        st.markdown('<div style="font-size: 13px; font-weight: 600; color: #374151; margin: 8px 0;"> Filtrar cards por etapa:</div>', unsafe_allow_html=True)
         status_selecionado = st.selectbox("Selecione a etapa:", options=[s[1] for s in etapas], index=0, key="status_filter", label_visibility="collapsed")
         
         status_key = next((s[0] for s in etapas if s[1] == status_selecionado), None)
@@ -1056,7 +1056,7 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
     # ==== 6. ANÁLISE DE SPRINT ====
     projeto_atual = df['projeto'].iloc[0] if not df.empty and 'projeto' in df.columns else 'SD'
     if projeto_atual in ['SD', 'QA']:
-        with st.expander("🎯 Planejado vs Entregue", expanded=False):
+        with st.expander(" Planejado vs Entregue", expanded=False):
             df_sprint = df[df['sprint'] != 'Sem Sprint'].copy() if 'sprint' in df.columns else df.copy()
             
             if not df_sprint.empty:
@@ -1089,7 +1089,7 @@ def aba_visao_geral_v2(df: pd.DataFrame, ultima_atualizacao: datetime):
                 st.info("Nenhum card com sprint definida")
     
     # ==== 7. GRÁFICOS ====
-    with st.expander("📊 Visualizações", expanded=False):
+    with st.expander(" Visualizações", expanded=False):
         col1, col2 = st.columns(2)
         
         with col1:
@@ -1164,10 +1164,10 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
         nums = re.findall(r'\d+', str(sprint_name))
         return nums[-1] if nums else str(sprint_name)
     
-    with st.expander("✅ Cards Validados por Release", expanded=True):
+    with st.expander(" Cards Validados por Release", expanded=True):
         st.markdown("""
         <div style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 12px; border-radius: 0 8px 8px 0; margin-bottom: 16px;">
-            <div style="font-weight: 600; color: #166534;">📦 Histórico de Entregas por Release</div>
+            <div style="font-weight: 600; color: #166534;"> Histórico de Entregas por Release</div>
             <div style="font-size: 13px; color: #15803d;">Visualize os cards validados por sprint/release. Para ver todas as releases, selecione "Todo período" na barra lateral.</div>
         </div>
         """, unsafe_allow_html=True)
@@ -1192,7 +1192,7 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
                 default_sprint = [sprints_numeros[0]] if sprints_numeros else []
                 
                 sprints_selecionadas_num = st.multiselect(
-                    "🏃 Release",
+                    " Release",
                     options=sprints_numeros,
                     default=default_sprint,
                     key="filtro_sprints_release_multi",
@@ -1222,7 +1222,7 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
             pessoas_disponiveis = sorted(list(pessoas_set))
             
             pessoas_selecionadas = st.multiselect(
-                "👥 Filtrar por Pessoa (opcional)",
+                " Filtrar por Pessoa (opcional)",
                 options=pessoas_disponiveis,
                 default=[],
                 key="filtro_pessoas_release",
@@ -1230,7 +1230,7 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
             )
         
         if not sprints_selecionadas:
-            st.warning("⚠️ Selecione pelo menos uma release para visualizar os cards.")
+            st.warning(" Selecione pelo menos uma release para visualizar os cards.")
             return
         
         # Aplica filtros
@@ -1262,17 +1262,17 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
             
             col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("📋 Cards", total_cards)
+                st.metric(" Cards", total_cards)
             with col2:
-                st.metric("🎯 Story Points", total_sp)
+                st.metric(" Story Points", total_sp)
             with col3:
-                st.metric("🐛 Bugs", total_bugs)
+                st.metric(" Bugs", total_bugs)
             with col4:
-                st.metric("⏱️ Lead Time", f"{media_lead_time:.1f}d")
+                st.metric(" Lead Time", f"{media_lead_time:.1f}d")
             
             # ==== MAPA DE IMPACTO POR PRODUTO/MÓDULO ====
             st.markdown("---")
-            st.markdown("##### 🗺️ Mapa de Impacto por Produto")
+            st.markdown("##### Mapa de Impacto por Produto")
             st.caption("Visualize quais produtos/módulos do sistema foram alterados nesta release")
             
             # Extrai produto dos cards (campo customfield_10102 no Jira → 'produto' no DataFrame)
@@ -1350,7 +1350,7 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
                     st.plotly_chart(fig, use_container_width=True)
                 
                 with col_resumo:
-                    st.markdown("**📊 Resumo por Produto**")
+                    st.markdown("** Resumo por Produto**")
                     for produto in produto_totais.index[::-1]:  # Top produtos primeiro
                         # Dados do resumo (totais corretos)
                         resumo_prod = df_resumo[df_resumo['Produto'] == produto]
@@ -1368,7 +1368,7 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
                         tipos_str = ', '.join([f"{int(r['Cards'])} {r['Tipo'].lower()}" for _, r in df_mod.iterrows()])
                         
                         # Badge de bugs se houver
-                        bugs_badge = f'<span style="background:#fef2f2;color:#dc2626;padding:1px 5px;border-radius:3px;font-size:10px;margin-left:4px;">🐛 {total_bugs}</span>' if total_bugs > 0 else ''
+                        bugs_badge = f'<span style="background:#fef2f2;color:#dc2626;padding:1px 5px;border-radius:3px;font-size:10px;margin-left:4px;"> {total_bugs}</span>' if total_bugs > 0 else ''
                         
                         st.markdown(f"""
                         <div style="background:#f8fafc;border-radius:8px;padding:8px 12px;margin:4px 0;border-left:3px solid #3b82f6;">
@@ -1382,7 +1382,7 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
                     if sem_produto_count > 0:
                         st.markdown(f"""
                         <div style="background:#fef3c7;border-radius:8px;padding:8px 12px;margin:8px 0 4px 0;border-left:3px solid #f59e0b;">
-                            <div style="font-weight:600;color:#92400e;font-size:12px;">⚠️ Sem produto definido</div>
+                            <div style="font-weight:600;color:#92400e;font-size:12px;"> Sem produto definido</div>
                             <div style="font-size:11px;color:#b45309;">{sem_produto_count} card(s)</div>
                         </div>
                         """, unsafe_allow_html=True)
@@ -1390,7 +1390,7 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
                 # Todos os cards sem produto
                 st.markdown(f"""
                 <div style="background:#fefce8;border-left:4px solid #eab308;padding:12px 16px;border-radius:0 8px 8px 0;">
-                    <div style="font-weight:600;color:#854d0e;font-size:13px;">📦 Produtos não preenchidos</div>
+                    <div style="font-weight:600;color:#854d0e;font-size:13px;"> Produtos não preenchidos</div>
                     <div style="font-size:12px;color:#a16207;margin-top:4px;">
                         {len(df_validados)} cards validados sem o campo <b>Produto</b> preenchido no Jira.<br>
                         Preencha o campo "Produto" nos cards para visualizar o mapa de impacto.
@@ -1404,14 +1404,14 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
             col_ord, col_dir = st.columns([2, 1])
             with col_ord:
                 ordenar_por = st.selectbox(
-                    "🔃 Ordenar por",
+                    " Ordenar por",
                     options=['resolutiondate', 'sp', 'bugs', 'lead_time', 'prioridade'],
                     format_func=lambda x: {
-                        'resolutiondate': '📅 Data de Conclusão',
-                        'sp': '🎯 Story Points',
-                        'bugs': '🐛 Bugs',
-                        'lead_time': '⏱️ Lead Time',
-                        'prioridade': '📊 Prioridade'
+                        'resolutiondate': ' Data de Conclusão',
+                        'sp': ' Story Points',
+                        'bugs': ' Bugs',
+                        'lead_time': ' Lead Time',
+                        'prioridade': ' Prioridade'
                     }.get(x, x),
                     key="ordenar_cards_release",
                     label_visibility="collapsed"
@@ -1464,43 +1464,43 @@ def _renderizar_cards_validados_por_release(df: pd.DataFrame):
                     # Cores
                     projeto_cores = {'PB': '#8b5cf6', 'QA': '#22c55e', 'VALPROD': '#f59e0b', 'SD': '#3b82f6'}
                     tipo_cores = {'HOTFIX': '#ef4444', 'BUG': '#f97316', 'SUGESTÃO': '#8b5cf6', 'TAREFA': '#3b82f6', 'MELHORIA': '#22c55e'}
-                    prio_map = {'Highest': ('🔴', '#dc2626'), 'High': ('🟠', '#ea580c'), 'Medium': ('🟡', '#ca8a04'), 'Low': ('🟢', '#16a34a'), 'Lowest': ('⚪', '#6b7280')}
+                    prio_map = {'Highest': ('', '#dc2626'), 'High': ('', '#ea580c'), 'Medium': ('', '#ca8a04'), 'Low': ('', '#16a34a'), 'Lowest': ('', '#6b7280')}
                     
                     p_cor = projeto_cores.get(projeto, '#6b7280')
                     t_cor = tipo_cores.get(tipo, '#3b82f6')
-                    prio_icon, prio_cor = prio_map.get(prioridade, ('⚪', '#6b7280'))
+                    prio_icon, prio_cor = prio_map.get(prioridade, ('', '#6b7280'))
                     
                     link_jira = f'{jira_base}/{ticket_id}'
                     link_nina = f'?card={ticket_id}&projeto={projeto}'
                     
                     # Badges HTML
-                    bugs_badge = f'<span style="background:#fef2f2;color:#dc2626;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">🐛 {bugs}</span>' if bugs > 0 else ''
+                    bugs_badge = f'<span style="background:#fef2f2;color:#dc2626;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;"> {bugs}</span>' if bugs > 0 else ''
                     
                     # Card HTML - Layout reorganizado
                     html = f'''<div style="padding:10px 12px;margin:6px 0;border-radius:8px;border-left:4px solid {p_cor};background:#f8fafc;">
 <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px;">
 <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-<span class="card-link-wrapper"><a href="{link_jira}" target="_blank" class="card-link-id" style="color:{p_cor};font-weight:700;font-size:13px;">{ticket_id}</a><a href="{link_nina}" class="card-action-btn card-action-nina">📊</a></span>
+<span class="card-link-wrapper"><a href="{link_jira}" target="_blank" class="card-link-id" style="color:{p_cor};font-weight:700;font-size:13px;">{ticket_id}</a><a href="{link_nina}" class="card-action-btn card-action-nina"></a></span>
 <span style="background:{p_cor}15;color:{p_cor};padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">{projeto}</span>
 <span style="background:{t_cor}15;color:{t_cor};padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">{tipo}</span>
 <span style="color:{prio_cor};font-size:11px;">{prio_icon} {prioridade}</span>
 {bugs_badge}
 </div>
-<span style="background:#e0e7ff;color:#4338ca;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:500;white-space:nowrap;">📦 {sprint_display}</span>
+<span style="background:#e0e7ff;color:#4338ca;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:500;white-space:nowrap;"> {sprint_display}</span>
 </div>
 <div style="font-size:12px;color:#1e293b;line-height:1.3;font-weight:500;margin-bottom:4px;">{titulo_curto}</div>
 <div style="display:flex;align-items:center;gap:8px;font-size:10px;color:#64748b;flex-wrap:wrap;">
 <span style="background:#f5f3ff;color:#7c3aed;padding:2px 5px;border-radius:3px;">{sp} SP</span>
-<span>⏱️{lead_time:.0f}d</span>
+<span>{lead_time:.0f}d</span>
 <span style="color:#e2e8f0;">|</span>
-<span>👨‍💻 {dev}</span>
-<span>🔬 {qa}</span>
-<span>📝 {relator}</span>
+<span> {dev}</span>
+<span> {qa}</span>
+<span> {relator}</span>
 </div>
 </div>'''
                     st.markdown(html, unsafe_allow_html=True)
             
             if len(df_validados) > 50:
-                st.caption(f"📋 Mostrando 50 de {len(df_validados)} cards")
+                st.caption(f" Mostrando 50 de {len(df_validados)} cards")
         else:
             st.info("ℹ️ Nenhum card validado encontrado com os filtros selecionados.")

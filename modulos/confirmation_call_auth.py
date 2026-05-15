@@ -22,6 +22,8 @@ try:
 except ImportError:
     NINA_LOGO_SVG = ''
 
+from modulos.icons import lucide_icon
+
 # ==============================================================================
 # CONFIGURAÇÃO
 # ==============================================================================
@@ -665,8 +667,8 @@ def renderizar_usuario_sidebar(colaborador_data: dict = None, is_mapeado: bool =
     roles_texto = " • ".join(roles) if roles else "Viewer"
     
     # Ícone baseado no primeiro role
-    icone = "👑" if "Super Admin" in roles else "👤"
-    
+    icone_svg = lucide_icon("trophy", 11, cor_principal) if "Super Admin" in roles else lucide_icon("user", 11, "#6b7280")
+
     # Card do usuário com múltiplos papéis e animações
     st.markdown(f"""
     <div class="user-card-animated hover-glow" style="
@@ -679,12 +681,12 @@ def renderizar_usuario_sidebar(colaborador_data: dict = None, is_mapeado: bool =
     ">
         <div style="display: flex; align-items: center; gap: 10px;">
             <div class="avatar-animated" style="
-                width: 36px; 
-                height: 36px; 
+                width: 36px;
+                height: 36px;
                 background: linear-gradient(135deg, {cor_principal} 0%, {cor_principal}cc 100%);
-                border-radius: 50%; 
-                display: flex; 
-                align-items: center; 
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
                 justify-content: center;
                 color: white;
                 font-weight: 600;
@@ -692,11 +694,11 @@ def renderizar_usuario_sidebar(colaborador_data: dict = None, is_mapeado: bool =
                 flex-shrink: 0;
             ">{nome[0].upper()}</div>
             <div style="flex: 1; min-width: 0;">
-                <div style="font-size: 13px; color: #1f2937; font-weight: 600; line-height: 1.3; 
+                <div style="font-size: 13px; color: #1f2937; font-weight: 600; line-height: 1.3;
                             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{nome}</div>
                 <div style="font-size: 10px; color: #6b7280; margin-top: 2px; line-height: 1.3;
-                            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    {icone} {roles_texto}
+                            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display:flex; align-items:center; gap:3px;">
+                    {icone_svg} {roles_texto}
                 </div>
             </div>
         </div>
@@ -717,7 +719,7 @@ def renderizar_botao_sair():
     if not esta_autenticado():
         return
     
-    if st.button("🚪 Sair", use_container_width=True, key="btn_logout_footer", type="secondary"):
+    if st.button("Sair", use_container_width=True, key="btn_logout_footer", type="secondary"):
         fazer_logout()
         st.rerun()
 
