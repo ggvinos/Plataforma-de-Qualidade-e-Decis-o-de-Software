@@ -333,7 +333,7 @@ def autenticar_usuario(usuario: str, senha: str, lembrar: bool = True) -> Tuple[
         (sucesso: bool, mensagem: str, ambiente: str)
     """
     if not usuario or not senha:
-        return False, "❌ Preencha usuário e senha", ""
+        return False, "Preencha usuário e senha", ""
     
     # Conta erros por tipo
     credenciais_invalidas = 0
@@ -366,7 +366,7 @@ def autenticar_usuario(usuario: str, senha: str, lembrar: bool = True) -> Tuple[
                 # Também coloca na URL
                 _definir_session_id_url(session_id)
             
-            return True, f"✅ Bem-vindo!", ambiente
+            return True, "Bem-vindo!", ambiente
         
         # Conta tipo de erro
         if msg == "CREDENCIAIS_INVALIDAS":
@@ -378,13 +378,13 @@ def autenticar_usuario(usuario: str, senha: str, lembrar: bool = True) -> Tuple[
     
     # Análise dos erros
     if credenciais_invalidas == len(ORDEM_AMBIENTES):
-        return False, "❌ Usuário ou senha incorretos", ""
-    
+        return False, "Usuário ou senha incorretos", ""
+
     if sem_conexao == len(ORDEM_AMBIENTES):
-        return False, "❌ Sem conexão com o servidor. Verifique sua internet.", ""
-    
+        return False, "Sem conexão com o servidor. Verifique sua internet.", ""
+
     # Erro misto
-    return False, f"❌ Não foi possível autenticar. Tente novamente.", ""
+    return False, "Não foi possível autenticar. Tente novamente.", ""
 
 
 # ==============================================================================
@@ -492,7 +492,7 @@ def tela_login():
         
         # Container fixo para mensagens
         msg_container = st.empty()
-        msg_container.info("🔑 Use suas credenciais do **ConfirmationCall** para acessar")
+        msg_container.info("Use suas credenciais do **ConfirmationCall** para acessar")
         
         # Form simplificado - sem seleção de ambiente
         with st.form("login_form", clear_on_submit=False):
@@ -507,13 +507,13 @@ def tela_login():
             if not usuario or not senha:
                 msg_container.error("Preencha todos os campos!")
             else:
-                msg_container.info("🔄 Conectando...")
+                msg_container.info("Conectando...")
                 
                 # Tenta autenticar automaticamente em todos os ambientes
                 sucesso, mensagem, ambiente = autenticar_usuario(usuario, senha, lembrar=lembrar)
                 
                 if sucesso:
-                    msg_container.success("✅ Bem-vindo! Redirecionando...")
+                    msg_container.success("Bem-vindo! Redirecionando...")
                     time.sleep(0.5)
                     st.rerun()
                 else:
